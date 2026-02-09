@@ -191,16 +191,6 @@
       "timestamp": 1770608608763
     },
     {
-      "text": "Worked on: log idle (3m)",
-      "projectName": "anything",
-      "type": "work",
-      "startTime": 1770634627060,
-      "endTime": 1770634821894,
-      "itemId": 96,
-      "id": 46,
-      "timestamp": 1770634627060
-    },
-    {
       "text": "Worked on: anything (7m)",
       "projectName": null,
       "type": "work",
@@ -356,12 +346,283 @@
       "timestamp": 1770642133440
     },
     {
-      "text": "kjhjkhkh",
+      "text": "Worked on: done goals, time goals (1h 28m)",
       "projectName": "anything",
-      "type": "log",
-      "id": 66,
-      "timestamp": 1770642246824
+      "type": "work",
+      "startTime": 1770642119719,
+      "endTime": 1770647427652,
+      "itemId": 26,
+      "id": 68,
+      "timestamp": 1770642119719
+    },
+    {
+      "text": "Done: done goals, time goals",
+      "projectName": "anything",
+      "type": "completion",
+      "id": 69,
+      "timestamp": 1770647502170
+    },
+    {
+      "text": "Worked on: anything (0m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1770648565484,
+      "endTime": 1770648570767,
+      "itemId": 9,
+      "id": 70,
+      "timestamp": 1770648565484
+    },
+    {
+      "text": "Worked on: scroll to selected in projects (4m)",
+      "projectName": "anything",
+      "type": "work",
+      "startTime": 1770648600376,
+      "endTime": 1770648883433,
+      "itemId": 121,
+      "id": 71,
+      "timestamp": 1770648600376
+    },
+    {
+      "text": "Done: scroll to selected in projects",
+      "projectName": "anything",
+      "type": "completion",
+      "id": 72,
+      "timestamp": 1770648884831
+    },
+    {
+      "text": "Worked on: starting a new item while one is in progress (3m)",
+      "projectName": "anything",
+      "type": "work",
+      "startTime": 1770649032325,
+      "endTime": 1770649231936,
+      "itemId": 143,
+      "id": 73,
+      "timestamp": 1770649032325
+    },
+    {
+      "text": "Worked on: edit past logs and entries (0m)",
+      "projectName": "anything",
+      "type": "work",
+      "startTime": 1770649231960,
+      "endTime": 1770649242635,
+      "itemId": 129,
+      "id": 74,
+      "timestamp": 1770649231960
+    },
+    {
+      "text": "Done: starting a new item while one is in progress",
+      "projectName": "anything",
+      "type": "completion",
+      "id": 75,
+      "timestamp": 1770649248437
+    },
+    {
+      "text": "Break (3m)",
+      "type": "break",
+      "startTime": 1770649534392,
+      "endTime": 1770649771767,
+      "id": 76,
+      "timestamp": 1770649534392
+    },
+    {
+      "text": "Done: should we filter projects to context?",
+      "projectName": "anything",
+      "type": "completion",
+      "id": 77,
+      "timestamp": 1770650401975
+    },
+    {
+      "text": "Worked on: should we filter projects to context? (10m)",
+      "projectName": "anything",
+      "type": "work",
+      "startTime": 1770649783437,
+      "endTime": 1770650417635,
+      "itemId": 147,
+      "id": 78,
+      "timestamp": 1770649783437
+    },
+    {
+      "text": "Worked on: anything (1m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1770650546890,
+      "endTime": 1770650640365,
+      "itemId": 9,
+      "id": 79,
+      "timestamp": 1770650546890
+    },
+    {
+      "text": "Worked on: missed (locked in past time contexts) (3m)",
+      "projectName": "anything",
+      "type": "work",
+      "startTime": 1770650640387,
+      "endTime": 1770650872135,
+      "itemId": 148,
+      "id": 80,
+      "timestamp": 1770650640387
+    },
+    {
+      "text": "Worked on: multiselect (10m)",
+      "projectName": "anything",
+      "type": "work",
+      "startTime": 1770650899735,
+      "endTime": 1770651499735,
+      "itemId": 107,
+      "id": 81,
+      "timestamp": 1770650899735
+    },
+    {
+      "text": "Worked on: א. ערב (21m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1770651499735,
+      "endTime": 1770652800000,
+      "itemId": 157,
+      "id": 82,
+      "timestamp": 1770651499735
+    },
+    {
+      "text": "Done: maybe - show/don't show unscheduled",
+      "projectName": "anything",
+      "type": "completion",
+      "id": 83,
+      "timestamp": 1770654100482
+    },
+    {
+      "text": "Done: multiselect",
+      "projectName": "anything",
+      "type": "completion",
+      "id": 84,
+      "timestamp": 1770654243566
+    },
+    {
+      "text": "Done: edit past logs and entries",
+      "projectName": "anything",
+      "type": "completion",
+      "id": 85,
+      "timestamp": 1770654293099
+    },
+    {
+      "text": "Done: durations?",
+      "projectName": "anything",
+      "type": "completion",
+      "id": 86,
+      "timestamp": 1770654333017
+    },
+    {
+      "text": "Worked on: anything (30m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1770652800000,
+      "endTime": 1770654602909,
+      "itemId": 9,
+      "id": 87,
+      "timestamp": 1770652800000
+    },
+    {
+      "text": "Done: maybe - show/don't show unscheduled",
+      "projectName": "anything",
+      "type": "completion",
+      "id": 88,
+      "timestamp": 1770654813836
+    },
+    {
+      "text": "Worked on: anything (12m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1770654616777,
+      "endTime": 1770655377855,
+      "itemId": 9,
+      "id": 89,
+      "timestamp": 1770654616777
+    },
+    {
+      "text": "Done: missed (locked in past time contexts)",
+      "projectName": "anything",
+      "type": "completion",
+      "id": 90,
+      "timestamp": 1770655397871
+    },
+    {
+      "text": "Break (3m)",
+      "type": "break",
+      "startTime": 1770655400942,
+      "endTime": 1770655637901,
+      "id": 91,
+      "timestamp": 1770655400942
+    },
+    {
+      "text": "Worked on: clarify timers and stopwatches difference - maybe even on a bigger scale (0m)",
+      "projectName": "anything",
+      "type": "work",
+      "startTime": 1770655637901,
+      "endTime": 1770655637916,
+      "itemId": 125,
+      "id": 92,
+      "timestamp": 1770655637901
+    },
+    {
+      "text": "Worked on: clarify timers and stopwatches difference - maybe even on a bigger scale (2m)",
+      "projectName": "anything",
+      "type": "work",
+      "startTime": 1770655637916,
+      "endTime": 1770655765467,
+      "itemId": 125,
+      "id": 93,
+      "timestamp": 1770655637916
+    },
+    {
+      "text": "Worked on: clarify timers and stopwatches difference - maybe even on a bigger scale (0m)",
+      "projectName": "anything",
+      "type": "work",
+      "startTime": 1770656949771,
+      "endTime": 1770656954412,
+      "itemId": 125,
+      "id": 103,
+      "timestamp": 1770656949771
+    },
+    {
+      "text": "Worked on: clarify timers and stopwatches difference - maybe even on a bigger scale (27m)",
+      "projectName": "anything",
+      "type": "work",
+      "startTime": 1770657044925,
+      "endTime": 1770658711221,
+      "itemId": 125,
+      "id": 108,
+      "timestamp": 1770657044925
+    },
+    {
+      "text": "Worked on: clarify timers and stopwatches difference - maybe even on a bigger scale (6m)",
+      "projectName": "anything",
+      "type": "work",
+      "startTime": 1770659528935,
+      "endTime": 1770659895115,
+      "itemId": 125,
+      "id": 109,
+      "timestamp": 1770659528935
+    },
+    {
+      "text": "Worked on: clarify timers and stopwatches difference - maybe even on a bigger scale (13m)",
+      "projectName": "anything",
+      "type": "work",
+      "startTime": 1770660185956,
+      "endTime": 1770661016734,
+      "targetEndTime": 1770661695132,
+      "itemId": 125,
+      "id": 112,
+      "timestamp": 1770660185956
+    },
+    {
+      "text": "Worked on: clarify timers and stopwatches difference - maybe even on a bigger scale (0m)",
+      "projectName": "anything",
+      "type": "work",
+      "startTime": 1770661019359,
+      "endTime": 1770661024567,
+      "targetEndTime": 1770661919359,
+      "itemId": 125,
+      "id": 113,
+      "timestamp": 1770661019359
     }
   ],
-  "nextId": 67
+  "nextId": 114
 }

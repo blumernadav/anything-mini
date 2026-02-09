@@ -170,6 +170,22 @@ app.post('/api/timeline', (req, res) => {
     res.status(201).json(entry);
 });
 
+app.patch('/api/timeline/:id', (req, res) => {
+    const id = parseInt(req.params.id, 10);
+    const updates = req.body;
+    const data = timelineStore.read();
+    const entry = data.entries.find(e => e.id === id);
+    if (!entry) return res.status(404).json({ error: 'Timeline entry not found' });
+
+    Object.assign(entry, updates);
+    // Keep timestamp in sync with startTime if startTime was updated
+    if (updates.startTime !== undefined) {
+        entry.timestamp = updates.startTime;
+    }
+    timelineStore.write(data);
+    res.json(entry);
+});
+
 app.delete('/api/timeline/:id', (req, res) => {
     const id = parseInt(req.params.id, 10);
     const data = timelineStore.read();

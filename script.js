@@ -15,9 +15,12 @@ const state = {
     timelineViewDate: new Date(), // which day is displayed in timeline
     hidePastEntries: false, // toggle to hide past entries in today's timeline
     showDone: false, // when true, done items are visible in actions and project tree
+    showUnscheduled: true, // when true, anytime (unscheduled) items appear alongside scheduled ones
     projectSearchQuery: '', // current search term for the project tree
     workingOn: null, // { itemId, itemName, projectName, startTime } — active work timer
     onBreak: null, // { startTime } — active break timer
+    selectedActionIds: new Set(), // multiselect for actions
+    selectionAnchor: null, // last manually toggled action ID (for shift-click range)
     settings: {
         dayStartHour: 8,
         dayStartMinute: 0,
@@ -94,6 +97,8 @@ async function loadAll() {
     // Restore working-on state from localStorage
     restoreWorkingOn();
     restoreBreak();
+    // Auto-clean past schedules (fire-and-forget, don't block render)
+    cleanPastSchedules();
     renderAll();
     syncSettingsUI();
     // Render streak widget with loaded settings
@@ -230,6 +235,75 @@ function getAncestorPath(targetId, items = state.items.items, path = []) {
     return null;
 }
 
+// ─── Goal Utilities ───
+
+// Collect all descendant leaves from an item (for done-goal progress)
+function collectDescendantLeaves(item) {
+    if (isLeaf(item)) return [item];
+    const leaves = [];
+    if (item.children) {
+        for (const child of item.children) {
+            leaves.push(...collectDescendantLeaves(child));
+        }
+    }
+    return leaves;
+}
+
+// Calculate progress for a Done goal
+function calculateDoneProgress(item) {
+    const leaves = collectDescendantLeaves(item);
+    const total = leaves.length;
+    const done = leaves.filter(l => l.done).length;
+    const percent = total > 0 ? Math.round((done / total) * 100) : 0;
+    return { type: 'done', done, total, percent, label: `${done}/${total}` };
+}
+
+// Calculate progress for a Time goal
+function calculateTimeProgress(item) {
+    const target = item.goal.target || 0; // target in seconds
+    const descendantIds = collectDescendantIds(item);
+    // Sum all work entries for this item or its descendants
+    let trackedMs = 0;
+    for (const entry of state.timeline.entries) {
+        if (entry.type === 'work' && entry.itemId && descendantIds.includes(entry.itemId)) {
+            trackedMs += (entry.endTime || entry.timestamp) - entry.timestamp;
+        }
+    }
+    const trackedSec = Math.floor(trackedMs / 1000);
+    const percent = target > 0 ? Math.min(100, Math.round((trackedSec / target) * 100)) : 0;
+    // Format label
+    const formatTime = (s) => {
+        if (s >= 3600) return `${(s / 3600).toFixed(1)}h`;
+        if (s >= 60) return `${Math.floor(s / 60)}m`;
+        return `${s}s`;
+    };
+    return { type: 'time', tracked: trackedSec, target, percent, label: `${formatTime(trackedSec)} / ${formatTime(target)}` };
+}
+
+// Get goal progress for an item (dispatcher)
+function getGoalProgress(item) {
+    if (!item || !item.goal) return null;
+    if (item.goal.type === 'done') return calculateDoneProgress(item);
+    if (item.goal.type === 'time') return calculateTimeProgress(item);
+    return null;
+}
+
+// Find the nearest ancestor (or self) with a goal, given an action's _path
+function findNearestGoal(action) {
+    if (!action._path) return null;
+    // Walk from leaf to root (reverse path) to find nearest goal
+    for (let i = action._path.length - 1; i >= 0; i--) {
+        const ancestor = findItemById(action._path[i].id);
+        if (ancestor && ancestor.goal) return ancestor;
+    }
+    return null;
+}
+
+// Check if an action has an active goal (itself or via ancestor)
+function hasActiveGoal(action) {
+    return findNearestGoal(action) !== null;
+}
+
 // ─── Time Context Utilities ───
 
 // Get effective time contexts for an item by merging its own contexts with all ancestors'
@@ -277,6 +351,20 @@ function itemMatchesTimeContext(action, dateKey) {
     return !anyAncestorHasContexts;
 }
 
+// Check if an item is truly "unscheduled" (anytime) — no timeContexts on itself or any ancestor
+function isItemUnscheduled(itemOrAction) {
+    const item = findItemById(itemOrAction.id);
+    const ownContexts = (item && item.timeContexts) || [];
+    if (ownContexts.length > 0) return false;
+    const ancestors = getAncestorPath(itemOrAction.id);
+    if (ancestors) {
+        for (const ancestor of ancestors) {
+            if (ancestor.timeContexts && ancestor.timeContexts.length > 0) return false;
+        }
+    }
+    return true;
+}
+
 // Toggle a date in an item's timeContexts
 async function toggleTimeContext(itemId, dateKey) {
     const item = findItemById(itemId);
@@ -301,6 +389,32 @@ async function addTimeContext(itemId, dateKey) {
         item.timeContexts.push(dateKey);
         await api.patch(`/items/${itemId}`, { timeContexts: item.timeContexts });
         renderAll();
+    }
+}
+
+// ─── Auto-clean past schedules ───
+// Silently remove any timeContexts entries before today.
+// Items that were scheduled for the past become "anytime" items again.
+async function cleanPastSchedules() {
+    const todayKey = getDateKey(getLogicalToday());
+    let dirty = false;
+
+    function walkItems(items) {
+        for (const item of items) {
+            if (item.timeContexts && item.timeContexts.length > 0) {
+                const before = item.timeContexts.length;
+                item.timeContexts = item.timeContexts.filter(tc => tc >= todayKey);
+                if (item.timeContexts.length !== before) dirty = true;
+            }
+            if (item.children && item.children.length > 0) {
+                walkItems(item.children);
+            }
+        }
+    }
+
+    walkItems(state.items.items);
+    if (dirty) {
+        await saveItems();
     }
 }
 
@@ -498,6 +612,17 @@ function showProjectContextMenu(e, item) {
     });
     menu.appendChild(projSchedOpt);
 
+    // Goal option
+    const goalOpt = document.createElement('div');
+    goalOpt.className = 'project-context-menu-item';
+    goalOpt.textContent = item.goal ? 'Edit Goal...' : 'Set Goal...';
+    goalOpt.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        dismissProjectContextMenu();
+        openGoalModal(item.id, item.name);
+    });
+    menu.appendChild(goalOpt);
+
     // Delete option
     const deleteOpt = document.createElement('div');
     deleteOpt.className = 'project-context-menu-item project-context-menu-item-danger';
@@ -538,54 +663,70 @@ function showActionContextMenu(e, action) {
     e.stopPropagation();
     dismissProjectContextMenu();
 
+    const selCount = state.selectedActionIds.size;
+    const isBulk = selCount > 1;
+    const bulkSuffix = isBulk ? ` (${selCount})` : '';
+
     const menu = document.createElement('div');
     menu.className = 'project-context-menu';
     menu.style.left = `${e.clientX}px`;
     menu.style.top = `${e.clientY}px`;
 
-    // Rename option
-    const renameOpt = document.createElement('div');
-    renameOpt.className = 'project-context-menu-item';
-    renameOpt.textContent = 'Rename';
-    renameOpt.addEventListener('click', (ev) => {
-        ev.stopPropagation();
-        dismissProjectContextMenu();
-        const actionEl = document.querySelector(`.action-item[data-id="${action.id}"] .action-name`);
-        if (actionEl) {
-            startActionInlineRename(actionEl, action);
-        }
-    });
-    menu.appendChild(renameOpt);
+    // ── Single-item only options ──
+    if (!isBulk) {
+        // Rename option
+        const renameOpt = document.createElement('div');
+        renameOpt.className = 'project-context-menu-item';
+        renameOpt.textContent = 'Rename';
+        renameOpt.addEventListener('click', (ev) => {
+            ev.stopPropagation();
+            dismissProjectContextMenu();
+            const actionEl = document.querySelector(`.action-item[data-id="${action.id}"] .action-name`);
+            if (actionEl) {
+                startActionInlineRename(actionEl, action);
+            }
+        });
+        menu.appendChild(renameOpt);
+    }
 
     // Done / Undo option
     const doneOpt = document.createElement('div');
     doneOpt.className = 'project-context-menu-item';
-    doneOpt.textContent = action.done ? 'Undo' : 'Done';
-    doneOpt.addEventListener('click', async (ev) => {
-        ev.stopPropagation();
-        dismissProjectContextMenu();
-        const newDone = !action.done;
-        await api.patch(`/items/${action.id}`, { done: newDone });
-        action.done = newDone;
-        const originalItem = findItemById(action.id);
-        if (originalItem) originalItem.done = newDone;
-        if (newDone) {
-            const ancestors = action._path
-                ? action._path.slice(0, -1).map(p => p.name).join(' › ')
-                : '';
-            await api.post('/timeline', {
-                text: `Done: ${action.name}`,
-                projectName: ancestors || null,
-                type: 'completion'
-            });
-            state.timeline = await api.get('/timeline');
-        }
-        renderAll();
-    });
+    if (isBulk) {
+        doneOpt.textContent = `Done${bulkSuffix}`;
+        doneOpt.addEventListener('click', async (ev) => {
+            ev.stopPropagation();
+            dismissProjectContextMenu();
+            await bulkMarkDone();
+        });
+    } else {
+        doneOpt.textContent = action.done ? 'Undo' : 'Done';
+        doneOpt.addEventListener('click', async (ev) => {
+            ev.stopPropagation();
+            dismissProjectContextMenu();
+            const newDone = !action.done;
+            await api.patch(`/items/${action.id}`, { done: newDone });
+            action.done = newDone;
+            const originalItem = findItemById(action.id);
+            if (originalItem) originalItem.done = newDone;
+            if (newDone) {
+                const ancestors = action._path
+                    ? action._path.slice(0, -1).map(p => p.name).join(' › ')
+                    : '';
+                await api.post('/timeline', {
+                    text: `Done: ${action.name}`,
+                    projectName: ancestors || null,
+                    type: 'completion'
+                });
+                state.timeline = await api.get('/timeline');
+            }
+            renderAll();
+        });
+    }
     menu.appendChild(doneOpt);
 
-    // Work option (only for non-done)
-    if (!action.done) {
+    // Work option (only for non-done, single item)
+    if (!isBulk && !action.done) {
         const isWorking = state.workingOn && state.workingOn.itemId === action.id;
         const workOpt = document.createElement('div');
         workOpt.className = 'project-context-menu-item';
@@ -604,14 +745,13 @@ function showActionContextMenu(e, action) {
         });
         menu.appendChild(workOpt);
 
-        // Followup option
+        // Followup option (single only)
         const followupOpt = document.createElement('div');
         followupOpt.className = 'project-context-menu-item';
         followupOpt.textContent = 'Followup';
         followupOpt.addEventListener('click', (ev) => {
             ev.stopPropagation();
             dismissProjectContextMenu();
-            // Simulate clicking the followup button on this action
             const actionEl = document.querySelector(`.action-item[data-id="${action.id}"]`);
             if (actionEl) {
                 const btn = actionEl.querySelector('.action-btn-followup');
@@ -619,45 +759,84 @@ function showActionContextMenu(e, action) {
             }
         });
         menu.appendChild(followupOpt);
+    }
 
-        // ── Time Context options ──
+    // ── Time Context / Schedule options ──
+    if (!action.done || isBulk) {
         const todayKey = getDateKey(state.timelineViewDate);
-        const actionItem = findItemById(action.id);
-        const hasToday = actionItem && actionItem.timeContexts && actionItem.timeContexts.includes(todayKey);
         const viewIsToday = isCurrentDay(state.timelineViewDate);
         const dateLabel = viewIsToday ? 'today' : state.timelineViewDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
-        const todayOpt = document.createElement('div');
-        todayOpt.className = 'project-context-menu-item';
-        todayOpt.textContent = hasToday ? `Remove from ${dateLabel}` : `Add to ${dateLabel}`;
-        todayOpt.addEventListener('click', async (ev) => {
-            ev.stopPropagation();
-            dismissProjectContextMenu();
-            await toggleTimeContext(action.id, todayKey);
-        });
-        menu.appendChild(todayOpt);
+        if (isBulk) {
+            // Bulk: Add all to today
+            const addTodayOpt = document.createElement('div');
+            addTodayOpt.className = 'project-context-menu-item';
+            addTodayOpt.textContent = `Add to ${dateLabel}${bulkSuffix}`;
+            addTodayOpt.addEventListener('click', async (ev) => {
+                ev.stopPropagation();
+                dismissProjectContextMenu();
+                for (const id of state.selectedActionIds) {
+                    await addTimeContext(parseInt(id, 10), todayKey);
+                }
+            });
+            menu.appendChild(addTodayOpt);
+        } else if (!action.done) {
+            const actionItem = findItemById(action.id);
+            const hasToday = actionItem && actionItem.timeContexts && actionItem.timeContexts.includes(todayKey);
+            const todayOpt = document.createElement('div');
+            todayOpt.className = 'project-context-menu-item';
+            todayOpt.textContent = hasToday ? `Remove from ${dateLabel}` : `Add to ${dateLabel}`;
+            todayOpt.addEventListener('click', async (ev) => {
+                ev.stopPropagation();
+                dismissProjectContextMenu();
+                await toggleTimeContext(action.id, todayKey);
+            });
+            menu.appendChild(todayOpt);
+        }
 
         // Schedule for specific date
         const schedOpt = document.createElement('div');
         schedOpt.className = 'project-context-menu-item';
-        schedOpt.textContent = 'Schedule for...';
+        schedOpt.textContent = `Schedule for...${bulkSuffix}`;
         schedOpt.addEventListener('click', (ev) => {
             ev.stopPropagation();
             dismissProjectContextMenu();
-            openScheduleModal(action.id, action.name);
+            if (isBulk) {
+                bulkSchedule();
+            } else {
+                openScheduleModal(action.id, action.name);
+            }
         });
         menu.appendChild(schedOpt);
+    }
+
+    // Goal option (single only)
+    if (!isBulk) {
+        const goalOpt = document.createElement('div');
+        goalOpt.className = 'project-context-menu-item';
+        const actionItemForGoal = findItemById(action.id);
+        goalOpt.textContent = (actionItemForGoal && actionItemForGoal.goal) ? 'Edit Goal...' : 'Set Goal...';
+        goalOpt.addEventListener('click', (ev) => {
+            ev.stopPropagation();
+            dismissProjectContextMenu();
+            openGoalModal(action.id, action.name);
+        });
+        menu.appendChild(goalOpt);
     }
 
     // Decline option (danger)
     const declineOpt = document.createElement('div');
     declineOpt.className = 'project-context-menu-item project-context-menu-item-danger';
-    declineOpt.textContent = 'Decline';
+    declineOpt.textContent = `Decline${bulkSuffix}`;
     declineOpt.addEventListener('click', async (ev) => {
         ev.stopPropagation();
         dismissProjectContextMenu();
-        await api.del(`/items/${action.id}`);
-        await reloadItems();
+        if (isBulk) {
+            await bulkDecline();
+        } else {
+            await api.del(`/items/${action.id}`);
+            await reloadItems();
+        }
     });
     menu.appendChild(declineOpt);
 
@@ -749,6 +928,33 @@ function collectSearchMatches(items, query, matchingIds) {
     return anyMatch;
 }
 
+// Collect items visible under the current time context.
+// An item is visible if it matches the time context (or is "anytime"),
+// OR if any descendant is visible (so branch structure stays navigable).
+function collectTimeContextMatches(items, dateKey, visibleIds) {
+    let anyVisible = false;
+    for (const item of items) {
+        const selfMatch = itemMatchesTimeContext(item, dateKey);
+        // When showUnscheduled is off, hide truly unscheduled items
+        const unscheduledHidden = !state.showUnscheduled && isItemUnscheduled(item);
+        // Done leaves hidden by the done filter should not propagate schedule visibility
+        const doneHidden = !state.showDone && isLeaf(item) && !item.isInbox && item.done;
+        let childVisible = false;
+        if (item.children && item.children.length > 0) {
+            childVisible = collectTimeContextMatches(item.children, dateKey, visibleIds);
+        }
+        if ((selfMatch && !unscheduledHidden && !doneHidden) || childVisible) {
+            visibleIds.add(item.id);
+            anyVisible = true;
+        }
+        // Inbox is always visible
+        if (item.isInbox) {
+            visibleIds.add(item.id);
+        }
+    }
+    return anyVisible;
+}
+
 // ─── Projects Rendering (full tree hierarchy) ───
 function renderProjects() {
     const container = document.getElementById('project-tree');
@@ -771,10 +977,21 @@ function renderProjects() {
         collectSearchMatches(state.items.items, query, matchingIds);
     }
 
+    // Build time-context visible set
+    const currentDateKey = getDateKey(state.timelineViewDate);
+    const timeContextVisibleIds = new Set();
+    collectTimeContextMatches(state.items.items, currentDateKey, timeContextVisibleIds);
+
+    // Deselect if the selected project is no longer visible
+    if (state.selectedItemId && !timeContextVisibleIds.has(state.selectedItemId)) {
+        state.selectedItemId = null;
+        localStorage.setItem('selectedItemId', '');
+    }
+
     const fragment = document.createDocumentFragment();
 
     // Render all root-level items (Inbox is always first via ensureInbox)
-    renderProjectLevel(state.items.items, fragment, 0, query, matchingIds);
+    renderProjectLevel(state.items.items, fragment, 0, query, matchingIds, timeContextVisibleIds);
 
     // Root drop zone — always visible to allow dragging items to root level
     if (!query) {
@@ -806,6 +1023,102 @@ function renderProjects() {
     if (clearBtn) {
         clearBtn.style.display = query ? '' : 'none';
     }
+
+    // Update scroll-to-selected banner after DOM settles
+    requestAnimationFrame(() => updateScrollToSelectedBanner());
+}
+
+// ─── Scroll-to-Selected Banner ───
+let _scrollBannerDebounce = null;
+
+function updateScrollToSelectedBanner() {
+    const banner = document.getElementById('scroll-to-selected-banner');
+    if (!banner) return;
+
+    const arrowEl = document.getElementById('scroll-to-selected-arrow');
+    const textEl = document.getElementById('scroll-to-selected-text');
+    const container = document.getElementById('project-tree');
+
+    // No selection → hide
+    if (!state.selectedItemId) {
+        banner.style.display = 'none';
+        return;
+    }
+
+    const selectedName = findItemName(state.selectedItemId);
+    if (!selectedName) {
+        banner.style.display = 'none';
+        return;
+    }
+
+    // Check if the selected item's row is in the DOM
+    const selectedRow = container.querySelector(`.project-item.selected`);
+
+    if (!selectedRow) {
+        // Case B: item is not in the DOM (collapsed ancestor)
+        banner.style.display = '';
+        banner.className = 'scroll-to-selected-banner scroll-to-selected-collapsed';
+        arrowEl.textContent = '⋯';
+        textEl.textContent = selectedName;
+        return;
+    }
+
+    // Case A: item is in the DOM — check if it's visible in the scroll container
+    const containerRect = container.getBoundingClientRect();
+    const rowRect = selectedRow.getBoundingClientRect();
+
+    const isAbove = rowRect.bottom < containerRect.top;
+    const isBelow = rowRect.top > containerRect.bottom;
+
+    if (!isAbove && !isBelow) {
+        // Visible — hide the banner
+        banner.style.display = 'none';
+        return;
+    }
+
+    banner.style.display = '';
+    if (isAbove) {
+        banner.className = 'scroll-to-selected-banner scroll-to-selected-above';
+        arrowEl.textContent = '↑';
+    } else {
+        banner.className = 'scroll-to-selected-banner scroll-to-selected-below';
+        arrowEl.textContent = '↓';
+    }
+    textEl.textContent = selectedName;
+}
+
+function scrollToSelectedItem() {
+    if (!state.selectedItemId) return;
+
+    const container = document.getElementById('project-tree');
+    let selectedRow = container.querySelector(`.project-item.selected`);
+
+    if (!selectedRow) {
+        // Item not in the DOM — expand all ancestors
+        const ancestors = getAncestorPath(state.selectedItemId);
+        if (ancestors) {
+            let changed = false;
+            for (const ancestor of ancestors) {
+                if (!ancestor.expanded) {
+                    ancestor.expanded = true;
+                    changed = true;
+                }
+            }
+            if (changed) {
+                saveItems();
+                renderProjects();
+            }
+        }
+        // Try to find it again after re-render
+        selectedRow = container.querySelector(`.project-item.selected`);
+    }
+
+    if (selectedRow) {
+        selectedRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        // Brief highlight flash
+        selectedRow.classList.add('scroll-to-selected-flash');
+        setTimeout(() => selectedRow.classList.remove('scroll-to-selected-flash'), 800);
+    }
 }
 
 function clearDropIndicators() {
@@ -825,7 +1138,7 @@ function handleDrop() {
     clearDropIndicators();
 }
 
-function renderProjectLevel(items, parent, depth, query = '', matchingIds = new Set()) {
+function renderProjectLevel(items, parent, depth, query = '', matchingIds = new Set(), timeContextVisibleIds = new Set()) {
     const isSearching = !!query;
     for (let idx = 0; idx < items.length; idx++) {
         const item = items[idx];
@@ -837,6 +1150,9 @@ function renderProjectLevel(items, parent, depth, query = '', matchingIds = new 
 
         // Skip items that don't match search (and have no matching descendants)
         if (isSearching && !matchingIds.has(item.id)) continue;
+
+        // Skip items that don't match the current time context
+        if (!isInbox && !timeContextVisibleIds.has(item.id)) continue;
 
         // ─── Insert marker BEFORE this item (skip before Inbox, skip during search) ───
         if (!isInbox && !isSearching) {
@@ -968,6 +1284,18 @@ function renderProjectLevel(items, parent, depth, query = '', matchingIds = new 
         }
         row.appendChild(name);
 
+        // Goal badge on project items
+        if (item.goal) {
+            const progress = getGoalProgress(item);
+            if (progress) {
+                const gBadge = document.createElement('span');
+                gBadge.className = `project-goal-badge project-goal-badge-${progress.type}`;
+                gBadge.textContent = progress.label;
+                if (progress.percent >= 100) gBadge.classList.add('project-goal-complete');
+                row.appendChild(gBadge);
+            }
+        }
+
         // Double-click to rename (not on Inbox)
         if (!isInbox) {
             name.addEventListener('dblclick', (e) => {
@@ -1047,7 +1375,7 @@ function renderProjectLevel(items, parent, depth, query = '', matchingIds = new 
         if (shouldShowChildren) {
             const childContainer = document.createElement('div');
             childContainer.className = 'project-children';
-            renderProjectLevel(item.children, childContainer, depth + 1, query, matchingIds);
+            renderProjectLevel(item.children, childContainer, depth + 1, query, matchingIds, timeContextVisibleIds);
             node.appendChild(childContainer);
         }
 
@@ -1234,29 +1562,46 @@ function renderActions() {
     const container = document.getElementById('actions-list');
     const empty = document.getElementById('actions-empty');
 
-    // Remove existing items but not the empty state
+    // Remove existing items but not the empty state and bulk bar
     container.querySelectorAll('.action-item').forEach(el => el.remove());
 
     const filteredActions = getFilteredActions();
 
     if (filteredActions.length === 0) {
         empty.style.display = '';
+        // Prune selection — nothing visible
+        state.selectedActionIds.clear();
+        state.selectionAnchor = null;
+        updateBulkActionBar();
         return;
     }
     empty.style.display = 'none';
 
-    // Sort: undone first, then preserve tree-traversal order (from collectLeaves)
+    // Sort: 3-tier — undone+goal first, undone second, done last. Tree order within each tier.
     const indexed = filteredActions.map((a, i) => ({ ...a, _treeIdx: i }));
     const sorted = indexed.sort((a, b) => {
         if (a.done !== b.done) return a.done ? 1 : -1;
+        const aHasGoal = hasActiveGoal(a);
+        const bHasGoal = hasActiveGoal(b);
+        if (aHasGoal !== bHasGoal) return aHasGoal ? -1 : 1;
         return a._treeIdx - b._treeIdx;
     });
+
+    // Store visible sorted IDs for shift-click range selection
+    state._visibleActionIds = sorted.map(a => String(a.id));
+
+    // Prune stale selections (items no longer visible)
+    const visibleSet = new Set(state._visibleActionIds);
+    for (const id of state.selectedActionIds) {
+        if (!visibleSet.has(id)) state.selectedActionIds.delete(id);
+    }
 
     const fragment = document.createDocumentFragment();
     for (const action of sorted) {
         fragment.appendChild(createActionElement(action));
     }
     container.appendChild(fragment);
+    updateBulkActionBar();
 }
 
 function getFilteredActions() {
@@ -1270,6 +1615,11 @@ function getFilteredActions() {
     // ── Time context filter: show items matching the current timeline date ──
     const currentDateKey = getDateKey(state.timelineViewDate);
     allLeaves = allLeaves.filter(a => itemMatchesTimeContext(a, currentDateKey));
+
+    // ── Hide unscheduled (anytime) items when toggle is off ──
+    if (!state.showUnscheduled) {
+        allLeaves = allLeaves.filter(a => !isItemUnscheduled(a));
+    }
 
     if (!state.selectedItemId) return allLeaves;
 
@@ -1286,10 +1636,192 @@ function getFilteredActions() {
     return allLeaves.filter(leaf => descendantIds.includes(leaf.id));
 }
 
+// ─── Multiselect Helpers ───
+
+// Light refresh: update .selected classes + bulk bar without a full re-render
+function refreshActionSelectionUI() {
+    document.querySelectorAll('.action-item').forEach(el => {
+        const id = String(el.dataset.id);
+        el.classList.toggle('selected', state.selectedActionIds.has(id));
+    });
+    updateBulkActionBar();
+}
+
+function clearActionSelection() {
+    state.selectedActionIds.clear();
+    state.selectionAnchor = null;
+    refreshActionSelectionUI();
+}
+
+// ── Bulk Action Bar ──
+function updateBulkActionBar() {
+    const container = document.getElementById('actions-list');
+    if (!container) return;
+
+    let bar = document.getElementById('bulk-action-bar');
+    const count = state.selectedActionIds.size;
+
+    if (count <= 1) {
+        if (bar) bar.style.display = 'none';
+        return;
+    }
+
+    if (!bar) {
+        bar = document.createElement('div');
+        bar.id = 'bulk-action-bar';
+        bar.className = 'bulk-action-bar';
+        container.parentElement.appendChild(bar);
+    }
+
+    bar.innerHTML = '';
+    bar.style.display = '';
+
+    // Selection count
+    const label = document.createElement('span');
+    label.className = 'bulk-bar-label';
+    label.textContent = `${count} selected`;
+    bar.appendChild(label);
+
+    // Spacer
+    const spacer = document.createElement('div');
+    spacer.style.flex = '1';
+    bar.appendChild(spacer);
+
+    // Done button
+    const doneBtn = document.createElement('button');
+    doneBtn.className = 'bulk-bar-btn bulk-bar-btn-done';
+    doneBtn.textContent = '✓ Done';
+    doneBtn.title = `Mark ${count} item(s) as done`;
+    doneBtn.addEventListener('click', bulkMarkDone);
+    bar.appendChild(doneBtn);
+
+    // Schedule button
+    const schedBtn = document.createElement('button');
+    schedBtn.className = 'bulk-bar-btn bulk-bar-btn-schedule';
+    schedBtn.textContent = '📅 Schedule';
+    schedBtn.title = `Schedule ${count} item(s)`;
+    schedBtn.addEventListener('click', bulkSchedule);
+    bar.appendChild(schedBtn);
+
+    // Decline button
+    const declineBtn = document.createElement('button');
+    declineBtn.className = 'bulk-bar-btn bulk-bar-btn-decline';
+    declineBtn.textContent = '✕ Decline';
+    declineBtn.title = `Decline ${count} item(s)`;
+    declineBtn.addEventListener('click', bulkDecline);
+    bar.appendChild(declineBtn);
+
+    // Clear button
+    const clearBtn = document.createElement('button');
+    clearBtn.className = 'bulk-bar-btn bulk-bar-btn-clear';
+    clearBtn.textContent = 'Clear';
+    clearBtn.title = 'Deselect all';
+    clearBtn.addEventListener('click', clearActionSelection);
+    bar.appendChild(clearBtn);
+}
+
+// ── Bulk Operations ──
+
+async function bulkMarkDone() {
+    const ids = [...state.selectedActionIds];
+    if (ids.length === 0) return;
+
+    for (const id of ids) {
+        const numId = parseInt(id, 10);
+        await api.patch(`/items/${numId}`, { done: true });
+        const item = findItemById(numId);
+        if (item) item.done = true;
+    }
+    // Log a single combined completion entry
+    const names = ids.map(id => findItemName(parseInt(id, 10)) || id);
+    await api.post('/timeline', {
+        text: `Done ${ids.length} items: ${names.join(', ')}`,
+        projectName: null,
+        type: 'completion'
+    });
+    state.timeline = await api.get('/timeline');
+    clearActionSelection();
+    renderAll();
+}
+
+function bulkSchedule() {
+    const ids = [...state.selectedActionIds].map(id => parseInt(id, 10));
+    if (ids.length === 0) return;
+    openScheduleModal(ids, `${ids.length} items`);
+}
+
+async function bulkDecline() {
+    const ids = [...state.selectedActionIds];
+    if (ids.length === 0) return;
+    if (!confirm(`Decline ${ids.length} action(s)? This cannot be undone.`)) return;
+
+    for (const id of ids) {
+        await api.del(`/items/${parseInt(id, 10)}`);
+    }
+    clearActionSelection();
+    await reloadItems();
+}
+
+// ── Ambient deselection: clicking empty space in actions list clears selection ──
+document.addEventListener('DOMContentLoaded', () => {
+    const actionsList = document.getElementById('actions-list');
+    if (actionsList) {
+        actionsList.addEventListener('click', (e) => {
+            // Only if clicking directly on the container (empty space), not a child
+            if (e.target === actionsList || e.target.classList.contains('empty-state')) {
+                clearActionSelection();
+            }
+        });
+    }
+});
+
 function createActionElement(action) {
     const item = document.createElement('div');
-    item.className = 'action-item' + (action.done ? ' done' : '');
+    const actionIdStr = String(action.id);
+    item.className = 'action-item' + (action.done ? ' done' : '') + (state.selectedActionIds.has(actionIdStr) ? ' selected' : '');
     item.dataset.id = action.id;
+
+    // ── Multiselect click handler ──
+    item.addEventListener('click', (e) => {
+        // Don't trigger selection from buttons / inputs / interactive zones
+        if (e.target.closest('button, input, .action-btn, .action-name')) return;
+        e.preventDefault();
+
+        const id = actionIdStr;
+        if (e.shiftKey && state.selectionAnchor !== null) {
+            // Range select
+            const ids = state._visibleActionIds || [];
+            const anchorIdx = ids.indexOf(state.selectionAnchor);
+            const clickIdx = ids.indexOf(id);
+            if (anchorIdx >= 0 && clickIdx >= 0) {
+                const start = Math.min(anchorIdx, clickIdx);
+                const end = Math.max(anchorIdx, clickIdx);
+                for (let i = start; i <= end; i++) {
+                    state.selectedActionIds.add(ids[i]);
+                }
+            }
+            // Don't update anchor on shift-click
+        } else if (e.metaKey || e.ctrlKey) {
+            // Toggle select
+            if (state.selectedActionIds.has(id)) {
+                state.selectedActionIds.delete(id);
+            } else {
+                state.selectedActionIds.add(id);
+            }
+            state.selectionAnchor = id;
+        } else {
+            // Exclusive select / toggle off if already sole selection
+            if (state.selectedActionIds.size === 1 && state.selectedActionIds.has(id)) {
+                state.selectedActionIds.clear();
+                state.selectionAnchor = null;
+            } else {
+                state.selectedActionIds.clear();
+                state.selectedActionIds.add(id);
+                state.selectionAnchor = id;
+            }
+        }
+        refreshActionSelectionUI();
+    });
 
     // ── Drag-to-schedule: make non-done actions draggable ──
     if (!action.done) {
@@ -1309,8 +1841,15 @@ function createActionElement(action) {
         });
     }
 
-    // Right-click context menu
+    // Right-click context menu (selection-aware)
     item.addEventListener('contextmenu', (e) => {
+        // If right-clicking an unselected item, select it exclusively
+        if (!state.selectedActionIds.has(actionIdStr)) {
+            state.selectedActionIds.clear();
+            state.selectedActionIds.add(actionIdStr);
+            state.selectionAnchor = actionIdStr;
+            refreshActionSelectionUI();
+        }
         showActionContextMenu(e, action);
     });
 
@@ -1339,6 +1878,32 @@ function createActionElement(action) {
         content.appendChild(tag);
     }
 
+    // Show goal progress badge (if this action or an ancestor has a goal)
+    const goaledAncestor = findNearestGoal(action);
+    if (goaledAncestor) {
+        const progress = getGoalProgress(goaledAncestor);
+        if (progress) {
+            const badge = document.createElement('div');
+            badge.className = 'action-goal-badge';
+
+            const bar = document.createElement('div');
+            bar.className = 'action-goal-bar';
+            const fill = document.createElement('div');
+            fill.className = `action-goal-fill action-goal-fill-${progress.type}`;
+            fill.style.width = `${progress.percent}%`;
+            bar.appendChild(fill);
+            badge.appendChild(bar);
+
+            const label = document.createElement('span');
+            label.className = 'action-goal-label';
+            label.textContent = progress.label;
+            badge.appendChild(label);
+
+            if (progress.percent >= 100) badge.classList.add('action-goal-complete');
+            content.appendChild(badge);
+        }
+    }
+
     // Show time context badges
     const originalItem = findItemById(action.id);
     if (originalItem && originalItem.timeContexts && originalItem.timeContexts.length > 0) {
@@ -1349,7 +1914,7 @@ function createActionElement(action) {
             dtag.className = 'action-time-tag';
             // Show short date: "Feb 9" or "Mon"
             const d = new Date(dateStr + 'T00:00:00');
-            const today = getDateKey(state.timelineViewDate);
+            const today = getDateKey(getLogicalToday());
             if (dateStr === today) {
                 dtag.textContent = 'Today';
                 dtag.classList.add('action-time-tag-today');
@@ -1545,6 +2110,16 @@ function createActionElement(action) {
                 await startWorking(action.id, action.name, ancestors);
             }
         });
+        // Right-click: open duration picker for timed work
+        workBtn.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (state.workingOn && state.workingOn.itemId === action.id) return;
+            const ancestors = action._path
+                ? action._path.slice(0, -1).map(p => p.name).join(' › ')
+                : '';
+            showDurationPicker(workBtn, action.id, action.name, ancestors);
+        });
     } else {
         workBtn.disabled = true;
     }
@@ -1563,21 +2138,41 @@ function createActionElement(action) {
 
 function setupActionInput() {
     const input = document.getElementById('action-input');
+    const btn = document.getElementById('action-input-btn');
     if (!input) return;
 
-    input.addEventListener('keydown', async (e) => {
-        if (e.key === 'Enter' && input.value.trim()) {
-            // Add as child of selected project, or under Inbox by default
-            const inbox = state.items.items.find(i => i.isInbox);
-            const parentId = state.selectedItemId || (inbox ? inbox.id : null);
-            await api.post('/items', {
-                name: input.value.trim(),
-                parentId,
-            });
-            await reloadItems();
-            input.value = '';
+    const updateBtnVisibility = () => {
+        if (!btn) return;
+        if (input.value.trim()) {
+            btn.classList.add('action-input-btn-visible');
+        } else {
+            btn.classList.remove('action-input-btn-visible');
         }
+    };
+
+    const submitAction = async () => {
+        if (!input.value.trim()) return;
+        // Add as child of selected project, or under Inbox by default
+        const inbox = state.items.items.find(i => i.isInbox);
+        const parentId = state.selectedItemId || (inbox ? inbox.id : null);
+        await api.post('/items', {
+            name: input.value.trim(),
+            parentId,
+        });
+        await reloadItems();
+        input.value = '';
+        updateBtnVisibility();
+    };
+
+    input.addEventListener('input', updateBtnVisibility);
+
+    input.addEventListener('keydown', async (e) => {
+        if (e.key === 'Enter') await submitAction();
     });
+
+    if (btn) {
+        btn.addEventListener('click', submitAction);
+    }
 }
 
 
@@ -1676,7 +2271,47 @@ function renderTimeline() {
     // Moment entries (completion, manual logs) happen at a point in time and render
     // indented under the block during which they occurred.
     const isBlockEntry = (e) => e.endTime && (e.type === 'work' || e.type === 'break' || e.type === 'planned');
-    const allBlockEntries = allDayEntries.filter(isBlockEntry);
+
+    // ── Plan Absorption: hide planned entries fully covered by matching work entries ──
+    // A planned entry is "absorbed" if a work entry with the same itemId covers ≥80% of its time.
+    // A planned entry is a "ghost" if it overlaps with any work entry but isn't fully absorbed.
+    // Include the live workingOn state as a virtual work entry for ghost detection
+    const workEntries = allDayEntries.filter(e => e.type === 'work' && e.endTime);
+    if (state.workingOn) {
+        workEntries.push({
+            type: 'work',
+            timestamp: state.workingOn.startTime,
+            endTime: nowMs,
+            itemId: state.workingOn.itemId,
+        });
+    }
+    for (const entry of allDayEntries) {
+        if (entry.type !== 'planned' || !entry.endTime) continue;
+        const planStart = entry.timestamp;
+        const planEnd = entry.endTime;
+        const planDuration = planEnd - planStart;
+        if (planDuration <= 0) continue;
+
+        // Check for absorption: same itemId + ≥80% time overlap
+        let absorbed = false;
+        let ghosted = false;
+        for (const work of workEntries) {
+            const overlapStart = Math.max(planStart, work.timestamp);
+            const overlapEnd = Math.min(planEnd, work.endTime);
+            const overlap = Math.max(0, overlapEnd - overlapStart);
+            if (overlap > 0) {
+                if (entry.itemId && work.itemId === entry.itemId && overlap >= planDuration * 0.8) {
+                    absorbed = true;
+                    break;
+                }
+                ghosted = true;
+            }
+        }
+        entry._absorbed = absorbed;
+        entry._ghost = !absorbed && ghosted;
+    }
+
+    const allBlockEntries = allDayEntries.filter(e => isBlockEntry(e) && !e._absorbed);
     const allMomentEntries = allDayEntries.filter(e => !isBlockEntry(e));
 
     // When "hide past entries" is on and viewing today, remove entries before now
@@ -1754,6 +2389,80 @@ function renderTimeline() {
         appendMomentsBetween(fragment, dayStart.getTime(), idleEnd);
     }
 
+    // ── Pre-compute overlap clusters: groups of ghost plans + work that share time ranges ──
+    // Each cluster becomes a single two-column overlap group in the UI
+    const overlapClusters = []; // array of { plans: [], work: [], entries: Set, start, end, liveWork: bool }
+    const entryToCluster = new Map();
+
+    for (let i = 0; i < dayBlockEntries.length; i++) {
+        const entry = dayBlockEntries[i];
+        if (entryToCluster.has(entry)) continue;
+        if (!entry._ghost) continue; // clusters start from ghost plans
+
+        // Start a cluster from this ghost plan
+        let clusterEnd = entry.endTime;
+        const clusterPlans = [entry];
+        const clusterWork = [];
+        const clusterEntries = new Set([entry]);
+
+        // Greedily expand: find all entries that overlap the cluster's time range
+        // Also include live work as a time range extender
+        let expanded = true;
+        let liveWork = false;
+        while (expanded) {
+            expanded = false;
+
+            // Check if live working overlaps the cluster — if so, extend the range
+            // Use targetEndTime to project future overlap (e.g., countdown budgeted time)
+            if (viewingToday && state.workingOn && !liveWork) {
+                const clusterStart = Math.min(...[...clusterEntries].map(e => e.timestamp));
+                const workProjectedEnd = Math.max(nowMs, state.workingOn.targetEndTime || 0);
+                if (state.workingOn.startTime < clusterEnd && workProjectedEnd > clusterStart) {
+                    clusterEnd = Math.max(clusterEnd, workProjectedEnd);
+                    liveWork = true;
+                    expanded = true;
+                }
+            }
+
+            for (let j = 0; j < dayBlockEntries.length; j++) {
+                const other = dayBlockEntries[j];
+                if (clusterEntries.has(other)) continue;
+                // Must overlap the cluster's time range
+                const clusterStart = Math.min(...[...clusterEntries].map(e => e.timestamp));
+                if (other.timestamp > clusterEnd || other.endTime < clusterStart) continue;
+                if (other._ghost) {
+                    clusterPlans.push(other);
+                    clusterEntries.add(other);
+                    clusterEnd = Math.max(clusterEnd, other.endTime);
+                    expanded = true;
+                } else if (other.type === 'work') {
+                    clusterWork.push(other);
+                    clusterEntries.add(other);
+                    clusterEnd = Math.max(clusterEnd, other.endTime);
+                    expanded = true;
+                }
+            }
+        }
+
+        // Only form a cluster if there's at least one ghost plan AND at least one work entry (or live work)
+        if (clusterPlans.length > 0 && (clusterWork.length > 0 || liveWork)) {
+            const cluster = {
+                plans: clusterPlans.sort((a, b) => a.timestamp - b.timestamp),
+                work: clusterWork.sort((a, b) => a.timestamp - b.timestamp),
+                entries: clusterEntries,
+                start: Math.min(...[...clusterEntries].map(e => e.timestamp)),
+                end: clusterEnd,
+                liveWork,
+            };
+            overlapClusters.push(cluster);
+            for (const e of clusterEntries) {
+                entryToCluster.set(e, cluster);
+            }
+        }
+    }
+    // Track which clusters have been rendered
+    const renderedClusters = new Set();
+
     for (let i = 0; i < dayBlockEntries.length; i++) {
         const entry = dayBlockEntries[i];
         const entryTime = entry.timestamp;
@@ -1770,26 +2479,66 @@ function renderTimeline() {
             appendMomentsBetween(fragment, cursor, entryTime);
         }
 
-        fragment.appendChild(createTimelineElement(entry));
-        // Append moment entries that occurred during this block
-        appendMomentsBetween(fragment, entryTime, entryEnd);
-        cursor = Math.max(cursor, entryEnd);
+        // ── Check if this entry belongs to an overlap cluster ──
+        const cluster = entryToCluster.get(entry);
+        if (cluster && !renderedClusters.has(cluster)) {
+            // Render the entire cluster as a single overlap group
+            renderedClusters.add(cluster);
 
-        // ── Idle/Working block: inject right after the last block entry before "now" ──
-        if (!hidePast && viewingToday && entryTime === lastBlockBeforeNow && nowMs > entryEnd) {
-            // Gap from this block's END to now becomes the idle or working block
-            // But only if the next block (if any) is after now, otherwise it's just free time
+            const overlapGroup = document.createElement('div');
+            overlapGroup.className = 'timeline-overlap-group';
+
+            const planLane = document.createElement('div');
+            planLane.className = 'overlap-lane overlap-lane-plan';
+            for (const plan of cluster.plans) {
+                planLane.appendChild(createTimelineElement(plan));
+            }
+
+            const realityLane = document.createElement('div');
+            realityLane.className = 'overlap-lane overlap-lane-reality';
+            for (const work of cluster.work) {
+                realityLane.appendChild(createTimelineElement(work));
+            }
+            if (cluster.liveWork) {
+                realityLane.appendChild(createWorkingTimeBlock(state.workingOn.startTime, nowMs));
+            }
+
+            overlapGroup.appendChild(planLane);
+            overlapGroup.appendChild(realityLane);
+            fragment.appendChild(overlapGroup);
+
+            appendMomentsBetween(fragment, cluster.start, cluster.end);
+            cursor = Math.max(cursor, cluster.end);
+            if (cluster.liveWork) cursor = Math.max(cursor, nowMs);
+        } else if (cluster && renderedClusters.has(cluster)) {
+            // Already rendered as part of the cluster — skip
+            cursor = Math.max(cursor, entryEnd);
+        } else {
+            // Normal (non-clustered) entry
+            fragment.appendChild(createTimelineElement(entry));
+            appendMomentsBetween(fragment, entryTime, entryEnd);
+            cursor = Math.max(cursor, entryEnd);
+        }
+
+        // ── Idle/Working block: inject after the last block before "now" ──
+        const isLastBeforeNow = entryTime === lastBlockBeforeNow;
+        const clusterHandledWorking = cluster && cluster.liveWork;
+
+        if (!clusterHandledWorking && !hidePast && viewingToday && isLastBeforeNow && nowMs > entryEnd) {
             const nextBlock = dayBlockEntries[i + 1];
+            const nextCluster = nextBlock ? entryToCluster.get(nextBlock) : null;
             const idleEnd = nextBlock ? Math.min(nowMs, nextBlock.timestamp) : nowMs;
             if (idleEnd > entryEnd) {
-                if (state.workingOn) {
+                // Don't inject working block if the next cluster already handles it
+                if (nextCluster && nextCluster.liveWork) {
+                    // Working block will be rendered as part of the next cluster
+                } else if (state.workingOn) {
                     fragment.appendChild(createWorkingTimeBlock(state.workingOn.startTime, idleEnd));
                 } else if (state.onBreak) {
                     fragment.appendChild(createBreakTimeBlock(state.onBreak.startTime, idleEnd));
                 } else {
                     fragment.appendChild(createIdleTimeBlock(entryEnd, idleEnd));
                 }
-                // Append moment entries in the idle gap
                 appendMomentsBetween(fragment, entryEnd, idleEnd);
                 cursor = Math.max(cursor, idleEnd);
             }
@@ -2517,6 +3266,9 @@ function createWorkingTimeBlock(startMs, endMs) {
     el.className = 'time-block time-block-working';
     el.dataset.startTime = startMs;
 
+    const targetEnd = state.workingOn ? state.workingOn.targetEndTime : null;
+    if (targetEnd) el.dataset.targetEndTime = targetEnd;
+
     const durationMs = endMs - startMs;
     const hrs = Math.floor(durationMs / 3600000);
     const mins = Math.floor((durationMs % 3600000) / 60000);
@@ -2537,16 +3289,39 @@ function createWorkingTimeBlock(startMs, endMs) {
 
     const time = document.createElement('div');
     time.className = 'time-block-time working-time-range';
-    time.textContent = `${formatTime(startMs)} – ${formatTime(endMs)}`;
+    if (targetEnd) {
+        time.textContent = `${formatTime(startMs)} – ${formatTime(targetEnd)}`;
+    } else {
+        time.textContent = `${formatTime(startMs)} – ${formatTime(endMs)}`;
+    }
 
+    // Duration / countdown display
     const status = document.createElement('div');
     status.className = 'time-block-status working-duration';
-    if (hrs > 0) {
-        status.textContent = `${hrs}h ${mins}m`;
-    } else if (mins > 0) {
-        status.textContent = `${mins}m ${secs}s`;
+    if (targetEnd) {
+        const remainMs = targetEnd - endMs;
+        if (remainMs > 0) {
+            // Counting down
+            const rMins = Math.floor(remainMs / 60000);
+            const rSecs = Math.floor((remainMs % 60000) / 1000);
+            status.textContent = rMins > 0 ? `${rMins}m ${rSecs}s left` : `${rSecs}s left`;
+        } else {
+            // Overtime
+            const overMs = Math.abs(remainMs);
+            const oMins = Math.floor(overMs / 60000);
+            const oSecs = Math.floor((overMs % 60000) / 1000);
+            status.textContent = oMins > 0 ? `+${oMins}m ${oSecs}s over` : `+${oSecs}s over`;
+            status.classList.add('working-overtime');
+            el.classList.add('time-block-overtime');
+        }
     } else {
-        status.textContent = `${secs}s`;
+        if (hrs > 0) {
+            status.textContent = `${hrs}h ${mins}m`;
+        } else if (mins > 0) {
+            status.textContent = `${mins}m ${secs}s`;
+        } else {
+            status.textContent = `${secs}s`;
+        }
     }
 
     content.appendChild(label);
@@ -2647,24 +3422,44 @@ function startIdleUpdater() {
             const startMs = parseInt(workingBlock.dataset.startTime, 10);
             const nowMs = Date.now();
             const durationMs = Math.max(0, nowMs - startMs);
-
-            const hrs = Math.floor(durationMs / 3600000);
-            const mins = Math.floor((durationMs % 3600000) / 60000);
-            const secs = Math.floor((durationMs % 60000) / 1000);
+            const targetEnd = workingBlock.dataset.targetEndTime ? parseInt(workingBlock.dataset.targetEndTime, 10) : null;
 
             const durationEl = workingBlock.querySelector('.working-duration');
             if (durationEl) {
-                if (hrs > 0) {
-                    durationEl.textContent = `${hrs}h ${mins}m`;
-                } else if (mins > 0) {
-                    durationEl.textContent = `${mins}m ${secs}s`;
+                if (targetEnd) {
+                    const remainMs = targetEnd - nowMs;
+                    if (remainMs > 0) {
+                        // Counting down
+                        const rMins = Math.floor(remainMs / 60000);
+                        const rSecs = Math.floor((remainMs % 60000) / 1000);
+                        durationEl.textContent = rMins > 0 ? `${rMins}m ${rSecs}s left` : `${rSecs}s left`;
+                        durationEl.classList.remove('working-overtime');
+                        workingBlock.classList.remove('time-block-overtime');
+                    } else {
+                        // Overtime
+                        const overMs = Math.abs(remainMs);
+                        const oMins = Math.floor(overMs / 60000);
+                        const oSecs = Math.floor((overMs % 60000) / 1000);
+                        durationEl.textContent = oMins > 0 ? `+${oMins}m ${oSecs}s over` : `+${oSecs}s over`;
+                        durationEl.classList.add('working-overtime');
+                        workingBlock.classList.add('time-block-overtime');
+                    }
                 } else {
-                    durationEl.textContent = `${secs}s`;
+                    const hrs = Math.floor(durationMs / 3600000);
+                    const mins = Math.floor((durationMs % 3600000) / 60000);
+                    const secs = Math.floor((durationMs % 60000) / 1000);
+                    if (hrs > 0) {
+                        durationEl.textContent = `${hrs}h ${mins}m`;
+                    } else if (mins > 0) {
+                        durationEl.textContent = `${mins}m ${secs}s`;
+                    } else {
+                        durationEl.textContent = `${secs}s`;
+                    }
                 }
             }
 
             const timeEl = workingBlock.querySelector('.working-time-range');
-            if (timeEl) {
+            if (timeEl && !targetEnd) {
                 timeEl.textContent = `${formatTime(startMs)} – ${formatTime(nowMs)}`;
             }
 
@@ -2898,7 +3693,7 @@ function createDayBoundaryBlock(type, boundaryTime, now) {
 function createTimelineElement(entry) {
     // Block entries (work, break, planned) render as time blocks
     if (entry.type === 'planned') {
-        return createPlannedTimeBlock(entry);
+        return createPlannedTimeBlock(entry, entry._ghost);
     }
     if (entry.type === 'work') {
         return createWorkEntryBlock(entry);
@@ -2916,6 +3711,8 @@ function createWorkEntryBlock(entry) {
     const el = document.createElement('div');
     el.className = 'time-block time-block-work-entry time-block-past';
     el.dataset.id = entry.id;
+    el.style.cursor = 'pointer';
+    el.addEventListener('click', () => openEntryEditor(entry, el));
 
     const durationMs = (entry.endTime || entry.timestamp) - entry.timestamp;
     const hrs = Math.floor(durationMs / 3600000);
@@ -2982,6 +3779,8 @@ function createBreakEntryBlock(entry) {
     const el = document.createElement('div');
     el.className = 'time-block time-block-break-entry time-block-past';
     el.dataset.id = entry.id;
+    el.style.cursor = 'pointer';
+    el.addEventListener('click', () => openEntryEditor(entry, el));
 
     const durationMs = (entry.endTime || entry.timestamp) - entry.timestamp;
     const hrs = Math.floor(durationMs / 3600000);
@@ -3083,10 +3882,12 @@ function createMomentEntry(entry) {
     return el;
 }
 
-function createPlannedTimeBlock(entry) {
+function createPlannedTimeBlock(entry, isGhost = false) {
     const el = document.createElement('div');
-    el.className = 'time-block time-block-planned';
+    el.className = 'time-block time-block-planned' + (isGhost ? ' plan-ghost' : '');
     el.dataset.id = entry.id;
+    el.style.cursor = 'pointer';
+    el.addEventListener('click', () => openEntryEditor(entry, el));
 
     const durationMs = (entry.endTime || entry.timestamp) - entry.timestamp;
     const hrs = Math.floor(durationMs / 3600000);
@@ -3132,7 +3933,10 @@ function createPlannedTimeBlock(entry) {
     startBtn.title = 'Start working on this';
     startBtn.addEventListener('click', async (e) => {
         e.stopPropagation();
-        await startWorking(entry.itemId, entry.text, entry.projectName);
+        // Delete the plan entry — the work block replaces it
+        await api.del(`/timeline/${entry.id}`);
+        state.timeline = await api.get('/timeline');
+        await startWorking(entry.itemId, entry.text, entry.projectName, entry.endTime);
     });
 
     // Delete button
@@ -3153,6 +3957,345 @@ function createPlannedTimeBlock(entry) {
     el.appendChild(delBtn);
 
     return el;
+}
+
+// ── Edit Entry: inline editor for past time blocks (work, break, planned) ──
+
+function openEntryEditor(entry, blockEl) {
+    // Close any existing editor
+    document.querySelectorAll('.plan-editor').forEach(ed => ed.remove());
+
+    let planStartMs = entry.timestamp;
+    let planEndMs = entry.endTime || entry.timestamp;
+    // For work/planned entries, try to find the matching item for preselection
+    let selectedAction = null;
+    if (entry.itemId) {
+        const allActions = collectAllItems();
+        selectedAction = allActions.find(a => a.id === entry.itemId) || null;
+    }
+
+    const msToTimeStr = (ms) => {
+        const d = new Date(ms);
+        return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    };
+
+    const timeStrToMs = (str) => {
+        const [h, m] = str.split(':').map(Number);
+        const d = new Date(planStartMs);
+        d.setHours(h, m, 0, 0);
+        return d.getTime();
+    };
+
+    const updateDuration = () => {
+        const durMs = planEndMs - planStartMs;
+        const totalMins = Math.round(durMs / 60000);
+        durationInput.value = totalMins;
+    };
+
+    // ── Build editor DOM ──
+    const editor = document.createElement('div');
+    editor.className = 'time-block plan-editor';
+
+    const editorIcon = document.createElement('div');
+    editorIcon.className = 'time-block-icon';
+    editorIcon.textContent = entry.type === 'break' ? '☕' : entry.type === 'planned' ? '📌' : '🔥';
+
+    const editorContent = document.createElement('div');
+    editorContent.className = 'plan-editor-content';
+
+    // Row 1: Action autocomplete (skip for break entries)
+    const actionRow = document.createElement('div');
+    actionRow.className = 'plan-editor-row';
+
+    const actionInputWrap = document.createElement('div');
+    actionInputWrap.className = 'plan-editor-autocomplete';
+
+    const actionInput = document.createElement('input');
+    actionInput.type = 'text';
+    actionInput.className = 'plan-editor-input';
+
+    const suggestions = document.createElement('div');
+    suggestions.className = 'plan-editor-suggestions';
+
+    if (entry.type === 'break') {
+        actionInput.value = 'Break';
+        actionInput.disabled = true;
+        actionInput.style.opacity = '0.7';
+    } else {
+        actionInput.placeholder = 'Search for an item…';
+        // Pre-fill with current item name
+        if (selectedAction) {
+            actionInput.value = selectedAction.name;
+        } else {
+            // Fallback: use entry text, cleaning "Worked on:" prefix
+            let cleanText = entry.text;
+            if (cleanText.startsWith('Worked on: ')) cleanText = cleanText.slice(11);
+            cleanText = cleanText.replace(/\s*\(\d+[hm]\s*\d*[m]?\)\s*$/, '');
+            actionInput.value = cleanText;
+        }
+    }
+
+    actionInputWrap.appendChild(actionInput);
+    actionInputWrap.appendChild(suggestions);
+    actionRow.appendChild(actionInputWrap);
+
+    // Row 2: Time controls
+    const timeRow = document.createElement('div');
+    timeRow.className = 'plan-editor-row plan-editor-time-row';
+
+    const startInput = document.createElement('input');
+    startInput.type = 'text';
+    startInput.className = 'plan-editor-time';
+    startInput.value = msToTimeStr(planStartMs);
+    startInput.placeholder = 'HH:MM';
+
+    const sep = document.createElement('span');
+    sep.className = 'plan-editor-sep';
+    sep.textContent = '–';
+
+    const endInput = document.createElement('input');
+    endInput.type = 'text';
+    endInput.className = 'plan-editor-time';
+    endInput.value = msToTimeStr(planEndMs);
+    endInput.placeholder = 'HH:MM';
+
+    const durationInput = document.createElement('input');
+    durationInput.type = 'number';
+    durationInput.className = 'plan-editor-duration-input';
+    durationInput.min = '1';
+    durationInput.title = 'Duration in minutes';
+    updateDuration();
+
+    const durationLabel = document.createElement('span');
+    durationLabel.className = 'plan-editor-duration-label';
+    durationLabel.textContent = 'min';
+
+    timeRow.appendChild(startInput);
+    timeRow.appendChild(sep);
+    timeRow.appendChild(endInput);
+    timeRow.appendChild(durationInput);
+    timeRow.appendChild(durationLabel);
+
+    // Row 3: Action buttons
+    const actionsRow = document.createElement('div');
+    actionsRow.className = 'plan-editor-row plan-editor-actions';
+
+    const removeBtn = document.createElement('button');
+    removeBtn.className = 'plan-editor-remove';
+    removeBtn.textContent = 'Remove';
+    removeBtn.addEventListener('click', async () => {
+        await api.del(`/timeline/${entry.id}`);
+        state.timeline = await api.get('/timeline');
+        renderTimeline();
+    });
+
+    const saveBtn = document.createElement('button');
+    saveBtn.className = 'plan-editor-save';
+    saveBtn.textContent = 'Save';
+
+    const discardBtn = document.createElement('button');
+    discardBtn.className = 'plan-editor-discard';
+    discardBtn.textContent = 'Discard';
+
+    actionsRow.appendChild(removeBtn);
+    actionsRow.appendChild(discardBtn);
+    actionsRow.appendChild(saveBtn);
+
+    editorContent.appendChild(actionRow);
+    editorContent.appendChild(timeRow);
+    editorContent.appendChild(actionsRow);
+
+    editor.appendChild(editorIcon);
+    editor.appendChild(editorContent);
+
+    // Hide the original block and insert editor in its place
+    blockEl.style.display = 'none';
+    blockEl.after(editor);
+
+    // Focus appropriate field
+    if (entry.type !== 'break') {
+        actionInput.focus();
+        actionInput.select();
+    } else {
+        startInput.focus();
+        startInput.select();
+    }
+
+    // ── Autocomplete logic (only for non-break entries) ──
+    if (entry.type !== 'break') {
+        const allActions = collectAllItems().filter(a => !a.done);
+
+        const renderSuggestions = (query) => {
+            suggestions.innerHTML = '';
+            if (!query) {
+                suggestions.style.display = 'none';
+                return;
+            }
+            const q = query.toLowerCase();
+            const matches = allActions.filter(a => a.name.toLowerCase().includes(q));
+            if (matches.length === 0) {
+                suggestions.style.display = 'none';
+                return;
+            }
+            suggestions.style.display = 'block';
+            for (const action of matches.slice(0, 8)) {
+                const opt = document.createElement('div');
+                opt.className = 'plan-editor-suggestion';
+
+                const nameSpan = document.createElement('span');
+                nameSpan.className = 'plan-editor-suggestion-name';
+                nameSpan.textContent = action.name;
+                opt.appendChild(nameSpan);
+
+                if (action._path && action._path.length > 1) {
+                    const crumb = document.createElement('span');
+                    crumb.className = 'plan-editor-suggestion-project';
+                    crumb.textContent = action._path.slice(0, -1).map(p => p.name).join(' › ');
+                    opt.appendChild(crumb);
+                }
+
+                opt.addEventListener('mousedown', (e) => {
+                    e.preventDefault();
+                    selectedAction = action;
+                    actionInput.value = action.name;
+                    suggestions.style.display = 'none';
+                });
+                suggestions.appendChild(opt);
+            }
+        };
+
+        actionInput.addEventListener('input', () => {
+            selectedAction = null;
+            renderSuggestions(actionInput.value);
+        });
+
+        actionInput.addEventListener('focus', () => {
+            if (actionInput.value && !selectedAction) {
+                renderSuggestions(actionInput.value);
+            }
+        });
+
+        actionInput.addEventListener('blur', () => {
+            setTimeout(() => { suggestions.style.display = 'none'; }, 150);
+        });
+    }
+
+    // ── Time input logic ──
+    const parseTimeInput = (input, currentMs, validate) => {
+        const raw = input.value.trim();
+        const match = raw.match(/^(\d{1,2}):(\d{2})$/);
+        if (!match) {
+            input.value = msToTimeStr(currentMs);
+            return currentMs;
+        }
+        const parsed = timeStrToMs(`${match[1].padStart(2, '0')}:${match[2]}`);
+        if (validate(parsed)) {
+            input.value = msToTimeStr(parsed);
+            return parsed;
+        }
+        input.value = msToTimeStr(currentMs);
+        return currentMs;
+    };
+
+    startInput.addEventListener('blur', () => {
+        const result = parseTimeInput(startInput, planStartMs, (t) => t < planEndMs);
+        if (result !== planStartMs) {
+            planStartMs = result;
+            updateDuration();
+        }
+    });
+
+    endInput.addEventListener('blur', () => {
+        const result = parseTimeInput(endInput, planEndMs, (t) => t > planStartMs);
+        if (result !== planEndMs) {
+            planEndMs = result;
+            updateDuration();
+        }
+    });
+
+    durationInput.addEventListener('change', () => {
+        const mins = parseInt(durationInput.value, 10);
+        if (mins > 0) {
+            planEndMs = planStartMs + mins * 60000;
+            endInput.value = msToTimeStr(planEndMs);
+        } else {
+            updateDuration();
+        }
+    });
+
+    // ── Save / Discard ──
+    discardBtn.addEventListener('click', () => {
+        editor.remove();
+        blockEl.style.display = '';
+    });
+
+    saveBtn.addEventListener('click', async () => {
+        // For non-break entries, require a selected action or typed name
+        if (entry.type !== 'break' && !selectedAction && !actionInput.value.trim()) {
+            actionInput.focus();
+            actionInput.classList.add('plan-editor-input-error');
+            setTimeout(() => actionInput.classList.remove('plan-editor-input-error'), 600);
+            return;
+        }
+
+        // Build the update payload
+        const updates = {
+            startTime: planStartMs,
+            timestamp: planStartMs,
+            endTime: planEndMs,
+        };
+
+        if (entry.type !== 'break') {
+            if (selectedAction) {
+                const ancestors = selectedAction._path
+                    ? selectedAction._path.slice(0, -1).map(p => p.name).join(' › ')
+                    : '';
+                const durationMs = planEndMs - planStartMs;
+                const hrs = Math.floor(durationMs / 3600000);
+                const mins = Math.floor((durationMs % 3600000) / 60000);
+                const durStr = hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
+
+                updates.itemId = selectedAction.id;
+                updates.projectName = ancestors || null;
+                if (entry.type === 'work') {
+                    updates.text = `Worked on: ${selectedAction.name} (${durStr})`;
+                } else {
+                    updates.text = selectedAction.name;
+                }
+            } else {
+                // Free text (no item selected from autocomplete)
+                const name = actionInput.value.trim();
+                const durationMs = planEndMs - planStartMs;
+                const hrs = Math.floor(durationMs / 3600000);
+                const mins = Math.floor((durationMs % 3600000) / 60000);
+                const durStr = hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
+
+                updates.itemId = null;
+                if (entry.type === 'work') {
+                    updates.text = `Worked on: ${name} (${durStr})`;
+                } else {
+                    updates.text = name;
+                }
+            }
+        } else {
+            // Break: update duration text
+            const durationMs = planEndMs - planStartMs;
+            const hrs = Math.floor(durationMs / 3600000);
+            const mins = Math.floor((durationMs % 3600000) / 60000);
+            const durStr = hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
+            updates.text = `Break (${durStr})`;
+        }
+
+        await api.patch(`/timeline/${entry.id}`, updates);
+
+        // Update the local state
+        const localEntry = state.timeline.entries.find(e => e.id === entry.id);
+        if (localEntry) {
+            Object.assign(localEntry, updates);
+        }
+
+        renderTimeline();
+    });
 }
 
 function updateClock() {
@@ -3200,6 +4343,137 @@ function updateContextLabels() {
     // No-op: context label removed from UI
 }
 
+// ─── Duration Picker Popover ───
+function showDurationPicker(anchorEl, itemId, itemName, projectName) {
+    // Dismiss any existing picker
+    dismissDurationPicker();
+
+    const overlay = document.createElement('div');
+    overlay.className = 'duration-picker-overlay';
+    overlay.addEventListener('click', dismissDurationPicker);
+
+    const picker = document.createElement('div');
+    picker.className = 'duration-picker';
+
+    // Position relative to anchor
+    const rect = anchorEl.getBoundingClientRect();
+    picker.style.position = 'fixed';
+    picker.style.top = `${rect.bottom + 4}px`;
+    picker.style.left = `${rect.left}px`;
+    picker.style.zIndex = '10001';
+
+    // Title
+    const title = document.createElement('div');
+    title.className = 'duration-picker-title';
+    title.textContent = 'Start with timer';
+    picker.appendChild(title);
+
+    // Overlap warning area
+    const warning = document.createElement('div');
+    warning.className = 'duration-picker-warning';
+    warning.style.display = 'none';
+    picker.appendChild(warning);
+
+    // Preset buttons
+    const presets = document.createElement('div');
+    presets.className = 'duration-picker-presets';
+    const presetValues = [
+        { label: '15m', mins: 15 },
+        { label: '25m', mins: 25 },
+        { label: '45m', mins: 45 },
+        { label: '1h', mins: 60 },
+    ];
+    for (const preset of presetValues) {
+        const btn = document.createElement('button');
+        btn.className = 'duration-picker-preset';
+        btn.textContent = preset.label;
+        btn.addEventListener('mouseenter', () => checkOverlap(preset.mins, warning));
+        btn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            const targetEnd = Date.now() + preset.mins * 60000;
+            dismissDurationPicker();
+            await startWorking(itemId, itemName, projectName, targetEnd);
+        });
+        presets.appendChild(btn);
+    }
+    picker.appendChild(presets);
+
+    // Custom input row
+    const customRow = document.createElement('div');
+    customRow.className = 'duration-picker-custom';
+
+    const input = document.createElement('input');
+    input.type = 'number';
+    input.className = 'duration-picker-input';
+    input.placeholder = 'min';
+    input.min = '1';
+    input.max = '480';
+    input.addEventListener('input', () => {
+        const mins = parseInt(input.value, 10);
+        if (mins > 0) {
+            checkOverlap(mins, warning);
+        } else {
+            warning.style.display = 'none';
+        }
+    });
+
+    const minLabel = document.createElement('span');
+    minLabel.className = 'duration-picker-min-label';
+    minLabel.textContent = 'min';
+
+    const startBtn = document.createElement('button');
+    startBtn.className = 'duration-picker-start';
+    startBtn.textContent = 'Start';
+    startBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const mins = parseInt(input.value, 10);
+        if (!mins || mins <= 0) return;
+        const targetEnd = Date.now() + mins * 60000;
+        dismissDurationPicker();
+        await startWorking(itemId, itemName, projectName, targetEnd);
+    });
+
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') startBtn.click();
+        if (e.key === 'Escape') dismissDurationPicker();
+    });
+
+    customRow.appendChild(input);
+    customRow.appendChild(minLabel);
+    customRow.appendChild(startBtn);
+    picker.appendChild(customRow);
+
+    overlay.appendChild(picker);
+    document.body.appendChild(overlay);
+
+    // Focus the custom input
+    setTimeout(() => input.focus(), 50);
+}
+
+function checkOverlap(durationMins, warningEl) {
+    const targetEnd = Date.now() + durationMins * 60000;
+    const now = Date.now();
+    const entries = (state.timeline && state.timeline.entries) || [];
+    const overlapping = entries.filter(e =>
+        e.type === 'planned' && e.endTime &&
+        e.timestamp < targetEnd && e.endTime > now
+    );
+
+    if (overlapping.length > 0) {
+        const first = overlapping[0];
+        const name = first.text || 'planned block';
+        warningEl.textContent = `⚠ Overlaps with "${name}" at ${formatTime(first.timestamp)}`;
+        warningEl.style.display = 'block';
+    } else {
+        warningEl.style.display = 'none';
+    }
+}
+
+function dismissDurationPicker() {
+    const existing = document.querySelector('.duration-picker-overlay');
+    if (existing) existing.remove();
+}
+
 // ─── Formatters ───
 function formatTime(ts) {
     const d = new Date(ts);
@@ -3244,20 +4518,21 @@ function handleQuickLog() {
 
 // ─── Working On Timer ───
 
-function startWorking(itemId, itemName, projectName) {
+async function startWorking(itemId, itemName, projectName, targetEndTime) {
     // If already working on something else, stop it first
     if (state.workingOn) {
-        stopWorking();
+        await stopWorking();
     }
     // If on a break, stop it first
     if (state.onBreak) {
-        stopBreak();
+        await stopBreak();
     }
     state.workingOn = {
         itemId,
         itemName,
         projectName: projectName || null,
         startTime: Date.now(),
+        targetEndTime: targetEndTime || null,
     };
     localStorage.setItem('workingOn', JSON.stringify(state.workingOn));
     renderAll();
@@ -3279,6 +4554,7 @@ async function stopWorking() {
         type: 'work',
         startTime: state.workingOn.startTime,
         endTime: endTime,
+        targetEndTime: state.workingOn.targetEndTime || undefined,
         itemId: state.workingOn.itemId,
     });
     state.timeline.entries.push(entry);
@@ -3594,13 +4870,32 @@ function syncSettingsUI() {
 }
 
 // ─── Schedule Modal (custom in-theme calendar) ───
-function openScheduleModal(itemId, itemName) {
+function openScheduleModal(itemIdOrIds, itemName) {
     // Close if already open
     const existing = document.getElementById('schedule-modal-overlay');
     if (existing) existing.remove();
 
-    const item = findItemById(itemId);
-    const assignedDates = new Set((item && item.timeContexts) || []);
+    // Normalize to array
+    const itemIds = Array.isArray(itemIdOrIds) ? itemIdOrIds : [itemIdOrIds];
+    const isBulk = itemIds.length > 1;
+
+    // For single item, track assigned dates for visual feedback
+    // For bulk, show "assigned" only if ALL items have that date
+    function getAssignedDates() {
+        const sets = itemIds.map(id => {
+            const itm = findItemById(id);
+            return new Set((itm && itm.timeContexts) || []);
+        });
+        if (sets.length === 1) return sets[0];
+        // Intersection of all sets
+        const result = new Set();
+        for (const d of sets[0]) {
+            if (sets.every(s => s.has(d))) result.add(d);
+        }
+        return result;
+    }
+
+    let assignedDates = getAssignedDates();
 
     let viewYear, viewMonth;
     // Start on the current timeline view date
@@ -3617,9 +4912,15 @@ function openScheduleModal(itemId, itemName) {
 
     function buildCalendar() {
         const todayKey = getDateKey(getLogicalToday());
+        const todayDate = getLogicalToday();
+        const currentMonth = todayDate.getMonth();
+        const currentYear = todayDate.getFullYear();
         const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
             'July', 'August', 'September', 'October', 'November', 'December'];
         const dayNames = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+
+        // Can we go to the previous month? Only if it's the current month or later
+        const canGoPrev = viewYear > currentYear || (viewYear === currentYear && viewMonth > currentMonth);
 
         // First day of the month and number of days
         const firstDay = new Date(viewYear, viewMonth, 1).getDay();
@@ -3629,7 +4930,7 @@ function openScheduleModal(itemId, itemName) {
             <div class="modal-header">Schedule: ${itemName}</div>
             <div class="modal-body">
                 <div class="schedule-cal-nav">
-                    <button class="schedule-cal-nav-btn" id="schedule-prev-month">‹</button>
+                    <button class="schedule-cal-nav-btn${canGoPrev ? '' : ' schedule-cal-nav-btn-disabled'}" id="schedule-prev-month"${canGoPrev ? '' : ' disabled'}>‹</button>
                     <span class="schedule-cal-month">${monthNames[viewMonth]} ${viewYear}</span>
                     <button class="schedule-cal-nav-btn" id="schedule-next-month">›</button>
                 </div>
@@ -3651,7 +4952,9 @@ function openScheduleModal(itemId, itemName) {
             const dateKey = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
             const isAssigned = assignedDates.has(dateKey);
             const isToday = dateKey === todayKey;
+            const isPast = dateKey < todayKey;
             let cls = 'schedule-cal-day';
+            if (isPast) cls += ' schedule-cal-day-disabled';
             if (isAssigned) cls += ' schedule-cal-day-assigned';
             if (isToday) cls += ' schedule-cal-day-today';
             html += `<div class="${cls}" data-date="${dateKey}">${d}</div>`;
@@ -3668,11 +4971,13 @@ function openScheduleModal(itemId, itemName) {
         modal.innerHTML = html;
 
         // Wire up month nav
-        modal.querySelector('#schedule-prev-month').addEventListener('click', () => {
-            viewMonth--;
-            if (viewMonth < 0) { viewMonth = 11; viewYear--; }
-            buildCalendar();
-        });
+        if (canGoPrev) {
+            modal.querySelector('#schedule-prev-month').addEventListener('click', () => {
+                viewMonth--;
+                if (viewMonth < 0) { viewMonth = 11; viewYear--; }
+                buildCalendar();
+            });
+        }
         modal.querySelector('#schedule-next-month').addEventListener('click', () => {
             viewMonth++;
             if (viewMonth > 11) { viewMonth = 0; viewYear++; }
@@ -3680,21 +4985,25 @@ function openScheduleModal(itemId, itemName) {
         });
 
         // Wire up day clicks
-        modal.querySelectorAll('.schedule-cal-day').forEach(cell => {
+        modal.querySelectorAll('.schedule-cal-day:not(.schedule-cal-day-disabled)').forEach(cell => {
             cell.addEventListener('click', async () => {
                 const dateKey = cell.dataset.date;
                 if (assignedDates.has(dateKey)) {
-                    // Remove
+                    // Remove from all items
                     assignedDates.delete(dateKey);
-                    const itm = findItemById(itemId);
-                    if (itm) {
-                        itm.timeContexts = (itm.timeContexts || []).filter(tc => tc !== dateKey);
-                        await api.patch(`/items/${itemId}`, { timeContexts: itm.timeContexts });
+                    for (const id of itemIds) {
+                        const itm = findItemById(id);
+                        if (itm) {
+                            itm.timeContexts = (itm.timeContexts || []).filter(tc => tc !== dateKey);
+                            await api.patch(`/items/${id}`, { timeContexts: itm.timeContexts });
+                        }
                     }
                 } else {
-                    // Add
+                    // Add to all items
                     assignedDates.add(dateKey);
-                    await addTimeContext(itemId, dateKey);
+                    for (const id of itemIds) {
+                        await addTimeContext(id, dateKey);
+                    }
                 }
                 buildCalendar();
             });
@@ -3716,6 +5025,117 @@ function openScheduleModal(itemId, itemName) {
         if (e.target === overlay) {
             overlay.remove();
             renderAll();
+        }
+    });
+}
+
+// ─── Goal Modal ───
+function openGoalModal(itemId, itemName) {
+    const existing = document.getElementById('goal-modal-overlay');
+    if (existing) existing.remove();
+
+    const item = findItemById(itemId);
+    const currentGoal = item && item.goal;
+    let selectedType = currentGoal ? currentGoal.type : 'done';
+
+    const overlay = document.createElement('div');
+    overlay.id = 'goal-modal-overlay';
+    overlay.className = 'modal-overlay';
+
+    const modal = document.createElement('div');
+    modal.className = 'modal-box goal-modal-box';
+
+    function buildModal() {
+        const existingProgress = currentGoal ? getGoalProgress(item) : null;
+
+        // Pre-fill time values from existing goal
+        let existingHours = 0, existingMinutes = 0;
+        if (currentGoal && currentGoal.type === 'time' && currentGoal.target) {
+            existingHours = Math.floor(currentGoal.target / 3600);
+            existingMinutes = Math.floor((currentGoal.target % 3600) / 60);
+        }
+
+        let html = `
+            <div class="modal-header">${currentGoal ? 'Edit' : 'Set'} Goal: ${itemName}</div>
+            <div class="modal-body">
+                <div class="goal-type-selector">
+                    <button class="goal-type-btn ${selectedType === 'done' ? 'goal-type-btn-active' : ''}" data-type="done">✓ Done</button>
+                    <button class="goal-type-btn ${selectedType === 'time' ? 'goal-type-btn-active' : ''}" data-type="time">⏱ Time</button>
+                </div>
+                <div class="goal-info" id="goal-info-done" style="display: ${selectedType === 'done' ? '' : 'none'}">
+                    <div class="goal-info-text">Track completion of all sub-tasks.</div>
+                    ${existingProgress && selectedType === 'done' ? `<div class="goal-info-progress">Current: ${existingProgress.label} (${existingProgress.percent}%)</div>` : ''}
+                </div>
+                <div class="goal-info" id="goal-info-time" style="display: ${selectedType === 'time' ? '' : 'none'}">
+                    <div class="goal-info-text">Set a target amount of tracked time.</div>
+                    <div class="goal-time-inputs">
+                        <input type="number" id="goal-hours" class="modal-input goal-time-input" value="${existingHours}" min="0" placeholder="0">
+                        <span class="goal-time-unit">h</span>
+                        <input type="number" id="goal-minutes" class="modal-input goal-time-input" value="${existingMinutes}" min="0" max="59" placeholder="0">
+                        <span class="goal-time-unit">m</span>
+                    </div>
+                    ${existingProgress && selectedType === 'time' ? `<div class="goal-info-progress">Current: ${existingProgress.label} (${existingProgress.percent}%)</div>` : ''}
+                </div>
+            </div>
+            <div class="modal-actions">
+                ${currentGoal ? '<button class="modal-btn goal-remove-btn" id="goal-remove-btn">Remove Goal</button>' : ''}
+                <button class="modal-btn modal-btn-cancel" id="goal-cancel-btn">Cancel</button>
+                <button class="modal-btn modal-btn-save" id="goal-save-btn">Save</button>
+            </div>
+        `;
+
+        modal.innerHTML = html;
+
+        // Wire type selector
+        modal.querySelectorAll('.goal-type-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                selectedType = btn.dataset.type;
+                buildModal();
+            });
+        });
+
+        // Wire save
+        modal.querySelector('#goal-save-btn').addEventListener('click', async () => {
+            let goal;
+            if (selectedType === 'done') {
+                goal = { type: 'done' };
+            } else {
+                const h = parseInt(modal.querySelector('#goal-hours').value) || 0;
+                const m = parseInt(modal.querySelector('#goal-minutes').value) || 0;
+                const target = h * 3600 + m * 60;
+                if (target <= 0) return; // Don't save 0 target
+                goal = { type: 'time', target };
+            }
+            await api.patch(`/items/${itemId}`, { goal });
+            if (item) item.goal = goal;
+            overlay.remove();
+            renderAll();
+        });
+
+        // Wire cancel
+        modal.querySelector('#goal-cancel-btn').addEventListener('click', () => {
+            overlay.remove();
+        });
+
+        // Wire remove
+        const removeBtn = modal.querySelector('#goal-remove-btn');
+        if (removeBtn) {
+            removeBtn.addEventListener('click', async () => {
+                await api.patch(`/items/${itemId}`, { goal: null });
+                if (item) delete item.goal;
+                overlay.remove();
+                renderAll();
+            });
+        }
+    }
+
+    buildModal();
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) {
+            overlay.remove();
         }
     });
 }
@@ -3832,6 +5252,21 @@ document.addEventListener('DOMContentLoaded', () => {
         renderAll();
     });
 
+    // Show-unscheduled toggle (default: ON = unscheduled items visible)
+    // Active class = filter engaged = hiding unscheduled (📅 bright)
+    // No active = default = showing everything (📅 dimmed)
+    state.showUnscheduled = localStorage.getItem('showUnscheduled') !== 'false';
+    const showUnschedBtn = document.getElementById('show-unscheduled-btn');
+    showUnschedBtn.classList.toggle('active', !state.showUnscheduled);
+    showUnschedBtn.title = state.showUnscheduled ? 'Scheduled only' : 'Show all';
+    showUnschedBtn.addEventListener('click', () => {
+        state.showUnscheduled = !state.showUnscheduled;
+        localStorage.setItem('showUnscheduled', state.showUnscheduled);
+        showUnschedBtn.classList.toggle('active', !state.showUnscheduled);
+        showUnschedBtn.title = state.showUnscheduled ? 'Scheduled only' : 'Show all';
+        renderAll();
+    });
+
     // Date nav buttons — renderAll() so actions list updates with time context
     document.getElementById('date-nav-prev').addEventListener('click', () => {
         const d = new Date(state.timelineViewDate);
@@ -3924,4 +5359,16 @@ document.addEventListener('DOMContentLoaded', () => {
             closeProjectSearch();
         }
     });
+    // ─── Scroll-to-selected banner ───
+    const projectTree = document.getElementById('project-tree');
+    const scrollBanner = document.getElementById('scroll-to-selected-banner');
+    if (projectTree) {
+        projectTree.addEventListener('scroll', () => {
+            clearTimeout(_scrollBannerDebounce);
+            _scrollBannerDebounce = setTimeout(() => updateScrollToSelectedBanner(), 80);
+        });
+    }
+    if (scrollBanner) {
+        scrollBanner.addEventListener('click', () => scrollToSelectedItem());
+    }
 });

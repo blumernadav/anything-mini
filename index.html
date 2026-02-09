@@ -20,6 +20,8 @@
 
             <div class="top-bar-right">
                 <button class="top-bar-btn top-bar-toggle" id="hide-done-btn" title="Show done">✓</button>
+                <button class="top-bar-btn top-bar-toggle" id="show-unscheduled-btn"
+                    title="Show unscheduled">📅</button>
                 <button class="top-bar-btn project-search-toggle" id="project-search-toggle"
                     title="Search projects">🔍</button>
                 <button class="top-bar-btn" id="settings-btn" title="Settings">⚙</button>
@@ -53,6 +55,10 @@
                     <span class="empty-hint">start with something small</span>
                 </div>
             </div>
+            <div class="scroll-to-selected-banner" id="scroll-to-selected-banner" style="display:none;">
+                <span class="scroll-to-selected-arrow" id="scroll-to-selected-arrow">↓</span>
+                <span class="scroll-to-selected-text" id="scroll-to-selected-text">Selected item</span>
+            </div>
         </aside>
 
         <!-- Divider: Left ↔ Center -->
@@ -67,6 +73,7 @@
                 <div class="action-input-row" id="action-input-row">
                     <input class="action-input" id="action-input" placeholder="What's on your mind?" type="text"
                         autocomplete="off">
+                    <button class="action-input-btn" id="action-input-btn" title="Add">→</button>
                 </div>
                 <div class="actions-list" id="actions-list">
                     <div class="empty-state" id="actions-empty">
