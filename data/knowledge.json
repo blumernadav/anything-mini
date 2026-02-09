@@ -1,0 +1,12 @@
+{
+  "items": [
+    {
+      "title": "Book notes",
+      "body": "Key insight: small wins compound over time",
+      "projectId": 1,
+      "id": 1,
+      "createdAt": 1770587581189
+    }
+  ],
+  "nextId": 2
+}

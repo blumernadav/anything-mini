@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Anything Mini</title>
+    <link id="skin-stylesheet" rel="stylesheet" href="skins/modern.css">
+</head>
+
+<body>
+    <div class="app-layout">
+        <!-- Top Bar -->
+        <div class="top-bar">
+            <div class="streak-widget" id="streak-widget" title="Daily streak">
+                <span class="streak-fire" id="streak-fire">🔥</span>
+                <span class="streak-count" id="streak-count">0</span>
+                <button class="streak-checkin-btn" id="streak-checkin-btn" title="Check in today">✓</button>
+            </div>
+
+            <div class="top-bar-right">
+                <button class="top-bar-btn top-bar-toggle" id="hide-done-btn" title="Show done">✓</button>
+                <button class="top-bar-btn project-search-toggle" id="project-search-toggle"
+                    title="Search projects">🔍</button>
+                <button class="top-bar-btn" id="settings-btn" title="Settings">⚙</button>
+                <div class="skin-selector">
+                    <label class="skin-label" for="skin-select">Skin:</label>
+                    <select id="skin-select" class="skin-select">
+                        <option value="modern">Modern</option>
+                        <option value="win95">Windows 95</option>
+                        <option value="duolingo">Duolingo</option>
+                        <option value="pencil">Pencil & Paper</option>
+                    </select>
+                </div>
+                <span class="greeting-time" id="greeting-time">00:00</span>
+            </div>
+        </div>
+
+        <!-- Left: Projects -->
+        <aside class="sidebar sidebar-left" id="sidebar-projects">
+            <div class="sidebar-header">
+                <h2 class="sidebar-title"><span class="title-icon">📁</span> Projects</h2>
+            </div>
+            <div class="project-search project-search-hidden" id="project-search">
+                <input type="text" id="project-search-input" class="project-search-input" placeholder="Search..."
+                    autocomplete="off">
+                <button class="project-search-clear" id="project-search-clear" title="Clear search">×</button>
+            </div>
+            <div class="project-tree" id="project-tree">
+                <div class="empty-state" id="projects-empty">
+                    <span class="empty-icon">📂</span>
+                    <span>No projects yet</span>
+                    <span class="empty-hint">start with something small</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Divider: Left ↔ Center -->
+        <div class="panel-divider" id="divider-left" data-divider="left"></div>
+
+        <!-- Center -->
+        <main class="main-content" id="main-content">
+            <section class="main-section section-actions" id="section-actions">
+                <div class="section-header">
+                    <h2 class="section-title"><span class="title-icon">☑️</span> Actions</h2>
+                </div>
+                <div class="action-input-row" id="action-input-row">
+                    <input class="action-input" id="action-input" placeholder="What's on your mind?" type="text"
+                        autocomplete="off">
+                </div>
+                <div class="actions-list" id="actions-list">
+                    <div class="empty-state" id="actions-empty">
+                        <span class="empty-icon">✨</span>
+                        <span>What's on your mind?</span>
+                        <span class="empty-hint">one small win at a time</span>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+
+        <!-- Divider: Center ↔ Right -->
+        <div class="panel-divider" id="divider-right" data-divider="right"></div>
+
+        <!-- Right: Timeline -->
+        <aside class="sidebar sidebar-right" id="sidebar-timeline">
+            <div class="sidebar-header">
+                <h2 class="sidebar-title"><span class="title-icon">🕐</span> Timeline</h2>
+            </div>
+
+            <div class="time-context" id="time-context">
+                <div class="date-nav">
+                    <button class="date-nav-btn" id="date-nav-prev" title="Previous day">‹</button>
+                    <div class="date-nav-display">
+                        <span class="date-nav-date" id="date-nav-date">—</span>
+                        <span class="date-nav-today-badge" id="date-nav-today-badge">Today</span>
+                    </div>
+                    <button class="date-nav-btn" id="date-nav-next" title="Next day">›</button>
+                </div>
+            </div>
+
+            <div class="timeline-list" id="timeline-list">
+                <div class="empty-state" id="timeline-empty">
+                    <span class="empty-icon">📅</span>
+                    <span>Your day unfolds here</span>
+                    <span class="empty-hint">log as you go</span>
+                </div>
+            </div>
+
+            <div class="quick-log">
+                <input type="text" id="quick-log-input" placeholder="What are you up to?" autocomplete="off">
+                <button class="btn-log" id="quick-log-btn" title="Log">→</button>
+            </div>
+        </aside>
+
+        <!-- Taskbar (Win95 only — hidden by other skins) -->
+        <div class="taskbar" id="taskbar">
+            <button class="start-button">
+                <span class="start-flag">
+                    <span></span><span></span><span></span><span></span>
+                </span>
+                Start
+            </button>
+            <div class="taskbar-divider"></div>
+            <div class="taskbar-window">📋 Anything Mini</div>
+            <div class="taskbar-clock" id="taskbar-clock">00:00</div>
+        </div>
+    </div>
+
+    <script src="script.js" type="module"></script>
+</body>
+
+</html>

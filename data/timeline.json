@@ -1,0 +1,367 @@
+{
+  "entries": [
+    {
+      "text": "Done: idle",
+      "projectName": "anything",
+      "type": "completion",
+      "id": 17,
+      "timestamp": 1770599530250
+    },
+    {
+      "text": "Worked on: toggle done (1m)",
+      "projectName": "anything",
+      "type": "work",
+      "startTime": 1770601037381,
+      "endTime": 1770601130064,
+      "itemId": 39,
+      "id": 19,
+      "timestamp": 1770601037381
+    },
+    {
+      "text": "Worked on: fix idle (1m)",
+      "projectName": "anything",
+      "type": "work",
+      "startTime": 1770601217176,
+      "endTime": 1770601310952,
+      "itemId": 52,
+      "id": 20,
+      "timestamp": 1770601217176
+    },
+    {
+      "text": "Worked on: hide done in settings fix (5m)",
+      "projectName": "anything",
+      "type": "work",
+      "startTime": 1770601330901,
+      "endTime": 1770601645896,
+      "itemId": 54,
+      "id": 21,
+      "timestamp": 1770601330901
+    },
+    {
+      "text": "Done: hide done in settings fix",
+      "projectName": "anything",
+      "type": "completion",
+      "id": 22,
+      "timestamp": 1770601651642
+    },
+    {
+      "text": "Done: time blocks",
+      "projectName": "anything",
+      "type": "completion",
+      "id": 23,
+      "timestamp": 1770601702017
+    },
+    {
+      "text": "Done: test",
+      "projectName": "Inbox",
+      "type": "completion",
+      "id": 24,
+      "timestamp": 1770601846110
+    },
+    {
+      "text": "Done: toggle done",
+      "projectName": "anything",
+      "type": "completion",
+      "id": 25,
+      "timestamp": 1770601880318
+    },
+    {
+      "text": "Worked on: plans (0m)",
+      "projectName": "anything",
+      "type": "work",
+      "startTime": 1770602088533,
+      "endTime": 1770602137741,
+      "itemId": 56,
+      "id": 26,
+      "timestamp": 1770602088533
+    },
+    {
+      "text": "Worked on: time context (0m)",
+      "projectName": "anything",
+      "type": "work",
+      "startTime": 1770602142391,
+      "endTime": 1770602144808,
+      "itemId": 19,
+      "id": 27,
+      "timestamp": 1770602142391
+    },
+    {
+      "text": "Worked on: plans (21m)",
+      "projectName": "anything",
+      "type": "work",
+      "startTime": 1770602291553,
+      "endTime": 1770603552766,
+      "itemId": 56,
+      "id": 30,
+      "timestamp": 1770602291553
+    },
+    {
+      "text": "drag and drop plans",
+      "projectName": "anything",
+      "type": "planned",
+      "startTime": 1770603552766,
+      "endTime": 1770603900000,
+      "itemId": 74,
+      "id": 33,
+      "timestamp": 1770603552766
+    },
+    {
+      "text": "Worked on: drag and drop plans (9m)",
+      "projectName": "anything",
+      "type": "work",
+      "startTime": 1770603603261,
+      "endTime": 1770604200427,
+      "itemId": 74,
+      "id": 34,
+      "timestamp": 1770603603261
+    },
+    {
+      "text": "Worked on: pdf (9m)",
+      "projectName": "kolwrite",
+      "type": "work",
+      "startTime": 1770604202360,
+      "endTime": 1770604746182,
+      "itemId": 66,
+      "id": 35,
+      "timestamp": 1770604202360
+    },
+    {
+      "text": "Done: pdf",
+      "projectName": "kolwrite",
+      "type": "completion",
+      "id": 36,
+      "timestamp": 1770604753355
+    },
+    {
+      "text": "Worked on: service account restart (37m)",
+      "projectName": "kolwrite",
+      "type": "work",
+      "startTime": 1770604758698,
+      "endTime": 1770607037221,
+      "itemId": 67,
+      "id": 37,
+      "timestamp": 1770604758698
+    },
+    {
+      "text": "Done: service account restart",
+      "projectName": "kolwrite",
+      "type": "completion",
+      "id": 38,
+      "timestamp": 1770607050205
+    },
+    {
+      "text": "Worked on: show done (4m)",
+      "projectName": "anything",
+      "type": "work",
+      "startTime": 1770607078890,
+      "endTime": 1770607356268,
+      "itemId": 48,
+      "id": 39,
+      "timestamp": 1770607078890
+    },
+    {
+      "text": "Done: show done",
+      "projectName": "anything",
+      "type": "completion",
+      "id": 40,
+      "timestamp": 1770607366367
+    },
+    {
+      "text": "Worked on: streak (4m)",
+      "projectName": "anything",
+      "type": "work",
+      "startTime": 1770607434980,
+      "endTime": 1770607703125,
+      "itemId": 20,
+      "id": 41,
+      "timestamp": 1770607434980
+    },
+    {
+      "text": "Done: streak",
+      "projectName": "anything",
+      "type": "completion",
+      "id": 42,
+      "timestamp": 1770607705336
+    },
+    {
+      "text": "Done: fix idle",
+      "projectName": "anything",
+      "type": "completion",
+      "id": 44,
+      "timestamp": 1770608608763
+    },
+    {
+      "text": "Worked on: log idle (3m)",
+      "projectName": "anything",
+      "type": "work",
+      "startTime": 1770634627060,
+      "endTime": 1770634821894,
+      "itemId": 96,
+      "id": 46,
+      "timestamp": 1770634627060
+    },
+    {
+      "text": "Worked on: anything (7m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1770634821894,
+      "endTime": 1770635247780,
+      "itemId": 9,
+      "id": 48,
+      "timestamp": 1770634821894
+    },
+    {
+      "text": "Done: log idle",
+      "projectName": "anything",
+      "type": "completion",
+      "id": 49,
+      "timestamp": 1770636007086
+    },
+    {
+      "text": "Worked on: anything (10m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1770635450322,
+      "endTime": 1770636076496,
+      "itemId": 9,
+      "id": 50,
+      "timestamp": 1770635450322
+    },
+    {
+      "text": "Worked on: time context (23m)",
+      "projectName": "anything",
+      "type": "work",
+      "startTime": 1770636190154,
+      "endTime": 1770637609636,
+      "itemId": 19,
+      "id": 51,
+      "timestamp": 1770636190154
+    },
+    {
+      "text": "Worked on: search (17m)",
+      "projectName": "anything",
+      "type": "work",
+      "startTime": 1770637614438,
+      "endTime": 1770638686021,
+      "itemId": 109,
+      "id": 52,
+      "timestamp": 1770637614438
+    },
+    {
+      "text": "Done: search",
+      "projectName": "anything",
+      "type": "completion",
+      "id": 53,
+      "timestamp": 1770638691645
+    },
+    {
+      "text": "Done: time context",
+      "projectName": "anything",
+      "type": "completion",
+      "id": 54,
+      "timestamp": 1770638799099
+    },
+    {
+      "text": "Worked on: persistent selected (1m)",
+      "projectName": "anything",
+      "type": "work",
+      "startTime": 1770638850404,
+      "endTime": 1770638910608,
+      "itemId": 116,
+      "id": 55,
+      "timestamp": 1770638850404
+    },
+    {
+      "text": "Done: persistent selected",
+      "projectName": "anything",
+      "type": "completion",
+      "id": 56,
+      "timestamp": 1770638912270
+    },
+    {
+      "text": "Done: add + for leaf items",
+      "projectName": "anything",
+      "type": "completion",
+      "id": 57,
+      "timestamp": 1770639322585
+    },
+    {
+      "text": "Worked on: breaks (7m)",
+      "projectName": "anything",
+      "type": "work",
+      "startTime": 1770639115636,
+      "endTime": 1770639561003,
+      "itemId": 57,
+      "id": 58,
+      "timestamp": 1770639115636
+    },
+    {
+      "text": "Break (6m)",
+      "type": "break",
+      "startTime": 1770639570470,
+      "endTime": 1770639979410,
+      "id": 59,
+      "timestamp": 1770639570470
+    },
+    {
+      "text": "Worked on: kolwrite (0m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1770639979410,
+      "endTime": 1770640012365,
+      "itemId": 62,
+      "id": 60,
+      "timestamp": 1770639979410
+    },
+    {
+      "text": "Worked on: unify past logs and planned logs (5m)",
+      "projectName": "anything",
+      "type": "work",
+      "startTime": 1770640819419,
+      "endTime": 1770641172822,
+      "itemId": 108,
+      "id": 61,
+      "timestamp": 1770640819419
+    },
+    {
+      "text": "Done: unify past logs and planned logs",
+      "projectName": "anything",
+      "type": "completion",
+      "id": 62,
+      "timestamp": 1770641550199
+    },
+    {
+      "text": "Worked on: anything (3m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1770641345045,
+      "endTime": 1770641575564,
+      "itemId": 9,
+      "id": 63,
+      "timestamp": 1770641345045
+    },
+    {
+      "text": "Break (9m)",
+      "type": "break",
+      "startTime": 1770641577706,
+      "endTime": 1770642119719,
+      "id": 64,
+      "timestamp": 1770641577706
+    },
+    {
+      "text": "Done: new item indentation in projects",
+      "projectName": "anything",
+      "type": "completion",
+      "id": 65,
+      "timestamp": 1770642133440
+    },
+    {
+      "text": "kjhjkhkh",
+      "projectName": "anything",
+      "type": "log",
+      "id": 66,
+      "timestamp": 1770642246824
+    }
+  ],
+  "nextId": 67
+}

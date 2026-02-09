@@ -1,0 +1,19 @@
+{
+  "actions": [
+    {
+      "name": "Morning walk",
+      "projectId": 1,
+      "id": 1,
+      "createdAt": 1770587464892,
+      "done": false
+    },
+    {
+      "name": "Read chapter 3",
+      "projectId": 1,
+      "id": 2,
+      "createdAt": 1770587465493,
+      "done": false
+    }
+  ],
+  "nextId": 4
+}
