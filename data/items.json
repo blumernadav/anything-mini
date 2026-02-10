@@ -5,6 +5,14 @@
       "name": "Inbox",
       "children": [
         {
+          "id": 195,
+          "name": "Review Google Cloud credential security best practices",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770719232503,
+          "done": false
+        },
+        {
           "id": 45,
           "name": "test",
           "children": [],
@@ -18,7 +26,11 @@
           "children": [],
           "expanded": false,
           "createdAt": 1770633310924,
-          "done": false
+          "done": false,
+          "timeContexts": [
+            "2026-02-13"
+          ],
+          "estimatedDuration": null
         },
         {
           "id": 106,
@@ -26,7 +38,10 @@
           "children": [],
           "expanded": false,
           "createdAt": 1770636201379,
-          "done": false
+          "done": false,
+          "timeContexts": [
+            "2026-02-10"
+          ]
         }
       ],
       "expanded": false,
@@ -39,6 +54,248 @@
       "name": "anything",
       "children": [
         {
+          "id": 220,
+          "name": "free time calc doesn't take breaks (or running items)? in account",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770729856625,
+          "done": false
+        },
+        {
+          "id": 219,
+          "name": "right click for specific time isn't good, better always show it",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770729825658,
+          "done": false
+        },
+        {
+          "id": 218,
+          "name": "drag from projects to timeline",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770729688687,
+          "done": false
+        },
+        {
+          "id": 217,
+          "name": "indicate parent when editing a time block",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770729610088,
+          "done": false
+        },
+        {
+          "id": 215,
+          "name": "duration is not preserved, check why",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770729538351,
+          "done": false
+        },
+        {
+          "id": 214,
+          "name": "order in a free time context",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770729462418,
+          "done": false
+        },
+        {
+          "id": 213,
+          "name": "לסדר את הבית",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770729434541,
+          "done": false,
+          "timeContexts": [
+            "2026-02-10@15:17-18:00"
+          ],
+          "segmentDurations": {
+            "2026-02-10@15:17-18:00": 60,
+            "2026-02-10@15:21-18:00": 60,
+            "2026-02-10@15:24-18:00": 60
+          }
+        },
+        {
+          "id": 210,
+          "name": "cancel plan instead of deleting it",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770728351008,
+          "done": false,
+          "timeContexts": [
+            "2026-02-10"
+          ],
+          "segmentDurations": {}
+        },
+        {
+          "id": 209,
+          "name": "refactor time contexts - including one time and multiple",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770726107923,
+          "done": false,
+          "timeContexts": [
+            "2026-02-10@15:17-18:00"
+          ],
+          "segmentDurations": {
+            "2026-02-10@15:16-18:00": 60,
+            "2026-02-10@15:17-18:00": 60,
+            "2026-02-10@15:21-18:00": 60,
+            "2026-02-10@15:24-18:00": 60
+          }
+        },
+        {
+          "id": 208,
+          "name": "schedule with no fixed time (under a free time block)",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770722585028,
+          "done": false,
+          "timeContexts": []
+        },
+        {
+          "id": 207,
+          "name": "under time context - maybe show suggestions from the level \"above\" in addition to explicitly scheduled there",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770722464348,
+          "done": false
+        },
+        {
+          "id": 206,
+          "name": "overview time to see all time contexts",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770721578013,
+          "done": false
+        },
+        {
+          "id": 205,
+          "name": "commitments",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770721486434,
+          "done": false,
+          "estimatedDuration": 15,
+          "timeContexts": [
+            "2026-02-10"
+          ],
+          "segmentDurations": {}
+        },
+        {
+          "id": 204,
+          "name": "aggregate common ancestors in actions",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770721366776,
+          "done": false
+        },
+        {
+          "id": 203,
+          "name": "due statuses",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770721314816,
+          "done": false
+        },
+        {
+          "id": 202,
+          "name": "move",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770720806010,
+          "done": false
+        },
+        {
+          "id": 198,
+          "name": "change dynamically working time block duration",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770719584735,
+          "done": false
+        },
+        {
+          "id": 196,
+          "name": "quick start instead of create?",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770719293133,
+          "done": false
+        },
+        {
+          "id": 183,
+          "name": "AI",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770675382995,
+          "done": false,
+          "timeContexts": [
+            "2026-02-11"
+          ]
+        },
+        {
+          "id": 182,
+          "name": "counts should reflect visuals",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770673385345,
+          "done": true
+        },
+        {
+          "id": 178,
+          "name": "persist running",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770672848256,
+          "done": true
+        },
+        {
+          "id": 176,
+          "name": "context switch tax?",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770663362060,
+          "done": false,
+          "timeContexts": [
+            "2026-02-11"
+          ]
+        },
+        {
+          "id": 175,
+          "name": "someday",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770663355309,
+          "done": false,
+          "timeContexts": [
+            "2026-02-11"
+          ]
+        },
+        {
+          "id": 174,
+          "name": "preparations",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770663352183,
+          "done": false,
+          "timeContexts": [
+            "2026-02-11"
+          ]
+        },
+        {
+          "id": 173,
+          "name": "starvations",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770663347809,
+          "done": false,
+          "timeContexts": [
+            "2026-02-11"
+          ]
+        },
+        {
           "id": 171,
           "name": "log aggregations",
           "children": [],
@@ -48,6 +305,14 @@
           "timeContexts": [
             "2026-02-10"
           ]
+        },
+        {
+          "id": 184,
+          "name": "clear to default day boundary time",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770677117477,
+          "done": false
         },
         {
           "id": 170,
@@ -192,12 +457,23 @@
           ]
         },
         {
+          "id": 172,
+          "name": "maybe start from idle",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770661226767,
+          "done": false,
+          "timeContexts": [
+            "2026-02-10"
+          ]
+        },
+        {
           "id": 125,
           "name": "clarify timers and stopwatches difference - maybe even on a bigger scale",
           "children": [],
           "expanded": true,
           "createdAt": 1770639633947,
-          "done": false,
+          "done": true,
           "timeContexts": []
         },
         {
@@ -226,7 +502,10 @@
           "children": [],
           "expanded": false,
           "createdAt": 1770638799102,
-          "done": false
+          "done": false,
+          "timeContexts": [
+            "2026-02-10"
+          ]
         },
         {
           "id": 148,
@@ -283,9 +562,7 @@
           "expanded": false,
           "createdAt": 1770636887876,
           "done": true,
-          "timeContexts": [
-            "2026-02-09"
-          ]
+          "timeContexts": []
         },
         {
           "id": 116,
@@ -1051,21 +1328,56 @@
           ]
         }
       ],
-      "expanded": true,
+      "expanded": false,
       "createdAt": 1770591468116,
-      "done": false
+      "done": false,
+      "timeContexts": [],
+      "estimatedDuration": 60
+    },
+    {
+      "id": 181,
+      "name": "bucket list",
+      "children": [],
+      "expanded": false,
+      "createdAt": 1770673365184,
+      "done": false,
+      "timeContexts": [
+        "2026-02-11"
+      ]
     },
     {
       "id": 28,
       "name": "health",
       "children": [
         {
+          "id": 188,
+          "name": "פמי",
+          "children": [
+            {
+              "id": 194,
+              "name": "להתארגן לפמי",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770713243077,
+              "done": false,
+              "estimatedDuration": 13
+            }
+          ],
+          "expanded": false,
+          "createdAt": 1770681106983,
+          "done": false,
+          "estimatedDuration": 90
+        },
+        {
           "id": 135,
           "name": "זן",
           "children": [],
           "expanded": false,
           "createdAt": 1770646686091,
-          "done": false
+          "done": false,
+          "timeContexts": [
+            "2026-02-10"
+          ]
         },
         {
           "id": 30,
@@ -1073,7 +1385,10 @@
           "children": [],
           "expanded": false,
           "createdAt": 1770594437194,
-          "done": false
+          "done": false,
+          "timeContexts": [
+            "2026-02-10"
+          ]
         }
       ],
       "expanded": false,
@@ -1085,6 +1400,14 @@
       "id": 62,
       "name": "kolwrite",
       "children": [
+        {
+          "id": 197,
+          "name": "לענות לליאורה",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770719303641,
+          "done": true
+        },
         {
           "id": 66,
           "name": "pdf",
@@ -1104,13 +1427,48 @@
         {
           "id": 140,
           "name": "תיקוני באגים של ליאורה",
-          "children": [],
-          "expanded": false,
+          "children": [
+            {
+              "id": 212,
+              "name": "fast download also in web",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770728565043,
+              "done": false,
+              "timeContexts": [
+                "2026-02-10"
+              ],
+              "segmentDurations": {}
+            },
+            {
+              "id": 211,
+              "name": "download settings persistence",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770728558328,
+              "done": false,
+              "timeContexts": [
+                "2026-02-10@01:30-02:30"
+              ],
+              "segmentDurations": {
+                "2026-02-10@01:30-02:30": 0
+              }
+            },
+            {
+              "id": 179,
+              "name": "restart backend",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770673100488,
+              "done": true,
+              "timeContexts": []
+            }
+          ],
+          "expanded": true,
           "createdAt": 1770647393766,
           "done": false,
-          "goal": {
-            "type": "done"
-          }
+          "goal": null,
+          "timeContexts": []
         },
         {
           "id": 102,
@@ -1118,19 +1476,39 @@
           "children": [],
           "expanded": false,
           "createdAt": 1770635302987,
-          "done": false,
+          "done": true,
           "timeContexts": []
         },
         {
           "id": 103,
           "name": "new koluser",
+          "children": [
+            {
+              "id": 180,
+              "name": "לכתוב לליאורה על האחסון או למצוא פתרון אחר",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770673174336,
+              "done": false,
+              "timeContexts": [
+                "2026-02-10"
+              ]
+            }
+          ],
+          "expanded": true,
+          "createdAt": 1770635308948,
+          "done": false
+        },
+        {
+          "id": 201,
+          "name": "עדיין לא נשמרות הגדרות ההורדה",
           "children": [],
           "expanded": false,
-          "createdAt": 1770635308948,
+          "createdAt": 1770720799893,
           "done": false
         }
       ],
-      "expanded": false,
+      "expanded": true,
       "createdAt": 1770603206837,
       "done": false,
       "timeContexts": []
@@ -1142,9 +1520,9 @@
       "expanded": false,
       "createdAt": 1770607255310,
       "done": false,
-      "goal": {
-        "type": "done"
-      }
+      "timeContexts": [
+        "2026-02-10"
+      ]
     },
     {
       "id": 78,
@@ -1152,12 +1530,33 @@
       "children": [],
       "expanded": false,
       "createdAt": 1770603895087,
-      "done": false
+      "done": false,
+      "timeContexts": [
+        "2026-02-10"
+      ]
     },
     {
       "id": 92,
       "name": "פרויקטי מוזיקה",
       "children": [
+        {
+          "id": 193,
+          "name": "סשן שלי",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770682032006,
+          "done": false,
+          "estimatedDuration": 270
+        },
+        {
+          "id": 190,
+          "name": "סשן לירון",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770681399392,
+          "done": false,
+          "estimatedDuration": 180
+        },
         {
           "id": 79,
           "name": "פרויקט שנקר",
@@ -1168,7 +1567,10 @@
               "children": [],
               "expanded": false,
               "createdAt": 1770603919756,
-              "done": false
+              "done": false,
+              "timeContexts": [
+                "2026-02-10"
+              ]
             }
           ],
           "expanded": false,
@@ -1181,7 +1583,10 @@
           "children": [],
           "expanded": false,
           "createdAt": 1770609710103,
-          "done": false
+          "done": false,
+          "timeContexts": [
+            "2026-02-10"
+          ]
         }
       ],
       "expanded": false,
@@ -1198,7 +1603,10 @@
           "children": [],
           "expanded": false,
           "createdAt": 1770650992614,
-          "done": false
+          "done": false,
+          "timeContexts": [
+            "2026-02-11"
+          ]
         },
         {
           "id": 136,
@@ -1206,7 +1614,10 @@
           "children": [],
           "expanded": false,
           "createdAt": 1770646799343,
-          "done": false
+          "done": false,
+          "timeContexts": [
+            "2026-02-11"
+          ]
         }
       ],
       "expanded": false,
@@ -1219,15 +1630,37 @@
       "children": [],
       "expanded": false,
       "createdAt": 1770639234396,
-      "done": false
+      "done": false,
+      "timeContexts": [
+        "2026-02-11"
+      ]
     },
     {
       "id": 137,
       "name": "חברים",
-      "children": [],
+      "children": [
+        {
+          "id": 216,
+          "name": "שבעה סבתא של ירין",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770729592951,
+          "done": false,
+          "estimatedDuration": 90,
+          "timeContexts": [
+            "2026-02-11@entry:158"
+          ],
+          "segmentDurations": {
+            "2026-02-11@entry:158": 90
+          }
+        }
+      ],
       "expanded": false,
       "createdAt": 1770646819822,
-      "done": false
+      "done": false,
+      "timeContexts": [
+        "2026-02-11"
+      ]
     },
     {
       "id": 144,
@@ -1235,7 +1668,10 @@
       "children": [],
       "expanded": false,
       "createdAt": 1770648773227,
-      "done": false
+      "done": false,
+      "timeContexts": [
+        "2026-02-11"
+      ]
     },
     {
       "id": 145,
@@ -1247,13 +1683,12 @@
           "children": [],
           "expanded": false,
           "createdAt": 1770648806607,
-          "done": false,
-          "goal": {
-            "type": "done"
-          }
+          "done": true,
+          "goal": null,
+          "timeContexts": []
         }
       ],
-      "expanded": false,
+      "expanded": true,
       "createdAt": 1770648790566,
       "done": false
     },
@@ -1263,7 +1698,10 @@
       "children": [],
       "expanded": false,
       "createdAt": 1770651242811,
-      "done": false
+      "done": false,
+      "timeContexts": [
+        "2026-02-11"
+      ]
     },
     {
       "id": 157,
@@ -1275,6 +1713,14 @@
       "timeContexts": [
         "2026-02-10"
       ]
+    },
+    {
+      "id": 177,
+      "name": "מקלחת",
+      "children": [],
+      "expanded": false,
+      "createdAt": 1770663926628,
+      "done": true
     },
     {
       "id": 164,
@@ -1299,6 +1745,17 @@
       ],
       "expanded": false,
       "createdAt": 1770654424971,
+      "done": false,
+      "timeContexts": [
+        "2026-02-13"
+      ]
+    },
+    {
+      "id": 191,
+      "name": "ללמוד",
+      "children": [],
+      "expanded": false,
+      "createdAt": 1770681442391,
       "done": false
     },
     {
@@ -1307,8 +1764,28 @@
       "children": [],
       "expanded": false,
       "createdAt": 1770656654513,
+      "done": false,
+      "timeContexts": [
+        "2026-02-10"
+      ]
+    },
+    {
+      "id": 199,
+      "name": "לכתוב",
+      "children": [
+        {
+          "id": 200,
+          "name": "פוסט על מורכבות ורגש",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770719791622,
+          "done": false
+        }
+      ],
+      "expanded": true,
+      "createdAt": 1770719785075,
       "done": false
     }
   ],
-  "nextId": 172
+  "nextId": 221
 }

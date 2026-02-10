@@ -622,7 +622,438 @@
       "itemId": 125,
       "id": 113,
       "timestamp": 1770661019359
+    },
+    {
+      "text": "Worked on: clarify timers and stopwatches difference - maybe even on a bigger scale (2m)",
+      "projectName": "anything",
+      "type": "work",
+      "startTime": 1770661487702,
+      "endTime": 1770661655397,
+      "itemId": 125,
+      "id": 114,
+      "timestamp": 1770661487702
+    },
+    {
+      "text": "Break (0m)",
+      "type": "break",
+      "startTime": 1770661659479,
+      "endTime": 1770661672395,
+      "targetEndTime": 1770661959479,
+      "id": 115,
+      "timestamp": 1770661659479
+    },
+    {
+      "text": "Worked on: clarify timers and stopwatches difference - maybe even on a bigger scale (0m)",
+      "projectName": "anything",
+      "type": "work",
+      "startTime": 1770661681684,
+      "endTime": 1770661690982,
+      "targetEndTime": 1770697681684,
+      "itemId": 125,
+      "id": 116,
+      "timestamp": 1770661681684
+    },
+    {
+      "text": "Worked on: clarify timers and stopwatches difference - maybe even on a bigger scale (0m)",
+      "projectName": "anything",
+      "type": "work",
+      "startTime": 1770661864153,
+      "endTime": 1770661866221,
+      "targetEndTime": 1770697864152,
+      "itemId": 125,
+      "id": 117,
+      "timestamp": 1770661864153
+    },
+    {
+      "text": "Worked on: clarify timers and stopwatches difference - maybe even on a bigger scale (0m)",
+      "projectName": "anything",
+      "type": "work",
+      "startTime": 1770662040530,
+      "endTime": 1770662059545,
+      "targetEndTime": 1770698040529,
+      "itemId": 125,
+      "id": 118,
+      "timestamp": 1770662040530
+    },
+    {
+      "text": "Worked on: clarify timers and stopwatches difference - maybe even on a bigger scale (3m)",
+      "projectName": "anything",
+      "type": "work",
+      "startTime": 1770662062598,
+      "endTime": 1770662261010,
+      "targetEndTime": 1770664762598,
+      "itemId": 125,
+      "id": 119,
+      "timestamp": 1770662062598
+    },
+    {
+      "text": "Worked on: clarify timers and stopwatches difference - maybe even on a bigger scale (9m)",
+      "projectName": "anything",
+      "type": "work",
+      "startTime": 1770662264931,
+      "endTime": 1770662825707,
+      "targetEndTime": 1770698264931,
+      "itemId": 125,
+      "id": 120,
+      "timestamp": 1770662264931
+    },
+    {
+      "text": "Worked on: clarify timers and stopwatches difference - maybe even on a bigger scale (0m)",
+      "projectName": "anything",
+      "type": "work",
+      "startTime": 1770662849429,
+      "endTime": 1770662851147,
+      "targetEndTime": 1770698849429,
+      "itemId": 125,
+      "id": 121,
+      "timestamp": 1770662849429
+    },
+    {
+      "text": "Worked on: clarify timers and stopwatches difference - maybe even on a bigger scale (0m)",
+      "projectName": "anything",
+      "type": "work",
+      "startTime": 1770662931854,
+      "endTime": 1770662934420,
+      "targetEndTime": 1770663831854,
+      "itemId": 125,
+      "id": 122,
+      "timestamp": 1770662931854
+    },
+    {
+      "text": "Worked on: clarify timers and stopwatches difference - maybe even on a bigger scale (0m)",
+      "projectName": "anything",
+      "type": "work",
+      "startTime": 1770663016758,
+      "endTime": 1770663018174,
+      "targetEndTime": 1770664516757,
+      "itemId": 125,
+      "id": 123,
+      "timestamp": 1770663016758
+    },
+    {
+      "text": "Done: clarify timers and stopwatches difference - maybe even on a bigger scale",
+      "projectName": "anything",
+      "type": "completion",
+      "id": 124,
+      "timestamp": 1770663224704
+    },
+    {
+      "text": "Worked on: anything (6m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1770663229961,
+      "endTime": 1770663644092,
+      "itemId": 9,
+      "id": 125,
+      "timestamp": 1770663229961
+    },
+    {
+      "text": "Break (0m)",
+      "type": "break",
+      "startTime": 1770663645725,
+      "endTime": 1770663647683,
+      "id": 126,
+      "timestamp": 1770663645725
+    },
+    {
+      "text": "Break (4m)",
+      "type": "break",
+      "startTime": 1770663651033,
+      "endTime": 1770663928872,
+      "targetEndTime": 1770664251033,
+      "id": 127,
+      "timestamp": 1770663651033
+    },
+    {
+      "text": "Worked on: מקלחת (13m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1770663937781,
+      "endTime": 1770664742867,
+      "itemId": 177,
+      "id": 128,
+      "timestamp": 1770663937781
+    },
+    {
+      "text": "Done: מקלחת",
+      "projectName": null,
+      "type": "completion",
+      "id": 129,
+      "timestamp": 1770664869980
+    },
+    {
+      "text": "דברים מגניבים למערך 14",
+      "projectName": "עופר",
+      "type": "planned",
+      "startTime": 1770664885902,
+      "endTime": 1770669685902,
+      "itemId": 146,
+      "id": 130,
+      "timestamp": 1770664885902
+    },
+    {
+      "text": "תיקוני באגים של ליאורה",
+      "projectName": "kolwrite",
+      "type": "planned",
+      "startTime": 1770669685902,
+      "endTime": 1770674185902,
+      "itemId": 140,
+      "id": 131,
+      "timestamp": 1770669685902
+    },
+    {
+      "text": "Worked on: דברים מגניבים למערך 14 (1h 38m)",
+      "projectName": "עופר",
+      "type": "work",
+      "startTime": 1770665421736,
+      "endTime": 1770671329709,
+      "targetEndTime": 1770669685902,
+      "itemId": 146,
+      "id": 133,
+      "timestamp": 1770665421736
+    },
+    {
+      "text": "Worked on: תיקוני באגים של ליאורה (29m)",
+      "projectName": "kolwrite",
+      "type": "work",
+      "startTime": 1770671352492,
+      "endTime": 1770673130142,
+      "targetEndTime": 1770674185902,
+      "itemId": 140,
+      "id": 134,
+      "timestamp": 1770671352492
+    },
+    {
+      "text": "Done: counts should reflect visuals",
+      "projectName": "anything",
+      "type": "completion",
+      "id": 135,
+      "timestamp": 1770673499097
+    },
+    {
+      "text": "Worked on: דברים מגניבים למערך 14 (0m)",
+      "projectName": "עופר",
+      "type": "work",
+      "startTime": 1770674129573,
+      "endTime": 1770674143753,
+      "itemId": 146,
+      "id": 136,
+      "timestamp": 1770674129573
+    },
+    {
+      "text": "Done: דברים מגניבים למערך 14",
+      "projectName": "עופר",
+      "type": "completion",
+      "id": 137,
+      "timestamp": 1770674365513
+    },
+    {
+      "text": "Done: restart backend",
+      "projectName": "kolwrite › תיקוני באגים של ליאורה",
+      "type": "completion",
+      "id": 138,
+      "timestamp": 1770674806941
+    },
+    {
+      "text": "Done: zip upload",
+      "projectName": "kolwrite",
+      "type": "completion",
+      "id": 139,
+      "timestamp": 1770675348920
+    },
+    {
+      "text": "Done: persist running",
+      "projectName": "anything",
+      "type": "completion",
+      "id": 140,
+      "timestamp": 1770675371537
+    },
+    {
+      "text": "Break (13m)",
+      "type": "break",
+      "startTime": 1770675564671,
+      "endTime": 1770676378682,
+      "targetEndTime": 1770676464671,
+      "id": 141,
+      "timestamp": 1770675564671
+    },
+    {
+      "text": "Worked on: anything (5m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1770676435469,
+      "endTime": 1770676757615,
+      "itemId": 9,
+      "id": 142,
+      "timestamp": 1770676435469
+    },
+    {
+      "text": "פמי",
+      "projectName": "anything › health",
+      "type": "planned",
+      "startTime": 1770714000000,
+      "endTime": 1770719400000,
+      "itemId": 188,
+      "id": 144,
+      "timestamp": 1770714000000
+    },
+    {
+      "text": "סשן לירון",
+      "projectName": "פרויקטי מוזיקה",
+      "type": "planned",
+      "startTime": 1770739200000,
+      "endTime": 1770750000000,
+      "itemId": 190,
+      "id": 145,
+      "timestamp": 1770739200000
+    },
+    {
+      "text": "סשן שלי",
+      "projectName": "פרויקטי מוזיקה",
+      "type": "planned",
+      "startTime": 1770750000000,
+      "endTime": 1770766200000,
+      "itemId": 193,
+      "id": 146,
+      "timestamp": 1770750000000
+    },
+    {
+      "text": "Worked on: create from timeline edit (10h 0m)",
+      "projectName": "anything",
+      "type": "work",
+      "startTime": 1770676757624,
+      "endTime": 1770712808699,
+      "itemId": 115,
+      "id": 147,
+      "timestamp": 1770676757624
+    },
+    {
+      "text": "להתארגן לפמי",
+      "projectName": "health › פמי",
+      "type": "planned",
+      "startTime": 1770713243085,
+      "endTime": 1770714000000,
+      "itemId": 194,
+      "id": 148,
+      "timestamp": 1770713243085
+    },
+    {
+      "text": "Worked on: להתארגן לפמי (9m)",
+      "projectName": "health › פמי",
+      "type": "work",
+      "startTime": 1770713337825,
+      "endTime": 1770713896225,
+      "targetEndTime": 1770714000000,
+      "itemId": 194,
+      "id": 149,
+      "timestamp": 1770713337825
+    },
+    {
+      "text": "Worked on: פמי (1h 29m)",
+      "projectName": "anything › health",
+      "type": "work",
+      "startTime": 1770713901208,
+      "endTime": 1770719275190,
+      "targetEndTime": 1770719400000,
+      "itemId": 188,
+      "id": 150,
+      "timestamp": 1770713901208
+    },
+    {
+      "text": "Worked on: לענות לליאורה (25m)",
+      "projectName": "kolwrite",
+      "type": "work",
+      "startTime": 1770719310316,
+      "endTime": 1770720821754,
+      "targetEndTime": 1770719610315,
+      "itemId": 197,
+      "id": 151,
+      "timestamp": 1770719310316
+    },
+    {
+      "text": "anything",
+      "projectName": null,
+      "type": "planned",
+      "startTime": 1770720828513,
+      "endTime": 1770724428513,
+      "itemId": 9,
+      "id": 152,
+      "timestamp": 1770720828513
+    },
+    {
+      "text": "Worked on: anything (39m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1770722403511,
+      "endTime": 1770724771643,
+      "targetEndTime": 1770724428513,
+      "itemId": 9,
+      "id": 153,
+      "timestamp": 1770722403511
+    },
+    {
+      "text": "anything",
+      "projectName": null,
+      "type": "planned",
+      "startTime": 1770724771671,
+      "endTime": 1770729180000,
+      "itemId": 9,
+      "id": 154,
+      "timestamp": 1770724771671
+    },
+    {
+      "type": "work",
+      "startTime": 1770725687857,
+      "endTime": 1770727487857,
+      "itemId": 208,
+      "id": 155,
+      "timestamp": 1770725687857
+    },
+    {
+      "text": "Done: לענות לליאורה",
+      "projectName": "kolwrite",
+      "type": "completion",
+      "id": 156,
+      "timestamp": 1770728546223
+    },
+    {
+      "text": "Worked on: anything (1h 6m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1770725222131,
+      "endTime": 1770729219996,
+      "targetEndTime": 1770730171671,
+      "itemId": 9,
+      "id": 157,
+      "timestamp": 1770725222131
+    },
+    {
+      "text": "שבעה סבתא של ירין",
+      "projectName": "חברים",
+      "type": "planned",
+      "startTime": 1770802200000,
+      "endTime": 1770807600000,
+      "itemId": 216,
+      "id": 158,
+      "timestamp": 1770802200000
+    },
+    {
+      "text": "Break (0m)",
+      "type": "break",
+      "startTime": 1770729797019,
+      "endTime": 1770729799029,
+      "id": 159,
+      "timestamp": 1770729797019
+    },
+    {
+      "text": "Break (7m)",
+      "type": "break",
+      "startTime": 1770729828869,
+      "endTime": 1770730281421,
+      "targetEndTime": 1770730428869,
+      "id": 160,
+      "timestamp": 1770729828869
     }
   ],
-  "nextId": 114
+  "nextId": 161
 }

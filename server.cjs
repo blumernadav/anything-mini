@@ -210,6 +210,21 @@ app.put('/api/settings', (req, res) => {
     res.json(updated);
 });
 
+// ============ Preferences API ============
+
+const preferencesStore = createJsonStore('./data/preferences.json', () => ({}));
+
+app.get('/api/preferences', (req, res) => {
+    res.json(preferencesStore.read());
+});
+
+app.put('/api/preferences', (req, res) => {
+    const current = preferencesStore.read();
+    const updated = { ...current, ...req.body };
+    preferencesStore.write(updated);
+    res.json(updated);
+});
+
 // ============ Start ============
 
 app.listen(PORT, () => {

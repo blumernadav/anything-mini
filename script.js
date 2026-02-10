@@ -15,7 +15,7 @@ const state = {
     timelineViewDate: new Date(), // which day is displayed in timeline
     hidePastEntries: false, // toggle to hide past entries in today's timeline
     showDone: false, // when true, done items are visible in actions and project tree
-    showUnscheduled: true, // when true, anytime (unscheduled) items appear alongside scheduled ones
+    scheduleFilter: 'scheduled+unscheduled', // 'scheduled' | 'scheduled+unscheduled' | 'all'
     projectSearchQuery: '', // current search term for the project tree
     workingOn: null, // { itemId, itemName, projectName, startTime } — active work timer
     onBreak: null, // { startTime } — active break timer
@@ -65,11 +65,17 @@ const api = {
     },
 };
 
+// Fire-and-forget preference save to backend
+function savePref(key, value) {
+    api.put('/preferences', { [key]: value });
+}
+
 // ─── Load Data ───
 async function loadAll() {
-    const [items, timeline] = await Promise.all([
+    const [items, timeline, prefs] = await Promise.all([
         api.get('/items'),
         api.get('/timeline'),
+        api.get('/preferences').catch(() => ({})),
     ]);
     state.items = items;
     state.timeline = timeline;
@@ -79,30 +85,68 @@ async function loadAll() {
         state.settings = { ...state.settings, ...s };
     } catch { /* use defaults */ }
     ensureInbox();
-    // Restore selected project context from localStorage
-    const savedSelectedId = localStorage.getItem('selectedItemId');
-    if (savedSelectedId) {
-        const id = parseInt(savedSelectedId, 10);
+
+    // Restore preferences from backend
+    if (prefs.selectedItemId) {
+        const id = parseInt(prefs.selectedItemId, 10);
         if (findItemById(id)) {
             state.selectedItemId = id;
         }
     }
-    // Restore timeline view date, or default to logical today
-    const savedDate = localStorage.getItem('timelineViewDate');
-    if (savedDate) {
-        state.timelineViewDate = new Date(savedDate);
+    if (prefs.timelineViewDate) {
+        state.timelineViewDate = new Date(prefs.timelineViewDate);
     } else {
         state.timelineViewDate = getLogicalToday();
     }
-    // Restore working-on state from localStorage
-    restoreWorkingOn();
-    restoreBreak();
+    if (prefs.workingOn) {
+        state.workingOn = prefs.workingOn;
+    }
+    if (prefs.onBreak) {
+        state.onBreak = prefs.onBreak;
+    }
+    state.hidePastEntries = prefs.hidePastEntries === true;
+    state.showDone = prefs.showDone === true;
+    const validFilters = ['scheduled', 'scheduled+unscheduled', 'all'];
+    state.scheduleFilter = validFilters.includes(prefs.scheduleFilter) ? prefs.scheduleFilter : 'scheduled+unscheduled';
+
     // Auto-clean past schedules (fire-and-forget, don't block render)
     cleanPastSchedules();
     renderAll();
     syncSettingsUI();
+    syncToggleUI();
     // Render streak widget with loaded settings
     renderStreak();
+}
+
+// Sync the schedule-filter button appearance with the current state
+function syncScheduleFilterBtn(btn) {
+    if (state.scheduleFilter === 'scheduled') {
+        btn.textContent = '📅';
+        btn.classList.add('active');
+        btn.title = 'Scheduled only';
+    } else if (state.scheduleFilter === 'all') {
+        btn.textContent = '🗓️';
+        btn.classList.add('active');
+        btn.title = 'All items';
+    } else {
+        // 'scheduled+unscheduled' — default
+        btn.textContent = '📅';
+        btn.classList.remove('active');
+        btn.title = 'Scheduled + anytime';
+    }
+}
+
+// Sync toggle button visuals with state (called after loadAll prefs are loaded)
+function syncToggleUI() {
+    const hideDoneBtn = document.getElementById('hide-done-btn');
+    if (hideDoneBtn) {
+        hideDoneBtn.classList.toggle('active', state.showDone);
+        hideDoneBtn.title = state.showDone ? 'Hide done' : 'Show done';
+    }
+    const showUnschedBtn = document.getElementById('show-unscheduled-btn');
+    if (showUnschedBtn) {
+        syncScheduleFilterBtn(showUnschedBtn);
+    }
 }
 
 // Ensure Inbox exists as the first node in the tree
@@ -218,6 +262,232 @@ function collectDescendantIds(item) {
     return ids;
 }
 
+// ── Shared Autocomplete with Create ──
+// Used by plan editor, idle-work editor, and past-entry editor.
+// Returns { getSelected, setSelected } so callers can read/write selectedAction.
+function setupAutocomplete(actionInput, suggestions, { onSelect, allowCreate = true } = {}) {
+    let selectedAction = null;
+    const allActions = collectAllItems().filter(a => !a.done);
+    let isParentMode = false;
+    let createName = '';
+
+    // ── Build hierarchical tree for parent selector ──
+    function buildParentTree(items, depth = 0, filter = '') {
+        const result = [];
+        for (const item of items) {
+            if (item.isInbox) continue;
+            if (item.done) continue;
+            const matchesFilter = !filter || item.name.toLowerCase().includes(filter.toLowerCase());
+            const childResults = item.children ? buildParentTree(item.children, depth + 1, filter) : [];
+            if (matchesFilter || childResults.length > 0) {
+                result.push({ item, depth, hasChildren: !!(item.children && item.children.length > 0) });
+                result.push(...childResults);
+            }
+        }
+        return result;
+    }
+
+    function renderParentSelector() {
+        suggestions.innerHTML = '';
+        suggestions.style.display = 'block';
+
+        // Header with back arrow
+        const header = document.createElement('div');
+        header.className = 'plan-editor-parent-header';
+        const backBtn = document.createElement('span');
+        backBtn.className = 'plan-editor-parent-back';
+        backBtn.textContent = '←';
+        backBtn.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            isParentMode = false;
+            renderSuggestions(actionInput.value);
+        });
+        const headerText = document.createElement('span');
+        headerText.className = 'plan-editor-parent-title';
+        headerText.textContent = `Creating: "${createName}"`;
+        header.appendChild(backBtn);
+        header.appendChild(headerText);
+        suggestions.appendChild(header);
+
+        // Filter input
+        const filterInput = document.createElement('input');
+        filterInput.className = 'plan-editor-parent-filter';
+        filterInput.placeholder = 'Filter parents...';
+        filterInput.type = 'text';
+        filterInput.addEventListener('mousedown', (e) => e.stopPropagation());
+        filterInput.addEventListener('input', () => renderTreeItems(filterInput.value));
+        suggestions.appendChild(filterInput);
+
+        // Tree container
+        const treeContainer = document.createElement('div');
+        treeContainer.className = 'plan-editor-parent-tree';
+        suggestions.appendChild(treeContainer);
+
+        function renderTreeItems(filter = '') {
+            treeContainer.innerHTML = '';
+
+            // Root option (no parent)
+            const rootRow = document.createElement('div');
+            rootRow.className = 'plan-editor-parent-item';
+            rootRow.textContent = '📥 Root (no parent)';
+            rootRow.addEventListener('mousedown', async (e) => {
+                e.preventDefault();
+                await createItem(null);
+            });
+            treeContainer.appendChild(rootRow);
+
+            const tree = buildParentTree(state.items.items, 0, filter);
+            for (const { item, depth } of tree) {
+                const row = document.createElement('div');
+                row.className = 'plan-editor-parent-item';
+                row.style.paddingLeft = `${10 + depth * 16}px`;
+                const prefix = (item.children && item.children.length > 0) ? '▸ ' : '';
+                row.textContent = prefix + item.name;
+                row.addEventListener('mousedown', async (e) => {
+                    e.preventDefault();
+                    await createItem(item.id);
+                });
+                treeContainer.appendChild(row);
+            }
+        }
+
+        renderTreeItems();
+        // Focus filter after a tick to avoid losing the dropdown
+        setTimeout(() => filterInput.focus(), 0);
+    }
+
+    async function createItem(parentId) {
+        const name = createName.trim();
+        if (!name) return;
+
+        // Create the item
+        await api.post('/items', { name, parentId });
+        // Reload items data but DON'T re-render timeline (it would destroy this editor)
+        state.items = await api.get('/items');
+        renderProjects();
+        renderActions();
+
+        // Find the newly created item
+        const freshActions = collectAllItems().filter(a => !a.done);
+        const created = freshActions.find(a => a.name === name);
+        if (created) {
+            selectedAction = created;
+            actionInput.value = created.name;
+            if (onSelect) onSelect(created);
+        }
+
+        isParentMode = false;
+        suggestions.style.display = 'none';
+    }
+
+    const renderSuggestions = (query) => {
+        if (isParentMode) {
+            renderParentSelector();
+            return;
+        }
+        suggestions.innerHTML = '';
+        if (!query) {
+            suggestions.style.display = 'none';
+            return;
+        }
+        const q = query.toLowerCase();
+        const matches = allActions.filter(a => a.name.toLowerCase().includes(q));
+
+        // Show dropdown if we have matches or if allowCreate is on
+        if (matches.length === 0 && !allowCreate) {
+            suggestions.style.display = 'none';
+            return;
+        }
+        suggestions.style.display = 'block';
+
+        for (const action of matches.slice(0, 8)) {
+            const opt = document.createElement('div');
+            opt.className = 'plan-editor-suggestion';
+
+            const nameSpan = document.createElement('span');
+            nameSpan.className = 'plan-editor-suggestion-name';
+            nameSpan.textContent = action.name;
+            opt.appendChild(nameSpan);
+
+            if (action._path && action._path.length > 1) {
+                const crumb = document.createElement('span');
+                crumb.className = 'plan-editor-suggestion-project';
+                crumb.textContent = action._path.slice(0, -1).map(p => p.name).join(' › ');
+                opt.appendChild(crumb);
+            }
+
+            opt.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                selectedAction = action;
+                actionInput.value = action.name;
+                suggestions.style.display = 'none';
+                if (onSelect) onSelect(action);
+            });
+            suggestions.appendChild(opt);
+        }
+
+        // Create row (always at bottom when allowCreate is on and there's text)
+        if (allowCreate && query.trim()) {
+            const createRow = document.createElement('div');
+            createRow.className = 'plan-editor-suggestion plan-editor-suggestion-create';
+
+            const createText = document.createElement('span');
+            createText.className = 'plan-editor-suggestion-name';
+            createText.innerHTML = `➕ Create "<strong>${query.trim()}</strong>"`;
+            createRow.appendChild(createText);
+
+            createRow.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                createName = query.trim();
+                isParentMode = true;
+                renderParentSelector();
+            });
+            suggestions.appendChild(createRow);
+        }
+    };
+
+    actionInput.addEventListener('input', () => {
+        selectedAction = null;
+        if (isParentMode) {
+            isParentMode = false;
+        }
+        renderSuggestions(actionInput.value);
+    });
+
+    actionInput.addEventListener('focus', () => {
+        if (actionInput.value && !selectedAction) {
+            renderSuggestions(actionInput.value);
+        }
+    });
+
+    actionInput.addEventListener('blur', () => {
+        // Longer delay when in parent mode so clicks can register
+        const delay = isParentMode ? 300 : 150;
+        setTimeout(() => {
+            if (!isParentMode) {
+                suggestions.style.display = 'none';
+            }
+        }, delay);
+    });
+
+    // Ctrl/Cmd + Enter: quick-create under root
+    actionInput.addEventListener('keydown', async (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && allowCreate) {
+            const text = actionInput.value.trim();
+            if (text && !selectedAction) {
+                e.preventDefault();
+                createName = text;
+                await createItem(null);
+            }
+        }
+    });
+
+    return {
+        getSelected: () => selectedAction,
+        setSelected: (action) => { selectedAction = action; },
+    };
+}
+
 // Check if an item has any non-leaf children (is a "project branch")
 function hasBranchChildren(item) {
     return item.children && item.children.some(c => c.children && c.children.length > 0);
@@ -306,6 +576,109 @@ function hasActiveGoal(action) {
 
 // ─── Time Context Utilities ───
 
+// Parse a context string into components
+// "2026-02-10" → { date: "2026-02-10" }
+// "2026-02-10@10:00-12:00" → { date: "2026-02-10", segment: { start: "10:00", end: "12:00" } }
+// "2026-02-10@entry:abc123" → { date: "2026-02-10", entryId: "abc123" }
+function parseTimeContext(ctx) {
+    if (!ctx || typeof ctx !== 'string') return null;
+    const atIdx = ctx.indexOf('@');
+    if (atIdx === -1) return { date: ctx };
+    const date = ctx.substring(0, atIdx);
+    const suffix = ctx.substring(atIdx + 1);
+    if (suffix.startsWith('entry:')) {
+        return { date, entryId: suffix.substring(6) };
+    }
+    // Segment range: "HH:MM-HH:MM"
+    const match = suffix.match(/^(\d{2}:\d{2})-(\d{2}:\d{2})$/);
+    if (match) {
+        return { date, segment: { start: match[1], end: match[2] } };
+    }
+    return { date };
+}
+
+// Check if a context string matches a date (exact or as prefix via @)
+function contextMatchesDate(ctx, dateKey) {
+    return ctx === dateKey || ctx.startsWith(dateKey + '@');
+}
+
+// Check if an item has any segment-level context (with @) for a given date
+function hasSegmentContext(item, dateKey) {
+    if (!item || !item.timeContexts) return false;
+    return item.timeContexts.some(tc => tc.startsWith(dateKey + '@'));
+}
+
+// Build a segment context string from a date and ms timestamps
+function buildSegmentContext(dateKey, startMs, endMs) {
+    const fmt = (ms) => {
+        const d = new Date(ms);
+        return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    };
+    return `${dateKey}@${fmt(startMs)}-${fmt(endMs)}`;
+}
+
+// Add a segment context to an item, removing the plain date context if present
+async function addSegmentContext(itemId, segmentContextStr) {
+    itemId = Number(itemId);
+    const item = findItemById(itemId);
+    if (!item) return;
+    if (!item.timeContexts) item.timeContexts = [];
+    const parsed = parseTimeContext(segmentContextStr);
+    if (!parsed) return;
+    // Remove plain date context if present (segment subsumes it)
+    item.timeContexts = item.timeContexts.filter(tc => tc !== parsed.date);
+    // Add segment context if not already present
+    if (!item.timeContexts.includes(segmentContextStr)) {
+        item.timeContexts.push(segmentContextStr);
+    }
+    // Seed segment duration from item's estimatedDuration
+    if (!item.segmentDurations) item.segmentDurations = {};
+    if (!(segmentContextStr in item.segmentDurations)) {
+        item.segmentDurations[segmentContextStr] = item.estimatedDuration || 0;
+    }
+    await api.patch(`/items/${itemId}`, { timeContexts: item.timeContexts, segmentDurations: item.segmentDurations });
+    renderAll();
+}
+
+// Degrade a segment context back to its parent date context
+async function degradeSegmentContext(itemId, segmentContextStr) {
+    itemId = Number(itemId);
+    const item = findItemById(itemId);
+    if (!item || !item.timeContexts) return;
+    const parsed = parseTimeContext(segmentContextStr);
+    if (!parsed) return;
+    // Remove the segment context
+    item.timeContexts = item.timeContexts.filter(tc => tc !== segmentContextStr);
+    // Clean up segment duration
+    if (item.segmentDurations) delete item.segmentDurations[segmentContextStr];
+    // Add the parent date back if no other context for this date exists
+    const hasOtherForDate = item.timeContexts.some(tc => contextMatchesDate(tc, parsed.date));
+    if (!hasOtherForDate) {
+        item.timeContexts.push(parsed.date);
+    }
+    const patch = { timeContexts: item.timeContexts };
+    if (item.segmentDurations) patch.segmentDurations = item.segmentDurations;
+    await api.patch(`/items/${itemId}`, patch);
+    renderAll();
+}
+
+// Degrade all segment/entry contexts referencing a specific entry ID
+async function degradeEntryContexts(entryId) {
+    const items = collectAllItems(state.items.items);
+    for (const item of items) {
+        if (!item.timeContexts) continue;
+        const matching = item.timeContexts.filter(tc => {
+            const p = parseTimeContext(tc);
+            return p && p.entryId === entryId;
+        });
+        if (matching.length > 0) {
+            for (const ctx of matching) {
+                await degradeSegmentContext(item.id, ctx);
+            }
+        }
+    }
+}
+
 // Get effective time contexts for an item by merging its own contexts with all ancestors'
 function getEffectiveTimeContexts(itemId) {
     const contexts = new Set();
@@ -333,9 +706,9 @@ function getEffectiveTimeContexts(itemId) {
 //   3. If some level has timeContexts but none match dateKey → hide
 function itemMatchesTimeContext(action, dateKey) {
     const item = findItemById(action.id);
-    // Check own contexts
+    // Check own contexts (exact date match OR segment/entry context for that date)
     const ownContexts = (item && item.timeContexts) || [];
-    if (ownContexts.includes(dateKey)) return true;
+    if (ownContexts.some(tc => contextMatchesDate(tc, dateKey))) return true;
     // Walk ancestors
     const ancestors = getAncestorPath(action.id);
     let anyAncestorHasContexts = ownContexts.length > 0;
@@ -343,7 +716,7 @@ function itemMatchesTimeContext(action, dateKey) {
         for (const ancestor of ancestors) {
             if (ancestor.timeContexts && ancestor.timeContexts.length > 0) {
                 anyAncestorHasContexts = true;
-                if (ancestor.timeContexts.includes(dateKey)) return true;
+                if (ancestor.timeContexts.some(tc => contextMatchesDate(tc, dateKey))) return true;
             }
         }
     }
@@ -403,7 +776,10 @@ async function cleanPastSchedules() {
         for (const item of items) {
             if (item.timeContexts && item.timeContexts.length > 0) {
                 const before = item.timeContexts.length;
-                item.timeContexts = item.timeContexts.filter(tc => tc >= todayKey);
+                item.timeContexts = item.timeContexts.filter(tc => {
+                    const parsed = parseTimeContext(tc);
+                    return parsed && parsed.date >= todayKey;
+                });
                 if (item.timeContexts.length !== before) dirty = true;
             }
             if (item.children && item.children.length > 0) {
@@ -633,7 +1009,7 @@ function showProjectContextMenu(e, item) {
         await api.del(`/items/${item.id}`);
         if (state.selectedItemId === item.id) {
             state.selectedItemId = null;
-            localStorage.setItem('selectedItemId', '');
+            savePref('selectedItemId', '');
         }
         await reloadItems();
     });
@@ -934,9 +1310,9 @@ function collectSearchMatches(items, query, matchingIds) {
 function collectTimeContextMatches(items, dateKey, visibleIds) {
     let anyVisible = false;
     for (const item of items) {
-        const selfMatch = itemMatchesTimeContext(item, dateKey);
-        // When showUnscheduled is off, hide truly unscheduled items
-        const unscheduledHidden = !state.showUnscheduled && isItemUnscheduled(item);
+        const selfMatch = state.scheduleFilter === 'all' ? true : itemMatchesTimeContext(item, dateKey);
+        // When scheduleFilter is 'scheduled', hide truly unscheduled items
+        const unscheduledHidden = state.scheduleFilter === 'scheduled' && isItemUnscheduled(item);
         // Done leaves hidden by the done filter should not propagate schedule visibility
         const doneHidden = !state.showDone && isLeaf(item) && !item.isInbox && item.done;
         let childVisible = false;
@@ -985,7 +1361,7 @@ function renderProjects() {
     // Deselect if the selected project is no longer visible
     if (state.selectedItemId && !timeContextVisibleIds.has(state.selectedItemId)) {
         state.selectedItemId = null;
-        localStorage.setItem('selectedItemId', '');
+        savePref('selectedItemId', '');
     }
 
     const fragment = document.createDocumentFragment();
@@ -1115,9 +1491,6 @@ function scrollToSelectedItem() {
 
     if (selectedRow) {
         selectedRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        // Brief highlight flash
-        selectedRow.classList.add('scroll-to-selected-flash');
-        setTimeout(() => selectedRow.classList.remove('scroll-to-selected-flash'), 800);
     }
 }
 
@@ -1313,13 +1686,22 @@ function renderProjectLevel(items, parent, depth, query = '', matchingIds = new 
 
         // Count badge for branches (items with children)
         if (hasChildren || isInbox) {
-            const leafCount = collectLeaves([item]).length;
-            const doneCount = collectLeaves([item]).filter(l => l.done).length;
-            const undone = leafCount - doneCount;
+            const currentDateKey = getDateKey(state.timelineViewDate);
+            let leaves = collectLeaves([item]);
+            // Apply same filters as getFilteredActions so counts match visuals
+            if (!state.showDone) {
+                leaves = leaves.filter(l => !l.done);
+            }
+            if (state.scheduleFilter !== 'all') {
+                leaves = leaves.filter(l => itemMatchesTimeContext(l, currentDateKey));
+            }
+            if (state.scheduleFilter === 'scheduled') {
+                leaves = leaves.filter(l => !isItemUnscheduled(l));
+            }
             const badge = document.createElement('span');
             badge.className = 'project-count';
-            badge.textContent = `${undone}`;
-            if (undone === 0) badge.classList.add('project-count-zero');
+            badge.textContent = `${leaves.length}`;
+            if (leaves.length === 0) badge.classList.add('project-count-zero');
             row.appendChild(badge);
         }
 
@@ -1347,7 +1729,7 @@ function renderProjectLevel(items, parent, depth, query = '', matchingIds = new 
                 await api.del(`/items/${item.id}`);
                 if (state.selectedItemId === item.id) {
                     state.selectedItemId = null;
-                    localStorage.setItem('selectedItemId', '');
+                    savePref('selectedItemId', '');
                 }
                 await reloadItems();
             });
@@ -1361,7 +1743,7 @@ function renderProjectLevel(items, parent, depth, query = '', matchingIds = new 
         row.addEventListener('click', (e) => {
             if (row.querySelector('.rename-inline-input')) return;
             state.selectedItemId = state.selectedItemId === item.id ? null : item.id;
-            localStorage.setItem('selectedItemId', state.selectedItemId || '');
+            savePref('selectedItemId', state.selectedItemId || '');
             renderAll();
         });
 
@@ -1602,6 +1984,7 @@ function renderActions() {
     }
     container.appendChild(fragment);
     updateBulkActionBar();
+    updateCapacitySummary(sorted);
 }
 
 function getFilteredActions() {
@@ -1612,14 +1995,19 @@ function getFilteredActions() {
         allLeaves = allLeaves.filter(a => !a.done);
     }
 
-    // ── Time context filter: show items matching the current timeline date ──
+    // ── Schedule filter: 'scheduled' | 'scheduled+unscheduled' | 'all' ──
     const currentDateKey = getDateKey(state.timelineViewDate);
-    allLeaves = allLeaves.filter(a => itemMatchesTimeContext(a, currentDateKey));
-
-    // ── Hide unscheduled (anytime) items when toggle is off ──
-    if (!state.showUnscheduled) {
+    if (state.scheduleFilter !== 'all') {
+        allLeaves = allLeaves.filter(a => itemMatchesTimeContext(a, currentDateKey));
+    }
+    if (state.scheduleFilter === 'scheduled') {
         allLeaves = allLeaves.filter(a => !isItemUnscheduled(a));
     }
+    // Exclude items with segment-level contexts — they belong to the timeline, not Actions
+    allLeaves = allLeaves.filter(a => {
+        const item = findItemById(a.id);
+        return !hasSegmentContext(item, currentDateKey);
+    });
 
     if (!state.selectedItemId) return allLeaves;
 
@@ -1772,6 +2160,34 @@ document.addEventListener('DOMContentLoaded', () => {
                 clearActionSelection();
             }
         });
+
+        // ── Drop handler for drag-out from segment queue ──
+        const actionsSection = document.getElementById('section-actions');
+        if (actionsSection) {
+            actionsSection.addEventListener('dragover', (e) => {
+                if (!e.dataTransfer.types.includes('application/x-segment-item-id')) return;
+                console.log('[ACTIONS] dragover from segment item');
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                actionsSection.classList.add('actions-drag-over');
+            });
+            actionsSection.addEventListener('dragleave', (e) => {
+                if (e.relatedTarget && actionsSection.contains(e.relatedTarget)) return;
+                actionsSection.classList.remove('actions-drag-over');
+            });
+            actionsSection.addEventListener('drop', (e) => {
+                console.log('[ACTIONS] drop event, types:', [...e.dataTransfer.types]);
+                if (!e.dataTransfer.types.includes('application/x-segment-item-id')) return;
+                e.preventDefault();
+                actionsSection.classList.remove('actions-drag-over');
+                const itemId = e.dataTransfer.getData('application/x-segment-item-id');
+                const segCtx = e.dataTransfer.getData('application/x-segment-context');
+                console.log('[ACTIONS] segment drop, itemId:', itemId, 'segCtx:', segCtx);
+                if (itemId && segCtx) {
+                    degradeSegmentContext(itemId, segCtx);
+                }
+            });
+        }
     }
 });
 
@@ -1827,8 +2243,8 @@ function createActionElement(action) {
     if (!action.done) {
         item.draggable = true;
         item.addEventListener('dragstart', (e) => {
-            e.dataTransfer.setData('application/x-action-id', action.id);
-            e.dataTransfer.effectAllowed = 'copy';
+            e.dataTransfer.setData('application/x-action-id', String(action.id));
+            e.dataTransfer.effectAllowed = 'copyMove';
             item.classList.add('action-item-dragging');
             // Store action data for the drop handler
             window._draggedAction = action;
@@ -1869,13 +2285,75 @@ function createActionElement(action) {
         });
     }
 
+    // ── Badges row: all metadata badges in a single compact flex row ──
+    const badgesRow = document.createElement('div');
+    badgesRow.className = 'action-badges';
+
     // Show ancestor path as breadcrumb tag (if not filtering by a project)
     if (!state.selectedItemId && action._path && action._path.length > 1) {
-        const ancestorNames = action._path.slice(0, -1).map(p => p.name).join(' › ');
+        const ancestors = action._path.slice(0, -1);
         const tag = document.createElement('span');
         tag.className = 'action-project-tag';
-        tag.textContent = ancestorNames;
-        content.appendChild(tag);
+        ancestors.forEach((ancestor, idx) => {
+            if (idx > 0) {
+                const sep = document.createTextNode(' › ');
+                tag.appendChild(sep);
+            }
+            const link = document.createElement('span');
+            link.className = 'action-project-tag-link';
+            link.textContent = ancestor.name;
+            link.title = `Select "${ancestor.name}" in projects`;
+            link.addEventListener('click', (e) => {
+                e.stopPropagation();
+                state.selectedItemId = ancestor.id;
+                savePref('selectedItemId', ancestor.id);
+                renderAll();
+                // Scroll to the selected project after render
+                requestAnimationFrame(() => scrollToSelectedItem());
+            });
+            tag.appendChild(link);
+        });
+        badgesRow.appendChild(tag);
+    }
+
+    // Duration estimate badge
+    const estimateItem = findItemById(action.id);
+    if (!action.done) {
+        const estimateBadge = document.createElement('span');
+        estimateBadge.className = 'action-estimate-badge';
+        const est = estimateItem?.estimatedDuration;
+        if (est) {
+            estimateBadge.textContent = est >= 60 ? `${Math.floor(est / 60)}h${est % 60 ? ` ${est % 60}m` : ''}` : `${est}m`;
+            estimateBadge.classList.add('has-estimate');
+        } else {
+            estimateBadge.textContent = '⏱';
+            estimateBadge.classList.add('no-estimate');
+        }
+        estimateBadge.addEventListener('click', (e) => {
+            e.stopPropagation();
+            showEstimatePicker(estimateBadge, action.id);
+        });
+        badgesRow.appendChild(estimateBadge);
+    }
+
+    // Show time context badges (inline, no wrapper)
+    const originalItem = estimateItem || findItemById(action.id);
+    if (originalItem && originalItem.timeContexts && originalItem.timeContexts.length > 0) {
+        for (const dateStr of originalItem.timeContexts) {
+            const dtag = document.createElement('span');
+            dtag.className = 'action-time-tag';
+            // Show short date: "Feb 9" or "Today" (aligned with timeline's today definition)
+            const d = new Date(dateStr + 'T00:00:00');
+            const viewDateKey = getDateKey(state.timelineViewDate);
+            const viewIsToday = isCurrentDay(state.timelineViewDate);
+            if (dateStr === viewDateKey && viewIsToday) {
+                dtag.textContent = 'Today';
+                dtag.classList.add('action-time-tag-today');
+            } else {
+                dtag.textContent = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            }
+            badgesRow.appendChild(dtag);
+        }
     }
 
     // Show goal progress badge (if this action or an ancestor has a goal)
@@ -1900,30 +2378,13 @@ function createActionElement(action) {
             badge.appendChild(label);
 
             if (progress.percent >= 100) badge.classList.add('action-goal-complete');
-            content.appendChild(badge);
+            badgesRow.appendChild(badge);
         }
     }
 
-    // Show time context badges
-    const originalItem = findItemById(action.id);
-    if (originalItem && originalItem.timeContexts && originalItem.timeContexts.length > 0) {
-        const tagsWrap = document.createElement('div');
-        tagsWrap.className = 'action-time-tags';
-        for (const dateStr of originalItem.timeContexts) {
-            const dtag = document.createElement('span');
-            dtag.className = 'action-time-tag';
-            // Show short date: "Feb 9" or "Mon"
-            const d = new Date(dateStr + 'T00:00:00');
-            const today = getDateKey(getLogicalToday());
-            if (dateStr === today) {
-                dtag.textContent = 'Today';
-                dtag.classList.add('action-time-tag-today');
-            } else {
-                dtag.textContent = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-            }
-            tagsWrap.appendChild(dtag);
-        }
-        content.appendChild(tagsWrap);
+    // Only append badges row if it has children
+    if (badgesRow.children.length > 0) {
+        content.appendChild(badgesRow);
     }
 
     // Action buttons container
@@ -1933,7 +2394,7 @@ function createActionElement(action) {
     // Done button (toggle)
     const doneBtn = document.createElement('button');
     doneBtn.className = 'action-btn action-btn-done';
-    doneBtn.textContent = action.done ? 'Undo' : 'Done';
+    doneBtn.textContent = action.done ? '↩' : '✓';
     doneBtn.title = action.done ? 'Mark as not done' : 'Mark as done';
     if (action.done) doneBtn.classList.add('action-btn-undone');
     doneBtn.addEventListener('click', async (e) => {
@@ -1963,7 +2424,7 @@ function createActionElement(action) {
     // Decline button
     const declineBtn = document.createElement('button');
     declineBtn.className = 'action-btn action-btn-decline';
-    declineBtn.textContent = 'Decline';
+    declineBtn.textContent = '✕';
     declineBtn.title = 'Decline this action';
     declineBtn.addEventListener('click', async (e) => {
         e.stopPropagation();
@@ -1993,7 +2454,7 @@ function createActionElement(action) {
     // Followup button — marks as done, then creates a new sibling right after it
     const followupBtn = document.createElement('button');
     followupBtn.className = 'action-btn action-btn-followup';
-    followupBtn.textContent = 'Followup';
+    followupBtn.textContent = '↪';
     followupBtn.title = 'Mark done & create follow-up';
     if (!action.done) {
         followupBtn.addEventListener('click', async (e) => {
@@ -2124,10 +2585,24 @@ function createActionElement(action) {
         workBtn.disabled = true;
     }
 
+    // Schedule button
+    const scheduleBtn = document.createElement('button');
+    scheduleBtn.className = 'action-btn action-btn-schedule';
+    scheduleBtn.textContent = '📅';
+    scheduleBtn.title = 'Schedule this action';
+    if (!action.done) {
+        scheduleBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            openScheduleModal(action.id, action.name);
+        });
+    } else {
+        scheduleBtn.disabled = true;
+    }
+
     buttons.appendChild(workBtn);
     buttons.appendChild(doneBtn);
-    buttons.appendChild(followupBtn);
     buttons.appendChild(declineBtn);
+    buttons.appendChild(scheduleBtn);
     buttons.appendChild(breakdownBtn);
 
     item.appendChild(content);
@@ -2353,6 +2828,8 @@ function renderTimeline() {
         }
     };
 
+    let dayEndRenderedInFork = false;
+
     // ── When hiding past entries, inject idle/working block before the entry loop ──
     // The idle/working block represents the CURRENT state and should always be visible
     if (hidePast && viewingToday && nowMs > dayStart.getTime() && nowMs < dayEndMs) {
@@ -2361,7 +2838,25 @@ function renderTimeline() {
         const idleEnd = firstFutureBlock ? Math.min(nowMs, firstFutureBlock.timestamp) : nowMs;
         if (idleEnd > idleStart) {
             if (state.workingOn) {
-                fragment.appendChild(createWorkingTimeBlock(state.workingOn.startTime, idleEnd));
+                const workProjectedEnd = Math.max(nowMs, state.workingOn.targetEndTime || 0);
+                if (workProjectedEnd > dayEndMs) {
+                    // Work extends past day end — show divergence fork
+                    const overlapGroup = document.createElement('div');
+                    overlapGroup.className = 'timeline-overlap-group';
+                    const planLane = document.createElement('div');
+                    planLane.className = 'overlap-lane overlap-lane-plan';
+                    planLane.appendChild(createDayBoundaryBlock('day-end', dayEnd, now));
+                    const realityLane = document.createElement('div');
+                    realityLane.className = 'overlap-lane overlap-lane-reality';
+                    realityLane.appendChild(createWorkingTimeBlock(state.workingOn.startTime, idleEnd));
+                    overlapGroup.appendChild(planLane);
+                    overlapGroup.appendChild(realityLane);
+                    fragment.appendChild(overlapGroup);
+                    cursor = Math.max(cursor, dayEndMs);
+                    dayEndRenderedInFork = true;
+                } else {
+                    fragment.appendChild(createWorkingTimeBlock(state.workingOn.startTime, idleEnd));
+                }
             } else if (state.onBreak) {
                 fragment.appendChild(createBreakTimeBlock(state.onBreak.startTime, idleEnd));
             } else {
@@ -2377,7 +2872,25 @@ function renderTimeline() {
         const idleEnd = firstBlock ? Math.min(nowMs, firstBlock.timestamp) : Math.min(nowMs, dayEndMs);
         if (idleEnd > dayStart.getTime()) {
             if (state.workingOn) {
-                fragment.appendChild(createWorkingTimeBlock(state.workingOn.startTime, idleEnd));
+                const workProjectedEnd = Math.max(nowMs, state.workingOn.targetEndTime || 0);
+                if (workProjectedEnd > dayEndMs) {
+                    // Work extends past day end — show divergence fork
+                    const overlapGroup = document.createElement('div');
+                    overlapGroup.className = 'timeline-overlap-group';
+                    const planLane = document.createElement('div');
+                    planLane.className = 'overlap-lane overlap-lane-plan';
+                    planLane.appendChild(createDayBoundaryBlock('day-end', dayEnd, now));
+                    const realityLane = document.createElement('div');
+                    realityLane.className = 'overlap-lane overlap-lane-reality';
+                    realityLane.appendChild(createWorkingTimeBlock(state.workingOn.startTime, idleEnd));
+                    overlapGroup.appendChild(planLane);
+                    overlapGroup.appendChild(realityLane);
+                    fragment.appendChild(overlapGroup);
+                    cursor = Math.max(cursor, dayEndMs);
+                    dayEndRenderedInFork = true;
+                } else {
+                    fragment.appendChild(createWorkingTimeBlock(state.workingOn.startTime, idleEnd));
+                }
             } else if (state.onBreak) {
                 fragment.appendChild(createBreakTimeBlock(state.onBreak.startTime, idleEnd));
             } else {
@@ -2444,6 +2957,9 @@ function renderTimeline() {
             }
         }
 
+        // Detect if the cluster extends past day end boundary
+        const hitsDayEnd = clusterEnd > dayEndMs && dayEndMs > Math.min(...[...clusterEntries].map(e => e.timestamp));
+
         // Only form a cluster if there's at least one ghost plan AND at least one work entry (or live work)
         if (clusterPlans.length > 0 && (clusterWork.length > 0 || liveWork)) {
             const cluster = {
@@ -2453,6 +2969,7 @@ function renderTimeline() {
                 start: Math.min(...[...clusterEntries].map(e => e.timestamp)),
                 end: clusterEnd,
                 liveWork,
+                hitsDayEnd,
             };
             overlapClusters.push(cluster);
             for (const e of clusterEntries) {
@@ -2460,6 +2977,7 @@ function renderTimeline() {
             }
         }
     }
+
     // Track which clusters have been rendered
     const renderedClusters = new Set();
 
@@ -2492,6 +3010,10 @@ function renderTimeline() {
             planLane.className = 'overlap-lane overlap-lane-plan';
             for (const plan of cluster.plans) {
                 planLane.appendChild(createTimelineElement(plan));
+            }
+            // If work extends past day end, show day boundary in the planned lane
+            if (cluster.hitsDayEnd) {
+                planLane.appendChild(createDayBoundaryBlock('day-end', dayEnd, now));
             }
 
             const realityLane = document.createElement('div');
@@ -2533,7 +3055,25 @@ function renderTimeline() {
                 if (nextCluster && nextCluster.liveWork) {
                     // Working block will be rendered as part of the next cluster
                 } else if (state.workingOn) {
-                    fragment.appendChild(createWorkingTimeBlock(state.workingOn.startTime, idleEnd));
+                    const workProjectedEnd = Math.max(nowMs, state.workingOn.targetEndTime || 0);
+                    if (workProjectedEnd > dayEndMs) {
+                        // Work extends past day end — show divergence fork
+                        const overlapGroup = document.createElement('div');
+                        overlapGroup.className = 'timeline-overlap-group';
+                        const planLane = document.createElement('div');
+                        planLane.className = 'overlap-lane overlap-lane-plan';
+                        planLane.appendChild(createDayBoundaryBlock('day-end', dayEnd, now));
+                        const realityLane = document.createElement('div');
+                        realityLane.className = 'overlap-lane overlap-lane-reality';
+                        realityLane.appendChild(createWorkingTimeBlock(state.workingOn.startTime, idleEnd));
+                        overlapGroup.appendChild(planLane);
+                        overlapGroup.appendChild(realityLane);
+                        fragment.appendChild(overlapGroup);
+                        cursor = Math.max(cursor, dayEndMs);
+                        dayEndRenderedInFork = true;
+                    } else {
+                        fragment.appendChild(createWorkingTimeBlock(state.workingOn.startTime, idleEnd));
+                    }
                 } else if (state.onBreak) {
                     fragment.appendChild(createBreakTimeBlock(state.onBreak.startTime, idleEnd));
                 } else {
@@ -2544,6 +3084,7 @@ function renderTimeline() {
             }
         }
     }
+
 
     // ── Trailing free time: from cursor to day end ──
     if (dayEndMs > cursor) {
@@ -2556,7 +3097,9 @@ function renderTimeline() {
     }
 
     // ── Day End block ──
-    fragment.appendChild(createDayBoundaryBlock('day-end', dayEnd, now));
+    if (!dayEndRenderedInFork) {
+        fragment.appendChild(createDayBoundaryBlock('day-end', dayEnd, now));
+    }
 
     container.appendChild(fragment);
 
@@ -2620,14 +3163,21 @@ function createFreeTimeBlock(startMs, endMs) {
     el.appendChild(planBtn);
 
     // ── Drop target for drag-to-schedule ──
+    const _acceptsDrag = (e) =>
+        e.dataTransfer.types.includes('application/x-action-id') ||
+        e.dataTransfer.types.includes('application/x-segment-item-id');
+
     el.addEventListener('dragover', (e) => {
-        if (!e.dataTransfer.types.includes('application/x-action-id')) return;
+        if (!_acceptsDrag(e)) return;
         e.preventDefault();
-        e.dataTransfer.dropEffect = 'copy';
+        e.dataTransfer.dropEffect = 'move';
         el.classList.add('time-block-drag-over');
+        if (e.dataTransfer.types.includes('application/x-segment-item-id')) {
+            console.log('[FREE-BLOCK] dragover from segment item');
+        }
     });
     el.addEventListener('dragenter', (e) => {
-        if (!e.dataTransfer.types.includes('application/x-action-id')) return;
+        if (!_acceptsDrag(e)) return;
         e.preventDefault();
         el.classList.add('time-block-drag-over');
     });
@@ -2637,13 +3187,230 @@ function createFreeTimeBlock(startMs, endMs) {
         el.classList.remove('time-block-drag-over');
     });
     el.addEventListener('drop', (e) => {
+        console.log('[FREE-BLOCK] drop event, types:', [...e.dataTransfer.types]);
+        if (!_acceptsDrag(e)) { console.log('[FREE-BLOCK] drop rejected by _acceptsDrag'); return; }
         e.preventDefault();
         el.classList.remove('time-block-drag-over');
+
+        const dateKey = getDateKey(state.timelineViewDate);
+        const newSegCtx = buildSegmentContext(dateKey, startMs, endMs);
+
+        // Cross-block drag: segment item moving between free blocks
+        if (e.dataTransfer.types.includes('application/x-segment-item-id')) {
+            const itemId = e.dataTransfer.getData('application/x-segment-item-id');
+            const oldCtx = e.dataTransfer.getData('application/x-segment-context');
+            console.log('[FREE-BLOCK] cross-block drop, itemId:', itemId, 'oldCtx:', oldCtx, 'newCtx:', newSegCtx);
+            if (itemId && oldCtx && oldCtx !== newSegCtx) {
+                (async () => {
+                    await degradeSegmentContext(itemId, oldCtx);
+                    await addSegmentContext(itemId, newSegCtx);
+                })();
+            } else {
+                console.log('[FREE-BLOCK] cross-block drop skipped (same block or missing data)');
+            }
+            return;
+        }
+
+        // Normal drag from Actions panel
         const action = window._draggedAction;
+        console.log('[FREE-BLOCK] normal drop, action:', action?.id);
         if (!action) return;
         window._draggedAction = null;
-        openPlanEditor(el, startMs, endMs, action);
+        addSegmentContext(action.id, newSegCtx);
     });
+
+    // ── Nested segment-assigned items ──
+    const dateKey = getDateKey(state.timelineViewDate);
+    const segCtx = buildSegmentContext(dateKey, startMs, endMs);
+    const allItems = collectLeaves();
+    const assignedItems = allItems.filter(a => {
+        const item = findItemById(a.id);
+        if (!item || !item.timeContexts) return false;
+        // Match: exact segment context OR overlapping segment context
+        return item.timeContexts.some(tc => {
+            if (tc === segCtx) return true;
+            const parsed = parseTimeContext(tc);
+            if (!parsed || !parsed.segment || parsed.date !== dateKey) return false;
+            // Parse stored segment times to ms for overlap check
+            const [sh, sm] = parsed.segment.start.split(':').map(Number);
+            const [eh, em] = parsed.segment.end.split(':').map(Number);
+            const refDate = new Date(startMs);
+            const tcStart = new Date(refDate.getFullYear(), refDate.getMonth(), refDate.getDate(), sh, sm).getTime();
+            const tcEnd = new Date(refDate.getFullYear(), refDate.getMonth(), refDate.getDate(), eh, em).getTime();
+            const overlapStart = Math.max(startMs, tcStart);
+            const overlapEnd = Math.min(endMs, tcEnd);
+            if (overlapEnd <= overlapStart) return false;
+            // Duration-aware: block must be able to contain the item's estimated duration
+            const estMs = (item.estimatedDuration || 0) * 60000;
+            return estMs === 0 || (endMs - startMs) >= estMs;
+        });
+    });
+
+    if (assignedItems.length > 0) {
+        const queue = document.createElement('div');
+        queue.className = 'segment-queue';
+
+        let totalEstMins = 0;
+        for (const action of assignedItems) {
+            const item = findItemById(action.id);
+            // Find the item's actual stored segment context matching this block
+            const itemSegCtx = item?.timeContexts?.find(tc => {
+                if (tc === segCtx) return true;
+                const p = parseTimeContext(tc);
+                if (!p || !p.segment || p.date !== dateKey) return false;
+                const [sh, sm] = p.segment.start.split(':').map(Number);
+                const [eh, em] = p.segment.end.split(':').map(Number);
+                const refDate = new Date(startMs);
+                const tcS = new Date(refDate.getFullYear(), refDate.getMonth(), refDate.getDate(), sh, sm).getTime();
+                const tcE = new Date(refDate.getFullYear(), refDate.getMonth(), refDate.getDate(), eh, em).getTime();
+                return Math.min(endMs, tcE) > Math.max(startMs, tcS);
+            }) || segCtx;
+            // Read segment-specific duration using the item's stored key
+            const segDur = item?.segmentDurations?.[itemSegCtx];
+            const estMins = segDur != null ? segDur : (item?.estimatedDuration || 0);
+            totalEstMins += estMins;
+
+            const row = document.createElement('div');
+            row.className = 'segment-queue-item';
+            row.draggable = true;
+            row.dataset.itemId = action.id;
+
+            // Drag-out: allow dragging back to Actions
+            row.addEventListener('dragstart', (e) => {
+                console.log('[SEG-DRAG] dragstart fired for item:', action.id, action.name);
+                e.stopPropagation();
+                e.dataTransfer.setData('application/x-segment-item-id', String(action.id));
+                // Find the matching context string for this item
+                const matchingCtx = item.timeContexts.find(tc => {
+                    const p = parseTimeContext(tc);
+                    return p && p.segment;
+                });
+                console.log('[SEG-DRAG] context set:', matchingCtx || segCtx);
+                e.dataTransfer.setData('application/x-segment-context', matchingCtx || segCtx);
+                e.dataTransfer.effectAllowed = 'move';
+                row.classList.add('segment-item-dragging');
+            });
+            row.addEventListener('dragend', () => {
+                console.log('[SEG-DRAG] dragend fired');
+                row.classList.remove('segment-item-dragging');
+            });
+
+            const bullet = document.createElement('span');
+            bullet.className = 'segment-queue-bullet';
+            bullet.textContent = '○';
+
+            const nameSpan = document.createElement('span');
+            nameSpan.className = 'segment-queue-name';
+            nameSpan.textContent = action.name;
+
+            // Clickable est badge with inline edit
+            const est = document.createElement('span');
+            est.className = 'segment-queue-est';
+            est.textContent = estMins ? `~${estMins}m` : '⏱';
+            est.title = 'Click to set duration for this assignment';
+            est.addEventListener('click', (ev) => {
+                ev.stopPropagation();
+                // Remove any existing popover
+                document.querySelectorAll('.segment-duration-popover').forEach(p => p.remove());
+                const pop = document.createElement('div');
+                pop.className = 'segment-duration-popover';
+                const input = document.createElement('input');
+                input.type = 'number';
+                input.className = 'segment-duration-input';
+                input.min = '0';
+                input.max = '480';
+                input.value = estMins || '';
+                input.placeholder = 'min';
+                const saveBtn = document.createElement('button');
+                saveBtn.className = 'segment-duration-save';
+                saveBtn.textContent = '✓';
+                saveBtn.addEventListener('click', async (se) => {
+                    se.stopPropagation();
+                    const mins = parseInt(input.value, 10) || 0;
+                    if (!item.segmentDurations) item.segmentDurations = {};
+                    item.segmentDurations[segCtx] = mins;
+                    await api.patch(`/items/${action.id}`, { segmentDurations: item.segmentDurations });
+                    pop.remove();
+                    renderAll();
+                });
+                pop.appendChild(input);
+                pop.appendChild(saveBtn);
+                row.appendChild(pop);
+                input.focus();
+                input.select();
+                // Close on outside click
+                const closeHandler = (ce) => {
+                    if (!pop.contains(ce.target)) {
+                        pop.remove();
+                        document.removeEventListener('click', closeHandler, true);
+                    }
+                };
+                setTimeout(() => document.addEventListener('click', closeHandler, true), 0);
+                // Submit on Enter
+                input.addEventListener('keydown', (ke) => {
+                    if (ke.key === 'Enter') saveBtn.click();
+                    if (ke.key === 'Escape') pop.remove();
+                });
+            });
+
+            // Start button (promotion)
+            const startBtn = document.createElement('button');
+            startBtn.className = 'segment-queue-start';
+            startBtn.textContent = '▶';
+            startBtn.title = 'Start working on this';
+            startBtn.draggable = false;
+            startBtn.addEventListener('click', async (ev) => {
+                ev.stopPropagation();
+                const now = Date.now();
+                const durMins = estMins || 30;
+                const estMs = durMins * 60000;
+                await api.post('/timeline', {
+                    type: 'work',
+                    startTime: now,
+                    endTime: now + estMs,
+                    itemId: action.id,
+                });
+                // Remove segment context
+                const matchingCtx = item.timeContexts.find(tc => {
+                    const p = parseTimeContext(tc);
+                    return p && p.segment;
+                });
+                if (matchingCtx) {
+                    item.timeContexts = item.timeContexts.filter(tc => tc !== matchingCtx);
+                    const patch = { timeContexts: item.timeContexts };
+                    if (item.segmentDurations) {
+                        delete item.segmentDurations[matchingCtx];
+                        patch.segmentDurations = item.segmentDurations;
+                    }
+                    await api.patch(`/items/${action.id}`, patch);
+                }
+                state.timeline = await api.get('/timeline');
+                renderAll();
+            });
+
+            row.appendChild(bullet);
+            row.appendChild(nameSpan);
+            row.appendChild(est);
+            row.appendChild(startBtn);
+            queue.appendChild(row);
+        }
+
+        el.appendChild(queue);
+
+        // Capacity bar
+        const availMins = Math.floor(durationMs / 60000);
+        if (totalEstMins > 0) {
+            const capBar = document.createElement('div');
+            capBar.className = 'segment-capacity-bar';
+            const fillPct = Math.min(100, (totalEstMins / availMins) * 100);
+            const isOver = totalEstMins > availMins;
+            capBar.innerHTML = `
+                <div class="segment-capacity-fill${isOver ? ' over-capacity' : ''}" style="width:${fillPct}%"></div>
+                <span class="segment-capacity-label">${totalEstMins}m / ${availMins}m</span>
+            `;
+            el.appendChild(capBar);
+        }
+    }
 
     return el;
 }
@@ -2655,10 +3422,12 @@ function openPlanEditor(freeBlock, freeStartMs, freeEndMs, preselectedAction = n
     document.querySelectorAll('.plan-editor').forEach(ed => ed.remove());
 
     const DEFAULT_DURATION = 30 * 60 * 1000;
+    const itemData = preselectedAction ? findItemById(preselectedAction.id) : null;
+    const estimatedMs = itemData?.estimatedDuration ? itemData.estimatedDuration * 60000 : DEFAULT_DURATION;
     const availableMs = freeEndMs - freeStartMs;
     let planStartMs = freeStartMs;
-    let planEndMs = freeStartMs + Math.min(DEFAULT_DURATION, availableMs);
-    let selectedAction = preselectedAction || null;
+    let planEndMs = freeStartMs + Math.min(estimatedMs, availableMs);
+
 
     // Helper: ms timestamp → "HH:MM" string
     const msToTimeStr = (ms) => {
@@ -2667,10 +3436,14 @@ function openPlanEditor(freeBlock, freeStartMs, freeEndMs, preselectedAction = n
     };
 
     // Helper: "HH:MM" string → ms timestamp (same day as planStartMs)
-    const timeStrToMs = (str) => {
+    // Cross-date: if parsed time < start time, treat as next day
+    const timeStrToMs = (str, referenceMs) => {
+        const ref = referenceMs || planStartMs;
         const [h, m] = str.split(':').map(Number);
-        const d = new Date(planStartMs);
+        const d = new Date(ref);
         d.setHours(h, m, 0, 0);
+        // If the result is before the reference, wrap to next day
+        if (d.getTime() < ref) d.setDate(d.getDate() + 1);
         return d.getTime();
     };
 
@@ -2788,62 +3561,10 @@ function openPlanEditor(freeBlock, freeStartMs, freeEndMs, preselectedAction = n
     }
 
     // ── Autocomplete logic ──
-    const allActions = collectAllItems().filter(a => !a.done);
-
-    const renderSuggestions = (query) => {
-        suggestions.innerHTML = '';
-        if (!query) {
-            suggestions.style.display = 'none';
-            return;
-        }
-        const q = query.toLowerCase();
-        const matches = allActions.filter(a => a.name.toLowerCase().includes(q));
-        if (matches.length === 0) {
-            suggestions.style.display = 'none';
-            return;
-        }
-        suggestions.style.display = 'block';
-        for (const action of matches.slice(0, 8)) {
-            const opt = document.createElement('div');
-            opt.className = 'plan-editor-suggestion';
-
-            const nameSpan = document.createElement('span');
-            nameSpan.className = 'plan-editor-suggestion-name';
-            nameSpan.textContent = action.name;
-            opt.appendChild(nameSpan);
-
-            if (action._path && action._path.length > 1) {
-                const crumb = document.createElement('span');
-                crumb.className = 'plan-editor-suggestion-project';
-                crumb.textContent = action._path.slice(0, -1).map(p => p.name).join(' › ');
-                opt.appendChild(crumb);
-            }
-
-            opt.addEventListener('mousedown', (e) => {
-                e.preventDefault(); // prevent blur
-                selectedAction = action;
-                actionInput.value = action.name;
-                suggestions.style.display = 'none';
-            });
-            suggestions.appendChild(opt);
-        }
-    };
-
-    actionInput.addEventListener('input', () => {
-        selectedAction = null;
-        renderSuggestions(actionInput.value);
-    });
-
-    actionInput.addEventListener('focus', () => {
-        if (actionInput.value && !selectedAction) {
-            renderSuggestions(actionInput.value);
-        }
-    });
-
-    actionInput.addEventListener('blur', () => {
-        // Small delay so mousedown on suggestion fires first
-        setTimeout(() => { suggestions.style.display = 'none'; }, 150);
-    });
+    const autocomplete = setupAutocomplete(actionInput, suggestions);
+    if (preselectedAction) {
+        autocomplete.setSelected(preselectedAction);
+    }
 
     // ── Time input logic ──
     const parseTimeInput = (input, currentMs, validate) => {
@@ -2864,9 +3585,14 @@ function openPlanEditor(freeBlock, freeStartMs, freeEndMs, preselectedAction = n
     };
 
     startInput.addEventListener('blur', () => {
-        const result = parseTimeInput(startInput, planStartMs, (t) => t >= freeStartMs && t < planEndMs);
+        const currentDuration = planEndMs - planStartMs;
+        const result = parseTimeInput(startInput, planStartMs, (t) => t >= freeStartMs);
         if (result !== planStartMs) {
             planStartMs = result;
+            // Preserve duration: shift end time to match
+            const newEnd = planStartMs + currentDuration;
+            planEndMs = Math.min(newEnd, freeEndMs);
+            endInput.value = msToTimeStr(planEndMs);
             updateDuration();
         }
     });
@@ -2903,6 +3629,7 @@ function openPlanEditor(freeBlock, freeStartMs, freeEndMs, preselectedAction = n
     });
 
     saveBtn.addEventListener('click', async () => {
+        const selectedAction = autocomplete.getSelected();
         if (!selectedAction) {
             actionInput.focus();
             actionInput.classList.add('plan-editor-input-error');
@@ -2923,7 +3650,21 @@ function openPlanEditor(freeBlock, freeStartMs, freeEndMs, preselectedAction = n
             itemId: selectedAction.id,
         });
         state.timeline.entries.push(entry);
+
+        // Write back duration to item estimate (learn from scheduling)
+        const durationMins = Math.round((planEndMs - planStartMs) / 60000);
+        const existingItem = findItemById(selectedAction.id);
+        if (existingItem && !existingItem.estimatedDuration) {
+            existingItem.estimatedDuration = durationMins;
+            await api.patch(`/items/${selectedAction.id}`, { estimatedDuration: durationMins });
+        }
+
+        // Add entry-level context (subsumes date context)
+        const dateKey = getDateKey(state.timelineViewDate);
+        await addSegmentContext(selectedAction.id, `${dateKey}@entry:${entry.id}`);
+
         renderTimeline();
+        renderActions();
     });
 }
 
@@ -2993,6 +3734,12 @@ function createIdleTimeBlock(startMs, endMs) {
         e.stopPropagation();
         startBreak();
     });
+    // Right-click: open duration picker for timed break
+    breakBtn.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        showBreakDurationPicker(breakBtn);
+    });
     el.appendChild(breakBtn);
 
     return el;
@@ -3006,17 +3753,19 @@ function openIdleWorkEditor(idleBlock, idleStartMs, idleEndMs) {
 
     let planStartMs = idleStartMs;
     let planEndMs = idleEndMs;
-    let selectedAction = null;
+
 
     const msToTimeStr = (ms) => {
         const d = new Date(ms);
         return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
     };
 
-    const timeStrToMs = (str) => {
+    const timeStrToMs = (str, referenceMs) => {
+        const ref = referenceMs || planStartMs;
         const [h, m] = str.split(':').map(Number);
-        const d = new Date(planStartMs);
+        const d = new Date(ref);
         d.setHours(h, m, 0, 0);
+        if (d.getTime() < ref) d.setDate(d.getDate() + 1);
         return d.getTime();
     };
 
@@ -3120,61 +3869,7 @@ function openIdleWorkEditor(idleBlock, idleStartMs, idleEndMs) {
     actionInput.focus();
 
     // ── Autocomplete logic ──
-    const allActions = collectAllItems().filter(a => !a.done);
-
-    const renderSuggestions = (query) => {
-        suggestions.innerHTML = '';
-        if (!query) {
-            suggestions.style.display = 'none';
-            return;
-        }
-        const q = query.toLowerCase();
-        const matches = allActions.filter(a => a.name.toLowerCase().includes(q));
-        if (matches.length === 0) {
-            suggestions.style.display = 'none';
-            return;
-        }
-        suggestions.style.display = 'block';
-        for (const action of matches.slice(0, 8)) {
-            const opt = document.createElement('div');
-            opt.className = 'plan-editor-suggestion';
-
-            const nameSpan = document.createElement('span');
-            nameSpan.className = 'plan-editor-suggestion-name';
-            nameSpan.textContent = action.name;
-            opt.appendChild(nameSpan);
-
-            if (action._path && action._path.length > 1) {
-                const crumb = document.createElement('span');
-                crumb.className = 'plan-editor-suggestion-project';
-                crumb.textContent = action._path.slice(0, -1).map(p => p.name).join(' › ');
-                opt.appendChild(crumb);
-            }
-
-            opt.addEventListener('mousedown', (e) => {
-                e.preventDefault();
-                selectedAction = action;
-                actionInput.value = action.name;
-                suggestions.style.display = 'none';
-            });
-            suggestions.appendChild(opt);
-        }
-    };
-
-    actionInput.addEventListener('input', () => {
-        selectedAction = null;
-        renderSuggestions(actionInput.value);
-    });
-
-    actionInput.addEventListener('focus', () => {
-        if (actionInput.value && !selectedAction) {
-            renderSuggestions(actionInput.value);
-        }
-    });
-
-    actionInput.addEventListener('blur', () => {
-        setTimeout(() => { suggestions.style.display = 'none'; }, 150);
-    });
+    const autocomplete = setupAutocomplete(actionInput, suggestions);
 
     // ── Time input logic ──
     const parseTimeInput = (input, currentMs, validate) => {
@@ -3194,9 +3889,14 @@ function openIdleWorkEditor(idleBlock, idleStartMs, idleEndMs) {
     };
 
     startInput.addEventListener('blur', () => {
-        const result = parseTimeInput(startInput, planStartMs, (t) => t >= idleStartMs && t < planEndMs);
+        const currentDuration = planEndMs - planStartMs;
+        const result = parseTimeInput(startInput, planStartMs, (t) => t >= idleStartMs);
         if (result !== planStartMs) {
             planStartMs = result;
+            // Preserve duration: shift end time to match
+            const newEnd = planStartMs + currentDuration;
+            planEndMs = Math.min(newEnd, idleEndMs);
+            endInput.value = msToTimeStr(planEndMs);
             updateDuration();
         }
     });
@@ -3232,6 +3932,7 @@ function openIdleWorkEditor(idleBlock, idleStartMs, idleEndMs) {
     });
 
     saveBtn.addEventListener('click', async () => {
+        const selectedAction = autocomplete.getSelected();
         if (!selectedAction) {
             actionInput.focus();
             actionInput.classList.add('plan-editor-input-error');
@@ -3357,6 +4058,9 @@ function createBreakTimeBlock(startMs, endMs) {
     el.className = 'time-block time-block-break';
     el.dataset.startTime = startMs;
 
+    const targetEnd = state.onBreak ? state.onBreak.targetEndTime : null;
+    if (targetEnd) el.dataset.targetEndTime = targetEnd;
+
     const durationMs = endMs - startMs;
     const hrs = Math.floor(durationMs / 3600000);
     const mins = Math.floor((durationMs % 3600000) / 60000);
@@ -3377,16 +4081,37 @@ function createBreakTimeBlock(startMs, endMs) {
 
     const time = document.createElement('div');
     time.className = 'time-block-time break-time-range';
-    time.textContent = `${formatTime(startMs)} – ${formatTime(endMs)}`;
+    if (targetEnd) {
+        time.textContent = `${formatTime(startMs)} – ${formatTime(targetEnd)}`;
+    } else {
+        time.textContent = `${formatTime(startMs)} – ${formatTime(endMs)}`;
+    }
 
+    // Duration / countdown display
     const status = document.createElement('div');
     status.className = 'time-block-status break-duration';
-    if (hrs > 0) {
-        status.textContent = `${hrs}h ${mins}m`;
-    } else if (mins > 0) {
-        status.textContent = `${mins}m ${secs}s`;
+    if (targetEnd) {
+        const remainMs = targetEnd - endMs;
+        if (remainMs > 0) {
+            const rMins = Math.floor(remainMs / 60000);
+            const rSecs = Math.floor((remainMs % 60000) / 1000);
+            status.textContent = rMins > 0 ? `${rMins}m ${rSecs}s left` : `${rSecs}s left`;
+        } else {
+            const overMs = Math.abs(remainMs);
+            const oMins = Math.floor(overMs / 60000);
+            const oSecs = Math.floor((overMs % 60000) / 1000);
+            status.textContent = oMins > 0 ? `+${oMins}m ${oSecs}s over` : `+${oSecs}s over`;
+            status.classList.add('break-overtime');
+            el.classList.add('time-block-break-overtime');
+        }
     } else {
-        status.textContent = `${secs}s`;
+        if (hrs > 0) {
+            status.textContent = `${hrs}h ${mins}m`;
+        } else if (mins > 0) {
+            status.textContent = `${mins}m ${secs}s`;
+        } else {
+            status.textContent = `${secs}s`;
+        }
     }
 
     content.appendChild(label);
@@ -3474,24 +4199,42 @@ function startIdleUpdater() {
             const startMs = parseInt(breakBlock.dataset.startTime, 10);
             const nowMs = Date.now();
             const durationMs = Math.max(0, nowMs - startMs);
-
-            const hrs = Math.floor(durationMs / 3600000);
-            const mins = Math.floor((durationMs % 3600000) / 60000);
-            const secs = Math.floor((durationMs % 60000) / 1000);
+            const targetEnd = breakBlock.dataset.targetEndTime ? parseInt(breakBlock.dataset.targetEndTime, 10) : null;
 
             const durationEl = breakBlock.querySelector('.break-duration');
             if (durationEl) {
-                if (hrs > 0) {
-                    durationEl.textContent = `${hrs}h ${mins}m`;
-                } else if (mins > 0) {
-                    durationEl.textContent = `${mins}m ${secs}s`;
+                if (targetEnd) {
+                    const remainMs = targetEnd - nowMs;
+                    if (remainMs > 0) {
+                        const rMins = Math.floor(remainMs / 60000);
+                        const rSecs = Math.floor((remainMs % 60000) / 1000);
+                        durationEl.textContent = rMins > 0 ? `${rMins}m ${rSecs}s left` : `${rSecs}s left`;
+                        durationEl.classList.remove('break-overtime');
+                        breakBlock.classList.remove('time-block-break-overtime');
+                    } else {
+                        const overMs = Math.abs(remainMs);
+                        const oMins = Math.floor(overMs / 60000);
+                        const oSecs = Math.floor((overMs % 60000) / 1000);
+                        durationEl.textContent = oMins > 0 ? `+${oMins}m ${oSecs}s over` : `+${oSecs}s over`;
+                        durationEl.classList.add('break-overtime');
+                        breakBlock.classList.add('time-block-break-overtime');
+                    }
                 } else {
-                    durationEl.textContent = `${secs}s`;
+                    const hrs = Math.floor(durationMs / 3600000);
+                    const mins = Math.floor((durationMs % 3600000) / 60000);
+                    const secs = Math.floor((durationMs % 60000) / 1000);
+                    if (hrs > 0) {
+                        durationEl.textContent = `${hrs}h ${mins}m`;
+                    } else if (mins > 0) {
+                        durationEl.textContent = `${mins}m ${secs}s`;
+                    } else {
+                        durationEl.textContent = `${secs}s`;
+                    }
                 }
             }
 
             const timeEl = breakBlock.querySelector('.break-time-range');
-            if (timeEl) {
+            if (timeEl && !targetEnd) {
                 timeEl.textContent = `${formatTime(startMs)} – ${formatTime(nowMs)}`;
             }
 
@@ -3730,7 +4473,7 @@ function createWorkEntryBlock(entry) {
     const label = document.createElement('div');
     label.className = 'time-block-label';
     // Strip "Worked on: " prefix and duration suffix for cleaner display
-    let labelText = entry.text;
+    let labelText = entry.text || '';
     if (labelText.startsWith('Worked on: ')) labelText = labelText.slice(11);
     labelText = labelText.replace(/\s*\(\d+[hm]\s*\d*[m]?\)\s*$/, '');
     label.textContent = labelText;
@@ -3762,6 +4505,7 @@ function createWorkEntryBlock(entry) {
     delBtn.title = 'Remove entry';
     delBtn.addEventListener('click', async (e) => {
         e.stopPropagation();
+        await degradeEntryContexts(entry.id);
         await api.del(`/timeline/${entry.id}`);
         state.timeline = await api.get('/timeline');
         renderTimeline();
@@ -3821,6 +4565,7 @@ function createBreakEntryBlock(entry) {
     delBtn.title = 'Remove entry';
     delBtn.addEventListener('click', async (e) => {
         e.stopPropagation();
+        await degradeEntryContexts(entry.id);
         await api.del(`/timeline/${entry.id}`);
         state.timeline = await api.get('/timeline');
         renderTimeline();
@@ -3870,6 +4615,7 @@ function createMomentEntry(entry) {
     del.className = 'timeline-delete';
     del.textContent = '×';
     del.addEventListener('click', async () => {
+        await degradeEntryContexts(entry.id);
         await api.del(`/timeline/${entry.id}`);
         state.timeline = await api.get('/timeline');
         renderTimeline();
@@ -3933,9 +4679,8 @@ function createPlannedTimeBlock(entry, isGhost = false) {
     startBtn.title = 'Start working on this';
     startBtn.addEventListener('click', async (e) => {
         e.stopPropagation();
-        // Delete the plan entry — the work block replaces it
-        await api.del(`/timeline/${entry.id}`);
-        state.timeline = await api.get('/timeline');
+        // Keep the plan — the absorption system will hide it once work covers ≥80%,
+        // or show it as a ghost if there's partial overlap
         await startWorking(entry.itemId, entry.text, entry.projectName, entry.endTime);
     });
 
@@ -3946,6 +4691,7 @@ function createPlannedTimeBlock(entry, isGhost = false) {
     delBtn.title = 'Remove plan';
     delBtn.addEventListener('click', async (e) => {
         e.stopPropagation();
+        await degradeEntryContexts(entry.id);
         await api.del(`/timeline/${entry.id}`);
         state.timeline = await api.get('/timeline');
         renderTimeline();
@@ -3968,10 +4714,10 @@ function openEntryEditor(entry, blockEl) {
     let planStartMs = entry.timestamp;
     let planEndMs = entry.endTime || entry.timestamp;
     // For work/planned entries, try to find the matching item for preselection
-    let selectedAction = null;
+    let preselectedAction = null;
     if (entry.itemId) {
         const allActions = collectAllItems();
-        selectedAction = allActions.find(a => a.id === entry.itemId) || null;
+        preselectedAction = allActions.find(a => a.id === entry.itemId) || null;
     }
 
     const msToTimeStr = (ms) => {
@@ -3979,10 +4725,12 @@ function openEntryEditor(entry, blockEl) {
         return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
     };
 
-    const timeStrToMs = (str) => {
+    const timeStrToMs = (str, referenceMs) => {
+        const ref = referenceMs || planStartMs;
         const [h, m] = str.split(':').map(Number);
-        const d = new Date(planStartMs);
+        const d = new Date(ref);
         d.setHours(h, m, 0, 0);
+        if (d.getTime() < ref) d.setDate(d.getDate() + 1);
         return d.getTime();
     };
 
@@ -4024,8 +4772,8 @@ function openEntryEditor(entry, blockEl) {
     } else {
         actionInput.placeholder = 'Search for an item…';
         // Pre-fill with current item name
-        if (selectedAction) {
-            actionInput.value = selectedAction.name;
+        if (preselectedAction) {
+            actionInput.value = preselectedAction.name;
         } else {
             // Fallback: use entry text, cleaning "Worked on:" prefix
             let cleanText = entry.text;
@@ -4084,6 +4832,7 @@ function openEntryEditor(entry, blockEl) {
     removeBtn.className = 'plan-editor-remove';
     removeBtn.textContent = 'Remove';
     removeBtn.addEventListener('click', async () => {
+        await degradeEntryContexts(entry.id);
         await api.del(`/timeline/${entry.id}`);
         state.timeline = await api.get('/timeline');
         renderTimeline();
@@ -4122,62 +4871,12 @@ function openEntryEditor(entry, blockEl) {
     }
 
     // ── Autocomplete logic (only for non-break entries) ──
+    let autocomplete = null;
     if (entry.type !== 'break') {
-        const allActions = collectAllItems().filter(a => !a.done);
-
-        const renderSuggestions = (query) => {
-            suggestions.innerHTML = '';
-            if (!query) {
-                suggestions.style.display = 'none';
-                return;
-            }
-            const q = query.toLowerCase();
-            const matches = allActions.filter(a => a.name.toLowerCase().includes(q));
-            if (matches.length === 0) {
-                suggestions.style.display = 'none';
-                return;
-            }
-            suggestions.style.display = 'block';
-            for (const action of matches.slice(0, 8)) {
-                const opt = document.createElement('div');
-                opt.className = 'plan-editor-suggestion';
-
-                const nameSpan = document.createElement('span');
-                nameSpan.className = 'plan-editor-suggestion-name';
-                nameSpan.textContent = action.name;
-                opt.appendChild(nameSpan);
-
-                if (action._path && action._path.length > 1) {
-                    const crumb = document.createElement('span');
-                    crumb.className = 'plan-editor-suggestion-project';
-                    crumb.textContent = action._path.slice(0, -1).map(p => p.name).join(' › ');
-                    opt.appendChild(crumb);
-                }
-
-                opt.addEventListener('mousedown', (e) => {
-                    e.preventDefault();
-                    selectedAction = action;
-                    actionInput.value = action.name;
-                    suggestions.style.display = 'none';
-                });
-                suggestions.appendChild(opt);
-            }
-        };
-
-        actionInput.addEventListener('input', () => {
-            selectedAction = null;
-            renderSuggestions(actionInput.value);
-        });
-
-        actionInput.addEventListener('focus', () => {
-            if (actionInput.value && !selectedAction) {
-                renderSuggestions(actionInput.value);
-            }
-        });
-
-        actionInput.addEventListener('blur', () => {
-            setTimeout(() => { suggestions.style.display = 'none'; }, 150);
-        });
+        autocomplete = setupAutocomplete(actionInput, suggestions);
+        if (preselectedAction) {
+            autocomplete.setSelected(preselectedAction);
+        }
     }
 
     // ── Time input logic ──
@@ -4198,9 +4897,14 @@ function openEntryEditor(entry, blockEl) {
     };
 
     startInput.addEventListener('blur', () => {
-        const result = parseTimeInput(startInput, planStartMs, (t) => t < planEndMs);
+        const currentDuration = planEndMs - planStartMs;
+        // Validate: just needs to be a valid time (end will shift to preserve duration)
+        const result = parseTimeInput(startInput, planStartMs, () => true);
         if (result !== planStartMs) {
             planStartMs = result;
+            // Preserve duration: shift end time to match
+            planEndMs = planStartMs + currentDuration;
+            endInput.value = msToTimeStr(planEndMs);
             updateDuration();
         }
     });
@@ -4230,6 +4934,7 @@ function openEntryEditor(entry, blockEl) {
     });
 
     saveBtn.addEventListener('click', async () => {
+        const selectedAction = autocomplete ? autocomplete.getSelected() : null;
         // For non-break entries, require a selected action or typed name
         if (entry.type !== 'break' && !selectedAction && !actionInput.value.trim()) {
             actionInput.focus();
@@ -4354,12 +5059,27 @@ function showDurationPicker(anchorEl, itemId, itemName, projectName) {
 
     const picker = document.createElement('div');
     picker.className = 'duration-picker';
+    picker.addEventListener('click', (e) => e.stopPropagation());
 
-    // Position relative to anchor
+    // Position relative to anchor, clamped to viewport
     const rect = anchorEl.getBoundingClientRect();
+    const pickerWidth = 200;
+    const pickerHeight = 120;
+    let top = rect.bottom + 4;
+    let left = rect.left;
+    // Clamp right edge
+    if (left + pickerWidth > window.innerWidth - 8) {
+        left = window.innerWidth - pickerWidth - 8;
+    }
+    // Clamp left edge
+    if (left < 8) left = 8;
+    // If overflows bottom, open above
+    if (top + pickerHeight > window.innerHeight - 8) {
+        top = rect.top - pickerHeight - 4;
+    }
     picker.style.position = 'fixed';
-    picker.style.top = `${rect.bottom + 4}px`;
-    picker.style.left = `${rect.left}px`;
+    picker.style.top = `${top}px`;
+    picker.style.left = `${left}px`;
     picker.style.zIndex = '10001';
 
     // Title
@@ -4397,6 +5117,9 @@ function showDurationPicker(anchorEl, itemId, itemName, projectName) {
         presets.appendChild(btn);
     }
     picker.appendChild(presets);
+
+    // Eagerly check overlap for the shortest preset
+    checkOverlap(presetValues[0].mins, warning);
 
     // Custom input row
     const customRow = document.createElement('div');
@@ -4451,9 +5174,11 @@ function showDurationPicker(anchorEl, itemId, itemName, projectName) {
 }
 
 function checkOverlap(durationMins, warningEl) {
-    const targetEnd = Date.now() + durationMins * 60000;
     const now = Date.now();
+    const targetEnd = now + durationMins * 60000;
     const entries = (state.timeline && state.timeline.entries) || [];
+
+    // Check overlap with planned entries
     const overlapping = entries.filter(e =>
         e.type === 'planned' && e.endTime &&
         e.timestamp < targetEnd && e.endTime > now
@@ -4464,14 +5189,370 @@ function checkOverlap(durationMins, warningEl) {
         const name = first.text || 'planned block';
         warningEl.textContent = `⚠ Overlaps with "${name}" at ${formatTime(first.timestamp)}`;
         warningEl.style.display = 'block';
-    } else {
-        warningEl.style.display = 'none';
+        return;
     }
+
+    // Check if extends past day end boundary
+    const { dayEnd } = getDayBoundaries(state.timelineViewDate);
+    const dayEndMs = dayEnd.getTime();
+    if (dayEndMs > now && targetEnd > dayEndMs) {
+        warningEl.textContent = `⚠ Extends past day end (${formatTime(dayEndMs)})`;
+        warningEl.style.display = 'block';
+        return;
+    }
+
+    warningEl.style.display = 'none';
 }
 
 function dismissDurationPicker() {
     const existing = document.querySelector('.duration-picker-overlay');
     if (existing) existing.remove();
+}
+
+// ─── Estimate Picker Popover ───
+function showEstimatePicker(anchorEl, itemId) {
+    // Dismiss any existing picker
+    dismissDurationPicker();
+
+    const overlay = document.createElement('div');
+    overlay.className = 'duration-picker-overlay';
+    overlay.addEventListener('click', dismissDurationPicker);
+
+    const picker = document.createElement('div');
+    picker.className = 'duration-picker';
+    picker.addEventListener('click', (e) => e.stopPropagation());
+
+    // Position relative to anchor, clamped to viewport
+    const rect = anchorEl.getBoundingClientRect();
+    const pickerWidth = 200;
+    const pickerHeight = 120;
+    let top = rect.bottom + 4;
+    let left = rect.left;
+    if (left + pickerWidth > window.innerWidth - 8) {
+        left = window.innerWidth - pickerWidth - 8;
+    }
+    if (left < 8) left = 8;
+    if (top + pickerHeight > window.innerHeight - 8) {
+        top = rect.top - pickerHeight - 4;
+    }
+    picker.style.position = 'fixed';
+    picker.style.top = `${top}px`;
+    picker.style.left = `${left}px`;
+    picker.style.zIndex = '10001';
+
+    // Title
+    const title = document.createElement('div');
+    title.className = 'duration-picker-title';
+    title.textContent = 'Estimate duration';
+    picker.appendChild(title);
+
+    // Preset buttons
+    const presets = document.createElement('div');
+    presets.className = 'duration-picker-presets';
+    const presetValues = [
+        { label: '15m', mins: 15 },
+        { label: '30m', mins: 30 },
+        { label: '1h', mins: 60 },
+        { label: '2h', mins: 120 },
+    ];
+    for (const preset of presetValues) {
+        const btn = document.createElement('button');
+        btn.className = 'duration-picker-preset';
+        btn.textContent = preset.label;
+        btn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            dismissDurationPicker();
+            await setEstimate(itemId, preset.mins);
+        });
+        presets.appendChild(btn);
+    }
+    picker.appendChild(presets);
+
+    // Custom input row
+    const customRow = document.createElement('div');
+    customRow.className = 'duration-picker-custom';
+
+    const input = document.createElement('input');
+    input.type = 'number';
+    input.className = 'duration-picker-input';
+    input.placeholder = 'min';
+    input.min = '1';
+    input.max = '480';
+
+    // Pre-fill with existing estimate
+    const existingItem = findItemById(itemId);
+    if (existingItem?.estimatedDuration) {
+        input.value = existingItem.estimatedDuration;
+    }
+
+    const minLabel = document.createElement('span');
+    minLabel.className = 'duration-picker-min-label';
+    minLabel.textContent = 'min';
+
+    const setBtn = document.createElement('button');
+    setBtn.className = 'duration-picker-start';
+    setBtn.textContent = 'Set';
+    setBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const mins = parseInt(input.value, 10);
+        if (!mins || mins <= 0) return;
+        dismissDurationPicker();
+        await setEstimate(itemId, mins);
+    });
+
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') setBtn.click();
+        if (e.key === 'Escape') dismissDurationPicker();
+    });
+
+    customRow.appendChild(input);
+    customRow.appendChild(minLabel);
+    customRow.appendChild(setBtn);
+    picker.appendChild(customRow);
+
+    // Clear button (if estimate exists)
+    if (existingItem?.estimatedDuration) {
+        const clearBtn = document.createElement('button');
+        clearBtn.className = 'duration-picker-preset';
+        clearBtn.style.width = '100%';
+        clearBtn.style.marginTop = '4px';
+        clearBtn.style.opacity = '0.7';
+        clearBtn.textContent = 'Clear estimate';
+        clearBtn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            dismissDurationPicker();
+            await setEstimate(itemId, null);
+        });
+        picker.appendChild(clearBtn);
+    }
+
+    overlay.appendChild(picker);
+    document.body.appendChild(overlay);
+
+    setTimeout(() => input.focus(), 50);
+}
+
+async function setEstimate(itemId, mins) {
+    const item = findItemById(itemId);
+    if (!item) return;
+    if (mins === null) {
+        delete item.estimatedDuration;
+        await api.patch(`/items/${itemId}`, { estimatedDuration: null });
+    } else {
+        item.estimatedDuration = mins;
+        await api.patch(`/items/${itemId}`, { estimatedDuration: mins });
+    }
+    renderActions();
+}
+
+// ─── Capacity Summary ───
+function updateCapacitySummary(sortedActions) {
+    const el = document.getElementById('capacity-summary');
+    if (!el) return;
+
+    const undone = sortedActions.filter(a => !a.done);
+    const count = undone.length;
+
+    // Sum estimated durations
+    let estimatedMins = 0;
+    let estimatedCount = 0;
+    for (const action of undone) {
+        const item = findItemById(action.id);
+        if (item?.estimatedDuration) {
+            estimatedMins += item.estimatedDuration;
+            estimatedCount++;
+        }
+    }
+
+    // Calculate total free time from timeline
+    const viewingToday = isCurrentDay(state.timelineViewDate);
+    let freeTimeMins = 0;
+    if (viewingToday) {
+        freeTimeMins = calculateTotalFreeTime();
+    }
+
+    // Build summary text
+    const parts = [];
+    parts.push(`${count} item${count !== 1 ? 's' : ''}`);
+
+    if (estimatedCount > 0) {
+        const estStr = estimatedMins >= 60
+            ? `${Math.floor(estimatedMins / 60)}h${estimatedMins % 60 ? ` ${estimatedMins % 60}m` : ''}`
+            : `${estimatedMins}m`;
+        parts.push(`~${estStr} est.`);
+    }
+
+    if (viewingToday && freeTimeMins > 0) {
+        const freeStr = freeTimeMins >= 60
+            ? `${Math.floor(freeTimeMins / 60)}h${freeTimeMins % 60 ? ` ${freeTimeMins % 60}m` : ''}`
+            : `${freeTimeMins}m`;
+        parts.push(`${freeStr} free`);
+    }
+
+    el.textContent = parts.join(' · ');
+}
+
+function calculateTotalFreeTime() {
+    const { now, dayStart, dayEnd } = getDayBoundaries(state.timelineViewDate);
+    const dayStartMs = dayStart.getTime();
+    const dayEndMs = dayEnd.getTime();
+    const nowMs = now.getTime();
+    const viewingToday = isCurrentDay(state.timelineViewDate);
+
+    // Use nowMs as effective start when viewing today (only future free time matters)
+    const effectiveStart = viewingToday ? Math.max(nowMs, dayStartMs) : dayStartMs;
+
+    if (effectiveStart >= dayEndMs) return 0;
+
+    // Collect all block entries in the day
+    const blockEntries = (state.timeline?.entries || [])
+        .filter(e => e.endTime && (e.type === 'work' || e.type === 'break' || e.type === 'planned') && !e._absorbed)
+        .filter(e => e.timestamp < dayEndMs && e.endTime > effectiveStart)
+        .sort((a, b) => a.timestamp - b.timestamp);
+
+    // Add live work as a virtual block
+    if (viewingToday && state.workingOn) {
+        blockEntries.push({
+            timestamp: state.workingOn.startTime,
+            endTime: Math.max(nowMs, state.workingOn.targetEndTime || nowMs),
+        });
+        blockEntries.sort((a, b) => a.timestamp - b.timestamp);
+    }
+
+    // Sum gaps between blocks
+    let totalFreeMs = 0;
+    let cursor = effectiveStart;
+    for (const entry of blockEntries) {
+        const blockStart = Math.max(entry.timestamp, effectiveStart);
+        const blockEnd = Math.min(entry.endTime, dayEndMs);
+        if (blockStart > cursor) {
+            totalFreeMs += blockStart - cursor;
+        }
+        cursor = Math.max(cursor, blockEnd);
+    }
+    // Trailing free time
+    if (dayEndMs > cursor) {
+        totalFreeMs += dayEndMs - cursor;
+    }
+
+    return Math.round(totalFreeMs / 60000);
+}
+
+function showBreakDurationPicker(anchorEl) {
+    dismissDurationPicker();
+
+    const overlay = document.createElement('div');
+    overlay.className = 'duration-picker-overlay';
+    overlay.addEventListener('click', dismissDurationPicker);
+
+    const picker = document.createElement('div');
+    picker.className = 'duration-picker';
+    picker.addEventListener('click', (e) => e.stopPropagation());
+
+    const rect = anchorEl.getBoundingClientRect();
+    const pickerWidth = 200;
+    const pickerHeight = 120;
+    let top = rect.bottom + 4;
+    let left = rect.left;
+    if (left + pickerWidth > window.innerWidth - 8) {
+        left = window.innerWidth - pickerWidth - 8;
+    }
+    if (left < 8) left = 8;
+    if (top + pickerHeight > window.innerHeight - 8) {
+        top = rect.top - pickerHeight - 4;
+    }
+    picker.style.position = 'fixed';
+    picker.style.top = `${top}px`;
+    picker.style.left = `${left}px`;
+    picker.style.zIndex = '10001';
+
+    const title = document.createElement('div');
+    title.className = 'duration-picker-title';
+    title.textContent = 'Timed break';
+    picker.appendChild(title);
+
+    // Overlap warning area
+    const warning = document.createElement('div');
+    warning.className = 'duration-picker-warning';
+    warning.style.display = 'none';
+    picker.appendChild(warning);
+
+    // Preset buttons — shorter durations for breaks
+    const presets = document.createElement('div');
+    presets.className = 'duration-picker-presets';
+    const presetValues = [
+        { label: '5m', mins: 5 },
+        { label: '10m', mins: 10 },
+        { label: '15m', mins: 15 },
+        { label: '30m', mins: 30 },
+    ];
+    for (const preset of presetValues) {
+        const btn = document.createElement('button');
+        btn.className = 'duration-picker-preset';
+        btn.textContent = preset.label;
+        btn.addEventListener('mouseenter', () => checkOverlap(preset.mins, warning));
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const targetEnd = Date.now() + preset.mins * 60000;
+            dismissDurationPicker();
+            startBreak(targetEnd);
+        });
+        presets.appendChild(btn);
+    }
+    picker.appendChild(presets);
+
+    // Eagerly check overlap for the shortest preset
+    checkOverlap(presetValues[0].mins, warning);
+
+    // Custom input row
+    const customRow = document.createElement('div');
+    customRow.className = 'duration-picker-custom';
+
+    const input = document.createElement('input');
+    input.type = 'number';
+    input.className = 'duration-picker-input';
+    input.placeholder = 'min';
+    input.min = '1';
+    input.max = '120';
+    input.addEventListener('input', () => {
+        const mins = parseInt(input.value, 10);
+        if (mins > 0) {
+            checkOverlap(mins, warning);
+        } else {
+            warning.style.display = 'none';
+        }
+    });
+
+    const minLabel = document.createElement('span');
+    minLabel.className = 'duration-picker-min-label';
+    minLabel.textContent = 'min';
+
+    const startBtn = document.createElement('button');
+    startBtn.className = 'duration-picker-start';
+    startBtn.textContent = 'Start';
+    startBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const mins = parseInt(input.value, 10);
+        if (!mins || mins <= 0) return;
+        const targetEnd = Date.now() + mins * 60000;
+        dismissDurationPicker();
+        startBreak(targetEnd);
+    });
+
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') startBtn.click();
+        if (e.key === 'Escape') dismissDurationPicker();
+    });
+
+    customRow.appendChild(input);
+    customRow.appendChild(minLabel);
+    customRow.appendChild(startBtn);
+    picker.appendChild(customRow);
+
+    overlay.appendChild(picker);
+    document.body.appendChild(overlay);
+
+    setTimeout(() => input.focus(), 50);
 }
 
 // ─── Formatters ───
@@ -4534,7 +5615,7 @@ async function startWorking(itemId, itemName, projectName, targetEndTime) {
         startTime: Date.now(),
         targetEndTime: targetEndTime || null,
     };
-    localStorage.setItem('workingOn', JSON.stringify(state.workingOn));
+    savePref('workingOn', state.workingOn);
     renderAll();
 }
 
@@ -4561,30 +5642,24 @@ async function stopWorking() {
 
     // Clear working state
     state.workingOn = null;
-    localStorage.removeItem('workingOn');
+    savePref('workingOn', null);
     renderAll();
 }
 
-function restoreWorkingOn() {
-    try {
-        const saved = localStorage.getItem('workingOn');
-        if (saved) {
-            state.workingOn = JSON.parse(saved);
-        }
-    } catch { /* ignore */ }
-}
+// restoreWorkingOn — now handled in loadAll() from backend preferences
 
 // ─── Break Timer ───
 
-function startBreak() {
+function startBreak(targetEndTime) {
     // If working on something, stop it first
     if (state.workingOn) {
         stopWorking();
     }
     state.onBreak = {
         startTime: Date.now(),
+        targetEndTime: targetEndTime || null,
     };
-    localStorage.setItem('onBreak', JSON.stringify(state.onBreak));
+    savePref('onBreak', state.onBreak);
     renderAll();
 }
 
@@ -4603,23 +5678,17 @@ async function stopBreak() {
         type: 'break',
         startTime: state.onBreak.startTime,
         endTime: endTime,
+        targetEndTime: state.onBreak.targetEndTime || undefined,
     });
     state.timeline.entries.push(entry);
 
     // Clear break state
     state.onBreak = null;
-    localStorage.removeItem('onBreak');
+    savePref('onBreak', null);
     renderAll();
 }
 
-function restoreBreak() {
-    try {
-        const saved = localStorage.getItem('onBreak');
-        if (saved) {
-            state.onBreak = JSON.parse(saved);
-        }
-    } catch { /* ignore */ }
-}
+// restoreBreak — now handled in loadAll() from backend preferences
 
 // ─── Streak System ───
 // The user must check in before the next day's start time to keep the streak alive.
@@ -4761,7 +5830,7 @@ function applySkin(skinId) {
     const link = document.getElementById('skin-stylesheet');
     if (link && SKINS[skinId]) {
         link.href = SKINS[skinId];
-        localStorage.setItem('anything-mini-skin', skinId);
+        savePref('skin', skinId);
 
         // Update the select dropdown
         const select = document.getElementById('skin-select');
@@ -4769,8 +5838,13 @@ function applySkin(skinId) {
     }
 }
 
-function initSkin() {
-    const saved = localStorage.getItem('anything-mini-skin') || 'modern';
+async function initSkin() {
+    // Load skin preference from backend (fast path: apply default first, then override)
+    let saved = 'modern';
+    try {
+        const prefs = await api.get('/preferences');
+        if (prefs.skin) saved = prefs.skin;
+    } catch { /* use default */ }
     applySkin(saved);
 
     const select = document.getElementById('skin-select');
@@ -4789,15 +5863,15 @@ const panelResize = {
     leftWidth: null,
     rightWidth: null,
 
-    init() {
-        const saved = localStorage.getItem('anything-mini-panels');
-        if (saved) {
-            try {
-                const { left, right } = JSON.parse(saved);
-                this.leftWidth = left;
-                this.rightWidth = right;
-            } catch { /* ignore */ }
-        }
+    async init() {
+        // Load panel widths from backend preferences
+        try {
+            const prefs = await api.get('/preferences');
+            if (prefs.panels) {
+                this.leftWidth = prefs.panels.left;
+                this.rightWidth = prefs.panels.right;
+            }
+        } catch { /* ignore */ }
 
         // Read default widths from the computed grid if not saved
         if (!this.leftWidth || !this.rightWidth) {
@@ -4821,10 +5895,10 @@ const panelResize = {
     },
 
     save() {
-        localStorage.setItem('anything-mini-panels', JSON.stringify({
+        savePref('panels', {
             left: this.leftWidth,
             right: this.rightWidth,
-        }));
+        });
     },
 
     startDrag(e, side) {
@@ -5189,7 +6263,7 @@ function openDefaultsModal() {
     hidePastCheckbox.checked = state.hidePastEntries;
     hidePastCheckbox.addEventListener('change', () => {
         state.hidePastEntries = hidePastCheckbox.checked;
-        localStorage.setItem('hidePastEntries', state.hidePastEntries);
+        savePref('hidePastEntries', state.hidePastEntries);
         renderTimeline();
     });
 
@@ -5240,30 +6314,28 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('settings-btn').addEventListener('click', () => openDefaultsModal());
 
     // Show-done toggle (default: OFF = done items hidden)
-    state.showDone = localStorage.getItem('showDone') === 'true';
+    // showDone state is restored in loadAll() from backend preferences
     const hideDoneBtn = document.getElementById('hide-done-btn');
     hideDoneBtn.classList.toggle('active', state.showDone);
     hideDoneBtn.title = state.showDone ? 'Hide done' : 'Show done';
     hideDoneBtn.addEventListener('click', () => {
         state.showDone = !state.showDone;
-        localStorage.setItem('showDone', state.showDone);
+        savePref('showDone', state.showDone);
         hideDoneBtn.classList.toggle('active', state.showDone);
         hideDoneBtn.title = state.showDone ? 'Hide done' : 'Show done';
         renderAll();
     });
 
-    // Show-unscheduled toggle (default: ON = unscheduled items visible)
-    // Active class = filter engaged = hiding unscheduled (📅 bright)
-    // No active = default = showing everything (📅 dimmed)
-    state.showUnscheduled = localStorage.getItem('showUnscheduled') !== 'false';
+    // Schedule filter 3-way toggle: scheduled → scheduled+unscheduled → all
+    // State is restored in loadAll() from backend preferences
     const showUnschedBtn = document.getElementById('show-unscheduled-btn');
-    showUnschedBtn.classList.toggle('active', !state.showUnscheduled);
-    showUnschedBtn.title = state.showUnscheduled ? 'Scheduled only' : 'Show all';
+    syncScheduleFilterBtn(showUnschedBtn);
     showUnschedBtn.addEventListener('click', () => {
-        state.showUnscheduled = !state.showUnscheduled;
-        localStorage.setItem('showUnscheduled', state.showUnscheduled);
-        showUnschedBtn.classList.toggle('active', !state.showUnscheduled);
-        showUnschedBtn.title = state.showUnscheduled ? 'Scheduled only' : 'Show all';
+        const cycle = ['scheduled', 'scheduled+unscheduled', 'all'];
+        const idx = cycle.indexOf(state.scheduleFilter);
+        state.scheduleFilter = cycle[(idx + 1) % cycle.length];
+        savePref('scheduleFilter', state.scheduleFilter);
+        syncScheduleFilterBtn(showUnschedBtn);
         renderAll();
     });
 
@@ -5272,7 +6344,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const d = new Date(state.timelineViewDate);
         d.setDate(d.getDate() - 1);
         state.timelineViewDate = d;
-        localStorage.setItem('timelineViewDate', d.toISOString());
+        savePref('timelineViewDate', d.toISOString());
         renderAll();
     });
     document.getElementById('date-nav-next').addEventListener('click', () => {
@@ -5284,12 +6356,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // Click on date text to jump back to today
     document.getElementById('date-nav-date').addEventListener('click', () => {
         state.timelineViewDate = getLogicalToday();
-        localStorage.setItem('timelineViewDate', state.timelineViewDate.toISOString());
+        savePref('timelineViewDate', state.timelineViewDate.toISOString());
         renderAll();
     });
 
-    // Restore hide-past-entries preference from localStorage
-    state.hidePastEntries = localStorage.getItem('hidePastEntries') === 'true';
+    // hidePastEntries state is restored in loadAll() from backend preferences
 
     // Streak check-in button
     document.getElementById('streak-checkin-btn').addEventListener('click', () => performCheckIn());

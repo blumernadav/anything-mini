@@ -1,8 +1,8 @@
 {
   "dayStartHour": 8,
   "dayStartMinute": 0,
-  "dayEndHour": 22,
-  "dayEndMinute": 0,
+  "dayEndHour": 0,
+  "dayEndMinute": 30,
   "dayOverrides": {
     "2026-02-08": {
       "dayStartHour": 10,
@@ -13,13 +13,19 @@
     "2026-02-09": {
       "dayStartHour": 12,
       "dayStartMinute": 15,
-      "dayEndHour": 0,
+      "dayEndHour": 2,
+      "dayEndMinute": 0
+    },
+    "2026-02-10": {
+      "dayStartHour": 9,
+      "dayStartMinute": 30,
+      "dayEndHour": 2,
       "dayEndMinute": 30
     }
   },
   "streak": {
-    "count": 1,
-    "lastCheckInDate": "2026-02-08",
-    "longestStreak": 2
+    "count": 3,
+    "lastCheckInDate": "2026-02-10",
+    "longestStreak": 3
   }
 }

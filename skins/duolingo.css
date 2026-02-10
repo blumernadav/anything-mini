@@ -1170,9 +1170,24 @@ body {
     box-shadow: 0 2px 0 #16a085;
 }
 
+.action-btn-schedule:hover {
+    border-color: var(--duo-blue);
+    color: white;
+    background: var(--duo-blue);
+    box-shadow: 0 2px 0 #1a6fc4;
+}
+
 .action-content {
     flex: 1;
     min-width: 0;
+}
+
+.action-badges {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+    margin-top: 3px;
 }
 
 .action-name {
@@ -1195,14 +1210,22 @@ body {
     padding: 1px 8px;
     border-radius: 20px;
     display: inline-block;
-    margin-top: 3px;
+}
+
+.action-project-tag-link {
+    cursor: pointer;
+    transition: all var(--dur) var(--ease);
+}
+
+.action-project-tag-link:hover {
+    text-decoration: underline;
+    color: var(--duo-green-dark);
 }
 
 .action-time-tags {
     display: flex;
     flex-wrap: wrap;
     gap: 4px;
-    margin-top: 4px;
 }
 
 .action-time-tag {
@@ -1222,12 +1245,59 @@ body {
     font-weight: 800;
 }
 
-/* ─── Goal Badges (Actions) ─── */
+/* ─── Duration Estimate Badge ─── */
+.action-estimate-badge {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 7px;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: all var(--dur) var(--ease);
+}
+
+.action-estimate-badge.has-estimate {
+    color: var(--duo-text-soft);
+    background: var(--duo-bg);
+    border: 2px solid var(--duo-border);
+    font-variant-numeric: tabular-nums;
+}
+
+.action-estimate-badge.has-estimate:hover {
+    border-color: var(--duo-blue);
+    color: var(--duo-blue);
+    background: var(--duo-blue-dim);
+}
+
+.action-estimate-badge.no-estimate {
+    opacity: 0;
+    font-size: 13px;
+    color: var(--duo-text-faint);
+}
+
+.action-item:hover .action-estimate-badge.no-estimate {
+    opacity: 0.4;
+}
+
+.action-estimate-badge.no-estimate:hover {
+    opacity: 0.8;
+}
+
+/* ─── Capacity Summary ─── */
+.capacity-summary {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--duo-text-faint);
+    margin-left: auto;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+
 .action-goal-badge {
     display: flex;
     align-items: center;
     gap: 6px;
-    margin-top: 4px;
 }
 
 .action-goal-bar {
@@ -2082,6 +2152,192 @@ body {
     opacity: 0.7;
 }
 
+/* ── Segment Queue ── */
+.time-block-free:has(.segment-queue) {
+    flex-wrap: wrap;
+    opacity: 0.7;
+}
+
+.segment-queue {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 6px 0 2px 32px;
+}
+
+.segment-queue-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    border-radius: 10px;
+    cursor: grab;
+    transition: all var(--dur) var(--ease);
+}
+
+.segment-queue-item:hover {
+    background: rgba(45, 212, 191, 0.08);
+}
+
+.segment-queue-bullet {
+    font-size: 10px;
+    color: #2dd4bf;
+    flex-shrink: 0;
+}
+
+.segment-queue-name {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--duo-text-soft);
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.segment-queue-est {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--duo-text-faint);
+    flex-shrink: 0;
+}
+
+.segment-queue-start {
+    opacity: 0;
+    border: 2px solid rgba(45, 212, 191, 0.3);
+    background: rgba(45, 212, 191, 0.08);
+    color: #2dd4bf;
+    cursor: pointer;
+    font-size: 10px;
+    font-weight: 800;
+    width: 22px;
+    height: 22px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    padding: 0;
+    box-shadow: 0 2px 0 rgba(45, 212, 191, 0.3);
+}
+
+.segment-queue-item:hover .segment-queue-start {
+    opacity: 1;
+}
+
+.segment-queue-start:hover {
+    background: #2dd4bf;
+    color: white;
+    transform: translateY(-1px);
+}
+
+.segment-queue-start:active {
+    transform: translateY(1px);
+    box-shadow: none;
+}
+
+.segment-item-dragging {
+    opacity: 0.4;
+}
+
+.segment-capacity-bar {
+    width: 100%;
+    height: 6px;
+    background: var(--duo-border);
+    border-radius: 4px;
+    margin: 4px 0 0 32px;
+    position: relative;
+    overflow: hidden;
+    max-width: calc(100% - 36px);
+}
+
+.segment-capacity-fill {
+    height: 100%;
+    background: #2dd4bf;
+    border-radius: 4px;
+    transition: width 0.3s ease;
+}
+
+.segment-capacity-fill.over-capacity {
+    background: var(--duo-red);
+}
+
+.segment-capacity-label {
+    position: absolute;
+    right: 0;
+    top: 8px;
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--duo-text-faint);
+}
+
+.actions-drag-over {
+    outline: 3px dashed var(--duo-green);
+    outline-offset: -3px;
+    background: var(--duo-green-dim);
+}
+
+/* Duration popover */
+.segment-queue-item {
+    position: relative;
+}
+
+.segment-duration-popover {
+    position: absolute;
+    right: 0;
+    top: 100%;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 8px;
+    background: var(--duo-white);
+    border: 2px solid var(--duo-border);
+    border-radius: 10px;
+    box-shadow: 0 4px 0 var(--duo-border);
+    z-index: 10;
+}
+
+.segment-duration-input {
+    width: 52px;
+    padding: 4px 6px;
+    border: 2px solid var(--duo-border);
+    border-radius: 8px;
+    background: var(--duo-bg);
+    color: var(--duo-text);
+    font-size: 12px;
+    font-weight: 700;
+    font-family: inherit;
+    outline: none;
+}
+
+.segment-duration-input:focus {
+    border-color: var(--duo-green);
+}
+
+.segment-duration-save {
+    width: 24px;
+    height: 24px;
+    border: 2px solid #2dd4bf;
+    background: rgba(45, 212, 191, 0.08);
+    color: #2dd4bf;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 800;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    box-shadow: 0 2px 0 rgba(45, 212, 191, 0.3);
+}
+
+.segment-duration-save:hover {
+    background: #2dd4bf;
+    color: white;
+}
+
 /* Idle Time accent */
 .time-block-idle {
     border-left: 4px solid var(--duo-gold);
@@ -2208,6 +2464,19 @@ body {
 }
 
 .working-overtime {
+    color: #b57b08 !important;
+}
+
+/* Break countdown overtime */
+.time-block-break-overtime {
+    border-left-color: #f59e0b;
+    border-color: var(--duo-border);
+    border-left-color: #f59e0b;
+    background: rgba(245, 158, 11, 0.08);
+    box-shadow: 0 2px 0 #b57b08;
+}
+
+.break-overtime {
     color: #b57b08 !important;
 }
 
@@ -2818,6 +3087,95 @@ body {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+/* Create-item row */
+.plan-editor-suggestion-create {
+    border-top: 2px solid var(--duo-border);
+    color: var(--duo-text-faint);
+    position: sticky;
+    bottom: 0;
+    background: var(--duo-bg);
+}
+
+.plan-editor-suggestion-create:hover {
+    background: var(--duo-green);
+    color: white;
+}
+
+.plan-editor-suggestion-create:hover .plan-editor-suggestion-name {
+    color: white;
+}
+
+.plan-editor-suggestion-create .plan-editor-suggestion-name {
+    font-weight: 600;
+}
+
+/* Parent selector */
+.plan-editor-parent-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border-bottom: 2px solid var(--duo-border);
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--duo-text);
+}
+
+.plan-editor-parent-back {
+    cursor: pointer;
+    font-size: 16px;
+    opacity: 0.6;
+    transition: opacity 0.15s;
+}
+
+.plan-editor-parent-back:hover {
+    opacity: 1;
+}
+
+.plan-editor-parent-title {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.plan-editor-parent-filter {
+    width: calc(100% - 20px);
+    margin: 6px 10px;
+    padding: 6px 8px;
+    border: 2px solid var(--duo-border);
+    border-radius: 10px;
+    background: var(--duo-bg);
+    color: var(--duo-text);
+    font-size: 12px;
+    font-weight: 700;
+    outline: none;
+}
+
+.plan-editor-parent-filter:focus {
+    border-color: var(--duo-green);
+}
+
+.plan-editor-parent-tree {
+    max-height: 180px;
+    overflow-y: auto;
+}
+
+.plan-editor-parent-item {
+    padding: 6px 10px;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--duo-text);
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.plan-editor-parent-item:hover {
+    background: var(--duo-green);
+    color: white;
 }
 
 .plan-editor-time-row {

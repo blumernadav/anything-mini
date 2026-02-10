@@ -1146,9 +1146,23 @@ body {
     background: rgba(45, 212, 191, 0.08);
 }
 
+.action-btn-schedule:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--accent-dim);
+}
+
 .action-content {
     flex: 1;
     min-width: 0;
+}
+
+.action-badges {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 3px;
+    margin-top: 2px;
 }
 
 .action-name {
@@ -1166,15 +1180,26 @@ body {
     font-size: 10px;
     color: var(--accent);
     opacity: 0.6;
-    margin-top: 1px;
     display: inline-block;
+}
+
+.action-project-tag-link {
+    cursor: pointer;
+    border-radius: 3px;
+    padding: 0 2px;
+    transition: all var(--dur) var(--ease);
+}
+
+.action-project-tag-link:hover {
+    opacity: 1;
+    text-decoration: underline;
+    background: var(--accent-dim);
 }
 
 .action-time-tags {
     display: flex;
     flex-wrap: wrap;
     gap: 3px;
-    margin-top: 3px;
 }
 
 .action-time-tag {
@@ -1194,12 +1219,59 @@ body {
     font-weight: 600;
 }
 
-/* ─── Goal Badges (Actions) ─── */
+/* ─── Duration Estimate Badge ─── */
+.action-estimate-badge {
+    display: inline-block;
+    font-size: 10px;
+    padding: 0px 6px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all var(--dur) var(--ease);
+    vertical-align: middle;
+}
+
+.action-estimate-badge.has-estimate {
+    color: var(--text-soft);
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    font-variant-numeric: tabular-nums;
+}
+
+.action-estimate-badge.has-estimate:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--accent-dim);
+}
+
+.action-estimate-badge.no-estimate {
+    opacity: 0;
+    font-size: 12px;
+    color: var(--text-faint);
+}
+
+.action-item:hover .action-estimate-badge.no-estimate {
+    opacity: 0.4;
+}
+
+.action-estimate-badge.no-estimate:hover {
+    opacity: 0.8;
+}
+
+/* ─── Capacity Summary ─── */
+.capacity-summary {
+    font-size: 11px;
+    color: var(--text-faint);
+    margin-left: auto;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.01em;
+}
+
+
 .action-goal-badge {
     display: flex;
     align-items: center;
     gap: 6px;
-    margin-top: 3px;
 }
 
 .action-goal-bar {
@@ -2004,6 +2076,188 @@ body {
     opacity: 0.7;
 }
 
+/* ── Segment Queue (items soft-assigned to free blocks) ── */
+.time-block-free:has(.segment-queue) {
+    flex-wrap: wrap;
+    opacity: 0.7;
+}
+
+.segment-queue {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 4px 0 2px 28px;
+}
+
+.segment-queue-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 6px;
+    border-radius: var(--radius-sm);
+    transition: all var(--dur) var(--ease);
+    cursor: grab;
+}
+
+.segment-queue-item:hover {
+    background: rgba(52, 211, 153, 0.08);
+}
+
+.segment-queue-bullet {
+    font-size: 10px;
+    color: #34d399;
+    flex-shrink: 0;
+    line-height: 1;
+}
+
+.segment-queue-name {
+    font-size: 11px;
+    color: var(--text-soft);
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.segment-queue-est {
+    font-size: 10px;
+    color: var(--text-faint);
+    opacity: 0.7;
+    flex-shrink: 0;
+    font-variant-numeric: tabular-nums;
+}
+
+.segment-queue-start {
+    opacity: 0;
+    border: 1px solid rgba(52, 211, 153, 0.3);
+    background: rgba(52, 211, 153, 0.08);
+    color: #34d399;
+    cursor: pointer;
+    font-size: 10px;
+    width: 20px;
+    height: 20px;
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--dur) var(--ease);
+    flex-shrink: 0;
+    line-height: 1;
+    padding: 0;
+}
+
+.segment-queue-item:hover .segment-queue-start {
+    opacity: 1;
+}
+
+.segment-queue-start:hover {
+    background: rgba(52, 211, 153, 0.18);
+    border-color: #34d399;
+    transform: scale(1.05);
+}
+
+.segment-item-dragging {
+    opacity: 0.4;
+}
+
+/* Capacity bar */
+.segment-capacity-bar {
+    width: 100%;
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    margin: 4px 0 0 28px;
+    position: relative;
+    overflow: hidden;
+    max-width: calc(100% - 32px);
+}
+
+.segment-capacity-fill {
+    height: 100%;
+    background: #34d399;
+    border-radius: 2px;
+    transition: width 0.3s ease;
+}
+
+.segment-capacity-fill.over-capacity {
+    background: #f43f5e;
+}
+
+.segment-capacity-label {
+    position: absolute;
+    right: 0;
+    top: 6px;
+    font-size: 9px;
+    color: var(--text-faint);
+    opacity: 0.7;
+    font-variant-numeric: tabular-nums;
+}
+
+/* Actions panel drag-over state */
+.actions-drag-over {
+    outline: 2px dashed var(--accent);
+    outline-offset: -2px;
+    background: var(--accent-dim);
+}
+
+/* Duration popover */
+.segment-queue-item {
+    position: relative;
+}
+
+.segment-duration-popover {
+    position: absolute;
+    right: 0;
+    top: 100%;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 6px;
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    z-index: 10;
+}
+
+.segment-duration-input {
+    width: 52px;
+    padding: 3px 6px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-surface);
+    color: var(--text);
+    font-size: 11px;
+    font-family: inherit;
+    outline: none;
+}
+
+.segment-duration-input:focus {
+    border-color: var(--border-focus);
+}
+
+.segment-duration-save {
+    width: 22px;
+    height: 22px;
+    border: 1px solid rgba(52, 211, 153, 0.3);
+    background: rgba(52, 211, 153, 0.08);
+    color: #34d399;
+    cursor: pointer;
+    font-size: 11px;
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+}
+
+.segment-duration-save:hover {
+    background: rgba(52, 211, 153, 0.18);
+    border-color: #34d399;
+}
+
 /* Idle Time accent */
 .time-block-idle {
     border-left: 3px solid #f59e0b;
@@ -2122,6 +2376,18 @@ body {
 }
 
 .working-overtime {
+    color: #f59e0b !important;
+}
+
+/* Break countdown overtime */
+.time-block-break-overtime {
+    border-left-color: #f59e0b;
+    border-color: rgba(245, 158, 11, 0.3);
+    border-left-color: #f59e0b;
+    background: rgba(245, 158, 11, 0.06);
+}
+
+.break-overtime {
     color: #f59e0b !important;
 }
 
@@ -2722,6 +2988,88 @@ body {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+/* Create-item row */
+.plan-editor-suggestion-create {
+    border-top: 1px solid var(--border);
+    color: var(--text-faint);
+    position: sticky;
+    bottom: 0;
+    background: var(--bg-card);
+}
+
+.plan-editor-suggestion-create:hover {
+    background: var(--accent);
+    color: var(--text);
+}
+
+.plan-editor-suggestion-create .plan-editor-suggestion-name {
+    font-weight: 400;
+}
+
+/* Parent selector */
+.plan-editor-parent-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+    color: var(--text);
+    font-weight: 600;
+}
+
+.plan-editor-parent-back {
+    cursor: pointer;
+    font-size: 14px;
+    opacity: 0.6;
+    transition: opacity 0.15s;
+}
+
+.plan-editor-parent-back:hover {
+    opacity: 1;
+}
+
+.plan-editor-parent-title {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.plan-editor-parent-filter {
+    width: calc(100% - 16px);
+    margin: 4px 8px;
+    padding: 4px 6px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-main);
+    color: var(--text);
+    font-size: 11px;
+    outline: none;
+}
+
+.plan-editor-parent-filter:focus {
+    border-color: var(--accent);
+}
+
+.plan-editor-parent-tree {
+    max-height: 180px;
+    overflow-y: auto;
+}
+
+.plan-editor-parent-item {
+    padding: 5px 10px;
+    font-size: 12px;
+    color: var(--text);
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.plan-editor-parent-item:hover {
+    background: var(--accent);
 }
 
 /* Time row */
