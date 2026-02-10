@@ -5,6 +5,14 @@
       "name": "Inbox",
       "children": [
         {
+          "id": 221,
+          "name": "אולי לכתוב לג׳ייקוב",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770730496059,
+          "done": false
+        },
+        {
           "id": 195,
           "name": "Review Google Cloud credential security best practices",
           "children": [],
@@ -54,12 +62,44 @@
       "name": "anything",
       "children": [
         {
+          "id": 225,
+          "name": "and a why axis",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770733742947,
+          "done": false
+        },
+        {
+          "id": 224,
+          "name": "search - global, not only in projects",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770733735758,
+          "done": false
+        },
+        {
+          "id": 223,
+          "name": "maybe also a \"where\" axis",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770733716283,
+          "done": false
+        },
+        {
+          "id": 222,
+          "name": "ideas vs actions and notes",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770731101261,
+          "done": false
+        },
+        {
           "id": 220,
           "name": "free time calc doesn't take breaks (or running items)? in account",
           "children": [],
           "expanded": false,
           "createdAt": 1770729856625,
-          "done": false
+          "done": true
         },
         {
           "id": 219,
@@ -136,12 +176,9 @@
           "expanded": false,
           "createdAt": 1770726107923,
           "done": false,
-          "timeContexts": [
-            "2026-02-10@15:17-18:00"
-          ],
+          "timeContexts": [],
           "segmentDurations": {
             "2026-02-10@15:16-18:00": 60,
-            "2026-02-10@15:17-18:00": 60,
             "2026-02-10@15:21-18:00": 60,
             "2026-02-10@15:24-18:00": 60
           }
@@ -1787,5 +1824,5 @@
       "done": false
     }
   ],
-  "nextId": 221
+  "nextId": 226
 }

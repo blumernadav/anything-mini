@@ -1053,7 +1053,14 @@
       "targetEndTime": 1770730428869,
       "id": 160,
       "timestamp": 1770729828869
+    },
+    {
+      "text": "Done: free time calc doesn't take breaks (or running items)? in account",
+      "projectName": "anything",
+      "type": "completion",
+      "id": 161,
+      "timestamp": 1770730519808
     }
   ],
-  "nextId": 161
+  "nextId": 163
 }

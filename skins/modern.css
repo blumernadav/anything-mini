@@ -1666,6 +1666,133 @@ body {
     flex-shrink: 0;
 }
 
+/* ─── Session Navigation ─── */
+.session-nav {
+    padding: 4px 4px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.session-nav:empty {
+    display: none;
+}
+
+.session-nav-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 8px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all var(--dur) var(--ease);
+    border-left: 3px solid transparent;
+    font-size: 11px;
+}
+
+.session-nav-item:hover {
+    background: var(--bg-hover);
+}
+
+.session-nav-item.active {
+    background: var(--accent-dim);
+    border-left-color: var(--accent);
+}
+
+.session-nav-icon {
+    font-size: 12px;
+    flex-shrink: 0;
+    line-height: 1;
+}
+
+.session-nav-label {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 500;
+    color: var(--text);
+}
+
+.session-nav-time {
+    color: var(--text-faint);
+    font-variant-numeric: tabular-nums;
+    flex-shrink: 0;
+}
+
+.session-nav-dur {
+    color: var(--text-faint);
+    opacity: 0.7;
+    flex-shrink: 0;
+    min-width: 32px;
+    text-align: right;
+}
+
+/* Type accents */
+.session-nav-free {
+    border-left-color: #22c55e;
+}
+
+.session-nav-planned {
+    border-left-color: #3b82f6;
+}
+
+.session-nav-work {
+    border-left-color: #f59e0b;
+}
+
+.session-nav-working {
+    border-left-color: #f59e0b;
+}
+
+.session-nav-break {
+    border-left-color: #14b8a6;
+}
+
+.session-nav-free .session-nav-label {
+    color: #22c55e;
+}
+
+.session-nav-planned .session-nav-label {
+    color: #60a5fa;
+}
+
+.session-nav-working .session-nav-label {
+    color: #f59e0b;
+}
+
+.session-nav-break .session-nav-label {
+    color: #14b8a6;
+}
+
+/* ─── Session Breadcrumb ─── */
+.session-breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    margin: 4px 4px;
+    border-radius: var(--radius-sm);
+    background: var(--accent-dim);
+    color: var(--accent);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--dur) var(--ease);
+}
+
+.session-breadcrumb:hover {
+    background: var(--accent);
+    color: var(--bg);
+}
+
+.session-breadcrumb-arrow {
+    font-size: 14px;
+    line-height: 1;
+}
+
 /* Modal extras */
 .modal-divider {
     height: 1px;

@@ -1728,6 +1728,141 @@ body {
     flex-shrink: 0;
 }
 
+/* ─── Session Navigation ─── */
+.session-nav {
+    padding: 6px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    border-bottom: 2px solid var(--duo-border);
+}
+
+.session-nav:empty {
+    display: none;
+}
+
+.session-nav-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 10px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 700;
+    transition: all var(--dur) var(--ease);
+    border-left: 4px solid transparent;
+}
+
+.session-nav-item:hover {
+    background: var(--duo-bg);
+}
+
+.session-nav-item.active {
+    background: var(--duo-green-dim);
+    border-left-color: var(--duo-green);
+}
+
+.session-nav-icon {
+    font-size: 14px;
+    flex-shrink: 0;
+}
+
+.session-nav-label {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 800;
+    color: var(--duo-text);
+}
+
+.session-nav-time {
+    color: var(--duo-text-faint);
+    font-variant-numeric: tabular-nums;
+    flex-shrink: 0;
+}
+
+.session-nav-dur {
+    color: var(--duo-text-faint);
+    opacity: 0.7;
+    flex-shrink: 0;
+    min-width: 34px;
+    text-align: right;
+}
+
+/* Type accents */
+.session-nav-free {
+    border-left-color: var(--duo-green);
+}
+
+.session-nav-planned {
+    border-left-color: var(--duo-blue);
+}
+
+.session-nav-work {
+    border-left-color: var(--duo-gold);
+}
+
+.session-nav-working {
+    border-left-color: var(--duo-gold);
+}
+
+.session-nav-break {
+    border-left-color: var(--duo-purple);
+}
+
+.session-nav-free .session-nav-label {
+    color: var(--duo-green);
+}
+
+.session-nav-planned .session-nav-label {
+    color: var(--duo-blue);
+}
+
+.session-nav-working .session-nav-label {
+    color: var(--duo-gold);
+}
+
+.session-nav-break .session-nav-label {
+    color: var(--duo-purple);
+}
+
+/* ─── Session Breadcrumb ─── */
+.session-breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    margin: 4px 6px;
+    border-radius: 10px;
+    background: var(--duo-green-dim);
+    color: var(--duo-green);
+    font-size: 13px;
+    font-weight: 800;
+    cursor: pointer;
+    transition: all var(--dur) var(--ease);
+    box-shadow: 0 2px 0 var(--duo-border);
+}
+
+.session-breadcrumb:hover {
+    background: var(--duo-green);
+    color: white;
+    box-shadow: 0 2px 0 var(--duo-green-dark);
+    transform: translateY(-1px);
+}
+
+.session-breadcrumb:active {
+    transform: translateY(1px);
+    box-shadow: none;
+}
+
+.session-breadcrumb-arrow {
+    font-size: 16px;
+    font-weight: 800;
+}
+
 /* Modal extras */
 .modal-divider {
     height: 2px;
