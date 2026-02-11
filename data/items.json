@@ -5,6 +5,21 @@
       "name": "Inbox",
       "children": [
         {
+          "id": 285,
+          "name": "לעבור על תאריכים חשובים בחודשיים הקרובים ולהכניס לכאן",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770810767800,
+          "done": false,
+          "timeContexts": [
+            "2026-02-11",
+            "2026-02-11@17:00-00:30"
+          ],
+          "contextDurations": {
+            "2026-02-11@17:00-00:30": 25
+          }
+        },
+        {
           "id": 272,
           "name": "להתקין את הסודה סטרים",
           "children": [],
@@ -87,6 +102,14 @@
       "id": 9,
       "name": "anything",
       "children": [
+        {
+          "id": 286,
+          "name": "plan/breakdown/overview sessions",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770810818397,
+          "done": false
+        },
         {
           "id": 282,
           "name": "idea - move \"done\" to be done under a context",
@@ -1302,14 +1325,19 @@
         },
         {
           "id": 69,
-          "name": "day close",
+          "name": "day close and open dialogs",
           "children": [],
           "expanded": false,
           "createdAt": 1770603489050,
           "done": false,
           "timeContexts": [
-            "someday"
-          ]
+            "someday",
+            "2026-02-11@17:00-00:30"
+          ],
+          "contextDurations": {
+            "someday": 25,
+            "2026-02-11@17:00-00:30": 25
+          }
         },
         {
           "id": 70,
@@ -1499,6 +1527,14 @@
           ]
         },
         {
+          "id": 288,
+          "name": "in free time - indicate remaining with a number",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770810985430,
+          "done": false
+        },
+        {
           "id": 95,
           "name": "day open and close actually set the day start/end times",
           "children": [],
@@ -1681,7 +1717,7 @@
           }
         }
       ],
-      "expanded": false,
+      "expanded": true,
       "createdAt": 1770591468116,
       "done": false,
       "timeContexts": [
@@ -1774,6 +1810,46 @@
       "name": "kolwrite",
       "children": [
         {
+          "id": 284,
+          "name": "cloud sync",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770810670931,
+          "done": false,
+          "timeContexts": [
+            "someday"
+          ],
+          "contextDurations": {}
+        },
+        {
+          "id": 283,
+          "name": "recording",
+          "children": [
+            {
+              "id": 287,
+              "name": "plan recording",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770810830525,
+              "done": false,
+              "timeContexts": [
+                "2026-02-11@17:00-00:30"
+              ],
+              "contextDurations": {
+                "2026-02-11": 30,
+                "2026-02-11@17:00-00:30": 30
+              }
+            }
+          ],
+          "expanded": true,
+          "createdAt": 1770810667740,
+          "done": false,
+          "timeContexts": [
+            "someday"
+          ],
+          "contextDurations": {}
+        },
+        {
           "id": 197,
           "name": "לענות לליאורה",
           "children": [],
@@ -1825,10 +1901,10 @@
                   "createdAt": 1770766015372,
                   "done": false,
                   "timeContexts": [
-                    "2026-02-11@16:30-00:30"
+                    "someday"
                   ],
                   "contextDurations": {
-                    "2026-02-11@16:30-00:30": 0
+                    "someday": 0
                   }
                 }
               ],
@@ -1836,10 +1912,12 @@
               "createdAt": 1770728558328,
               "done": false,
               "timeContexts": [
-                "someday"
+                "someday",
+                "2026-02-11@17:00-00:30"
               ],
               "contextDurations": {
-                "2026-02-10@01:20-02:30": 20
+                "2026-02-10@01:20-02:30": 20,
+                "2026-02-11@17:00-00:30": 10
               }
             },
             {
@@ -1852,7 +1930,7 @@
               "timeContexts": []
             }
           ],
-          "expanded": true,
+          "expanded": false,
           "createdAt": 1770647393766,
           "done": false,
           "goal": null,
@@ -1886,17 +1964,9 @@
           "expanded": false,
           "createdAt": 1770635308948,
           "done": false
-        },
-        {
-          "id": 201,
-          "name": "עדיין לא נשמרות הגדרות ההורדה",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770720799893,
-          "done": false
         }
       ],
-      "expanded": false,
+      "expanded": true,
       "createdAt": 1770603206837,
       "done": false,
       "timeContexts": []
@@ -2270,5 +2340,5 @@
       ]
     }
   ],
-  "nextId": 283
+  "nextId": 289
 }

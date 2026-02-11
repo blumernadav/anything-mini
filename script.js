@@ -1874,11 +1874,13 @@ function renderProjectLevel(items, parent, depth, query = '', matchingIds = new 
                 window._draggedAction = item;
                 row.classList.add('dragging');
                 document.getElementById('project-tree').classList.add('dragging-active');
+                document.body.classList.add('dragging-to-timeline');
                 requestAnimationFrame(() => row.classList.add('dragging'));
             });
             row.addEventListener('dragend', () => {
                 row.classList.remove('dragging');
                 document.getElementById('project-tree').classList.remove('dragging-active');
+                document.body.classList.remove('dragging-to-timeline');
                 dragState.draggedId = null;
                 dragState.dropTarget = null;
                 window._draggedAction = null;
@@ -2751,6 +2753,7 @@ function createActionElement(action) {
             // Also set dragState so project tree drop targets accept this drag
             dragState.draggedId = action.id;
             document.getElementById('project-tree').classList.add('dragging-active');
+            document.body.classList.add('dragging-to-timeline');
         });
         item.addEventListener('dragend', () => {
             item.classList.remove('action-item-dragging');
@@ -2759,6 +2762,7 @@ function createActionElement(action) {
             dragState.draggedId = null;
             dragState.dropTarget = null;
             document.getElementById('project-tree').classList.remove('dragging-active');
+            document.body.classList.remove('dragging-to-timeline');
             clearDropIndicators();
             // Clean up any lingering drag-over states
             document.querySelectorAll('.time-block-drag-over').forEach(el => el.classList.remove('time-block-drag-over'));
@@ -4491,10 +4495,12 @@ function createFreeTimeBlock(startMs, endMs) {
                 e.dataTransfer.setData('application/x-segment-context', itemSegCtx);
                 e.dataTransfer.effectAllowed = 'move';
                 row.classList.add('segment-item-dragging');
+                document.body.classList.add('dragging-to-timeline');
             });
             row.addEventListener('dragend', () => {
                 console.log('[SEG-DRAG] dragend fired');
                 row.classList.remove('segment-item-dragging');
+                document.body.classList.remove('dragging-to-timeline');
             });
 
             const bullet = document.createElement('span');

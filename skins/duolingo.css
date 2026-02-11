@@ -2804,6 +2804,33 @@ body {
     color: var(--duo-purple);
 }
 
+/* ─── Drag-to-schedule: free time drop target ready (global indication) ─── */
+.dragging-to-timeline .time-block-free {
+    border-color: rgba(45, 212, 191, 0.5);
+    border-left-color: #2dd4bf;
+    opacity: 0.8;
+    background: rgba(45, 212, 191, 0.06);
+    box-shadow: 0 2px 0 rgba(45, 212, 191, 0.3);
+    animation: drop-ready-pulse-duo 1.5s ease-in-out infinite;
+    transition: all 0.15s ease;
+}
+
+.dragging-to-timeline .time-block-free .time-block-label {
+    color: #2dd4bf;
+}
+
+@keyframes drop-ready-pulse-duo {
+
+    0%,
+    100% {
+        box-shadow: 0 2px 0 rgba(45, 212, 191, 0.3);
+    }
+
+    50% {
+        box-shadow: 0 2px 0 rgba(45, 212, 191, 0.3), 0 0 10px rgba(45, 212, 191, 0.15);
+    }
+}
+
 /* Free Time accent */
 .time-block-free {
     border-left: 4px solid #2dd4bf;

@@ -2272,6 +2272,32 @@ body {
     color: var(--w-title);
 }
 
+/* ─── Drag-to-schedule: free time drop target ready (global indication) ─── */
+.dragging-to-timeline .time-block-free {
+    border-color: #00aa00;
+    border-style: dashed;
+    opacity: 0.8;
+    background: #f0fff0;
+    animation: drop-ready-pulse-w95 1.5s ease-in-out infinite;
+}
+
+.dragging-to-timeline .time-block-free .time-block-label {
+    color: #00aa00;
+    font-weight: 700;
+}
+
+@keyframes drop-ready-pulse-w95 {
+
+    0%,
+    100% {
+        background: #f0fff0;
+    }
+
+    50% {
+        background: #e0ffe0;
+    }
+}
+
 /* Free Time */
 .time-block-free {
     border: 1px dashed var(--w-dark);
