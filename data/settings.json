@@ -21,6 +21,18 @@
       "dayStartMinute": 30,
       "dayEndHour": 3,
       "dayEndMinute": 30
+    },
+    "2026-02-12": {
+      "dayStartHour": 9,
+      "dayStartMinute": 0,
+      "dayEndHour": 0,
+      "dayEndMinute": 30
+    },
+    "2026-02-11": {
+      "dayStartHour": 8,
+      "dayStartMinute": 0,
+      "dayEndHour": 1,
+      "dayEndMinute": 30
     }
   },
   "streak": {

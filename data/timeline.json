@@ -1207,11 +1207,11 @@
       "text": "סשן איתי",
       "projectName": "פרויקטי מוזיקה",
       "type": "planned",
-      "startTime": 1770811200000,
+      "startTime": 1770813000000,
       "endTime": 1770822000000,
       "itemId": 243,
       "id": 178,
-      "timestamp": 1770811200000
+      "timestamp": 1770813000000
     },
     {
       "text": "Worked on: reschedule time blocks date (9m)",
@@ -1365,7 +1365,244 @@
       "itemId": 273,
       "id": 197,
       "timestamp": 1770810156666
+    },
+    {
+      "text": "Break (0m)",
+      "type": "break",
+      "startTime": 1770811052750,
+      "endTime": 1770811055392,
+      "id": 198,
+      "timestamp": 1770811052750
+    },
+    {
+      "text": "Break (13m)",
+      "type": "break",
+      "startTime": 1770811067018,
+      "endTime": 1770811850095,
+      "targetEndTime": 1770811787018,
+      "id": 199,
+      "timestamp": 1770811067018
+    },
+    {
+      "text": "Break (0m)",
+      "type": "break",
+      "startTime": 1770811957042,
+      "endTime": 1770811963365,
+      "id": 200,
+      "timestamp": 1770811957042
+    },
+    {
+      "text": "Break (10m)",
+      "type": "break",
+      "startTime": 1770811967574,
+      "endTime": 1770812592211,
+      "targetEndTime": 1770812627573,
+      "id": 201,
+      "timestamp": 1770811967574
+    },
+    {
+      "text": "Worked on: לסדר טיפה את הבית (0m)",
+      "projectName": "Inbox",
+      "type": "work",
+      "startTime": 1770812592225,
+      "endTime": 1770812618419,
+      "itemId": 296,
+      "id": 202,
+      "timestamp": 1770812592225
+    },
+    {
+      "text": "לסדר טיפה את הבית",
+      "projectName": "Inbox",
+      "type": "planned",
+      "startTime": 1770812632263,
+      "endTime": 1770813000000,
+      "itemId": 296,
+      "id": 203,
+      "timestamp": 1770812632263
+    },
+    {
+      "text": "Worked on: לסדר טיפה את הבית (2h 43m)",
+      "projectName": "Inbox",
+      "type": "work",
+      "startTime": 1770812644294,
+      "endTime": 1770822465687,
+      "targetEndTime": 1770813420000,
+      "itemId": 296,
+      "id": 204,
+      "timestamp": 1770812644294
+    },
+    {
+      "text": "Worked on: לענות על הודעות (19m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1770822563688,
+      "endTime": 1770823740941,
+      "itemId": 303,
+      "id": 205,
+      "timestamp": 1770822563688
+    },
+    {
+      "text": "חתונה של יונתן",
+      "projectName": "חברים",
+      "type": "planned",
+      "startTime": 1770998400000,
+      "endTime": 1771020000000,
+      "itemId": 304,
+      "id": 206,
+      "timestamp": 1770998400000
+    },
+    {
+      "text": "אופיר מרצה",
+      "projectName": "משפחה",
+      "type": "planned",
+      "startTime": 1771155000000,
+      "endTime": 1771156800000,
+      "itemId": 305,
+      "id": 207,
+      "timestamp": 1771155000000
+    },
+    {
+      "text": "סשן ירדן",
+      "projectName": "פרויקטי מוזיקה",
+      "type": "planned",
+      "startTime": 1772033400000,
+      "endTime": 1772044200000,
+      "itemId": 306,
+      "id": 208,
+      "timestamp": 1772033400000
+    },
+    {
+      "text": "גרב בזאפה",
+      "projectName": "פרויקטי מוזיקה",
+      "type": "planned",
+      "startTime": 1772121600000,
+      "endTime": 1772141400000,
+      "itemId": 307,
+      "id": 209,
+      "timestamp": 1772121600000
+    },
+    {
+      "text": "מפגש סילאן",
+      "projectName": "חברים",
+      "type": "planned",
+      "startTime": 1773250200000,
+      "endTime": 1773257400000,
+      "itemId": 308,
+      "id": 210,
+      "timestamp": 1773250200000
+    },
+    {
+      "text": "שקדי ועומרי מתחתנים",
+      "projectName": "משפחה",
+      "type": "planned",
+      "startTime": 1776949200000,
+      "endTime": 1776978000000,
+      "itemId": 309,
+      "id": 211,
+      "timestamp": 1776949200000
+    },
+    {
+      "text": "איתי ואריאל מתחתנים",
+      "projectName": "חברים",
+      "type": "planned",
+      "startTime": 1776344400000,
+      "endTime": 1776373200000,
+      "itemId": 310,
+      "id": 212,
+      "timestamp": 1776344400000
+    },
+    {
+      "text": "ג׳אז בחצר",
+      "projectName": "פרויקטי מוזיקה",
+      "type": "planned",
+      "startTime": 1772190000000,
+      "endTime": 1772200800000,
+      "itemId": 311,
+      "id": 213,
+      "timestamp": 1772190000000
+    },
+    {
+      "text": "מסיבת רווקים איתי",
+      "projectName": "חברים",
+      "type": "planned",
+      "startTime": 1774632600000,
+      "endTime": 1774643400000,
+      "itemId": 312,
+      "id": 214,
+      "timestamp": 1774632600000
+    },
+    {
+      "text": "Worked on: לעבור על תאריכים חשובים בחודשיים הקרובים ולהכניס לכאן (24m)",
+      "projectName": "Inbox",
+      "type": "work",
+      "startTime": 1770823740973,
+      "endTime": 1770825225147,
+      "targetEndTime": 1770825240917,
+      "itemId": 285,
+      "id": 215,
+      "timestamp": 1770823740973
+    },
+    {
+      "text": "Done: לעבור על תאריכים חשובים בחודשיים הקרובים ולהכניס לכאן",
+      "projectName": "Inbox",
+      "type": "completion",
+      "id": 216,
+      "timestamp": 1770825228811
+    },
+    {
+      "text": "Worked on: anything (16m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1770825541554,
+      "endTime": 1770826556508,
+      "itemId": 9,
+      "id": 217,
+      "timestamp": 1770825541554
+    },
+    {
+      "text": "Done: + in free time should be able to create both an intention and a time block",
+      "projectName": "anything",
+      "type": "completion",
+      "id": 218,
+      "timestamp": 1770828523942
+    },
+    {
+      "text": "Worked on: anything (10m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1770827875249,
+      "endTime": 1770828532158,
+      "itemId": 9,
+      "id": 219,
+      "timestamp": 1770827875249
+    },
+    {
+      "text": "Worked on: + in free time should be able to create both an intention and a time block (42m)",
+      "projectName": "anything",
+      "type": "work",
+      "startTime": 1770828532185,
+      "endTime": 1770831064192,
+      "itemId": 258,
+      "id": 220,
+      "timestamp": 1770828532185
+    },
+    {
+      "text": "Done: + in free time should be able to create both an intention and a time block",
+      "projectName": "anything",
+      "type": "completion",
+      "id": 221,
+      "timestamp": 1770831075868
+    },
+    {
+      "text": "הרפז",
+      "projectName": "חברים",
+      "type": "planned",
+      "startTime": 1770832037381,
+      "endTime": 1770847620000,
+      "itemId": 316,
+      "id": 222,
+      "timestamp": 1770832037381
     }
   ],
-  "nextId": 198
+  "nextId": 223
 }

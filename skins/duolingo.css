@@ -1871,16 +1871,41 @@ body {
     color: var(--duo-green);
 }
 
-.date-nav-today-badge {
+.date-nav-picker {
+    position: absolute;
+    width: 0;
+    height: 0;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.date-nav-today-btn {
     font-size: 10px;
     font-weight: 800;
     text-transform: uppercase;
     letter-spacing: 0.06em;
     color: var(--duo-gold);
     background: var(--duo-gold-dim);
-    padding: 2px 8px;
+    padding: 2px 10px;
     border-radius: 20px;
+    border: 2px solid transparent;
+    cursor: pointer;
     flex-shrink: 0;
+    font-family: inherit;
+    transition: all var(--dur) var(--ease);
+    box-shadow: 0 2px 0 var(--duo-border);
+}
+
+.date-nav-today-btn:hover {
+    background: var(--duo-gold);
+    color: white;
+    box-shadow: 0 2px 0 var(--duo-gold);
+    transform: translateY(-1px);
+}
+
+.date-nav-today-btn:active {
+    transform: translateY(1px);
+    box-shadow: none;
 }
 
 /* ─── Focus: Clickable Blocks ─── */
@@ -2022,6 +2047,7 @@ body {
     font-size: 24px;
     font-weight: 800;
     font-variant-numeric: tabular-nums;
+    flex: 1;
 }
 
 .session-timer-elapsed {
@@ -2038,6 +2064,45 @@ body {
 
 .session-timer-break.session-timer-elapsed {
     color: var(--duo-text-soft);
+}
+
+.session-timer-adjust {
+    display: inline-flex;
+    gap: 4px;
+    margin-left: 6px;
+}
+
+.session-timer-adjust-btn {
+    width: 28px;
+    height: 28px;
+    border: 2px solid var(--duo-border);
+    background: var(--duo-white);
+    color: var(--duo-text-soft);
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 800;
+    font-family: inherit;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    transition: all var(--dur) var(--ease);
+    box-shadow: 0 2px 0 var(--duo-border);
+    line-height: 1;
+}
+
+.session-timer-adjust-btn:hover {
+    border-color: var(--duo-green);
+    color: white;
+    background: var(--duo-green);
+    box-shadow: 0 2px 0 var(--duo-green-dark);
+    transform: translateY(-1px);
+}
+
+.session-timer-adjust-btn:active {
+    transform: translateY(1px);
+    box-shadow: none;
 }
 
 .session-progress-break {
@@ -3605,7 +3670,7 @@ body {
     color: var(--duo-text-faint);
 }
 
-.date-nav.horizon-layer-dim .date-nav-today-badge {
+.date-nav.horizon-layer-dim .date-nav-today-btn {
     display: none;
 }
 
@@ -4177,6 +4242,74 @@ body {
     transform: translateY(1px);
 }
 
+/* ── Plan Editor Mode Toggle (single-icon + hover hint) ── */
+.plan-editor-mode-toggle {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: var(--duo-bg);
+    border: 2px solid var(--duo-border);
+    cursor: pointer;
+    flex-shrink: 0;
+    align-self: flex-start;
+    margin-top: 2px;
+    box-shadow: 0 2px 0 var(--duo-border);
+    transition: border-color 0.2s ease;
+}
+
+.plan-editor-mode-toggle:hover {
+    border-color: var(--duo-green);
+    box-shadow: 0 2px 0 var(--duo-green);
+}
+
+.plan-editor-toggle-icon {
+    font-size: 15px;
+    line-height: 1;
+    transition: transform 0.12s ease, opacity 0.12s ease;
+}
+
+.plan-editor-toggle-icon.plan-editor-toggle-morphing {
+    transform: scale(0);
+    opacity: 0;
+}
+
+/* Intend mode: green accent */
+.plan-editor-intend-mode {
+    border-left-color: var(--duo-green) !important;
+    background: var(--duo-green-dim) !important;
+}
+
+.plan-editor-intend-mode .plan-editor-save {
+    background: var(--duo-green);
+    border-color: var(--duo-green-dark);
+    color: white;
+    box-shadow: 0 2px 0 var(--duo-green-dark);
+}
+
+.plan-editor-intend-mode .plan-editor-save:hover {
+    background: #62d902;
+}
+
+.plan-editor-intend-mode .plan-editor-input:focus {
+    border-color: var(--duo-green);
+}
+
+.plan-editor-intend-mode .plan-editor-duration-input {
+    color: var(--duo-green-dark);
+}
+
+.plan-editor-intend-mode .plan-editor-duration-input:focus {
+    border-color: var(--duo-green);
+}
+
+.plan-editor-intent-duration-row {
+    gap: 8px;
+}
+
 /* Planned Time Block */
 .time-block-planned {
     border-left: 4px solid #60a5fa;
@@ -4407,6 +4540,41 @@ body {
 .empty-hint {
     font-size: 12px;
     font-weight: 600;
+}
+
+.empty-reset-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+    justify-content: center;
+}
+
+.empty-reset-btn {
+    padding: 5px 12px;
+    border: 2px solid var(--duo-border);
+    border-radius: 20px;
+    background: var(--duo-white);
+    color: var(--duo-text-soft);
+    font-size: 12px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all var(--dur) var(--ease);
+    white-space: nowrap;
+    box-shadow: 0 2px 0 var(--duo-border);
+}
+
+.empty-reset-btn:hover {
+    border-color: var(--duo-green);
+    color: var(--duo-green-dark);
+    background: var(--duo-green-dim);
+    box-shadow: 0 2px 0 var(--duo-green);
+}
+
+.empty-reset-btn:active {
+    transform: translateY(2px);
+    box-shadow: none;
 }
 
 /* ─── Scrollbars ─── */

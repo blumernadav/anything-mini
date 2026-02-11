@@ -1727,11 +1727,30 @@ body {
     color: var(--blue-pen);
 }
 
-.date-nav-today-badge {
+.date-nav-picker {
+    position: absolute;
+    width: 0;
+    height: 0;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.date-nav-today-btn {
     font-size: 13px;
     font-family: 'Caveat', cursive;
     color: var(--red-pen);
+    background: transparent;
+    border: 1px dashed var(--red-pen);
+    border-radius: var(--radius);
+    padding: 0 8px;
+    cursor: pointer;
     flex-shrink: 0;
+    transition: all var(--dur) var(--ease);
+}
+
+.date-nav-today-btn:hover {
+    border-style: solid;
+    background: rgba(200, 60, 60, 0.06);
 }
 
 /* ─── Focus: Clickable Blocks ─── */
@@ -1871,6 +1890,7 @@ body {
     font-family: 'Caveat', cursive;
     font-weight: 700;
     font-variant-numeric: tabular-nums;
+    flex: 1;
 }
 
 .session-timer-elapsed {
@@ -1887,6 +1907,37 @@ body {
 
 .session-timer-break.session-timer-elapsed {
     color: var(--pencil-soft);
+}
+
+.session-timer-adjust {
+    display: inline-flex;
+    gap: 4px;
+    margin-left: 6px;
+}
+
+.session-timer-adjust-btn {
+    width: 24px;
+    height: 24px;
+    border: 1px dashed var(--pencil-ghost);
+    background: transparent;
+    color: var(--pencil-soft);
+    border-radius: var(--radius);
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    font-family: inherit;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    transition: all var(--dur) var(--ease);
+    line-height: 1;
+}
+
+.session-timer-adjust-btn:hover {
+    border-style: solid;
+    border-color: var(--pencil);
+    color: var(--pencil);
 }
 
 .session-progress-break {
@@ -3278,7 +3329,7 @@ body {
     font-family: 'Caveat', cursive;
 }
 
-.date-nav.horizon-layer-dim .date-nav-today-badge {
+.date-nav.horizon-layer-dim .date-nav-today-btn {
     display: none;
 }
 
@@ -3836,6 +3887,71 @@ body {
     border-style: dashed;
 }
 
+/* ── Plan Editor Mode Toggle (single-icon + hover hint) ── */
+.plan-editor-mode-toggle {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: transparent;
+    border: 1px dashed var(--pencil-ghost);
+    cursor: pointer;
+    flex-shrink: 0;
+    align-self: flex-start;
+    margin-top: 2px;
+    transition: border-color 0.2s ease;
+}
+
+.plan-editor-mode-toggle:hover {
+    border-color: var(--pencil);
+    border-style: solid;
+}
+
+.plan-editor-toggle-icon {
+    font-size: 13px;
+    line-height: 1;
+    transition: transform 0.12s ease, opacity 0.12s ease;
+}
+
+.plan-editor-toggle-icon.plan-editor-toggle-morphing {
+    transform: scale(0);
+    opacity: 0;
+}
+
+/* Intend mode: green accent */
+.plan-editor-intend-mode {
+    border-left-color: #5eab5e !important;
+    background: rgba(94, 171, 94, 0.04) !important;
+}
+
+.plan-editor-intend-mode .plan-editor-save {
+    color: #5eab5e;
+    border-color: #5eab5e;
+}
+
+.plan-editor-intend-mode .plan-editor-save:hover {
+    background: rgba(94, 171, 94, 0.08);
+}
+
+.plan-editor-intend-mode .plan-editor-input:focus {
+    border-bottom-color: #5eab5e;
+}
+
+.plan-editor-intend-mode .plan-editor-duration-input {
+    color: #5eab5e;
+}
+
+.plan-editor-intend-mode .plan-editor-duration-input:focus {
+    border-bottom-color: #5eab5e;
+}
+
+.plan-editor-intent-duration-row {
+    gap: 8px;
+}
+
 /* Planned Time Block */
 .time-block-planned {
     border: 1px dashed var(--pencil-ghost);
@@ -4051,6 +4167,34 @@ body {
     font-size: 14px;
     font-style: italic;
     font-family: 'Caveat', cursive;
+}
+
+.empty-reset-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+    justify-content: center;
+}
+
+.empty-reset-btn {
+    padding: 3px 10px;
+    border: 1px dashed var(--pencil-ghost);
+    border-radius: var(--radius);
+    background: transparent;
+    color: var(--pencil-soft);
+    font-size: 14px;
+    font-family: 'Caveat', cursive;
+    cursor: pointer;
+    transition: all var(--dur) var(--ease);
+    white-space: nowrap;
+}
+
+.empty-reset-btn:hover {
+    border-style: solid;
+    border-color: var(--pencil);
+    color: var(--pencil);
+    background: rgba(255, 243, 168, 0.2);
 }
 
 /* ─── Scrollbars ─── */

@@ -5,64 +5,31 @@
       "name": "Inbox",
       "children": [
         {
+          "id": 296,
+          "name": "לסדר טיפה את הבית",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770812039041,
+          "done": false,
+          "timeContexts": [
+            "2026-02-11@entry:203"
+          ],
+          "contextDurations": {
+            "2026-02-11": 5,
+            "2026-02-11@entry:203": 0
+          }
+        },
+        {
           "id": 285,
           "name": "לעבור על תאריכים חשובים בחודשיים הקרובים ולהכניס לכאן",
           "children": [],
           "expanded": false,
           "createdAt": 1770810767800,
-          "done": false,
+          "done": true,
           "timeContexts": [
-            "2026-02-11",
-            "2026-02-11@17:00-00:30"
+            "2026-02-11"
           ],
-          "contextDurations": {
-            "2026-02-11@17:00-00:30": 25
-          }
-        },
-        {
-          "id": 272,
-          "name": "להתקין את הסודה סטרים",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770808515559,
-          "done": false,
-          "timeContexts": [
-            "2026-02-11@17:00-00:30"
-          ],
-          "contextDurations": {
-            "2026-02-11": 30,
-            "2026-02-11@17:00-00:30": 30
-          }
-        },
-        {
-          "id": 258,
-          "name": "+ in free time should be able to create both an intention and a time block",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770806427542,
-          "done": false,
-          "timeContexts": [
-            "2026-02-11@17:00-00:30"
-          ],
-          "contextDurations": {
-            "2026-02-11": 25,
-            "2026-02-11@17:00-00:30": 25
-          }
-        },
-        {
-          "id": 221,
-          "name": "אולי לכתוב לג׳ייקוב",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770730496059,
-          "done": false,
-          "timeContexts": [
-            "2026-02-11@17:00-00:30"
-          ],
-          "contextDurations": {
-            "2026-02-11": 25,
-            "2026-02-11@17:00-00:30": 25
-          }
+          "contextDurations": {}
         },
         {
           "id": 195,
@@ -99,9 +66,291 @@
       "isInbox": true
     },
     {
+      "id": 293,
+      "name": "למצוא חברה",
+      "children": [],
+      "expanded": false,
+      "createdAt": 1770811419755,
+      "done": false
+    },
+    {
+      "id": 92,
+      "name": "פרויקטי מוזיקה",
+      "children": [
+        {
+          "id": 313,
+          "name": "מינגלינג",
+          "children": [
+            {
+              "id": 221,
+              "name": "אולי לכתוב לג׳ייקוב",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770730496059,
+              "done": false,
+              "timeContexts": [
+                "2026-02-12"
+              ],
+              "contextDurations": {
+                "2026-02-11": 25,
+                "2026-02-12": 25
+              }
+            }
+          ],
+          "expanded": false,
+          "createdAt": 1770825297769,
+          "done": false,
+          "timeContexts": [
+            "someday"
+          ],
+          "contextDurations": {}
+        },
+        {
+          "id": 311,
+          "name": "ג׳אז בחצר",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770824890691,
+          "done": false,
+          "timeContexts": [
+            "2026-02-27@entry:213"
+          ],
+          "contextDurations": {
+            "2026-02-27": 180,
+            "2026-02-27@entry:213": 0
+          }
+        },
+        {
+          "id": 307,
+          "name": "גרב בזאפה",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770824289525,
+          "done": false,
+          "timeContexts": [
+            "2026-02-26@entry:209"
+          ],
+          "contextDurations": {
+            "2026-02-26": 330,
+            "2026-02-26@entry:209": 0
+          }
+        },
+        {
+          "id": 306,
+          "name": "סשן ירדן",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770824111221,
+          "done": false,
+          "timeContexts": [
+            "2026-02-25@entry:208"
+          ],
+          "contextDurations": {
+            "2026-02-25": 180,
+            "2026-02-25@entry:208": 0
+          }
+        },
+        {
+          "id": 243,
+          "name": "סשן איתי",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770772108348,
+          "done": false,
+          "estimatedDuration": 180,
+          "timeContexts": [
+            "2026-02-11@entry:178"
+          ],
+          "contextDurations": {
+            "2026-02-11@entry:178": 180
+          }
+        },
+        {
+          "id": 193,
+          "name": "סשן שלי",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770682032006,
+          "done": false,
+          "estimatedDuration": 270
+        },
+        {
+          "id": 190,
+          "name": "סשן לירון",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770681399392,
+          "done": false,
+          "estimatedDuration": 180
+        },
+        {
+          "id": 79,
+          "name": "פרויקט שנקר",
+          "children": [
+            {
+              "id": 80,
+              "name": "לתכנן את השטותי",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770603919756,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ]
+            }
+          ],
+          "expanded": false,
+          "createdAt": 1770603909137,
+          "done": false
+        },
+        {
+          "id": 93,
+          "name": "גדבום",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770609710103,
+          "done": false,
+          "timeContexts": [
+            "2026-02-13"
+          ],
+          "contextDurations": {}
+        },
+        {
+          "id": 273,
+          "name": "לבדוק עם גל סשן קונטרבס",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770808570871,
+          "done": false,
+          "timeContexts": [
+            "2026-02-11@17:00-00:30"
+          ],
+          "contextDurations": {
+            "2026-02-11": 5,
+            "2026-02-11@17:00-00:30": 5
+          }
+        }
+      ],
+      "expanded": false,
+      "createdAt": 1770609703744,
+      "done": false
+    },
+    {
       "id": 9,
       "name": "anything",
       "children": [
+        {
+          "id": 317,
+          "name": "week horizon",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770832301356,
+          "done": false,
+          "timeContexts": [
+            "2026-02-11"
+          ],
+          "contextDurations": {
+            "2026-02-11": 60
+          }
+        },
+        {
+          "id": 314,
+          "name": "mark waiting",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770827010963,
+          "done": false
+        },
+        {
+          "id": 302,
+          "name": "live blocks - work, break, idle - print to past and you can reconcile with plans, including general work plans",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770822520306,
+          "done": false,
+          "timeContexts": [
+            "someday"
+          ],
+          "contextDurations": {}
+        },
+        {
+          "id": 299,
+          "name": "mismatch in running",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770812213025,
+          "done": false
+        },
+        {
+          "id": 298,
+          "name": "capacity calc should be based on actual time after a resize",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770812152653,
+          "done": false,
+          "timeContexts": [
+            "someday"
+          ],
+          "contextDurations": {
+            "someday": 5
+          }
+        },
+        {
+          "id": 297,
+          "name": "start an item during a live session/plan - split/background/reconcile later?",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770812091726,
+          "done": false
+        },
+        {
+          "id": 295,
+          "name": "idle during plans",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770811888997,
+          "done": false
+        },
+        {
+          "id": 294,
+          "name": "fix the 2 insert markers - one works one not",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770811440975,
+          "done": false
+        },
+        {
+          "id": 292,
+          "name": "fun!",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770811414790,
+          "done": false
+        },
+        {
+          "id": 291,
+          "name": "mobile app",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770811241187,
+          "done": false
+        },
+        {
+          "id": 289,
+          "name": "maybe toggle compact blocks (e.g free time)?",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770811045397,
+          "done": false
+        },
+        {
+          "id": 290,
+          "name": "improve plan absorbing",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770811099646,
+          "done": false
+        },
         {
           "id": 286,
           "name": "plan/breakdown/overview sessions",
@@ -143,6 +392,14 @@
           "done": false
         },
         {
+          "id": 318,
+          "name": "maybe toggle \"one context or multiple\"",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770847736743,
+          "done": false
+        },
+        {
           "id": 276,
           "name": "maybe even the running item itself is an intention in the working so it won't show on today",
           "children": [],
@@ -167,11 +424,10 @@
           "createdAt": 1770807975129,
           "done": true,
           "timeContexts": [
-            "2026-02-11@13:06-14:00"
+            "2026-02-11"
           ],
           "contextDurations": {
-            "2026-02-11": 10,
-            "2026-02-11@13:06-14:00": 10
+            "2026-02-11": 10
           }
         },
         {
@@ -1331,12 +1587,12 @@
           "createdAt": 1770603489050,
           "done": false,
           "timeContexts": [
-            "someday",
-            "2026-02-11@17:00-00:30"
+            "2026-02-12"
           ],
           "contextDurations": {
             "someday": 25,
-            "2026-02-11@17:00-00:30": 25
+            "2026-02-11": 25,
+            "2026-02-12": 60
           }
         },
         {
@@ -1715,9 +1971,24 @@
           "contextDurations": {
             "2026-02-11": 0
           }
+        },
+        {
+          "id": 258,
+          "name": "+ in free time should be able to create both an intention and a time block",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770806427542,
+          "done": true,
+          "timeContexts": [
+            "2026-02-11@17:00-00:30"
+          ],
+          "contextDurations": {
+            "2026-02-11": 25,
+            "2026-02-11@17:00-00:30": 25
+          }
         }
       ],
-      "expanded": true,
+      "expanded": false,
       "createdAt": 1770591468116,
       "done": false,
       "timeContexts": [
@@ -1806,9 +2077,71 @@
       "timeContexts": []
     },
     {
+      "id": 300,
+      "name": "משפחה",
+      "children": [
+        {
+          "id": 309,
+          "name": "שקדי ועומרי מתחתנים",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770824413755,
+          "done": false,
+          "timeContexts": [
+            "2026-04-23@entry:211"
+          ],
+          "contextDurations": {
+            "2026-04-23": 480,
+            "2026-04-23@entry:211": 0
+          }
+        },
+        {
+          "id": 305,
+          "name": "אופיר מרצה",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770824044768,
+          "done": false,
+          "timeContexts": [
+            "2026-02-15@entry:207"
+          ],
+          "contextDurations": {
+            "2026-02-15": 30,
+            "2026-02-15@entry:207": 0
+          }
+        },
+        {
+          "id": 301,
+          "name": "לבקר את סבתא",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770812580145,
+          "done": false,
+          "timeContexts": [
+            "someday"
+          ],
+          "contextDurations": {}
+        }
+      ],
+      "expanded": false,
+      "createdAt": 1770812573309,
+      "done": false
+    },
+    {
       "id": 62,
       "name": "kolwrite",
       "children": [
+        {
+          "id": 315,
+          "name": "security measures google",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770832037368,
+          "done": false,
+          "timeContexts": [
+            "2026-02-11"
+          ]
+        },
         {
           "id": 284,
           "name": "cloud sync",
@@ -1966,7 +2299,7 @@
           "done": false
         }
       ],
-      "expanded": true,
+      "expanded": false,
       "createdAt": 1770603206837,
       "done": false,
       "timeContexts": []
@@ -1992,95 +2325,6 @@
       "timeContexts": [
         "someday"
       ]
-    },
-    {
-      "id": 92,
-      "name": "פרויקטי מוזיקה",
-      "children": [
-        {
-          "id": 243,
-          "name": "סשן איתי",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770772108348,
-          "done": false,
-          "estimatedDuration": 180,
-          "timeContexts": [
-            "2026-02-11@entry:178"
-          ],
-          "contextDurations": {
-            "2026-02-11@entry:178": 180
-          }
-        },
-        {
-          "id": 193,
-          "name": "סשן שלי",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770682032006,
-          "done": false,
-          "estimatedDuration": 270
-        },
-        {
-          "id": 190,
-          "name": "סשן לירון",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770681399392,
-          "done": false,
-          "estimatedDuration": 180
-        },
-        {
-          "id": 79,
-          "name": "פרויקט שנקר",
-          "children": [
-            {
-              "id": 80,
-              "name": "לתכנן את השטותי",
-              "children": [],
-              "expanded": false,
-              "createdAt": 1770603919756,
-              "done": false,
-              "timeContexts": [
-                "someday"
-              ]
-            }
-          ],
-          "expanded": false,
-          "createdAt": 1770603909137,
-          "done": false
-        },
-        {
-          "id": 93,
-          "name": "גדבום",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770609710103,
-          "done": false,
-          "timeContexts": [
-            "2026-02-13"
-          ],
-          "contextDurations": {}
-        },
-        {
-          "id": 273,
-          "name": "לבדוק עם גל סשן קונטרבס",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770808570871,
-          "done": false,
-          "timeContexts": [
-            "2026-02-11@17:00-00:30"
-          ],
-          "contextDurations": {
-            "2026-02-11": 5,
-            "2026-02-11@17:00-00:30": 5
-          }
-        }
-      ],
-      "expanded": true,
-      "createdAt": 1770609703744,
-      "done": false
     },
     {
       "id": 29,
@@ -2128,6 +2372,81 @@
       "id": 137,
       "name": "חברים",
       "children": [
+        {
+          "id": 316,
+          "name": "הרפז",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770832206994,
+          "done": false,
+          "timeContexts": [
+            "2026-02-11@entry:222"
+          ],
+          "contextDurations": {
+            "2026-02-11": 150,
+            "2026-02-11@entry:222": 0
+          }
+        },
+        {
+          "id": 312,
+          "name": "מסיבת רווקים איתי",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770825055777,
+          "done": false,
+          "timeContexts": [
+            "2026-03-27@entry:214"
+          ],
+          "contextDurations": {
+            "2026-03-27": 180,
+            "2026-03-27@entry:214": 0
+          }
+        },
+        {
+          "id": 310,
+          "name": "איתי ואריאל מתחתנים",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770824559160,
+          "done": false,
+          "timeContexts": [
+            "2026-04-16@entry:212"
+          ],
+          "contextDurations": {
+            "2026-02-14": 480,
+            "2026-04-16@entry:212": 0
+          }
+        },
+        {
+          "id": 308,
+          "name": "מפגש סילאן",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770824338501,
+          "done": false,
+          "timeContexts": [
+            "2026-03-11@entry:210"
+          ],
+          "contextDurations": {
+            "2026-03-11": 120,
+            "2026-03-11@entry:210": 0
+          }
+        },
+        {
+          "id": 304,
+          "name": "חתונה של יונתן",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770823995914,
+          "done": false,
+          "timeContexts": [
+            "2026-02-13@entry:206"
+          ],
+          "contextDurations": {
+            "2026-02-13": 360,
+            "2026-02-13@entry:206": 0
+          }
+        },
         {
           "id": 216,
           "name": "שבעה סבתא של ירין",
@@ -2330,15 +2649,62 @@
             "2026-02-10@15:21-18:00": 60,
             "2026-02-10@15:24-18:00": 60
           }
+        },
+        {
+          "id": 272,
+          "name": "להתקין את הסודה סטרים",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770808515559,
+          "done": false,
+          "timeContexts": [
+            "2026-02-11@17:00-00:30"
+          ],
+          "contextDurations": {
+            "2026-02-11": 30,
+            "2026-02-11@17:00-00:30": 30
+          }
         }
       ],
-      "expanded": false,
+      "expanded": true,
       "createdAt": 1770773753107,
       "done": false,
       "timeContexts": [
         "someday"
       ]
+    },
+    {
+      "id": 303,
+      "name": "לענות על הודעות",
+      "children": [],
+      "expanded": false,
+      "createdAt": 1770822558666,
+      "done": false
+    },
+    {
+      "id": 319,
+      "name": "למצוא דירה",
+      "children": [
+        {
+          "id": 320,
+          "name": "לדבר עם פרזון",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770847807010,
+          "done": false,
+          "timeContexts": [
+            "2026-02-12@08:00-11:00"
+          ],
+          "contextDurations": {
+            "2026-02-11": 10,
+            "2026-02-12@08:00-11:00": 10
+          }
+        }
+      ],
+      "expanded": false,
+      "createdAt": 1770847791956,
+      "done": false
     }
   ],
-  "nextId": 289
+  "nextId": 321
 }

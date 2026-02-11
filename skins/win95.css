@@ -1492,14 +1492,30 @@ body {
     text-decoration: underline;
 }
 
-.date-nav-today-badge {
+.date-nav-picker {
+    position: absolute;
+    width: 0;
+    height: 0;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.date-nav-today-btn {
     font-size: 10px;
     font-weight: 700;
     color: var(--w-text);
-    background: var(--w-field);
-    border: 1px solid var(--w-dark);
-    padding: 0 4px;
+    background: var(--w-bg);
+    border: 2px solid;
+    border-color: var(--w-white) var(--w-darker) var(--w-darker) var(--w-white);
+    padding: 0 6px;
     flex-shrink: 0;
+    cursor: pointer;
+    font-family: inherit;
+    border-radius: 0;
+}
+
+.date-nav-today-btn:active {
+    border-color: var(--w-darker) var(--w-white) var(--w-white) var(--w-darker);
 }
 
 /* ─── Focus: Clickable Blocks ─── */
@@ -1627,6 +1643,7 @@ body {
     font-weight: 700;
     font-variant-numeric: tabular-nums;
     font-family: inherit;
+    flex: 1;
 }
 
 .session-timer-elapsed {
@@ -1643,6 +1660,35 @@ body {
 
 .session-timer-break.session-timer-elapsed {
     color: var(--w-dark);
+}
+
+.session-timer-adjust {
+    display: inline-flex;
+    gap: 2px;
+    margin-left: 4px;
+}
+
+.session-timer-adjust-btn {
+    width: 20px;
+    height: 20px;
+    border: 2px solid;
+    border-color: var(--w-white) var(--w-darker) var(--w-darker) var(--w-white);
+    background: var(--w-bg);
+    color: var(--w-text);
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 700;
+    font-family: inherit;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border-radius: 0;
+    line-height: 1;
+}
+
+.session-timer-adjust-btn:active {
+    border-color: var(--w-darker) var(--w-white) var(--w-white) var(--w-darker);
 }
 
 .session-progress-break {
@@ -2881,7 +2927,7 @@ body {
     color: var(--w-dark);
 }
 
-.date-nav.horizon-layer-dim .date-nav-today-badge {
+.date-nav.horizon-layer-dim .date-nav-today-btn {
     display: none;
 }
 
@@ -3612,6 +3658,29 @@ body {
 .empty-hint {
     font-size: 11px;
     font-style: italic;
+}
+
+.empty-reset-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 6px;
+    justify-content: center;
+}
+
+.empty-reset-btn {
+    padding: 2px 8px;
+    border: 2px solid;
+    border-color: var(--w-white) var(--w-darker) var(--w-darker) var(--w-white);
+    background: var(--w-bg);
+    color: var(--w-text);
+    font-size: 11px;
+    font-family: inherit;
+    cursor: pointer;
+}
+
+.empty-reset-btn:active {
+    border-color: var(--w-darker) var(--w-white) var(--w-white) var(--w-darker);
 }
 
 /* ─── Taskbar ─── */

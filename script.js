@@ -860,13 +860,45 @@ function getCurrentViewContext() {
     return getDateKey(state.timelineViewDate);
 }
 
+// Find a key in contextDurations whose segment overlaps the given context string.
+// Returns the matching key or null.
+function findOverlappingContextKey(contextDurations, ctx) {
+    const parsed = parseTimeContext(ctx);
+    if (!parsed || !parsed.segment) return null;
+    const [rsh, rsm] = parsed.segment.start.split(':').map(Number);
+    const [reh, rem] = parsed.segment.end.split(':').map(Number);
+    // Use a reference date for ms conversion
+    const ref = new Date();
+    const refY = ref.getFullYear(), refM = ref.getMonth(), refD = ref.getDate();
+    const refStart = new Date(refY, refM, refD, rsh, rsm).getTime();
+    let refEnd = new Date(refY, refM, refD, reh, rem).getTime();
+    if (refEnd <= refStart) refEnd += 24 * 60 * 60 * 1000;
+
+    for (const key of Object.keys(contextDurations)) {
+        const kp = parseTimeContext(key);
+        if (!kp || !kp.segment || kp.date !== parsed.date) continue;
+        const [ksh, ksm] = kp.segment.start.split(':').map(Number);
+        const [keh, kem] = kp.segment.end.split(':').map(Number);
+        const kStart = new Date(refY, refM, refD, ksh, ksm).getTime();
+        let kEnd = new Date(refY, refM, refD, keh, kem).getTime();
+        if (kEnd <= kStart) kEnd += 24 * 60 * 60 * 1000;
+        if (Math.min(refEnd, kEnd) > Math.max(refStart, kStart)) return key;
+    }
+    return null;
+}
+
 // Resolve the effective duration for an item in the current view context.
-// Fallback chain: contextDurations[ctx] → estimatedDuration → 0
+// Fallback chain: contextDurations[ctx] → overlapping segment key → estimatedDuration → 0
 function getContextDuration(item, ctx) {
     if (!item) return 0;
     if (!ctx) ctx = getCurrentViewContext();
     const ctxDur = item.contextDurations?.[ctx];
     if (ctxDur != null) return ctxDur;
+    // Fuzzy: find an overlapping segment context in contextDurations
+    if (item.contextDurations) {
+        const overlapping = findOverlappingContextKey(item.contextDurations, ctx);
+        if (overlapping != null) return item.contextDurations[overlapping];
+    }
     return item.estimatedDuration || 0;
 }
 
@@ -1611,6 +1643,10 @@ function startActionInlineRename(nameEl, action) {
 function collectSearchMatches(items, query, matchingIds) {
     let anyMatch = false;
     for (const item of items) {
+        // Skip done leaves when showDone is off — they shouldn't appear in search results
+        const leaf = isLeaf(item);
+        if (!state.showDone && leaf && !item.isInbox && item.done) continue;
+
         const nameMatch = item.name.toLowerCase().includes(query);
         let childMatch = false;
         if (item.children && item.children.length > 0) {
@@ -2275,6 +2311,83 @@ function renderActions() {
 
     if (filteredActions.length === 0) {
         empty.style.display = '';
+
+        // ── Context-aware empty state: show reset hints when filters are narrowing ──
+        const projectIsFiltered = !!state.selectedItemId;
+        const focusedSession = state.focusStack.length > 0 ? state.focusStack[state.focusStack.length - 1] : null;
+        const viewKey = getDateKey(state.timelineViewDate);
+        const todayKey = getDateKey(getLogicalToday());
+        const timeIsFiltered = !!focusedSession || state.viewHorizon === 'someday' || viewKey !== todayKey;
+
+        if (projectIsFiltered || timeIsFiltered) {
+            // Replace default empty state content with filter-aware message
+            empty.innerHTML = '';
+
+            const icon = document.createElement('span');
+            icon.className = 'empty-icon';
+            icon.textContent = '✨';
+            empty.appendChild(icon);
+
+            const msg = document.createElement('span');
+            msg.textContent = 'Quiet here, isn\u0027t it?';
+            empty.appendChild(msg);
+
+            const btnRow = document.createElement('div');
+            btnRow.className = 'empty-reset-row';
+
+            if (projectIsFiltered) {
+                const selectedItem = findItemById(state.selectedItemId);
+                const resetProject = document.createElement('button');
+                resetProject.className = 'empty-reset-btn';
+                resetProject.textContent = '📁 All';
+                resetProject.title = 'Show all projects';
+                resetProject.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    state.selectedItemId = null;
+                    savePref('selectedItemId', '');
+                    renderAll();
+                });
+                btnRow.appendChild(resetProject);
+            }
+
+            if (timeIsFiltered) {
+                const resetTime = document.createElement('button');
+                resetTime.className = 'empty-reset-btn';
+                // Build a label showing current time filter
+                let timeLabel = '📅';
+                if (focusedSession) {
+                    timeLabel += ` ${formatTime(focusedSession.startMs)}–${formatTime(focusedSession.endMs)}`;
+                } else if (state.viewHorizon === 'someday') {
+                    timeLabel += ' Someday';
+                } else {
+                    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+                    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                    const d = state.timelineViewDate;
+                    timeLabel += ` ${days[d.getDay()]}, ${months[d.getMonth()]} ${d.getDate()}`;
+                }
+                resetTime.textContent = '📅 Today';
+                resetTime.title = 'Back to today';
+                resetTime.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    state.focusStack = [];
+                    state.viewHorizon = 'day';
+                    savePref('viewHorizon', 'day');
+                    state.timelineViewDate = new Date();
+                    renderAll();
+                });
+                btnRow.appendChild(resetTime);
+            }
+
+            empty.appendChild(btnRow);
+        } else {
+            // Default empty state
+            empty.innerHTML = `
+                <span class="empty-icon">✨</span>
+                <span>What's on your mind?</span>
+                <span class="empty-hint">one small win at a time</span>
+            `;
+        }
+
         // Prune selection — nothing visible
         state.selectedActionIds.clear();
         state.selectionAnchor = null;
@@ -2478,9 +2591,13 @@ function getFilteredActions() {
         // Apply project filter if active
         if (state.selectedItemId) {
             const selectedItem = findItemById(state.selectedItemId);
-            if (selectedItem && !isLeaf(selectedItem)) {
-                const descendantIds = collectDescendantIds(selectedItem);
-                sessionLeaves = sessionLeaves.filter(leaf => descendantIds.includes(leaf.id));
+            if (selectedItem) {
+                if (isLeaf(selectedItem)) {
+                    sessionLeaves = sessionLeaves.filter(leaf => leaf.id === selectedItem.id);
+                } else {
+                    const descendantIds = collectDescendantIds(selectedItem);
+                    sessionLeaves = sessionLeaves.filter(leaf => descendantIds.includes(leaf.id));
+                }
             }
         }
         return sessionLeaves;
@@ -3275,16 +3392,16 @@ function renderTimeContext() {
         // Sync date nav for current horizon
         const prevBtn = document.getElementById('date-nav-prev');
         const nextBtn = document.getElementById('date-nav-next');
-        const todayBadge = document.getElementById('date-nav-today-badge');
+        const todayBtn = document.getElementById('date-nav-today-btn');
 
         if (state.viewHorizon === 'someday') {
             if (prevBtn) prevBtn.style.display = 'none';
             if (nextBtn) nextBtn.style.display = 'none';
-            if (todayBadge) todayBadge.style.display = 'none';
+            if (todayBtn) todayBtn.style.display = 'none';
         } else {
             if (prevBtn) prevBtn.style.display = '';
             if (nextBtn) nextBtn.style.display = '';
-            if (todayBadge) todayBadge.style.display = '';
+            // Today button visibility is handled by updateDateNav()
         }
     } else {
 
@@ -3413,6 +3530,7 @@ function _renderLiveSessionIndicator(container) {
     indicator.appendChild(icon);
     indicator.appendChild(label);
     indicator.appendChild(timer);
+    if (liveSession.targetEndTime) indicator.appendChild(_createAdjustBtns());
 
     // Click: navigate back to today + focus the running session
     indicator.addEventListener('click', () => {
@@ -3444,6 +3562,44 @@ function _renderLiveSessionIndicator(container) {
 
     // Insert at the top of the container (before horizon layers)
     container.insertBefore(indicator, container.firstChild);
+}
+
+// ── Timer Adjustment Helper ──
+// Adjusts the targetEndTime for the running work/break session by deltaMs.
+// Also syncs the focusStack entry so the meta row updates.
+function _adjustSessionTarget(deltaMs) {
+    const session = state.workingOn || state.onBreak;
+    if (!session || !session.targetEndTime) return;
+    // Don't allow target to go before session start
+    const newTarget = Math.max(session.startTime + 60000, session.targetEndTime + deltaMs);
+    session.targetEndTime = newTarget;
+    // Persist
+    if (state.workingOn) savePref('workingOn', state.workingOn);
+    else savePref('onBreak', state.onBreak);
+    // Sync focusStack if focused on this live session
+    const top = state.focusStack.length > 0 ? state.focusStack[state.focusStack.length - 1] : null;
+    if (top && (top.type === 'working' || top.type === 'break')) {
+        top.targetEndTime = newTarget;
+    }
+    renderAll();
+}
+
+function _createAdjustBtns() {
+    const wrap = document.createElement('span');
+    wrap.className = 'session-timer-adjust';
+    const minus = document.createElement('button');
+    minus.className = 'session-timer-adjust-btn';
+    minus.textContent = '−';
+    minus.title = '−1 min';
+    minus.addEventListener('click', (e) => { e.stopPropagation(); _adjustSessionTarget(-60000); });
+    const plus = document.createElement('button');
+    plus.className = 'session-timer-adjust-btn';
+    plus.textContent = '+';
+    plus.title = '+1 min';
+    plus.addEventListener('click', (e) => { e.stopPropagation(); _adjustSessionTarget(60000); });
+    wrap.appendChild(minus);
+    wrap.appendChild(plus);
+    return wrap;
 }
 
 // ── Work Session Header ──
@@ -3507,6 +3663,7 @@ function _renderWorkSession(sessionEl, top, nowMs, durationMs, _fmtDur) {
             timerEl.classList.add('session-timer-elapsed');
         }
         timerRow.appendChild(timerEl);
+        if (targetEnd) timerRow.appendChild(_createAdjustBtns());
         sessionEl.appendChild(timerRow);
 
         // Progress bar
@@ -3792,6 +3949,7 @@ function _renderBreakSession(sessionEl, top, nowMs, durationMs, _fmtDur) {
             timerEl.classList.add('session-timer-elapsed');
         }
         timerRow.appendChild(timerEl);
+        if (targetEnd) timerRow.appendChild(_createAdjustBtns());
         sessionEl.appendChild(timerRow);
 
         // Progress bar (if timed)
@@ -3862,7 +4020,7 @@ function renderTimeline() {
     const quickLog = document.querySelector('.quick-log');
 
     // Clear all rendered blocks (including breadcrumb)
-    container.querySelectorAll('.time-block, .timeline-entry, .someday-placeholder').forEach(el => el.remove());
+    container.querySelectorAll('.time-block, .timeline-entry, .someday-placeholder, .timeline-overlap-group').forEach(el => el.remove());
 
     // ── Someday horizon: replace timeline with placeholder ──
     if (state.viewHorizon === 'someday') {
@@ -4670,10 +4828,50 @@ function openPlanEditor(freeBlock, freeStartMs, freeEndMs, preselectedAction = n
     const editor = document.createElement('div');
     editor.className = 'time-block plan-editor';
 
-    // Icon
-    const icon = document.createElement('div');
-    icon.className = 'time-block-icon';
-    icon.textContent = '📌';
+    // ── Mode toggle: Plan (📌) vs Intend (📋) ──
+    let editorMode = 'plan'; // 'plan' | 'intend'
+
+    // Single-icon toggle with tooltip
+    const toggleWrap = document.createElement('div');
+    toggleWrap.className = 'plan-editor-mode-toggle';
+    toggleWrap.title = 'Switch to Intend mode';
+
+    const activeIcon = document.createElement('span');
+    activeIcon.className = 'plan-editor-toggle-icon';
+    activeIcon.textContent = '📌';
+
+    toggleWrap.appendChild(activeIcon);
+
+    const icon = toggleWrap; // alias for editor.appendChild later
+
+    const setEditorMode = (mode) => {
+        editorMode = mode;
+        // Morph animation
+        activeIcon.classList.add('plan-editor-toggle-morphing');
+        setTimeout(() => {
+            activeIcon.textContent = mode === 'plan' ? '📌' : '📋';
+            toggleWrap.title = mode === 'plan' ? 'Switch to Intend mode' : 'Switch to Plan mode';
+            activeIcon.classList.remove('plan-editor-toggle-morphing');
+        }, 120);
+
+        if (mode === 'intend') {
+            editor.classList.add('plan-editor-intend-mode');
+            timeRow.style.display = 'none';
+            intentDurationRow.style.display = '';
+            saveBtn.textContent = '📋 Intend';
+            actionInput.placeholder = 'Search for an action…';
+        } else {
+            editor.classList.remove('plan-editor-intend-mode');
+            timeRow.style.display = '';
+            intentDurationRow.style.display = 'none';
+            saveBtn.textContent = '📌 Plan';
+            actionInput.placeholder = 'Action or session title…';
+        }
+    };
+
+    toggleWrap.addEventListener('click', () => {
+        setEditorMode(editorMode === 'plan' ? 'intend' : 'plan');
+    });
 
     // Content area
     const content = document.createElement('div');
@@ -4735,13 +4933,38 @@ function openPlanEditor(freeBlock, freeStartMs, freeEndMs, preselectedAction = n
     timeRow.appendChild(durationInput);
     timeRow.appendChild(durationLabel);
 
+    // Intend mode: optional duration row (shown only in intend mode)
+    const intentDurationRow = document.createElement('div');
+    intentDurationRow.className = 'plan-editor-row plan-editor-intent-duration-row';
+    intentDurationRow.style.display = 'none'; // hidden by default (plan mode)
+
+    const intentDurLabel = document.createElement('span');
+    intentDurLabel.className = 'plan-editor-duration-label';
+    intentDurLabel.textContent = 'Est. duration';
+    intentDurLabel.style.marginRight = 'auto';
+
+    const intentDurInput = document.createElement('input');
+    intentDurInput.type = 'number';
+    intentDurInput.className = 'plan-editor-duration-input';
+    intentDurInput.min = '0';
+    intentDurInput.placeholder = '—';
+    intentDurInput.title = 'Estimated duration (minutes, optional)';
+
+    const intentDurUnit = document.createElement('span');
+    intentDurUnit.className = 'plan-editor-duration-label';
+    intentDurUnit.textContent = 'min';
+
+    intentDurationRow.appendChild(intentDurLabel);
+    intentDurationRow.appendChild(intentDurInput);
+    intentDurationRow.appendChild(intentDurUnit);
+
     // Row 3: Action buttons
     const actionsRow = document.createElement('div');
     actionsRow.className = 'plan-editor-row plan-editor-actions';
 
     const saveBtn = document.createElement('button');
     saveBtn.className = 'plan-editor-save';
-    saveBtn.textContent = 'Save';
+    saveBtn.textContent = '📌 Plan';
 
     const discardBtn = document.createElement('button');
     discardBtn.className = 'plan-editor-discard';
@@ -4752,6 +4975,7 @@ function openPlanEditor(freeBlock, freeStartMs, freeEndMs, preselectedAction = n
 
     content.appendChild(actionRow);
     content.appendChild(timeRow);
+    content.appendChild(intentDurationRow);
     content.appendChild(actionsRow);
 
     editor.appendChild(icon);
@@ -4844,7 +5068,31 @@ function openPlanEditor(freeBlock, freeStartMs, freeEndMs, preselectedAction = n
         const selectedAction = autocomplete.getSelected();
         const customTitle = actionInput.value.trim();
 
-        // If no action selected: create a container session (or require input)
+        // ── Intend mode: link item to time context ──
+        if (editorMode === 'intend') {
+            if (!selectedAction) {
+                actionInput.focus();
+                actionInput.classList.add('plan-editor-input-error');
+                setTimeout(() => actionInput.classList.remove('plan-editor-input-error'), 600);
+                return;
+            }
+            const dateKey = getDateKey(state.timelineViewDate);
+            // Build the context string: segment context for free time, or @entry: for planned sessions
+            let ctxStr;
+            if (parentEntryId) {
+                ctxStr = `${dateKey}@entry:${parentEntryId}`;
+            } else {
+                ctxStr = buildSegmentContext(dateKey, freeStartMs, freeEndMs);
+            }
+            // Get optional duration from intend-mode duration input
+            const intentDurMins = parseInt(intentDurInput.value, 10);
+            const seedDur = intentDurMins > 0 ? intentDurMins : undefined;
+            await addSegmentContext(selectedAction.id, ctxStr, seedDur);
+            editor.remove();
+            return;
+        }
+
+        // ── Plan mode: create timeline entry (existing behavior) ──
         if (!selectedAction) {
             if (!customTitle) {
                 actionInput.focus();
@@ -4862,9 +5110,6 @@ function openPlanEditor(freeBlock, freeStartMs, freeEndMs, preselectedAction = n
                 itemId: null,
             });
             state.timeline.entries.push(entry);
-
-            // If created inside a parent session, link via entry context
-            // (container sessions don't get entry contexts themselves — they ARE a context)
 
             renderTimeline();
             renderActions();
@@ -6883,10 +7128,18 @@ function updateDateNav() {
     }
 
     const dateEl = document.getElementById('date-nav-date');
-    const badgeEl = document.getElementById('date-nav-today-badge');
+    const todayBtn = document.getElementById('date-nav-today-btn');
+    const pickerEl = document.getElementById('date-nav-picker');
 
     if (dateEl) dateEl.textContent = dateText;
-    if (badgeEl) badgeEl.style.display = isToday ? '' : 'none';
+    if (todayBtn) todayBtn.style.display = isToday ? 'none' : '';
+    if (pickerEl) {
+        // Sync the picker value with the current view date
+        const y = viewDate.getFullYear();
+        const m = String(viewDate.getMonth() + 1).padStart(2, '0');
+        const d = String(viewDate.getDate()).padStart(2, '0');
+        pickerEl.value = `${y}-${m}-${d}`;
+    }
 }
 
 // ─── Context Labels ───
@@ -8542,10 +8795,24 @@ document.addEventListener('DOMContentLoaded', () => {
         state.focusStack = []; // clear focus on day change
         renderAll();
     });
-    // Click on date text to jump back to today
+    // Click on date text to open native date picker
+    const dateNavPicker = document.getElementById('date-nav-picker');
     document.getElementById('date-nav-date').addEventListener('click', () => {
+        dateNavPicker.showPicker();
+    });
+    dateNavPicker.addEventListener('change', () => {
+        const parts = dateNavPicker.value.split('-').map(Number);
+        if (parts.length === 3) {
+            state.timelineViewDate = new Date(parts[0], parts[1] - 1, parts[2]);
+            state.focusStack = [];
+            savePref('timelineViewDate', state.timelineViewDate.toISOString());
+            renderAll();
+        }
+    });
+    // Back to today button
+    document.getElementById('date-nav-today-btn').addEventListener('click', () => {
         state.timelineViewDate = getLogicalToday();
-        state.focusStack = []; // clear focus on day change
+        state.focusStack = [];
         savePref('timelineViewDate', state.timelineViewDate.toISOString());
         renderAll();
     });
