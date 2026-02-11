@@ -60,7 +60,7 @@ app.get('/api/items', (req, res) => {
 // Add a new item (optionally under a parent)
 app.post('/api/items', (req, res) => {
     const data = itemsStore.read();
-    const { name, parentId } = req.body;
+    const { name, parentId, timeContexts } = req.body;
 
     const newItem = {
         id: data.nextId++,
@@ -68,7 +68,8 @@ app.post('/api/items', (req, res) => {
         children: [],
         expanded: false,
         createdAt: Date.now(),
-        done: false
+        done: false,
+        ...(timeContexts && timeContexts.length > 0 ? { timeContexts } : {})
     };
 
     if (parentId) {

@@ -741,6 +741,62 @@ body {
     display: none;
 }
 
+/* ─── Actions Breadcrumbs ─── */
+.actions-breadcrumbs {
+    padding: 2px 6px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--w-bg);
+    border-bottom: 1px solid var(--w-dark);
+}
+
+.breadcrumb-when {
+    margin-left: auto;
+}
+
+.breadcrumb-row {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    font-size: 12px;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.breadcrumb-sep {
+    color: var(--w-disabled);
+    margin: 0 3px;
+    flex-shrink: 0;
+    font-size: 11px;
+}
+
+.breadcrumb-segment {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+}
+
+.breadcrumb-link {
+    color: var(--w-title);
+    cursor: pointer;
+    padding: 0 2px;
+    text-decoration: underline;
+}
+
+.breadcrumb-link:hover {
+    background: var(--w-title);
+    color: var(--w-white);
+}
+
+.breadcrumb-current {
+    color: var(--w-text);
+    font-weight: bold;
+    padding: 0 2px;
+}
+
 .actions-list,
 .knowledge-list {
     flex: 1;
@@ -750,6 +806,63 @@ body {
     margin: 4px;
     border: 2px solid;
     border-color: var(--w-dark) var(--w-white) var(--w-white) var(--w-dark);
+}
+
+/* ── Action Group Headers ── */
+.action-group-header {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 6px;
+    cursor: pointer;
+    user-select: none;
+    background: var(--w-bg);
+    border-bottom: 1px solid #c0c0c0;
+}
+
+.action-group-header:hover {
+    background: #e8e8e8;
+}
+
+.action-group-chevron {
+    font-size: 10px;
+    color: var(--w-text);
+    width: 12px;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.action-group-name {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--w-text);
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.action-group-count {
+    font-size: 10px;
+    color: var(--w-disabled);
+    flex-shrink: 0;
+}
+
+.action-group-count::before {
+    content: '(';
+}
+
+.action-group-count::after {
+    content: ')';
+}
+
+.action-group-header.collapsed {
+    opacity: 0.6;
+}
+
+.action-group-header.collapsed:hover {
+    opacity: 1;
 }
 
 .action-item {
@@ -965,6 +1078,11 @@ body {
     color: var(--w-title);
     border-color: var(--w-title);
     font-weight: 700;
+}
+
+.action-time-tag-someday {
+    color: #008080;
+    border-color: #008080;
 }
 
 /* ─── Duration Estimate Badge ─── */
@@ -1384,131 +1502,243 @@ body {
     flex-shrink: 0;
 }
 
-/* ─── Session Navigation ─── */
-.session-nav {
-    padding: 2px 4px;
-    display: flex;
-    flex-direction: column;
-    gap: 1px;
-}
-
-.session-nav:empty {
-    display: none;
-}
-
-.session-nav-item {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    padding: 2px 4px;
-    cursor: pointer;
-    font-size: 11px;
-    font-family: inherit;
-    border-left: 3px solid transparent;
-}
-
-.session-nav-item:hover {
+/* ─── Focus: Clickable Blocks ─── */
+.focusable-block:hover {
     background: #e8e8e8;
 }
 
-.session-nav-item.active {
-    background: var(--w-title);
-    color: var(--w-white);
+/* ─── Focus: Time-Context Bar (Focused State) ─── */
+.time-context-focused {
+    background: var(--w-bg);
+    border: 2px solid;
+    border-color: var(--w-dark) var(--w-white) var(--w-white) var(--w-dark);
 }
 
-.session-nav-item.active .session-nav-label,
-.session-nav-item.active .session-nav-time,
-.session-nav-item.active .session-nav-dur {
-    color: var(--w-white);
+.time-context-session {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 6px 8px;
 }
 
-.session-nav-icon {
+/* Session as a horizon-layer: keep column layout, override inline defaults */
+.time-context-session.horizon-layer {
+    flex-direction: column;
+    align-items: stretch;
+    cursor: default;
+    font-size: inherit;
+}
+
+.time-context-row {
+    display: flex;
+    align-items: center;
+}
+
+.time-context-back-btn {
+    border: 2px solid;
+    border-color: var(--w-white) var(--w-darker) var(--w-darker) var(--w-white);
+    background: var(--w-bg);
+    color: var(--w-text);
+    padding: 1px 8px;
     font-size: 11px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    border-radius: 0;
+    white-space: nowrap;
+}
+
+.time-context-back-btn:active {
+    border-color: var(--w-darker) var(--w-white) var(--w-white) var(--w-darker);
+}
+
+.time-context-session-header {
+    gap: 4px;
+}
+
+.time-context-session-icon {
+    font-size: 14px;
+    line-height: 1;
+}
+
+.time-context-session-label {
+    font-weight: 700;
+    font-size: 13px;
+    color: var(--w-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.time-context-meta {
+    font-size: 11px;
+    color: var(--w-dark);
+}
+
+.time-context-progress-row {
+    gap: 6px;
+}
+
+.time-context-progress {
+    flex: 1;
+    height: 12px;
+    background: var(--w-field);
+    border: 2px solid;
+    border-color: var(--w-dark) var(--w-white) var(--w-white) var(--w-dark);
+    overflow: hidden;
+}
+
+.time-context-progress-fill {
+    height: 100%;
+    background: var(--w-title);
+    transition: width 1s linear;
+}
+
+.time-context-progress-fill.over {
+    background: #cc0000;
+}
+
+.time-context-progress-label {
+    font-size: 11px;
+    color: var(--w-dark);
+    white-space: nowrap;
     flex-shrink: 0;
 }
 
-.session-nav-label {
-    flex: 1;
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+.time-context-action-count {
+    font-size: 11px;
+    color: var(--w-dark);
+}
+
+/* ─── Session Type Variants ─── */
+.session-breadcrumb {
+    font-size: 11px;
+    color: var(--w-dark);
+}
+
+.session-timer-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.session-timer {
+    font-size: 18px;
     font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    font-family: inherit;
+}
+
+.session-timer-elapsed {
     color: var(--w-text);
 }
 
-.session-nav-time {
-    color: var(--w-dark);
-    flex-shrink: 0;
-}
-
-.session-nav-dur {
-    color: var(--w-disabled);
-    flex-shrink: 0;
-    min-width: 30px;
-    text-align: right;
-}
-
-/* Type accents */
-.session-nav-free {
-    border-left-color: #00aa00;
-}
-
-.session-nav-planned {
-    border-left-color: var(--w-title);
-}
-
-.session-nav-work {
-    border-left-color: #996600;
-}
-
-.session-nav-working {
-    border-left-color: #996600;
-}
-
-.session-nav-break {
-    border-left-color: #008080;
-}
-
-.session-nav-free .session-nav-label {
-    color: #00aa00;
-}
-
-.session-nav-planned .session-nav-label {
+.session-timer-remaining {
     color: var(--w-title);
 }
 
-.session-nav-working .session-nav-label {
-    color: #996600;
+.session-timer-overtime {
+    color: #cc0000;
 }
 
-.session-nav-break .session-nav-label {
-    color: #008080;
+.session-timer-break.session-timer-elapsed {
+    color: var(--w-dark);
 }
 
-/* ─── Session Breadcrumb ─── */
-.session-breadcrumb {
+.session-progress-break {
+    background: #008080 !important;
+}
+
+.session-relative-time {
+    font-size: 11px;
+    color: var(--w-dark);
+    font-weight: 700;
+}
+
+.session-avail-duration {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--w-title);
+}
+
+.session-next-up {
+    font-size: 11px;
+    color: var(--w-disabled);
+}
+
+.session-unsched-count {
+    font-size: 11px;
+    color: var(--w-dark);
+    font-weight: 700;
+}
+
+.session-cta-row {
     display: flex;
-    align-items: center;
     gap: 4px;
-    padding: 2px 6px;
-    margin: 2px 4px;
-    background: var(--w-bg);
+    margin-top: 2px;
+}
+
+.session-cta {
+    padding: 2px 12px;
     border: 2px solid;
     border-color: var(--w-white) var(--w-darker) var(--w-darker) var(--w-white);
+    background: var(--w-bg);
     color: var(--w-text);
     font-size: 11px;
     font-weight: 700;
     font-family: inherit;
     cursor: pointer;
+    border-radius: 0;
+    white-space: nowrap;
 }
 
-.session-breadcrumb:active {
+.session-cta:active {
     border-color: var(--w-darker) var(--w-white) var(--w-white) var(--w-darker);
 }
 
-.session-breadcrumb-arrow {
-    font-size: 12px;
+.session-cta-stop {
+    color: #cc0000;
+}
+
+.session-cta-endbreak {
+    color: #008080;
+}
+
+.time-context-type-working .time-context-session,
+.time-context-type-work .time-context-session {
+    border-left: 3px solid var(--w-title);
+}
+
+.time-context-type-break .time-context-session {
+    border-left: 3px solid #008080;
+}
+
+.time-context-type-planned .time-context-session {
+    border-left: 3px solid var(--w-dark);
+}
+
+.time-context-type-free .time-context-session {
+    border-left: 3px solid #008000;
+}
+
+/* ─── Edit Button (on past entries) ─── */
+.time-block-edit-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 11px;
+    padding: 0 2px;
+    opacity: 0;
+    font-family: inherit;
+    line-height: 1;
+}
+
+.time-block:hover .time-block-edit-btn {
+    opacity: 0.6;
+}
+
+.time-block-edit-btn:hover {
+    opacity: 1 !important;
 }
 
 /* Modal extras */
@@ -1684,6 +1914,138 @@ body {
 .schedule-modal-box {
     min-width: 300px;
     max-width: 320px;
+}
+
+.schedule-modal-body {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.schedule-section {
+    border: 2px solid var(--w-dark);
+    background: var(--w-bg);
+}
+
+.schedule-section-header {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 4px;
+    font-size: 11px;
+    font-weight: bold;
+    color: var(--w-white);
+    background: var(--w-title);
+    cursor: pointer;
+    list-style: none;
+}
+
+.schedule-section-header::-webkit-details-marker {
+    display: none;
+}
+
+.schedule-section-content {
+    padding: 6px;
+}
+
+.schedule-someday-toggle {
+    padding: 4px 8px;
+    text-align: center;
+    font-size: 11px;
+    color: var(--w-dark);
+    background: var(--w-bg);
+    border: 1px dashed var(--w-dark);
+    cursor: pointer;
+}
+
+.schedule-someday-toggle:hover {
+    background: var(--w-title);
+    color: var(--w-white);
+}
+
+.schedule-someday-active {
+    background: var(--w-title);
+    color: var(--w-white);
+    border-style: solid;
+    font-weight: bold;
+}
+
+.schedule-someday-active:hover {
+    opacity: 0.85;
+}
+
+.schedule-session-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 4px;
+    margin-bottom: 4px;
+}
+
+.schedule-session-date {
+    font-size: 11px;
+    font-weight: bold;
+    color: var(--w-dark);
+}
+
+.schedule-session-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.schedule-session-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 6px;
+    cursor: pointer;
+    font-size: 11px;
+    color: var(--w-dark);
+    background: var(--w-bg);
+    border: 1px solid var(--w-dark);
+}
+
+.schedule-session-item:hover {
+    background: var(--w-title);
+    color: var(--w-white);
+}
+
+.schedule-session-item-assigned {
+    background: var(--w-title);
+    color: var(--w-white);
+    font-weight: bold;
+}
+
+.schedule-session-item-assigned:hover {
+    opacity: 0.85;
+}
+
+.schedule-session-icon {
+    font-size: 11px;
+    flex-shrink: 0;
+}
+
+.schedule-session-label {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.schedule-session-time {
+    font-size: 10px;
+    opacity: 0.7;
+    white-space: nowrap;
+}
+
+.schedule-session-empty {
+    text-align: center;
+    font-size: 11px;
+    color: var(--w-dark);
+    padding: 8px 0;
+    opacity: 0.5;
 }
 
 .schedule-cal-nav {
@@ -1971,6 +2333,11 @@ body {
 .actions-drag-over {
     outline: 2px dashed var(--w-title);
     outline-offset: -2px;
+}
+
+/* Elevate block above siblings when popover is open */
+.time-block:has(.segment-duration-popover) {
+    z-index: 5;
 }
 
 /* Duration popover */
@@ -2314,6 +2681,136 @@ body {
     margin: 0 4px 4px;
     border: 2px solid;
     border-color: var(--w-dark) var(--w-white) var(--w-white) var(--w-dark);
+}
+
+/* ── Someday Placeholder ── */
+.someday-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 30px 10px;
+    text-align: center;
+}
+
+.someday-placeholder-icon {
+    font-size: 28px;
+}
+
+.someday-placeholder-text {
+    font-size: 12px;
+    color: var(--w-dark);
+}
+
+.someday-placeholder-link {
+    font-size: 11px;
+    color: var(--w-title);
+    cursor: pointer;
+    text-decoration: underline;
+}
+
+.someday-placeholder-link:hover {
+    background: var(--w-title);
+    color: var(--w-white);
+}
+
+/* ── Horizon Layers (inline stack inside time-context) ── */
+.horizon-layer {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 6px;
+    cursor: pointer;
+    font-size: 11px;
+    color: var(--w-dark);
+    background: var(--w-bg);
+}
+
+.horizon-layer:hover {
+    background: var(--w-title);
+    color: var(--w-white);
+}
+
+/* Active layer: title bar prominence */
+.horizon-layer-active {
+    justify-content: center;
+    padding: 3px 6px;
+    background: var(--w-title);
+    color: var(--w-white);
+    font-weight: bold;
+    font-size: 12px;
+}
+
+.horizon-layer-active .horizon-layer-icon {
+    font-size: 12px;
+}
+
+.horizon-layer-active .horizon-layer-label {
+    font-size: 12px;
+    font-weight: bold;
+}
+
+/* Dim layer: small subtle row */
+.horizon-layer-dim {
+    opacity: 0.5;
+    padding: 1px 6px;
+}
+
+.horizon-layer-dim:hover {
+    opacity: 0.8;
+}
+
+/* Date-nav dim: hide buttons, shrink text */
+.date-nav.horizon-layer-dim {
+    justify-content: center;
+    opacity: 0.4;
+    padding: 1px 6px;
+}
+
+.date-nav.horizon-layer-dim .date-nav-btn {
+    display: none;
+}
+
+.date-nav.horizon-layer-dim .date-nav-date {
+    font-size: 10px;
+    font-weight: normal;
+    color: var(--w-dark);
+}
+
+.date-nav.horizon-layer-dim .date-nav-today-badge {
+    display: none;
+}
+
+.date-nav.horizon-layer-dim:hover {
+    opacity: 0.7;
+}
+
+.horizon-layer-icon {
+    font-size: 11px;
+}
+
+.horizon-layer-label {
+    font-size: 11px;
+}
+
+.horizon-layer-drag-over {
+    background: var(--w-highlight) !important;
+    color: var(--w-dark) !important;
+    opacity: 1 !important;
+    outline: 2px dashed var(--w-title);
+    outline-offset: -2px;
+}
+
+.date-nav.horizon-layer-drag-over {
+    background: var(--w-highlight) !important;
+    outline: 2px dashed var(--w-title);
+    outline-offset: -2px;
+}
+
+.date-nav-btn-drag-over {
+    background: var(--w-highlight) !important;
+    color: var(--w-dark) !important;
 }
 
 .timeline-entry {
@@ -2740,6 +3237,28 @@ body {
     color: var(--w-dark);
 }
 
+/* Date row */
+.plan-editor-date-row {
+    gap: 6px;
+}
+
+.plan-editor-date-label {
+    font-size: 11px;
+    color: var(--w-dark);
+}
+
+.plan-editor-date-input {
+    padding: 1px 4px;
+    border: 2px solid;
+    border-color: var(--w-dark) var(--w-white) var(--w-white) var(--w-dark);
+    background: var(--w-field);
+    color: var(--w-text);
+    font-size: 11px;
+    font-family: inherit;
+    outline: none;
+    border-radius: 0;
+}
+
 .plan-editor-actions {
     justify-content: flex-end;
     gap: 4px;
@@ -2794,6 +3313,15 @@ body {
     border-color: var(--w-white) var(--w-darker) var(--w-darker) var(--w-white);
     border-left: 3px solid #0066cc;
     background: #f0f4ff;
+}
+
+.time-block-planned:has(.segment-queue) {
+    flex-wrap: wrap;
+}
+
+.time-block-planned.time-block-drag-over {
+    border-color: #0066cc;
+    background: #e0e8ff;
 }
 
 .time-block-planned .time-block-label {

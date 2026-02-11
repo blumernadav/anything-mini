@@ -20,8 +20,8 @@
 
             <div class="top-bar-right">
                 <button class="top-bar-btn top-bar-toggle" id="hide-done-btn" title="Show done">✓</button>
-                <button class="top-bar-btn top-bar-toggle" id="show-unscheduled-btn"
-                    title="Show unscheduled">📅</button>
+                <button class="top-bar-btn top-bar-toggle" id="show-unscheduled-btn" title="Show unscheduled"
+                    style="display:none">📅</button>
                 <button class="top-bar-btn project-search-toggle" id="project-search-toggle"
                     title="Search projects">🔍</button>
                 <button class="top-bar-btn" id="settings-btn" title="Settings">⚙</button>
@@ -71,6 +71,7 @@
                     <h2 class="section-title"><span class="title-icon">☑️</span> Actions</h2>
                     <span class="capacity-summary" id="capacity-summary"></span>
                 </div>
+                <div class="actions-breadcrumbs" id="actions-breadcrumbs"></div>
                 <div class="action-input-row" id="action-input-row">
                     <input class="action-input" id="action-input" placeholder="What's on your mind?" type="text"
                         autocomplete="off">
@@ -97,7 +98,11 @@
             </div>
 
             <div class="time-context" id="time-context">
-                <div class="date-nav">
+                <div class="horizon-layer horizon-layer-someday" id="horizon-someday-layer">
+                    <span class="horizon-layer-icon">📦</span>
+                    <span class="horizon-layer-label">Someday</span>
+                </div>
+                <div class="date-nav" id="horizon-day-layer">
                     <button class="date-nav-btn" id="date-nav-prev" title="Previous day">‹</button>
                     <div class="date-nav-display">
                         <span class="date-nav-date" id="date-nav-date">—</span>
@@ -107,7 +112,6 @@
                 </div>
             </div>
 
-            <div class="session-nav" id="session-nav"></div>
             <div class="timeline-list" id="timeline-list">
                 <div class="empty-state" id="timeline-empty">
                     <span class="empty-icon">📅</span>

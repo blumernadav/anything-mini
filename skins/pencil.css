@@ -911,6 +911,64 @@ body {
     display: none;
 }
 
+/* ─── Actions Breadcrumbs ─── */
+.actions-breadcrumbs {
+    padding: 0 14px 2px 50px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    position: relative;
+    z-index: 2;
+}
+
+.breadcrumb-when {
+    margin-left: auto;
+}
+
+.breadcrumb-row {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    font-size: 13px;
+    font-family: 'Caveat', cursive;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.breadcrumb-sep {
+    color: var(--pencil-ghost);
+    margin: 0 3px;
+    flex-shrink: 0;
+    font-size: 12px;
+}
+
+.breadcrumb-segment {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+}
+
+.breadcrumb-link {
+    color: var(--blue-pen);
+    cursor: pointer;
+    padding: 0 3px;
+    transition: all var(--dur) var(--ease);
+}
+
+.breadcrumb-link:hover {
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    color: var(--pencil);
+}
+
+.breadcrumb-current {
+    color: var(--pencil);
+    font-weight: 600;
+    padding: 0 3px;
+}
+
 /* ─── Actions ─── */
 .actions-list,
 .knowledge-list {
@@ -919,6 +977,63 @@ body {
     padding: 0 10px 10px 50px;
     position: relative;
     z-index: 2;
+}
+
+/* ── Action Group Headers ── */
+.action-group-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 6px;
+    cursor: pointer;
+    user-select: none;
+    border-bottom: 1px dashed var(--pencil-ghost);
+    transition: background var(--dur) var(--ease);
+    position: relative;
+    z-index: 2;
+}
+
+.action-group-header:hover {
+    background: rgba(255, 243, 168, 0.2);
+}
+
+.action-group-chevron {
+    font-size: 10px;
+    color: var(--pencil-faint);
+    width: 12px;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.action-group-header:hover .action-group-chevron {
+    color: var(--pencil);
+}
+
+.action-group-name {
+    font-size: 15px;
+    font-family: 'Caveat', cursive;
+    font-weight: 600;
+    color: var(--pencil-soft);
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.action-group-count {
+    font-size: 13px;
+    font-family: 'Caveat', cursive;
+    color: var(--pencil-faint);
+    flex-shrink: 0;
+}
+
+.action-group-header.collapsed {
+    opacity: 0.5;
+}
+
+.action-group-header.collapsed:hover {
+    opacity: 1;
 }
 
 .action-item {
@@ -1160,6 +1275,12 @@ body {
     border-color: var(--red-pen);
     border-style: solid;
     font-weight: 600;
+}
+
+.action-time-tag-someday {
+    color: var(--blue-pen);
+    border-color: var(--blue-pen);
+    border-style: solid;
 }
 
 /* ─── Duration Estimate Badge ─── */
@@ -1613,135 +1734,283 @@ body {
     flex-shrink: 0;
 }
 
-/* ─── Session Navigation ─── */
-.session-nav {
-    padding: 4px 8px;
+/* ─── Focus: Clickable Blocks ─── */
+.focusable-block {
+    transition: box-shadow var(--dur) var(--ease), border-color var(--dur) var(--ease);
+}
+
+.focusable-block:hover {
+    box-shadow: 0 0 0 2px rgba(43, 87, 154, 0.15);
+    border-color: var(--blue-pen);
+}
+
+/* ─── Focus: Time-Context Bar (Focused State) ─── */
+.time-context-focused {
+    border-bottom: 2px solid var(--blue-pen);
+    border-bottom-style: solid;
+}
+
+.time-context-session {
     display: flex;
     flex-direction: column;
-    gap: 2px;
-    border-bottom: 1px dashed var(--pencil-ghost);
-    position: relative;
-    z-index: 1;
+    gap: 5px;
+    padding: 8px 12px;
 }
 
-.session-nav:empty {
-    display: none;
+/* Session as a horizon-layer: keep column layout, override inline defaults */
+.time-context-session.horizon-layer {
+    flex-direction: column;
+    align-items: stretch;
+    cursor: default;
+    font-size: inherit;
 }
 
-.session-nav-item {
+.time-context-row {
     display: flex;
     align-items: center;
-    gap: 6px;
-    padding: 4px 6px;
+}
+
+.time-context-back-btn {
+    background: transparent;
+    color: var(--blue-pen);
+    border: 1px dashed var(--blue-pen);
     border-radius: var(--radius);
-    cursor: pointer;
-    font-size: 13px;
+    padding: 3px 10px;
+    font-size: 14px;
     font-family: 'Caveat', cursive;
+    font-weight: 600;
+    cursor: pointer;
     transition: all var(--dur) var(--ease);
-    border-left: 2px solid transparent;
+    white-space: nowrap;
 }
 
-.session-nav-item:hover {
-    background: rgba(255, 243, 168, 0.25);
+.time-context-back-btn:hover {
+    border-style: solid;
+    background: rgba(43, 87, 154, 0.06);
 }
 
-.session-nav-item.active {
-    background: rgba(255, 243, 168, 0.4);
-    border-left-color: var(--pencil);
+.time-context-session-header {
+    gap: 6px;
 }
 
-.session-nav-icon {
-    font-size: 12px;
-    flex-shrink: 0;
+.time-context-session-icon {
+    font-size: 16px;
+    line-height: 1;
     opacity: 0.7;
 }
 
-.session-nav-label {
-    flex: 1;
-    min-width: 0;
+.time-context-session-label {
+    font-weight: 600;
+    font-size: 20px;
+    font-family: 'Caveat', cursive;
+    color: var(--pencil);
+    white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+.time-context-meta {
+    font-size: 15px;
+    font-family: 'Caveat', cursive;
+    color: var(--pencil-faint);
+}
+
+.time-context-progress-row {
+    gap: 8px;
+}
+
+.time-context-progress {
+    flex: 1;
+    height: 5px;
+    background: var(--pencil-ghost);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.time-context-progress-fill {
+    height: 100%;
+    background: var(--blue-pen);
+    border-radius: 2px;
+    transition: width 1s linear;
+}
+
+.time-context-progress-fill.over {
+    background: var(--red-pen);
+}
+
+.time-context-progress-label {
+    font-size: 13px;
+    font-family: 'Caveat', cursive;
+    color: var(--pencil-faint);
     white-space: nowrap;
-    font-weight: 600;
+    flex-shrink: 0;
+}
+
+.time-context-action-count {
+    font-size: 14px;
+    font-family: 'Caveat', cursive;
+    color: var(--pencil-faint);
+}
+
+/* ─── Session Type Variants ─── */
+.session-breadcrumb {
+    font-size: 13px;
+    font-family: 'Caveat', cursive;
+    color: var(--pencil-soft);
+    opacity: 0.7;
+}
+
+.session-timer-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.session-timer {
+    font-size: 26px;
+    font-family: 'Caveat', cursive;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+.session-timer-elapsed {
     color: var(--pencil);
 }
 
-.session-nav-time {
-    color: var(--pencil-faint);
-    font-variant-numeric: tabular-nums;
-    flex-shrink: 0;
-}
-
-.session-nav-dur {
-    color: var(--pencil-ghost);
-    flex-shrink: 0;
-    min-width: 30px;
-    text-align: right;
-}
-
-/* Type accents */
-.session-nav-free {
-    border-left-color: #5eab5e;
-}
-
-.session-nav-planned {
-    border-left-color: var(--blue-pen);
-}
-
-.session-nav-work {
-    border-left-color: #b8860b;
-}
-
-.session-nav-working {
-    border-left-color: #b8860b;
-}
-
-.session-nav-break {
-    border-left-color: #5eab5e;
-}
-
-.session-nav-free .session-nav-label {
-    color: #5eab5e;
-}
-
-.session-nav-planned .session-nav-label {
+.session-timer-remaining {
     color: var(--blue-pen);
 }
 
-.session-nav-working .session-nav-label {
-    color: #b8860b;
+.session-timer-overtime {
+    color: var(--red-pen);
 }
 
-.session-nav-break .session-nav-label {
-    color: #5eab5e;
+.session-timer-break.session-timer-elapsed {
+    color: var(--pencil-soft);
 }
 
-/* ─── Session Breadcrumb ─── */
-.session-breadcrumb {
+.session-progress-break {
+    background: #2b579a !important;
+}
+
+.session-relative-time {
+    font-size: 15px;
+    font-family: 'Caveat', cursive;
+    color: var(--pencil-soft);
+}
+
+.session-avail-duration {
+    font-size: 17px;
+    font-family: 'Caveat', cursive;
+    font-weight: 700;
+    color: var(--blue-pen);
+}
+
+.session-next-up {
+    font-size: 13px;
+    font-family: 'Caveat', cursive;
+    color: var(--pencil-faint);
+    font-style: italic;
+}
+
+.session-unsched-count {
+    font-size: 14px;
+    font-family: 'Caveat', cursive;
+    color: var(--pencil-soft);
+}
+
+.session-cta-row {
     display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 5px 10px;
-    margin: 4px 6px;
-    border-radius: var(--radius);
+    gap: 8px;
+    margin-top: 2px;
+}
+
+.session-cta {
+    padding: 3px 14px;
     border: 1px dashed var(--pencil-ghost);
     background: transparent;
-    color: var(--blue-pen);
+    color: var(--pencil-soft);
     font-size: 15px;
     font-family: 'Caveat', cursive;
     font-weight: 600;
     cursor: pointer;
+    border-radius: var(--radius);
     transition: all var(--dur) var(--ease);
+    white-space: nowrap;
 }
 
-.session-breadcrumb:hover {
+.session-cta:hover {
     border-style: solid;
+    border-color: var(--pencil);
+    color: var(--pencil);
+}
+
+.session-cta-stop {
+    color: var(--red-pen);
+    border-color: var(--red-pen);
+}
+
+.session-cta-stop:hover {
+    background: rgba(200, 60, 60, 0.06);
+}
+
+.session-cta-start {
+    color: var(--blue-pen);
     border-color: var(--blue-pen);
+    border-style: solid;
+}
+
+.session-cta-start:hover {
     background: rgba(43, 87, 154, 0.06);
 }
 
-.session-breadcrumb-arrow {
-    font-size: 16px;
+.session-cta-endbreak {
+    color: var(--blue-pen);
+    border-color: var(--blue-pen);
+}
+
+.session-cta-plan {
+    color: var(--blue-pen);
+    border-color: var(--blue-pen);
+}
+
+.time-context-type-working .time-context-session,
+.time-context-type-work .time-context-session {
+    border-left: 2px solid var(--pencil);
+}
+
+.time-context-type-break .time-context-session {
+    border-left: 2px solid var(--blue-pen);
+}
+
+.time-context-type-planned .time-context-session {
+    border-left: 2px solid var(--pencil-soft);
+}
+
+.time-context-type-free .time-context-session {
+    border-left: 2px solid var(--blue-pen);
+    opacity: 0.85;
+}
+
+/* ─── Edit Button (on past entries) ─── */
+.time-block-edit-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 12px;
+    padding: 2px 4px;
+    border-radius: var(--radius);
+    opacity: 0;
+    transition: opacity var(--dur) var(--ease);
+    line-height: 1;
+}
+
+.time-block:hover .time-block-edit-btn {
+    opacity: 0.5;
+}
+
+.time-block-edit-btn:hover {
+    opacity: 1 !important;
 }
 
 /* Modal extras */
@@ -1944,6 +2213,157 @@ body {
 .schedule-modal-box {
     min-width: 300px;
     max-width: 330px;
+}
+
+.schedule-modal-body {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.schedule-section {
+    border: 1.5px solid var(--pencil-light);
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.schedule-section-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    font-size: 14px;
+    font-weight: 600;
+    font-family: 'Caveat', cursive;
+    color: var(--pencil);
+    background: var(--pencil-paper);
+    cursor: pointer;
+    list-style: none;
+    transition: background var(--dur) var(--ease);
+}
+
+.schedule-section-header::-webkit-details-marker {
+    display: none;
+}
+
+.schedule-section-header:hover {
+    background: rgba(0, 0, 0, 0.03);
+}
+
+.schedule-section-content {
+    padding: 6px 10px;
+}
+
+.schedule-someday-toggle {
+    padding: 8px 12px;
+    text-align: center;
+    font-size: 14px;
+    font-family: 'Caveat', cursive;
+    font-weight: 600;
+    color: var(--pencil-faint);
+    background: var(--pencil-paper);
+    border: 1.5px dashed var(--pencil-light);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all var(--dur) var(--ease);
+}
+
+.schedule-someday-toggle:hover {
+    border-color: var(--pencil);
+    color: var(--pencil);
+    background: rgba(0, 0, 0, 0.03);
+}
+
+.schedule-someday-active {
+    background: var(--pencil);
+    color: var(--pencil-paper);
+    border-style: solid;
+    border-color: var(--pencil);
+}
+
+.schedule-someday-active:hover {
+    opacity: 0.85;
+}
+
+.schedule-session-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    margin-bottom: 6px;
+}
+
+.schedule-session-date {
+    font-size: 14px;
+    font-weight: 600;
+    font-family: 'Caveat', cursive;
+    color: var(--pencil);
+}
+
+.schedule-session-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.schedule-session-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    font-family: 'Caveat', cursive;
+    color: var(--pencil-faint);
+    background: var(--pencil-paper);
+    border: 1.5px solid var(--pencil-light);
+    transition: all var(--dur) var(--ease);
+}
+
+.schedule-session-item:hover {
+    border-color: var(--pencil);
+    color: var(--pencil);
+    background: rgba(0, 0, 0, 0.03);
+}
+
+.schedule-session-item-assigned {
+    background: var(--pencil);
+    color: var(--pencil-paper);
+    border-color: var(--pencil);
+    font-weight: 700;
+}
+
+.schedule-session-item-assigned:hover {
+    opacity: 0.85;
+}
+
+.schedule-session-icon {
+    font-size: 13px;
+    flex-shrink: 0;
+}
+
+.schedule-session-label {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.schedule-session-time {
+    font-size: 12px;
+    opacity: 0.6;
+    white-space: nowrap;
+}
+
+.schedule-session-empty {
+    text-align: center;
+    font-size: 13px;
+    font-family: 'Caveat', cursive;
+    color: var(--pencil-faint);
+    padding: 10px 0;
+    font-style: italic;
 }
 
 .schedule-cal-nav {
@@ -2244,6 +2664,11 @@ body {
 .actions-drag-over {
     outline: 2px dashed var(--blue-pen);
     outline-offset: -2px;
+}
+
+/* Elevate block above siblings when popover is open */
+.time-block:has(.segment-duration-popover) {
+    z-index: 5;
 }
 
 /* Duration popover */
@@ -2643,6 +3068,142 @@ body {
     padding: 6px 8px;
     position: relative;
     z-index: 1;
+}
+
+/* ── Someday Placeholder ── */
+.someday-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 40px 20px;
+    text-align: center;
+}
+
+.someday-placeholder-icon {
+    font-size: 32px;
+    opacity: 0.5;
+}
+
+.someday-placeholder-text {
+    font-size: 15px;
+    font-family: 'Caveat', cursive;
+    color: var(--pencil-faint);
+    line-height: 1.5;
+}
+
+.someday-placeholder-link {
+    font-size: 14px;
+    font-family: 'Caveat', cursive;
+    color: var(--blue-pen);
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    transition: all var(--dur) var(--ease);
+}
+
+.someday-placeholder-link:hover {
+    color: var(--pencil);
+}
+
+/* ── Horizon Layers (inline stack inside time-context) ── */
+.horizon-layer {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    cursor: pointer;
+    font-size: 13px;
+    font-family: 'Caveat', cursive;
+    color: var(--pencil-faint);
+    transition: all var(--dur) var(--ease);
+}
+
+.horizon-layer:hover {
+    background: rgba(0, 0, 0, 0.03);
+    color: var(--pencil);
+}
+
+/* Active layer: prominent hand-drawn header */
+.horizon-layer-active {
+    justify-content: center;
+    padding: 5px 10px;
+    font-size: 16px;
+    color: var(--pencil);
+    font-weight: 700;
+}
+
+.horizon-layer-active .horizon-layer-icon {
+    font-size: 15px;
+}
+
+.horizon-layer-active .horizon-layer-label {
+    font-size: 16px;
+    font-weight: 700;
+}
+
+/* Dim layer: small subtle row */
+.horizon-layer-dim {
+    opacity: 0.5;
+    padding: 3px 10px;
+}
+
+.horizon-layer-dim:hover {
+    opacity: 0.8;
+}
+
+/* Date-nav dim: hide buttons, shrink text */
+.date-nav.horizon-layer-dim {
+    justify-content: center;
+    opacity: 0.4;
+    padding: 3px 10px;
+}
+
+.date-nav.horizon-layer-dim .date-nav-btn {
+    display: none;
+}
+
+.date-nav.horizon-layer-dim .date-nav-date {
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--pencil-faint);
+    font-family: 'Caveat', cursive;
+}
+
+.date-nav.horizon-layer-dim .date-nav-today-badge {
+    display: none;
+}
+
+.date-nav.horizon-layer-dim:hover {
+    opacity: 0.7;
+}
+
+.horizon-layer-icon {
+    font-size: 13px;
+}
+
+.horizon-layer-label {
+    font-size: 13px;
+}
+
+.horizon-layer-drag-over {
+    background: rgba(55, 100, 200, 0.08) !important;
+    color: var(--blue-pen) !important;
+    opacity: 1 !important;
+    outline: 1.5px dashed var(--blue-pen);
+    outline-offset: -1px;
+}
+
+.date-nav.horizon-layer-drag-over {
+    background: rgba(55, 100, 200, 0.08) !important;
+    outline: 1.5px dashed var(--blue-pen);
+    outline-offset: -1px;
+}
+
+.date-nav-btn-drag-over {
+    background: rgba(55, 100, 200, 0.08) !important;
+    color: var(--blue-pen) !important;
 }
 
 .timeline-entry {
@@ -3084,6 +3645,34 @@ body {
     color: var(--pencil-ghost);
 }
 
+/* Date row */
+.plan-editor-date-row {
+    gap: 6px;
+}
+
+.plan-editor-date-label {
+    font-size: 14px;
+    font-family: 'Caveat', cursive;
+    color: var(--pencil-ghost);
+}
+
+.plan-editor-date-input {
+    padding: 2px 4px;
+    border: none;
+    border-bottom: 1px dashed var(--pencil-ghost);
+    background: transparent;
+    color: var(--pencil);
+    font-size: 14px;
+    font-family: 'Caveat', cursive;
+    outline: none;
+    border-radius: 0;
+}
+
+.plan-editor-date-input:focus {
+    border-bottom-color: var(--blue-pen);
+    border-bottom-style: solid;
+}
+
 .plan-editor-actions {
     justify-content: flex-end;
     gap: 6px;
@@ -3145,6 +3734,16 @@ body {
     border: 1px dashed var(--pencil-ghost);
     border-left: 2px solid var(--blue-pen);
     background: rgba(43, 87, 154, 0.03);
+}
+
+.time-block-planned:has(.segment-queue) {
+    flex-wrap: wrap;
+}
+
+.time-block-planned.time-block-drag-over {
+    border-color: var(--blue-pen);
+    border-style: solid;
+    background: rgba(43, 87, 154, 0.08);
 }
 
 .time-block-planned:hover {

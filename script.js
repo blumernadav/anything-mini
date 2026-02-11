@@ -16,10 +16,13 @@ const state = {
     hidePastEntries: false, // toggle to hide past entries in today's timeline
     showDone: false, // when true, done items are visible in actions and project tree
     scheduleFilter: 'scheduled+unscheduled', // 'scheduled' | 'scheduled+unscheduled' | 'all'
+    viewHorizon: 'day', // 'day' | 'someday' — horizon level for timeline navigation
     projectSearchQuery: '', // current search term for the project tree
     workingOn: null, // { itemId, itemName, projectName, startTime } — active work timer
     onBreak: null, // { startTime } — active break timer
-    focusedSession: null, // { startMs, endMs, label, type, icon } — focused session drill-down
+    focusStack: [], // array of { startMs, endMs, label, type, icon, tier } — multi-tier focus stack
+    lastLogicalDayKey: null, // tracks the current logical day for rollover detection
+    lastSessionCleanupMinute: null, // throttles session cleanup to once per minute
     selectedActionIds: new Set(), // multiselect for actions
     selectionAnchor: null, // last manually toggled action ID (for shift-click range)
     settings: {
@@ -109,6 +112,9 @@ async function loadAll() {
     state.showDone = prefs.showDone === true;
     const validFilters = ['scheduled', 'scheduled+unscheduled', 'all'];
     state.scheduleFilter = validFilters.includes(prefs.scheduleFilter) ? prefs.scheduleFilter : 'scheduled+unscheduled';
+    const validHorizons = ['day', 'someday'];
+    state.viewHorizon = validHorizons.includes(prefs.viewHorizon) ? prefs.viewHorizon : 'day';
+    state.collapsedGroups = new Set(prefs.collapsedGroups || []);
 
     // Auto-clean past schedules (fire-and-forget, don't block render)
     cleanPastSchedules();
@@ -176,10 +182,29 @@ function ensureInbox() {
 }
 
 function renderAll() {
+    // ── Day rollover detection ──
+    // If the logical day has changed since last render, clean past schedules
+    const currentDayKey = getDateKey(getLogicalToday());
+    if (state.lastLogicalDayKey && state.lastLogicalDayKey !== currentDayKey) {
+        state.lastLogicalDayKey = currentDayKey;
+        state.lastSessionCleanupMinute = null; // reset session throttle on new day
+        cleanPastSchedules(); // async but fire-and-forget, same as on load
+    }
+    state.lastLogicalDayKey = currentDayKey;
+
+    // ── Session rollover detection (throttled to once per minute) ──
+    const nowForSession = new Date();
+    const sessionMinuteKey = `${nowForSession.getHours()}:${nowForSession.getMinutes()}`;
+    if (state.lastSessionCleanupMinute !== sessionMinuteKey) {
+        state.lastSessionCleanupMinute = sessionMinuteKey;
+        cleanPastSessions(nowForSession);
+    }
+
     renderProjects();
     renderActions();
-    renderSessionNav();
     renderTimeline();
+    renderTimeContext();
+    renderHorizonTower();
     updateContextLabels();
 }
 
@@ -266,9 +291,17 @@ function collectDescendantIds(item) {
 // ── Shared Autocomplete with Create ──
 // Used by plan editor, idle-work editor, and past-entry editor.
 // Returns { getSelected, setSelected } so callers can read/write selectedAction.
-function setupAutocomplete(actionInput, suggestions, { onSelect, allowCreate = true } = {}) {
+function setupAutocomplete(actionInput, suggestions, { onSelect, allowCreate = true, scopeItemId = null } = {}) {
     let selectedAction = null;
-    const allActions = collectAllItems().filter(a => !a.done);
+    let allActions = collectAllItems().filter(a => !a.done);
+    // Scope autocomplete to descendants of a specific item (for item-bound planned sessions)
+    if (scopeItemId) {
+        const scopeItem = findItemById(scopeItemId);
+        if (scopeItem) {
+            const descendantIds = new Set(collectDescendantIds(scopeItem));
+            allActions = allActions.filter(a => descendantIds.has(a.id));
+        }
+    }
     let isParentMode = false;
     let createName = '';
 
@@ -362,7 +395,7 @@ function setupAutocomplete(actionInput, suggestions, { onSelect, allowCreate = t
         if (!name) return;
 
         // Create the item
-        await api.post('/items', { name, parentId });
+        await api.post('/items', { name, parentId, timeContexts: getCurrentTimeContexts() });
         // Reload items data but DON'T re-render timeline (it would destroy this editor)
         state.items = await api.get('/items');
         renderProjects();
@@ -577,12 +610,18 @@ function hasActiveGoal(action) {
 
 // ─── Time Context Utilities ───
 
+// Epoch-level contexts — coarser-than-day temporal horizons
+const EPOCH_CONTEXTS = ['someday'];
+function isEpochContext(ctx) { return EPOCH_CONTEXTS.includes(ctx); }
+
 // Parse a context string into components
+// "someday" → { epoch: "someday" }
 // "2026-02-10" → { date: "2026-02-10" }
 // "2026-02-10@10:00-12:00" → { date: "2026-02-10", segment: { start: "10:00", end: "12:00" } }
 // "2026-02-10@entry:abc123" → { date: "2026-02-10", entryId: "abc123" }
 function parseTimeContext(ctx) {
     if (!ctx || typeof ctx !== 'string') return null;
+    if (isEpochContext(ctx)) return { epoch: ctx };
     const atIdx = ctx.indexOf('@');
     if (atIdx === -1) return { date: ctx };
     const date = ctx.substring(0, atIdx);
@@ -702,30 +741,35 @@ function getEffectiveTimeContexts(itemId) {
 
 // Check if an item should appear for the given date key.
 // Rules:
-//   1. If the item or any ancestor has timeContexts including dateKey → show
-//   2. If NO item in the ancestry chain has any timeContexts at all → show ("anytime")
-//   3. If some level has timeContexts but none match dateKey → hide
+//   1. If the item or any ancestor has epoch contexts (e.g. "someday") → hide from day views
+//   2. If the item or any ancestor has timeContexts including dateKey → show
+//   3. If NO item in the ancestry chain has any timeContexts at all → show ("anytime")
+//   4. If some level has timeContexts but none match dateKey → hide
 function itemMatchesTimeContext(action, dateKey) {
     const item = findItemById(action.id);
-    // Check own contexts (exact date match OR segment/entry context for that date)
     const ownContexts = (item && item.timeContexts) || [];
-    if (ownContexts.some(tc => contextMatchesDate(tc, dateKey))) return true;
-    // Walk ancestors
+    // Item has its own contexts — only check those, don't inherit from ancestors
+    if (ownContexts.length > 0) {
+        if (ownContexts.some(tc => isEpochContext(tc))) return false;
+        return ownContexts.some(tc => contextMatchesDate(tc, dateKey));
+    }
+    // No own contexts — fall back to ancestor chain
     const ancestors = getAncestorPath(action.id);
-    let anyAncestorHasContexts = ownContexts.length > 0;
     if (ancestors) {
         for (const ancestor of ancestors) {
             if (ancestor.timeContexts && ancestor.timeContexts.length > 0) {
-                anyAncestorHasContexts = true;
-                if (ancestor.timeContexts.some(tc => contextMatchesDate(tc, dateKey))) return true;
+                // Ancestor epoch context hides descendants from day views
+                if (ancestor.timeContexts.some(tc => isEpochContext(tc))) return false;
+                return ancestor.timeContexts.some(tc => contextMatchesDate(tc, dateKey));
             }
         }
     }
-    // No contexts at any level = "anytime" item → always show
-    return !anyAncestorHasContexts;
+    // No contexts at any level = implicit "someday" → hide from day views
+    return false;
 }
 
 // Check if an item is truly "unscheduled" (anytime) — no timeContexts on itself or any ancestor
+// Items with epoch contexts (e.g. "someday") are NOT unscheduled — they have temporal intent.
 function isItemUnscheduled(itemOrAction) {
     const item = findItemById(itemOrAction.id);
     const ownContexts = (item && item.timeContexts) || [];
@@ -737,6 +781,44 @@ function isItemUnscheduled(itemOrAction) {
         }
     }
     return true;
+}
+
+// Return the default timeContexts array for newly-created items,
+// based on the current view horizon / focused session.
+function getCurrentTimeContexts() {
+    const focused = state.focusStack.length > 0 ? state.focusStack[state.focusStack.length - 1] : null;
+    if (focused) {
+        // In a focused session, inherit the session's segment context + the date
+        const dateKey = getDateKey(state.timelineViewDate);
+        const ctx = [dateKey];
+        if (focused.segmentKey) ctx.push(focused.segmentKey);
+        return ctx;
+    }
+    if (state.viewHorizon === 'someday') return ['someday'];
+    return [getDateKey(state.timelineViewDate)];
+}
+
+// Check if an item has an epoch context (e.g. "someday") on itself or any ancestor.
+// If the item has its own explicit timeContexts, those take priority — ancestor
+// epochs don't bleed through (e.g. a child with a date should NOT show in someday
+// just because its parent is someday).
+// Items with NO timeContexts at any level are treated as implicit "someday".
+function isItemInEpoch(itemOrAction, epochName) {
+    const item = findItemById(itemOrAction.id);
+    const ownContexts = (item && item.timeContexts) || [];
+    // Item has its own contexts — only check those, don't inherit from ancestors
+    if (ownContexts.length > 0) return ownContexts.includes(epochName);
+    // No own contexts — check ancestors
+    const ancestors = getAncestorPath(itemOrAction.id);
+    if (ancestors) {
+        for (const ancestor of ancestors) {
+            if (ancestor.timeContexts && ancestor.timeContexts.length > 0) {
+                return ancestor.timeContexts.includes(epochName);
+            }
+        }
+    }
+    // No contexts at any level — implicit "someday"
+    return epochName === 'someday';
 }
 
 // Toggle a date in an item's timeContexts
@@ -766,9 +848,58 @@ async function addTimeContext(itemId, dateKey) {
     }
 }
 
+// Send an item to the someday backlog — strips all date/segment contexts and adds "someday"
+async function sendToSomeday(itemId) {
+    itemId = Number(itemId);
+    const item = findItemById(itemId);
+    if (!item) return;
+    // Strip all date/segment/entry contexts, keep only epoch contexts
+    item.timeContexts = (item.timeContexts || []).filter(tc => isEpochContext(tc));
+    if (!item.timeContexts.includes('someday')) {
+        item.timeContexts.push('someday');
+    }
+    // Clean segment durations since we removed segment contexts
+    if (item.segmentDurations) item.segmentDurations = {};
+    await api.patch(`/items/${itemId}`, { timeContexts: item.timeContexts, segmentDurations: item.segmentDurations || {} });
+    renderAll();
+}
+
+// Promote an item from someday — removes "someday", adds the target date
+async function promoteFromSomeday(itemId, dateKey) {
+    itemId = Number(itemId);
+    const item = findItemById(itemId);
+    if (!item) return;
+    if (!item.timeContexts) item.timeContexts = [];
+    item.timeContexts = item.timeContexts.filter(tc => tc !== 'someday');
+    if (!item.timeContexts.includes(dateKey)) {
+        item.timeContexts.push(dateKey);
+    }
+    await api.patch(`/items/${itemId}`, { timeContexts: item.timeContexts });
+    renderAll();
+}
+
+// Reschedule an item to a specific date (used by DnD on day arrows)
+async function rescheduleToDate(itemId, dateKey) {
+    itemId = Number(itemId);
+    const item = findItemById(itemId);
+    if (!item) return;
+    if (!item.timeContexts) item.timeContexts = [];
+    // Remove all date/segment contexts and epoch contexts, add the target date
+    item.timeContexts = item.timeContexts.filter(tc => isEpochContext(tc) && tc !== 'someday');
+    item.timeContexts = item.timeContexts.filter(tc => !tc.match(/^\d{4}-\d{2}-\d{2}/));
+    // Remove someday if present (promoting from backlog)
+    item.timeContexts = item.timeContexts.filter(tc => tc !== 'someday');
+    if (!item.timeContexts.includes(dateKey)) {
+        item.timeContexts.push(dateKey);
+    }
+    if (item.segmentDurations) item.segmentDurations = {};
+    await api.patch(`/items/${itemId}`, { timeContexts: item.timeContexts, segmentDurations: item.segmentDurations || {} });
+    renderAll();
+}
+
 // ─── Auto-clean past schedules ───
 // Silently remove any timeContexts entries before today.
-// Items that were scheduled for the past become "anytime" items again.
+// Items that had only past-date contexts are degraded to "someday" (backlog).
 async function cleanPastSchedules() {
     const todayKey = getDateKey(getLogicalToday());
     let dirty = false;
@@ -777,11 +908,84 @@ async function cleanPastSchedules() {
         for (const item of items) {
             if (item.timeContexts && item.timeContexts.length > 0) {
                 const before = item.timeContexts.length;
+                const hadDateContexts = item.timeContexts.some(tc => {
+                    const p = parseTimeContext(tc);
+                    return p && p.date; // had at least one date-level context
+                });
                 item.timeContexts = item.timeContexts.filter(tc => {
                     const parsed = parseTimeContext(tc);
-                    return parsed && parsed.date >= todayKey;
+                    if (!parsed) return false;
+                    // Keep epoch contexts as-is
+                    if (parsed.epoch) return true;
+                    return parsed.date >= todayKey;
                 });
-                if (item.timeContexts.length !== before) dirty = true;
+                // If we removed date contexts and nothing date-level remains, degrade to someday
+                if (item.timeContexts.length !== before) {
+                    dirty = true;
+                    const hasRemainingDates = item.timeContexts.some(tc => {
+                        const p = parseTimeContext(tc);
+                        return p && p.date;
+                    });
+                    if (hadDateContexts && !hasRemainingDates && !item.timeContexts.includes('someday')) {
+                        item.timeContexts.push('someday');
+                    }
+                }
+            }
+            if (item.children && item.children.length > 0) {
+                walkItems(item.children);
+            }
+        }
+    }
+
+    walkItems(state.items.items);
+    if (dirty) {
+        await saveItems();
+    }
+}
+
+// ─── Auto-clean past sessions (intra-day) ───
+// Silently degrade segment contexts (e.g. "2026-02-11@10:00-12:00") whose end
+// time has already passed back to their parent date context.
+async function cleanPastSessions(now) {
+    now = now || new Date();
+    const todayKey = getDateKey(getLogicalToday());
+    let dirty = false;
+
+    function walkItems(items) {
+        for (const item of items) {
+            if (item.timeContexts && item.timeContexts.length > 0) {
+                const contextsToRemove = [];
+                for (const tc of item.timeContexts) {
+                    const parsed = parseTimeContext(tc);
+                    if (!parsed || !parsed.segment || parsed.date !== todayKey) continue;
+                    // Build actual end timestamp from the segment
+                    const [endH, endM] = parsed.segment.end.split(':').map(Number);
+                    const [startH, startM] = parsed.segment.start.split(':').map(Number);
+                    const endDate = new Date(now);
+                    endDate.setHours(endH, endM, 0, 0);
+                    // Cross-midnight: if end time is before start time, end is next calendar day
+                    if (endH < startH || (endH === startH && endM < startM)) {
+                        endDate.setDate(endDate.getDate() + 1);
+                    }
+                    if (now >= endDate) {
+                        contextsToRemove.push(tc);
+                    }
+                }
+                if (contextsToRemove.length > 0) {
+                    item.timeContexts = item.timeContexts.filter(tc => !contextsToRemove.includes(tc));
+                    // Clean up segment durations
+                    if (item.segmentDurations) {
+                        for (const ctx of contextsToRemove) {
+                            delete item.segmentDurations[ctx];
+                        }
+                    }
+                    // Add the parent date back if no other context for this date exists
+                    const hasOtherForDate = item.timeContexts.some(tc => contextMatchesDate(tc, todayKey));
+                    if (!hasOtherForDate) {
+                        item.timeContexts.push(todayKey);
+                    }
+                    dirty = true;
+                }
             }
             if (item.children && item.children.length > 0) {
                 walkItems(item.children);
@@ -989,6 +1193,17 @@ function showProjectContextMenu(e, item) {
     });
     menu.appendChild(projSchedOpt);
 
+    // → Someday option for projects
+    const projSomedayOpt = document.createElement('div');
+    projSomedayOpt.className = 'project-context-menu-item';
+    projSomedayOpt.textContent = '→ Someday';
+    projSomedayOpt.addEventListener('click', async (ev) => {
+        ev.stopPropagation();
+        dismissProjectContextMenu();
+        await sendToSomeday(item.id);
+    });
+    menu.appendChild(projSomedayOpt);
+
     // Goal option
     const goalOpt = document.createElement('div');
     goalOpt.className = 'project-context-menu-item';
@@ -1185,6 +1400,23 @@ function showActionContextMenu(e, action) {
             }
         });
         menu.appendChild(schedOpt);
+
+        // → Someday option
+        const somedayOpt = document.createElement('div');
+        somedayOpt.className = 'project-context-menu-item';
+        somedayOpt.textContent = `→ Someday${bulkSuffix}`;
+        somedayOpt.addEventListener('click', async (ev) => {
+            ev.stopPropagation();
+            dismissProjectContextMenu();
+            if (isBulk) {
+                for (const id of state.selectedActionIds) {
+                    await sendToSomeday(parseInt(id, 10));
+                }
+            } else {
+                await sendToSomeday(action.id);
+            }
+        });
+        menu.appendChild(somedayOpt);
     }
 
     // Goal option (single only)
@@ -1311,16 +1543,20 @@ function collectSearchMatches(items, query, matchingIds) {
 function collectTimeContextMatches(items, dateKey, visibleIds) {
     let anyVisible = false;
     for (const item of items) {
-        const selfMatch = state.scheduleFilter === 'all' ? true : itemMatchesTimeContext(item, dateKey);
-        // When scheduleFilter is 'scheduled', hide truly unscheduled items
-        const unscheduledHidden = state.scheduleFilter === 'scheduled' && isItemUnscheduled(item);
+        let selfMatch;
+        if (state.viewHorizon === 'someday') {
+            // In someday horizon, show items with someday context (self or ancestor)
+            selfMatch = isItemInEpoch(item, 'someday');
+        } else {
+            selfMatch = itemMatchesTimeContext(item, dateKey);
+        }
         // Done leaves hidden by the done filter should not propagate schedule visibility
         const doneHidden = !state.showDone && isLeaf(item) && !item.isInbox && item.done;
         let childVisible = false;
         if (item.children && item.children.length > 0) {
             childVisible = collectTimeContextMatches(item.children, dateKey, visibleIds);
         }
-        if ((selfMatch && !unscheduledHidden && !doneHidden) || childVisible) {
+        if ((selfMatch && !doneHidden) || childVisible) {
             visibleIds.add(item.id);
             anyVisible = true;
         }
@@ -1335,6 +1571,7 @@ function collectTimeContextMatches(items, dateKey, visibleIds) {
 // ─── Projects Rendering (full tree hierarchy) ───
 function renderProjects() {
     const container = document.getElementById('project-tree');
+    const savedScrollTop = container.scrollTop;
     const empty = document.getElementById('projects-empty');
 
     // Clear everything except empty state
@@ -1354,21 +1591,10 @@ function renderProjects() {
         collectSearchMatches(state.items.items, query, matchingIds);
     }
 
-    // Build time-context visible set
-    const currentDateKey = getDateKey(state.timelineViewDate);
-    const timeContextVisibleIds = new Set();
-    collectTimeContextMatches(state.items.items, currentDateKey, timeContextVisibleIds);
-
-    // Deselect if the selected project is no longer visible
-    if (state.selectedItemId && !timeContextVisibleIds.has(state.selectedItemId)) {
-        state.selectedItemId = null;
-        savePref('selectedItemId', '');
-    }
-
     const fragment = document.createDocumentFragment();
 
     // Render all root-level items (Inbox is always first via ensureInbox)
-    renderProjectLevel(state.items.items, fragment, 0, query, matchingIds, timeContextVisibleIds);
+    renderProjectLevel(state.items.items, fragment, 0, query, matchingIds);
 
     // Root drop zone — always visible to allow dragging items to root level
     if (!query) {
@@ -1394,6 +1620,9 @@ function renderProjects() {
     }
 
     container.appendChild(fragment);
+
+    // Restore scroll position after rebuild
+    container.scrollTop = savedScrollTop;
 
     // Update clear button visibility
     const clearBtn = document.getElementById('project-search-clear');
@@ -1512,7 +1741,7 @@ function handleDrop() {
     clearDropIndicators();
 }
 
-function renderProjectLevel(items, parent, depth, query = '', matchingIds = new Set(), timeContextVisibleIds = new Set()) {
+function renderProjectLevel(items, parent, depth, query = '', matchingIds = new Set()) {
     const isSearching = !!query;
     for (let idx = 0; idx < items.length; idx++) {
         const item = items[idx];
@@ -1525,8 +1754,7 @@ function renderProjectLevel(items, parent, depth, query = '', matchingIds = new 
         // Skip items that don't match search (and have no matching descendants)
         if (isSearching && !matchingIds.has(item.id)) continue;
 
-        // Skip items that don't match the current time context
-        if (!isInbox && !timeContextVisibleIds.has(item.id)) continue;
+
 
         // ─── Insert marker BEFORE this item (skip before Inbox, skip during search) ───
         if (!isInbox && !isSearching) {
@@ -1551,6 +1779,8 @@ function renderProjectLevel(items, parent, depth, query = '', matchingIds = new 
             row.addEventListener('dragstart', (e) => {
                 dragState.draggedId = item.id;
                 e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('application/x-action-id', String(item.id));
+                window._draggedAction = item;
                 row.classList.add('dragging');
                 document.getElementById('project-tree').classList.add('dragging-active');
                 requestAnimationFrame(() => row.classList.add('dragging'));
@@ -1560,7 +1790,11 @@ function renderProjectLevel(items, parent, depth, query = '', matchingIds = new 
                 document.getElementById('project-tree').classList.remove('dragging-active');
                 dragState.draggedId = null;
                 dragState.dropTarget = null;
+                window._draggedAction = null;
                 clearDropIndicators();
+                document.querySelectorAll('.time-block-drag-over').forEach(el => el.classList.remove('time-block-drag-over'));
+                document.querySelectorAll('.horizon-layer-drag-over').forEach(el => el.classList.remove('horizon-layer-drag-over'));
+                document.querySelectorAll('.date-nav-btn-drag-over').forEach(el => el.classList.remove('date-nav-btn-drag-over'));
             });
         }
 
@@ -1687,17 +1921,11 @@ function renderProjectLevel(items, parent, depth, query = '', matchingIds = new 
 
         // Count badge for branches (items with children)
         if (hasChildren || isInbox) {
-            const currentDateKey = getDateKey(state.timelineViewDate);
             let leaves = collectLeaves([item]);
-            // Apply same filters as getFilteredActions so counts match visuals
+            // Show total non-done leaves — no time context filter since sidebar is
+            // the context provider, not the consumer.
             if (!state.showDone) {
                 leaves = leaves.filter(l => !l.done);
-            }
-            if (state.scheduleFilter !== 'all') {
-                leaves = leaves.filter(l => itemMatchesTimeContext(l, currentDateKey));
-            }
-            if (state.scheduleFilter === 'scheduled') {
-                leaves = leaves.filter(l => !isItemUnscheduled(l));
             }
             const badge = document.createElement('span');
             badge.className = 'project-count';
@@ -1758,7 +1986,7 @@ function renderProjectLevel(items, parent, depth, query = '', matchingIds = new 
         if (shouldShowChildren) {
             const childContainer = document.createElement('div');
             childContainer.className = 'project-children';
-            renderProjectLevel(item.children, childContainer, depth + 1, query, matchingIds, timeContextVisibleIds);
+            renderProjectLevel(item.children, childContainer, depth + 1, query, matchingIds);
             node.appendChild(childContainer);
         }
 
@@ -1922,7 +2150,8 @@ function showItemInput(parentId = null, childDepth = 0) {
         if (e.key === 'Enter' && input.value.trim()) {
             await api.post('/items', {
                 name: input.value.trim(),
-                parentId: parentId
+                parentId: parentId,
+                timeContexts: getCurrentTimeContexts()
             });
             await reloadItems();
         }
@@ -1943,10 +2172,11 @@ function showItemInput(parentId = null, childDepth = 0) {
 // ─── Actions Rendering (leaf nodes from the tree) ───
 function renderActions() {
     const container = document.getElementById('actions-list');
+    const savedScrollTop = container.scrollTop;
     const empty = document.getElementById('actions-empty');
 
     // Remove existing items but not the empty state and bulk bar
-    container.querySelectorAll('.action-item').forEach(el => el.remove());
+    container.querySelectorAll('.action-item, .action-group-header').forEach(el => el.remove());
 
     const filteredActions = getFilteredActions();
 
@@ -1979,41 +2209,139 @@ function renderActions() {
         if (!visibleSet.has(id)) state.selectedActionIds.delete(id);
     }
 
-    const fragment = document.createDocumentFragment();
-    for (const action of sorted) {
-        fragment.appendChild(createActionElement(action));
+    // ── Grouping by root ancestor ──
+    const shouldGroup = !state.selectedItemId;
+    let rootGroups = null;
+    let distinctRoots = 0;
+
+    if (shouldGroup) {
+        // Build ordered groups keyed by root ancestor ID
+        rootGroups = new Map(); // rootId → { root: {id,name}, actions: [] }
+        for (const action of sorted) {
+            const rootAncestor = action._path && action._path.length > 0 ? action._path[0] : null;
+            const rootId = rootAncestor ? rootAncestor.id : 0;
+            if (!rootGroups.has(rootId)) {
+                rootGroups.set(rootId, { root: rootAncestor, actions: [] });
+            }
+            rootGroups.get(rootId).actions.push(action);
+        }
+        distinctRoots = rootGroups.size;
     }
+
+    const fragment = document.createDocumentFragment();
+    // Track actually-rendered action IDs (excluding collapsed)
+    const renderedIds = [];
+
+    if (shouldGroup && distinctRoots >= 2) {
+        // Render with group headers
+        state._actionGroupingActive = true;
+        for (const [rootId, group] of rootGroups) {
+            const isCollapsed = state.collapsedGroups.has(rootId);
+            // Create group header
+            const header = document.createElement('div');
+            header.className = 'action-group-header' + (isCollapsed ? ' collapsed' : '');
+            header.dataset.rootId = rootId;
+
+            const chevron = document.createElement('span');
+            chevron.className = 'action-group-chevron';
+            chevron.textContent = isCollapsed ? '▸' : '▾';
+            header.appendChild(chevron);
+
+            const nameEl = document.createElement('span');
+            nameEl.className = 'action-group-name';
+            nameEl.textContent = group.root ? group.root.name : 'Ungrouped';
+            header.appendChild(nameEl);
+
+            const countEl = document.createElement('span');
+            countEl.className = 'action-group-count';
+            countEl.textContent = group.actions.length;
+            header.appendChild(countEl);
+
+            header.addEventListener('click', () => {
+                if (state.collapsedGroups.has(rootId)) {
+                    state.collapsedGroups.delete(rootId);
+                } else {
+                    state.collapsedGroups.add(rootId);
+                }
+                savePref('collapsedGroups', [...state.collapsedGroups]);
+                renderActions();
+            });
+
+            fragment.appendChild(header);
+
+            if (!isCollapsed) {
+                for (const action of group.actions) {
+                    fragment.appendChild(createActionElement(action));
+                    renderedIds.push(String(action.id));
+                }
+            }
+        }
+    } else {
+        // Flat (no grouping)
+        state._actionGroupingActive = false;
+        for (const action of sorted) {
+            fragment.appendChild(createActionElement(action));
+            renderedIds.push(String(action.id));
+        }
+    }
+
+    // Update visible IDs to only include rendered (non-collapsed) actions
+    state._visibleActionIds = renderedIds;
+
     container.appendChild(fragment);
+
+    // Restore scroll position after rebuild
+    container.scrollTop = savedScrollTop;
+
     updateBulkActionBar();
     updateCapacitySummary(sorted);
 }
 
 function getFilteredActions() {
-    let allLeaves = collectLeaves();
+    let allLeaves = collectAllItems();
 
     // Filter out done items unless showDone is on
     if (!state.showDone) {
         allLeaves = allLeaves.filter(a => !a.done);
     }
 
-    // ── Schedule filter: 'scheduled' | 'scheduled+unscheduled' | 'all' ──
+    // ── Horizon + Schedule filter ──
     const currentDateKey = getDateKey(state.timelineViewDate);
-    if (state.scheduleFilter !== 'all') {
+    if (state.viewHorizon === 'someday') {
+        // Show only items in the someday epoch
+        allLeaves = allLeaves.filter(a => isItemInEpoch(a, 'someday'));
+    } else {
         allLeaves = allLeaves.filter(a => itemMatchesTimeContext(a, currentDateKey));
     }
-    if (state.scheduleFilter === 'scheduled') {
-        allLeaves = allLeaves.filter(a => !isItemUnscheduled(a));
-    }
     // ── Session focus: when focused, show items relevant to this session ──
-    if (state.focusedSession) {
-        const fs = state.focusedSession;
+    const focusedSession = state.focusStack.length > 0 ? state.focusStack[state.focusStack.length - 1] : null;
+    if (focusedSession) {
+        const fs = focusedSession;
         // Re-collect ALL leaves (including segment-context items) for this filter
-        let sessionLeaves = collectLeaves();
+        let sessionLeaves = collectAllItems();
         if (!state.showDone) sessionLeaves = sessionLeaves.filter(a => !a.done);
+
+        // For item-bound planned sessions, pre-compute descendant IDs for scope constraint
+        let planDescendantIds = null;
+        if (fs.type === 'planned' && fs.itemId) {
+            const planItem = findItemById(fs.itemId);
+            if (planItem) planDescendantIds = new Set(collectDescendantIds(planItem));
+        }
+
         // Filter to items with segment contexts overlapping the focused session
         sessionLeaves = sessionLeaves.filter(a => {
             const item = findItemById(a.id);
             if (!item) return false;
+
+            // For item-bound planned sessions, enforce descendant constraint
+            if (planDescendantIds && !planDescendantIds.has(a.id)) return false;
+
+            // Items with entry-ID context matching the focused planned session
+            if (fs.type === 'planned' && fs.entryId && item.timeContexts) {
+                const entryCtx = `${currentDateKey}@entry:${fs.entryId}`;
+                if (item.timeContexts.includes(entryCtx)) return true;
+            }
+
             // Items with segment context overlapping the session
             if (item.timeContexts) {
                 for (const tc of item.timeContexts) {
@@ -2031,8 +2359,8 @@ function getFilteredActions() {
                     }
                 }
             }
-            // Unscheduled items show in free time sessions when the schedule filter allows them
-            if (fs.type === 'free' && state.scheduleFilter !== 'scheduled' && isItemUnscheduled(a)) {
+            // Unscheduled items show in free time and planned sessions
+            if ((fs.type === 'free' || fs.type === 'planned') && isItemUnscheduled(a)) {
                 return itemMatchesTimeContext(a, currentDateKey);
             }
             return false;
@@ -2060,9 +2388,10 @@ function getFilteredActions() {
     const selectedItem = findItemById(state.selectedItemId);
     if (!selectedItem) return allLeaves;
 
-    // A leaf node has no children — it IS an action, not a project.
-    // Show empty actions when focused on a leaf.
-    if (isLeaf(selectedItem)) return [];
+    // A leaf node has no children — show it as its own action.
+    if (isLeaf(selectedItem)) {
+        return allLeaves.filter(a => a.id === selectedItem.id);
+    }
 
     const descendantIds = collectDescendantIds(selectedItem);
 
@@ -2210,8 +2539,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const actionsSection = document.getElementById('section-actions');
         if (actionsSection) {
             actionsSection.addEventListener('dragover', (e) => {
-                if (!e.dataTransfer.types.includes('application/x-segment-item-id')) return;
-                console.log('[ACTIONS] dragover from segment item');
+                if (!e.dataTransfer.types.includes('application/x-segment-item-id') &&
+                    !e.dataTransfer.types.includes('application/x-action-id')) return;
                 e.preventDefault();
                 e.dataTransfer.dropEffect = 'move';
                 actionsSection.classList.add('actions-drag-over');
@@ -2222,14 +2551,32 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             actionsSection.addEventListener('drop', (e) => {
                 console.log('[ACTIONS] drop event, types:', [...e.dataTransfer.types]);
-                if (!e.dataTransfer.types.includes('application/x-segment-item-id')) return;
-                e.preventDefault();
-                actionsSection.classList.remove('actions-drag-over');
-                const itemId = e.dataTransfer.getData('application/x-segment-item-id');
-                const segCtx = e.dataTransfer.getData('application/x-segment-context');
-                console.log('[ACTIONS] segment drop, itemId:', itemId, 'segCtx:', segCtx);
-                if (itemId && segCtx) {
-                    degradeSegmentContext(itemId, segCtx);
+                // Segment drag-out path (drag from segment queue back to actions)
+                if (e.dataTransfer.types.includes('application/x-segment-item-id')) {
+                    e.preventDefault();
+                    actionsSection.classList.remove('actions-drag-over');
+                    const itemId = e.dataTransfer.getData('application/x-segment-item-id');
+                    const segCtx = e.dataTransfer.getData('application/x-segment-context');
+                    if (itemId && segCtx) {
+                        degradeSegmentContext(itemId, segCtx);
+                    }
+                    return;
+                }
+                // Project-to-Actions: assign current time context + select as project filter
+                if (e.dataTransfer.types.includes('application/x-action-id')) {
+                    const itemId = parseInt(e.dataTransfer.getData('application/x-action-id'), 10);
+                    const item = findItemById(itemId);
+                    if (!item) return;
+                    e.preventDefault();
+                    actionsSection.classList.remove('actions-drag-over');
+                    window._draggedAction = null;
+                    const ctxs = getCurrentTimeContexts();
+                    (async () => {
+                        for (const ctx of ctxs) { await addTimeContext(itemId, ctx); }
+                        state.selectedItemId = itemId;
+                        savePref('selectedItemId', String(itemId));
+                        renderAll();
+                    })();
                 }
             });
         }
@@ -2284,21 +2631,31 @@ function createActionElement(action) {
         refreshActionSelectionUI();
     });
 
-    // ── Drag-to-schedule: make non-done actions draggable ──
+    // ── Drag-to-schedule / drag-to-project: make non-done actions draggable ──
     if (!action.done) {
         item.draggable = true;
         item.addEventListener('dragstart', (e) => {
             e.dataTransfer.setData('application/x-action-id', String(action.id));
             e.dataTransfer.effectAllowed = 'copyMove';
             item.classList.add('action-item-dragging');
-            // Store action data for the drop handler
+            // Store action data for the timeline drop handler
             window._draggedAction = action;
+            // Also set dragState so project tree drop targets accept this drag
+            dragState.draggedId = action.id;
+            document.getElementById('project-tree').classList.add('dragging-active');
         });
         item.addEventListener('dragend', () => {
             item.classList.remove('action-item-dragging');
             window._draggedAction = null;
+            // Clean up project tree drag state
+            dragState.draggedId = null;
+            dragState.dropTarget = null;
+            document.getElementById('project-tree').classList.remove('dragging-active');
+            clearDropIndicators();
             // Clean up any lingering drag-over states
             document.querySelectorAll('.time-block-drag-over').forEach(el => el.classList.remove('time-block-drag-over'));
+            document.querySelectorAll('.horizon-layer-drag-over').forEach(el => el.classList.remove('horizon-layer-drag-over'));
+            document.querySelectorAll('.date-nav-btn-drag-over').forEach(el => el.classList.remove('date-nav-btn-drag-over'));
         });
     }
 
@@ -2335,30 +2692,35 @@ function createActionElement(action) {
     badgesRow.className = 'action-badges';
 
     // Show ancestor path as breadcrumb tag (if not filtering by a project)
+    // When grouping is active, strip the root ancestor from the breadcrumb (already shown in header)
     if (!state.selectedItemId && action._path && action._path.length > 1) {
-        const ancestors = action._path.slice(0, -1);
-        const tag = document.createElement('span');
-        tag.className = 'action-project-tag';
-        ancestors.forEach((ancestor, idx) => {
-            if (idx > 0) {
-                const sep = document.createTextNode(' › ');
-                tag.appendChild(sep);
-            }
-            const link = document.createElement('span');
-            link.className = 'action-project-tag-link';
-            link.textContent = ancestor.name;
-            link.title = `Select "${ancestor.name}" in projects`;
-            link.addEventListener('click', (e) => {
-                e.stopPropagation();
-                state.selectedItemId = ancestor.id;
-                savePref('selectedItemId', ancestor.id);
-                renderAll();
-                // Scroll to the selected project after render
-                requestAnimationFrame(() => scrollToSelectedItem());
+        const skipRoot = state._actionGroupingActive && action._path.length > 1;
+        const ancestors = skipRoot ? action._path.slice(1, -1) : action._path.slice(0, -1);
+        if (ancestors.length === 0) { /* no breadcrumb needed, root is already the header */ }
+        else {
+            const tag = document.createElement('span');
+            tag.className = 'action-project-tag';
+            ancestors.forEach((ancestor, idx) => {
+                if (idx > 0) {
+                    const sep = document.createTextNode(' › ');
+                    tag.appendChild(sep);
+                }
+                const link = document.createElement('span');
+                link.className = 'action-project-tag-link';
+                link.textContent = ancestor.name;
+                link.title = `Select "${ancestor.name}" in projects`;
+                link.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    state.selectedItemId = ancestor.id;
+                    savePref('selectedItemId', ancestor.id);
+                    renderAll();
+                    // Scroll to the selected project after render
+                    requestAnimationFrame(() => scrollToSelectedItem());
+                });
+                tag.appendChild(link);
             });
-            tag.appendChild(link);
-        });
-        badgesRow.appendChild(tag);
+            badgesRow.appendChild(tag);
+        }
     }
 
     // Duration estimate badge
@@ -2381,36 +2743,8 @@ function createActionElement(action) {
         badgesRow.appendChild(estimateBadge);
     }
 
-    // Show time context badges (inline, no wrapper)
-    const originalItem = estimateItem || findItemById(action.id);
-    if (originalItem && originalItem.timeContexts && originalItem.timeContexts.length > 0) {
-        for (const dateStr of originalItem.timeContexts) {
-            const dtag = document.createElement('span');
-            dtag.className = 'action-time-tag';
-            const viewDateKey = getDateKey(state.timelineViewDate);
-            const viewIsToday = isCurrentDay(state.timelineViewDate);
-
-            if (dateStr.includes('@')) {
-                // Segment-level context: "2026-02-10@16:38-18:00" → show time range
-                const parsed = parseTimeContext(dateStr);
-                if (!parsed || !parsed.segment) continue;
-                const prefix = (parsed.date === viewDateKey && viewIsToday) ? '' :
-                    new Date(parsed.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' ';
-                dtag.textContent = `${prefix}${parsed.segment.start} – ${parsed.segment.end}`;
-                if (parsed.date === viewDateKey && viewIsToday) dtag.classList.add('action-time-tag-today');
-            } else {
-                // Plain date context
-                const d = new Date(dateStr + 'T00:00:00');
-                if (dateStr === viewDateKey && viewIsToday) {
-                    dtag.textContent = 'Today';
-                    dtag.classList.add('action-time-tag-today');
-                } else {
-                    dtag.textContent = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-                }
-            }
-            badgesRow.appendChild(dtag);
-        }
-    }
+    // Time context badges removed — the header layers now indicate the active
+    // time context, making per-item badges redundant.
 
     // Show goal progress badge (if this action or an ancestor has a goal)
     const goaledAncestor = findNearestGoal(action);
@@ -2500,6 +2834,7 @@ function createActionElement(action) {
             await api.post('/items', {
                 name: 'New sub-task',
                 parentId: action.id,
+                timeContexts: getCurrentTimeContexts()
             });
             await reloadItems();
         });
@@ -2689,6 +3024,7 @@ function setupActionInput() {
         await api.post('/items', {
             name: input.value.trim(),
             parentId,
+            timeContexts: getCurrentTimeContexts()
         });
         await reloadItems();
         input.value = '';
@@ -2775,240 +3111,526 @@ function getLogicalToday() {
     return now;
 }
 
-// ─── Session Navigation ───
+// ─── Horizon Layer Stack ───
+// Syncs active/dim state on the inline someday + day header layers
 
-// Extract structured session data from the day's timeline.
-// Mirrors renderTimeline's gap/block cursor logic but outputs metadata only.
-function computeSessions() {
-    const { now, dayStart, dayEnd } = getDayBoundaries(state.timelineViewDate);
-    const dayStartMs = dayStart.getTime();
-    const dayEndMs = dayEnd.getTime();
-    const nowMs = now.getTime();
-    const viewingToday = isCurrentDay(state.timelineViewDate);
+function renderHorizonTower() {
+    const somedayLayer = document.getElementById('horizon-someday-layer');
+    const dayLayer = document.getElementById('horizon-day-layer');
+    if (!somedayLayer || !dayLayer) return;
 
-    // Collect block entries within the day range
-    const allDayEntries = state.timeline.entries
-        .filter(e => e.timestamp >= dayStartMs && e.timestamp < dayEndMs)
-        .sort((a, b) => a.timestamp - b.timestamp);
+    const focused = state.focusStack.length > 0;
+    const currentLevel = focused ? 'session' : state.viewHorizon;
 
-    const isBlockEntry = (e) => e.endTime && (e.type === 'work' || e.type === 'break' || e.type === 'planned');
+    // Someday layer: active when viewHorizon is someday, dim otherwise
+    somedayLayer.classList.toggle('horizon-layer-active', currentLevel === 'someday');
+    somedayLayer.classList.toggle('horizon-layer-dim', currentLevel !== 'someday');
 
-    // Plan absorption (same logic as renderTimeline)
-    const workEntries = allDayEntries.filter(e => e.type === 'work' && e.endTime);
-    if (state.workingOn) {
-        workEntries.push({
-            type: 'work', timestamp: state.workingOn.startTime,
-            endTime: nowMs, itemId: state.workingOn.itemId,
-        });
-    }
-    for (const entry of allDayEntries) {
-        if (entry.type !== 'planned' || !entry.endTime) continue;
-        const planStart = entry.timestamp;
-        const planEnd = entry.endTime;
-        const planDuration = planEnd - planStart;
-        if (planDuration <= 0) continue;
-        let absorbed = false;
-        for (const work of workEntries) {
-            const overlapStart = Math.max(planStart, work.timestamp);
-            const overlapEnd = Math.min(planEnd, work.endTime);
-            const overlap = Math.max(0, overlapEnd - overlapStart);
-            if (overlap > 0 && entry.itemId && work.itemId === entry.itemId && overlap >= planDuration * 0.8) {
-                absorbed = true;
-                break;
-            }
-        }
-        entry._absorbed = absorbed;
-    }
-
-    const blockEntries = allDayEntries.filter(e => isBlockEntry(e) && !e._absorbed);
-
-    // Hide past if today + toggle on
-    const hidePast = state.hidePastEntries && viewingToday;
-    const filteredBlocks = hidePast
-        ? blockEntries.filter(e => (e.endTime || e.timestamp) >= nowMs)
-        : blockEntries;
-
-    // Walk the day with a cursor, finding gaps (free time) and blocks
-    const sessions = [];
-    let cursor = hidePast ? Math.max(dayStartMs, nowMs) : dayStartMs;
-
-    // If viewing today and there's a live working/break session and it starts before the first block,
-    // inject it as a session
-    if (viewingToday && cursor <= nowMs && nowMs < dayEndMs) {
-        const firstBlock = filteredBlocks[0];
-        const idleEnd = firstBlock ? Math.min(nowMs, firstBlock.timestamp) : nowMs;
-        if (idleEnd > cursor) {
-            if (state.workingOn) {
-                const projectedEnd = Math.max(nowMs, state.workingOn.targetEndTime || 0);
-                const itemName = state.workingOn.itemName || findItemName(state.workingOn.itemId) || 'Working';
-                sessions.push({
-                    startMs: state.workingOn.startTime, endMs: Math.min(projectedEnd, dayEndMs),
-                    label: itemName, type: 'working', icon: '⚡',
-                });
-                cursor = Math.max(cursor, Math.min(projectedEnd, dayEndMs));
-            } else if (state.onBreak) {
-                const projectedEnd = Math.max(nowMs, state.onBreak.targetEndTime || nowMs);
-                sessions.push({
-                    startMs: state.onBreak.startTime, endMs: Math.min(projectedEnd, dayEndMs),
-                    label: 'Break', type: 'break', icon: '☕',
-                });
-                cursor = Math.max(cursor, Math.min(projectedEnd, dayEndMs));
-            } else if (!firstBlock || cursor < firstBlock.timestamp) {
-                // Idle — treat as free time if there's no first block yet
-                // or there's a gap before the first block
-                const gapEnd = firstBlock ? Math.min(cursor, firstBlock.timestamp) : cursor;
-                // Skip tiny gaps — we'll handle the bigger free time below
-            }
-        }
-    }
-
-    for (let i = 0; i < filteredBlocks.length; i++) {
-        const entry = filteredBlocks[i];
-
-        // Free time gap before this block
-        if (entry.timestamp > cursor) {
-            const gapEnd = Math.min(entry.timestamp, dayEndMs);
-            const gapMs = gapEnd - cursor;
-            if (gapMs >= 60000) {
-                sessions.push({
-                    startMs: cursor, endMs: gapEnd,
-                    label: 'Free Time', type: 'free', icon: '✨',
-                });
-            }
-        }
-
-        // The block entry itself
-        if (entry.type === 'planned') {
-            const itemName = entry.itemName || findItemName(entry.itemId) || 'Planned';
-            sessions.push({
-                startMs: entry.timestamp, endMs: entry.endTime,
-                label: itemName, type: 'planned', icon: '📋',
-            });
-        } else if (entry.type === 'work') {
-            const itemName = entry.itemName || findItemName(entry.itemId) || 'Work';
-            sessions.push({
-                startMs: entry.timestamp, endMs: entry.endTime,
-                label: itemName, type: 'work', icon: '⚡',
-            });
-        } else if (entry.type === 'break') {
-            sessions.push({
-                startMs: entry.timestamp, endMs: entry.endTime,
-                label: 'Break', type: 'break', icon: '☕',
-            });
-        }
-
-        cursor = Math.max(cursor, entry.endTime);
-
-        // After the last block before now, inject live working/break
-        if (viewingToday && !hidePast && entry.endTime <= nowMs) {
-            const nextBlock = filteredBlocks[i + 1];
-            const isLast = !nextBlock || nextBlock.timestamp > nowMs;
-            if (isLast && nowMs > entry.endTime) {
-                if (state.workingOn && state.workingOn.startTime >= entry.endTime) {
-                    const projectedEnd = Math.max(nowMs, state.workingOn.targetEndTime || 0);
-                    const itemName = state.workingOn.itemName || findItemName(state.workingOn.itemId) || 'Working';
-                    sessions.push({
-                        startMs: state.workingOn.startTime, endMs: Math.min(projectedEnd, dayEndMs),
-                        label: itemName, type: 'working', icon: '⚡',
-                    });
-                    cursor = Math.max(cursor, Math.min(projectedEnd, dayEndMs));
-                } else if (state.onBreak && state.onBreak.startTime >= entry.endTime) {
-                    const projectedEnd = Math.max(nowMs, state.onBreak.targetEndTime || nowMs);
-                    sessions.push({
-                        startMs: state.onBreak.startTime, endMs: Math.min(projectedEnd, dayEndMs),
-                        label: 'Break', type: 'break', icon: '☕',
-                    });
-                    cursor = Math.max(cursor, Math.min(projectedEnd, dayEndMs));
-                }
-            }
-        }
-    }
-
-    // Trailing free time
-    if (dayEndMs > cursor) {
-        const gapMs = dayEndMs - cursor;
-        if (gapMs >= 60000) {
-            sessions.push({
-                startMs: cursor, endMs: dayEndMs,
-                label: 'Free Time', type: 'free', icon: '✨',
-            });
-        }
-    }
-
-    return sessions;
+    // Day layer: active when viewHorizon is day and not session-focused, dim otherwise
+    dayLayer.classList.toggle('horizon-layer-active', currentLevel === 'day');
+    dayLayer.classList.toggle('horizon-layer-dim', currentLevel !== 'day');
 }
 
-// Render the clickable session minimap in the sidebar
-function renderSessionNav() {
-    const container = document.getElementById('session-nav');
+// ─── Session Focus ───
+
+// Toggle focus on a session (push/pop from focusStack)
+function toggleSessionFocus(session) {
+    const top = state.focusStack.length > 0 ? state.focusStack[state.focusStack.length - 1] : null;
+    if (top && top.startMs === session.startMs && top.endMs === session.endMs) {
+        state.focusStack.pop();
+    } else {
+        // For now, replace (single-tier). Future: push for multi-tier drill-down.
+        state.focusStack = [{ ...session, tier: 'session' }];
+    }
+    renderAll();
+}
+
+// Render the time-context bar: date nav (unfocused) or session info (focused)
+function renderTimeContext() {
+    const container = document.getElementById('time-context');
     if (!container) return;
-    container.innerHTML = '';
 
-    const sessions = computeSessions();
-    if (sessions.length === 0) return;
+    const top = state.focusStack.length > 0 ? state.focusStack[state.focusStack.length - 1] : null;
 
-    for (const session of sessions) {
-        const row = document.createElement('div');
-        row.className = 'session-nav-item';
-        row.classList.add(`session-nav-${session.type}`);
+    if (!top) {
+        // Unfocused: show normal date nav
+        container.classList.remove('time-context-focused');
+        container.className = container.className.replace(/\btime-context-type-\S+/g, '').trim();
+        const dateNav = container.querySelector('.date-nav');
+        if (dateNav) dateNav.style.display = '';
+        container.querySelectorAll('.time-context-session').forEach(el => el.remove());
 
-        // Highlight if this session is currently focused
-        if (state.focusedSession &&
-            state.focusedSession.startMs === session.startMs &&
-            state.focusedSession.endMs === session.endMs) {
-            row.classList.add('active');
+        // Sync date nav for current horizon
+        const prevBtn = document.getElementById('date-nav-prev');
+        const nextBtn = document.getElementById('date-nav-next');
+        const todayBadge = document.getElementById('date-nav-today-badge');
+
+        if (state.viewHorizon === 'someday') {
+            if (prevBtn) prevBtn.style.display = 'none';
+            if (nextBtn) nextBtn.style.display = 'none';
+            if (todayBadge) todayBadge.style.display = 'none';
+        } else {
+            if (prevBtn) prevBtn.style.display = '';
+            if (nextBtn) nextBtn.style.display = '';
+            if (todayBadge) todayBadge.style.display = '';
+        }
+        return;
+    }
+
+    // Focused: transform the bar — keep horizon layers visible (dimmed by renderHorizonTower)
+    container.classList.add('time-context-focused');
+    // Set type class for skin-specific styling
+    container.className = container.className.replace(/\btime-context-type-\S+/g, '').trim();
+    container.classList.add(`time-context-type-${top.type}`);
+
+    // Keep date-nav visible — renderHorizonTower already dims it
+    const dateNav = container.querySelector('.date-nav');
+    if (dateNav) dateNav.style.display = '';
+    container.querySelectorAll('.time-context-session').forEach(el => el.remove());
+
+    const sessionEl = document.createElement('div');
+    sessionEl.className = `time-context-session time-context-session-${top.type} horizon-layer horizon-layer-active`;
+
+    // ── Duration helpers ──
+    const nowMs = Date.now();
+    const durationMs = top.endMs - top.startMs;
+    const _fmtDur = (ms) => {
+        const h = Math.floor(ms / 3600000);
+        const m = Math.floor((ms % 3600000) / 60000);
+        const s = Math.floor((ms % 60000) / 1000);
+        if (h > 0) return `${h}h ${m}m`;
+        if (m > 0) return `${m}m ${s}s`;
+        return `${s}s`;
+    };
+
+    // ── Render per-type content ──
+    if (top.type === 'working' || top.type === 'work') {
+        _renderWorkSession(sessionEl, top, nowMs, durationMs, _fmtDur);
+    } else if (top.type === 'planned') {
+        _renderPlannedSession(sessionEl, top, nowMs, durationMs, _fmtDur);
+    } else if (top.type === 'free') {
+        _renderFreeSession(sessionEl, top, nowMs, durationMs, _fmtDur);
+    } else if (top.type === 'break') {
+        _renderBreakSession(sessionEl, top, nowMs, durationMs, _fmtDur);
+    }
+
+    // ── Action count (shared) ──
+    const visibleActions = state._visibleActionIds || [];
+    const countRow = document.createElement('div');
+    countRow.className = 'time-context-row time-context-action-count';
+    countRow.textContent = `📋 ${visibleActions.length} related action${visibleActions.length !== 1 ? 's' : ''}`;
+    sessionEl.appendChild(countRow);
+
+    container.appendChild(sessionEl);
+}
+
+// ── Work Session Header ──
+function _renderWorkSession(sessionEl, top, nowMs, durationMs, _fmtDur) {
+    const isLive = top.type === 'working';
+
+    // Icon + label
+    const headerRow = document.createElement('div');
+    headerRow.className = 'time-context-row time-context-session-header';
+    const icon = document.createElement('span');
+    icon.className = 'time-context-session-icon';
+    icon.textContent = isLive ? '🔥' : '🔥';
+    const label = document.createElement('span');
+    label.className = 'time-context-session-label';
+    label.textContent = top.label;
+    headerRow.appendChild(icon);
+    headerRow.appendChild(label);
+    sessionEl.appendChild(headerRow);
+
+    // Project breadcrumb
+    if (top.projectName) {
+        const breadcrumb = document.createElement('div');
+        breadcrumb.className = 'time-context-row session-breadcrumb';
+        breadcrumb.textContent = top.projectName;
+        sessionEl.appendChild(breadcrumb);
+    }
+
+    // Time range
+    const metaRow = document.createElement('div');
+    metaRow.className = 'time-context-row time-context-meta';
+    const targetEnd = top.targetEndTime || (isLive && state.workingOn ? state.workingOn.targetEndTime : null);
+    if (isLive && targetEnd) {
+        metaRow.textContent = `${formatTime(top.startMs)} → ${formatTime(targetEnd)}`;
+    } else {
+        metaRow.textContent = `${formatTime(top.startMs)} – ${formatTime(top.endMs)}`;
+    }
+    sessionEl.appendChild(metaRow);
+
+    // Live timer display
+    if (isLive) {
+        const timerRow = document.createElement('div');
+        timerRow.className = 'time-context-row session-timer-row';
+
+        const elapsed = Math.max(0, nowMs - top.startMs);
+        const timerEl = document.createElement('span');
+        timerEl.className = 'session-timer';
+        timerEl.dataset.sessionStart = top.startMs;
+
+        if (targetEnd) {
+            const remainMs = targetEnd - nowMs;
+            timerEl.dataset.targetEnd = targetEnd;
+            if (remainMs > 0) {
+                timerEl.textContent = _fmtDur(remainMs) + ' left';
+                timerEl.classList.add('session-timer-remaining');
+            } else {
+                timerEl.textContent = '+' + _fmtDur(Math.abs(remainMs)) + ' over';
+                timerEl.classList.add('session-timer-overtime');
+            }
+        } else {
+            timerEl.textContent = _fmtDur(elapsed);
+            timerEl.classList.add('session-timer-elapsed');
+        }
+        timerRow.appendChild(timerEl);
+        sessionEl.appendChild(timerRow);
+
+        // Progress bar
+        if (targetEnd) {
+            const total = targetEnd - top.startMs;
+            const pct = total > 0 ? Math.min(100, (elapsed / total) * 100) : 0;
+            const progressRow = document.createElement('div');
+            progressRow.className = 'time-context-row time-context-progress-row';
+            const progressWrap = document.createElement('div');
+            progressWrap.className = 'time-context-progress';
+            const progressFill = document.createElement('div');
+            progressFill.className = 'time-context-progress-fill';
+            if (pct >= 100) progressFill.classList.add('over');
+            progressFill.style.width = `${Math.min(pct, 100)}%`;
+            progressWrap.appendChild(progressFill);
+            const progressLabel = document.createElement('span');
+            progressLabel.className = 'time-context-progress-label';
+            progressLabel.textContent = `${Math.round(pct)}%`;
+            progressRow.appendChild(progressWrap);
+            progressRow.appendChild(progressLabel);
+            sessionEl.appendChild(progressRow);
         }
 
-        // Icon
-        const icon = document.createElement('span');
-        icon.className = 'session-nav-icon';
-        icon.textContent = session.icon;
-
-        // Label
-        const label = document.createElement('span');
-        label.className = 'session-nav-label';
-        label.textContent = session.label;
-
-        // Time range
-        const time = document.createElement('span');
-        time.className = 'session-nav-time';
-        time.textContent = `${formatTime(session.startMs)} – ${formatTime(session.endMs)}`;
-
-        // Duration
-        const durationMs = session.endMs - session.startMs;
-        const hrs = Math.floor(durationMs / 3600000);
-        const mins = Math.floor((durationMs % 3600000) / 60000);
-        const dur = document.createElement('span');
-        dur.className = 'session-nav-dur';
-        dur.textContent = hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
-
-        row.appendChild(icon);
-        row.appendChild(label);
-        row.appendChild(time);
-        row.appendChild(dur);
-
-        row.addEventListener('click', () => {
-            // Toggle: clicking the same session unfocuses
-            if (state.focusedSession &&
-                state.focusedSession.startMs === session.startMs &&
-                state.focusedSession.endMs === session.endMs) {
-                state.focusedSession = null;
-            } else {
-                state.focusedSession = { ...session };
-            }
-            renderAll();
+        // Stop button
+        const ctaRow = document.createElement('div');
+        ctaRow.className = 'time-context-row session-cta-row';
+        const stopBtn = document.createElement('button');
+        stopBtn.className = 'session-cta session-cta-stop';
+        stopBtn.textContent = '⏹ Stop';
+        stopBtn.addEventListener('click', async () => {
+            state.focusStack = [];
+            await stopWorking();
         });
+        ctaRow.appendChild(stopBtn);
+        sessionEl.appendChild(ctaRow);
+    } else {
+        // Past work: just show duration
+        const durRow = document.createElement('div');
+        durRow.className = 'time-context-row session-timer-row';
+        const durEl = document.createElement('span');
+        durEl.className = 'session-timer session-timer-elapsed';
+        durEl.textContent = _fmtDur(durationMs);
+        durRow.appendChild(durEl);
+        sessionEl.appendChild(durRow);
+    }
+}
 
-        container.appendChild(row);
+// ── Planned Session Header ──
+function _renderPlannedSession(sessionEl, top, nowMs, durationMs, _fmtDur) {
+    // Icon + label
+    const headerRow = document.createElement('div');
+    headerRow.className = 'time-context-row time-context-session-header';
+    const icon = document.createElement('span');
+    icon.className = 'time-context-session-icon';
+    icon.textContent = '📌';
+    const label = document.createElement('span');
+    label.className = 'time-context-session-label';
+    label.textContent = top.label;
+    headerRow.appendChild(icon);
+    headerRow.appendChild(label);
+    sessionEl.appendChild(headerRow);
+
+    // Project breadcrumb
+    if (top.projectName) {
+        const breadcrumb = document.createElement('div');
+        breadcrumb.className = 'time-context-row session-breadcrumb';
+        breadcrumb.textContent = top.projectName;
+        sessionEl.appendChild(breadcrumb);
+    }
+
+    // Time range + duration
+    const metaRow = document.createElement('div');
+    metaRow.className = 'time-context-row time-context-meta';
+    metaRow.textContent = `${formatTime(top.startMs)} – ${formatTime(top.endMs)}  ·  ${_fmtDur(durationMs)}`;
+    sessionEl.appendChild(metaRow);
+
+    // Relative time: "Starts in X" / "Started X ago" / "Ended X ago"
+    const relRow = document.createElement('div');
+    relRow.className = 'time-context-row session-relative-time';
+    if (nowMs < top.startMs) {
+        relRow.textContent = `⏳ Starts in ${_fmtDur(top.startMs - nowMs)}`;
+    } else if (nowMs >= top.startMs && nowMs < top.endMs) {
+        relRow.textContent = `▶ Started ${_fmtDur(nowMs - top.startMs)} ago`;
+    } else {
+        relRow.textContent = `✓ Ended ${_fmtDur(nowMs - top.endMs)} ago`;
+    }
+    sessionEl.appendChild(relRow);
+
+    // Intention count — items linked to this planned session via @entry:ID context
+    if (top.entryId) {
+        const currentDateKey = getDateKey(state.timelineViewDate);
+        const entryCtx = `${currentDateKey}@entry:${top.entryId}`;
+        const allItems = collectAllItems(state.items.items);
+        const intentionCount = allItems.filter(item =>
+            item.timeContexts && item.timeContexts.includes(entryCtx)
+        ).length;
+        if (intentionCount > 0) {
+            const intentRow = document.createElement('div');
+            intentRow.className = 'time-context-row session-unsched-count';
+            intentRow.textContent = `📋 ${intentionCount} intention${intentionCount !== 1 ? 's' : ''} planned`;
+            sessionEl.appendChild(intentRow);
+        }
+    }
+
+    // CTA row
+    const ctaRow = document.createElement('div');
+    ctaRow.className = 'time-context-row session-cta-row';
+
+    // Start Working CTA (if plan hasn't passed yet and has an item)
+    if (top.itemId && nowMs < top.endMs) {
+        const startBtn = document.createElement('button');
+        startBtn.className = 'session-cta session-cta-start';
+        startBtn.textContent = '▶ Start Working';
+        startBtn.addEventListener('click', async () => {
+            await startWorking(top.itemId, top.label, top.projectName, top.endMs);
+        });
+        ctaRow.appendChild(startBtn);
+    }
+
+    // Plan an action CTA
+    const planBtn = document.createElement('button');
+    planBtn.className = 'session-cta session-cta-plan';
+    planBtn.textContent = '+ Plan an action';
+    planBtn.addEventListener('click', () => {
+        // Find the planned block in the timeline to anchor the plan editor
+        const plannedBlock = top.entryId
+            ? document.querySelector(`.time-block-planned[data-id="${top.entryId}"]`)
+            : null;
+        openPlanEditor(plannedBlock || document.querySelector('.time-context-view'), top.startMs, top.endMs, null, top.entryId, top.itemId);
+    });
+    ctaRow.appendChild(planBtn);
+    sessionEl.appendChild(ctaRow);
+}
+
+// ── Free Time Session Header ──
+function _renderFreeSession(sessionEl, top, nowMs, durationMs, _fmtDur) {
+    // Icon + label
+    const headerRow = document.createElement('div');
+    headerRow.className = 'time-context-row time-context-session-header';
+    const icon = document.createElement('span');
+    icon.className = 'time-context-session-icon';
+    icon.textContent = '✨';
+    const label = document.createElement('span');
+    label.className = 'time-context-session-label';
+    label.textContent = 'Free Time';
+    headerRow.appendChild(icon);
+    headerRow.appendChild(label);
+    sessionEl.appendChild(headerRow);
+
+    // Time range
+    const metaRow = document.createElement('div');
+    metaRow.className = 'time-context-row time-context-meta';
+    metaRow.textContent = `${formatTime(top.startMs)} – ${formatTime(top.endMs)}`;
+    sessionEl.appendChild(metaRow);
+
+    // Available duration (counts down from now if inside the block)
+    const availMs = Math.max(0, top.endMs - Math.max(nowMs, top.startMs));
+    const availRow = document.createElement('div');
+    availRow.className = 'time-context-row session-avail-duration';
+    availRow.dataset.endMs = top.endMs;
+    availRow.textContent = `⏱ ${_fmtDur(availMs)} available`;
+    sessionEl.appendChild(availRow);
+
+    // Next up: find the next block after this free time
+    const { dayEnd } = getDayBoundaries(state.timelineViewDate);
+    const allEntries = state.timeline.entries
+        .filter(e => e.endTime && (e.type === 'work' || e.type === 'break' || e.type === 'planned'))
+        .sort((a, b) => a.timestamp - b.timestamp);
+    const nextBlock = allEntries.find(e => e.timestamp >= top.endMs);
+    if (nextBlock) {
+        const nextRow = document.createElement('div');
+        nextRow.className = 'time-context-row session-next-up';
+        const nextLabel = nextBlock.text || (nextBlock.type === 'break' ? 'Break' : 'Block');
+        nextRow.textContent = `Next: ${nextLabel} at ${formatTime(nextBlock.timestamp)}`;
+        sessionEl.appendChild(nextRow);
+    } else {
+        // Day end is next
+        const nextRow = document.createElement('div');
+        nextRow.className = 'time-context-row session-next-up';
+        nextRow.textContent = `Next: Day End at ${formatTime(dayEnd.getTime())}`;
+        sessionEl.appendChild(nextRow);
+    }
+
+    // Unscheduled action count — use the same logic as the day timeline
+    const currentDateKey = getDateKey(state.timelineViewDate);
+    let allLeaves = collectLeaves();
+    if (!state.showDone) allLeaves = allLeaves.filter(a => !a.done);
+    // Filter to items matching this day's time context (same as getFilteredActions)
+    allLeaves = allLeaves.filter(a => itemMatchesTimeContext(a, currentDateKey));
+    // Only unscheduled items
+    const unscheduledCount = allLeaves.filter(a => isItemUnscheduled(a)).length;
+
+    if (unscheduledCount > 0) {
+        const unschedRow = document.createElement('div');
+        unschedRow.className = 'time-context-row session-unsched-count';
+        unschedRow.textContent = `📋 ${unscheduledCount} unscheduled action${unscheduledCount !== 1 ? 's' : ''} available`;
+        sessionEl.appendChild(unschedRow);
+    }
+
+    // Plan button
+    const ctaRow = document.createElement('div');
+    ctaRow.className = 'time-context-row session-cta-row';
+    const planBtn = document.createElement('button');
+    planBtn.className = 'session-cta session-cta-plan';
+    planBtn.textContent = '+ Plan an action';
+    planBtn.addEventListener('click', () => {
+        // Find the free time block in the timeline to anchor the plan editor
+        const freeBlock = document.querySelector(`.time-block-free[data-start-time="${top.startMs}"]`);
+        openPlanEditor(freeBlock || null, top.startMs, top.endMs);
+    });
+    ctaRow.appendChild(planBtn);
+    sessionEl.appendChild(ctaRow);
+}
+
+// ── Break Session Header ──
+function _renderBreakSession(sessionEl, top, nowMs, durationMs, _fmtDur) {
+    const isLive = !!state.onBreak;
+
+    // Icon + label
+    const headerRow = document.createElement('div');
+    headerRow.className = 'time-context-row time-context-session-header';
+    const icon = document.createElement('span');
+    icon.className = 'time-context-session-icon';
+    icon.textContent = '☕';
+    const label = document.createElement('span');
+    label.className = 'time-context-session-label';
+    label.textContent = top.label || 'Break';
+    headerRow.appendChild(icon);
+    headerRow.appendChild(label);
+    sessionEl.appendChild(headerRow);
+
+    // Time range
+    const metaRow = document.createElement('div');
+    metaRow.className = 'time-context-row time-context-meta';
+    const targetEnd = top.targetEndTime || (isLive && state.onBreak ? state.onBreak.targetEndTime : null);
+    if (isLive && targetEnd) {
+        metaRow.textContent = `${formatTime(top.startMs)} → ${formatTime(targetEnd)}`;
+    } else {
+        metaRow.textContent = `${formatTime(top.startMs)} – ${formatTime(top.endMs)}`;
+    }
+    sessionEl.appendChild(metaRow);
+
+    // Live timer
+    if (isLive) {
+        const timerRow = document.createElement('div');
+        timerRow.className = 'time-context-row session-timer-row';
+
+        const elapsed = Math.max(0, nowMs - top.startMs);
+        const timerEl = document.createElement('span');
+        timerEl.className = 'session-timer session-timer-break';
+        timerEl.dataset.sessionStart = top.startMs;
+
+        if (targetEnd) {
+            const remainMs = targetEnd - nowMs;
+            timerEl.dataset.targetEnd = targetEnd;
+            if (remainMs > 0) {
+                timerEl.textContent = _fmtDur(remainMs) + ' left';
+                timerEl.classList.add('session-timer-remaining');
+            } else {
+                timerEl.textContent = '+' + _fmtDur(Math.abs(remainMs)) + ' over';
+                timerEl.classList.add('session-timer-overtime');
+            }
+        } else {
+            timerEl.textContent = _fmtDur(elapsed);
+            timerEl.classList.add('session-timer-elapsed');
+        }
+        timerRow.appendChild(timerEl);
+        sessionEl.appendChild(timerRow);
+
+        // Progress bar (if timed)
+        if (targetEnd) {
+            const total = targetEnd - top.startMs;
+            const pct = total > 0 ? Math.min(100, (elapsed / total) * 100) : 0;
+            const progressRow = document.createElement('div');
+            progressRow.className = 'time-context-row time-context-progress-row';
+            const progressWrap = document.createElement('div');
+            progressWrap.className = 'time-context-progress';
+            const progressFill = document.createElement('div');
+            progressFill.className = 'time-context-progress-fill session-progress-break';
+            if (pct >= 100) progressFill.classList.add('over');
+            progressFill.style.width = `${Math.min(pct, 100)}%`;
+            progressWrap.appendChild(progressFill);
+            const progressLabel = document.createElement('span');
+            progressLabel.className = 'time-context-progress-label';
+            progressLabel.textContent = `${Math.round(pct)}%`;
+            progressRow.appendChild(progressWrap);
+            progressRow.appendChild(progressLabel);
+            sessionEl.appendChild(progressRow);
+        }
+
+        // End Break button
+        const ctaRow = document.createElement('div');
+        ctaRow.className = 'time-context-row session-cta-row';
+        const stopBtn = document.createElement('button');
+        stopBtn.className = 'session-cta session-cta-endbreak';
+        stopBtn.textContent = '⏹ End Break';
+        stopBtn.addEventListener('click', async () => {
+            state.focusStack = [];
+            await stopBreak();
+        });
+        ctaRow.appendChild(stopBtn);
+        sessionEl.appendChild(ctaRow);
+    } else {
+        // Past break: just show duration
+        const durRow = document.createElement('div');
+        durRow.className = 'time-context-row session-timer-row';
+        const durEl = document.createElement('span');
+        durEl.className = 'session-timer session-timer-break session-timer-elapsed';
+        durEl.textContent = _fmtDur(durationMs);
+        durRow.appendChild(durEl);
+        sessionEl.appendChild(durRow);
     }
 }
 
 function renderTimeline() {
     const container = document.getElementById('timeline-list');
+    const savedScrollTop = container.scrollTop;
     const empty = document.getElementById('timeline-empty');
+    const quickLog = document.querySelector('.quick-log');
 
     // Clear all rendered blocks (including breadcrumb)
-    container.querySelectorAll('.time-block, .timeline-entry, .session-breadcrumb').forEach(el => el.remove());
+    container.querySelectorAll('.time-block, .timeline-entry, .someday-placeholder').forEach(el => el.remove());
+
+    // ── Someday horizon: replace timeline with placeholder ──
+    if (state.viewHorizon === 'someday') {
+        empty.style.display = 'none';
+        if (quickLog) quickLog.style.display = 'none';
+        const placeholder = document.createElement('div');
+        placeholder.className = 'someday-placeholder';
+        placeholder.innerHTML = `
+            <span class="someday-placeholder-icon">📦</span>
+            <span class="someday-placeholder-text">Items without a specific date</span>
+            <a class="someday-placeholder-link" href="#">Back to today →</a>
+        `;
+        placeholder.querySelector('.someday-placeholder-link').addEventListener('click', (e) => {
+            e.preventDefault();
+            state.viewHorizon = 'day';
+            savePref('viewHorizon', 'day');
+            renderAll();
+        });
+        container.appendChild(placeholder);
+        return;
+    }
+
+    // Restore quick-log visibility when not in someday
+    if (quickLog) quickLog.style.display = '';
 
     // Always hide empty — we always show at least Day Start/End
     empty.style.display = 'none';
@@ -3394,18 +4016,10 @@ function renderTimeline() {
         fragment.appendChild(createDayBoundaryBlock('day-end', dayEnd, now));
     }
 
-    // ── Session focus: if focused, apply breadcrumb + filter ──
-    if (state.focusedSession) {
-        const fs = state.focusedSession;
-        // Insert breadcrumb at top
-        const crumb = document.createElement('div');
-        crumb.className = 'session-breadcrumb';
-        crumb.innerHTML = `<span class="session-breadcrumb-arrow">↑</span> Back to Day`;
-        crumb.addEventListener('click', () => {
-            state.focusedSession = null;
-            renderAll();
-        });
-        container.appendChild(crumb);
+    // ── Session focus: if focused, filter timeline to session time range ──
+    const focusedSession = state.focusStack.length > 0 ? state.focusStack[state.focusStack.length - 1] : null;
+    if (focusedSession) {
+        const fs = focusedSession;
 
         // Filter fragment children to only those within session boundaries
         const filtered = document.createDocumentFragment();
@@ -3429,6 +4043,9 @@ function renderTimeline() {
         container.appendChild(fragment);
     }
 
+    // Restore scroll position after rebuild
+    container.scrollTop = savedScrollTop;
+
     // Update date nav display
     updateDateNav();
 }
@@ -3441,9 +4058,13 @@ function isSameDay(a, b) {
 
 function createFreeTimeBlock(startMs, endMs) {
     const el = document.createElement('div');
-    el.className = 'time-block time-block-free';
+    el.className = 'time-block time-block-free focusable-block';
     el.dataset.startTime = startMs;
     el.dataset.endTime = endMs;
+    el.style.cursor = 'pointer';
+    el.addEventListener('click', () => toggleSessionFocus({
+        startMs, endMs, label: 'Free Time', type: 'free', icon: '✨'
+    }));
 
     const durationMs = endMs - startMs;
     const hrs = Math.floor(durationMs / 3600000);
@@ -3548,7 +4169,7 @@ function createFreeTimeBlock(startMs, endMs) {
     // ── Nested segment-assigned items ──
     const dateKey = getDateKey(state.timelineViewDate);
     const segCtx = buildSegmentContext(dateKey, startMs, endMs);
-    const allItems = collectLeaves();
+    const allItems = collectAllItems();
     const assignedItems = allItems.filter(a => {
         const item = findItemById(a.id);
         if (!item || !item.timeContexts) return false;
@@ -3741,7 +4362,7 @@ function createFreeTimeBlock(startMs, endMs) {
 
 // ── Plan Next: inline editor ──
 
-function openPlanEditor(freeBlock, freeStartMs, freeEndMs, preselectedAction = null) {
+function openPlanEditor(freeBlock, freeStartMs, freeEndMs, preselectedAction = null, parentEntryId = null, scopeItemId = null) {
     // Close any existing editor
     document.querySelectorAll('.plan-editor').forEach(ed => ed.remove());
 
@@ -3801,7 +4422,7 @@ function openPlanEditor(freeBlock, freeStartMs, freeEndMs, preselectedAction = n
     const actionInput = document.createElement('input');
     actionInput.type = 'text';
     actionInput.className = 'plan-editor-input';
-    actionInput.placeholder = 'Search for an action…';
+    actionInput.placeholder = 'Action or session title…';
 
     const suggestions = document.createElement('div');
     suggestions.className = 'plan-editor-suggestions';
@@ -3885,7 +4506,7 @@ function openPlanEditor(freeBlock, freeStartMs, freeEndMs, preselectedAction = n
     }
 
     // ── Autocomplete logic ──
-    const autocomplete = setupAutocomplete(actionInput, suggestions);
+    const autocomplete = setupAutocomplete(actionInput, suggestions, { scopeItemId });
     if (preselectedAction) {
         autocomplete.setSelected(preselectedAction);
     }
@@ -3954,10 +4575,32 @@ function openPlanEditor(freeBlock, freeStartMs, freeEndMs, preselectedAction = n
 
     saveBtn.addEventListener('click', async () => {
         const selectedAction = autocomplete.getSelected();
+        const customTitle = actionInput.value.trim();
+
+        // If no action selected: create a container session (or require input)
         if (!selectedAction) {
-            actionInput.focus();
-            actionInput.classList.add('plan-editor-input-error');
-            setTimeout(() => actionInput.classList.remove('plan-editor-input-error'), 600);
+            if (!customTitle) {
+                actionInput.focus();
+                actionInput.classList.add('plan-editor-input-error');
+                setTimeout(() => actionInput.classList.remove('plan-editor-input-error'), 600);
+                return;
+            }
+            // Container session: planned entry with no itemId
+            const entry = await api.post('/timeline', {
+                text: customTitle,
+                projectName: null,
+                type: 'planned',
+                startTime: planStartMs,
+                endTime: planEndMs,
+                itemId: null,
+            });
+            state.timeline.entries.push(entry);
+
+            // If created inside a parent session, link via entry context
+            // (container sessions don't get entry contexts themselves — they ARE a context)
+
+            renderTimeline();
+            renderActions();
             return;
         }
 
@@ -3983,9 +4626,10 @@ function openPlanEditor(freeBlock, freeStartMs, freeEndMs, preselectedAction = n
             await api.patch(`/items/${selectedAction.id}`, { estimatedDuration: durationMins });
         }
 
-        // Add entry-level context (subsumes date context)
+        // Link to parent session if creating inside one, otherwise link to own entry
+        const linkEntryId = parentEntryId || entry.id;
         const dateKey = getDateKey(state.timelineViewDate);
-        await addSegmentContext(selectedAction.id, `${dateKey}@entry:${entry.id}`);
+        await addSegmentContext(selectedAction.id, `${dateKey}@entry:${linkEntryId}`);
 
         renderTimeline();
         renderActions();
@@ -4288,8 +4932,17 @@ function openIdleWorkEditor(idleBlock, idleStartMs, idleEndMs) {
 
 function createWorkingTimeBlock(startMs, endMs) {
     const el = document.createElement('div');
-    el.className = 'time-block time-block-working';
+    el.className = 'time-block time-block-working focusable-block';
     el.dataset.startTime = startMs;
+    el.dataset.endTime = endMs;
+    el.style.cursor = 'pointer';
+    const itemName = state.workingOn ? state.workingOn.itemName : 'Working';
+    el.addEventListener('click', () => toggleSessionFocus({
+        startMs, endMs, label: itemName, type: 'working', icon: '⚡',
+        projectName: state.workingOn ? state.workingOn.projectName : null,
+        itemId: state.workingOn ? state.workingOn.itemId : null,
+        targetEndTime: targetEnd,
+    }));
 
     const targetEnd = state.workingOn ? state.workingOn.targetEndTime : null;
     if (targetEnd) el.dataset.targetEndTime = targetEnd;
@@ -4379,8 +5032,14 @@ function createWorkingTimeBlock(startMs, endMs) {
 }
 function createBreakTimeBlock(startMs, endMs) {
     const el = document.createElement('div');
-    el.className = 'time-block time-block-break';
+    el.className = 'time-block time-block-break focusable-block';
     el.dataset.startTime = startMs;
+    el.dataset.endTime = endMs;
+    el.style.cursor = 'pointer';
+    el.addEventListener('click', () => toggleSessionFocus({
+        startMs, endMs, label: 'Break', type: 'break', icon: '☕',
+        targetEndTime: targetEnd,
+    }));
 
     const targetEnd = state.onBreak ? state.onBreak.targetEndTime : null;
     if (targetEnd) el.dataset.targetEndTime = targetEnd;
@@ -4465,6 +5124,64 @@ let idleUpdateInterval = null;
 function startIdleUpdater() {
     if (idleUpdateInterval) clearInterval(idleUpdateInterval);
     idleUpdateInterval = setInterval(() => {
+        // ── Update session header timer (if focused) ──
+        const sessionTimer = document.querySelector('.session-timer');
+        if (sessionTimer) {
+            const sStart = parseInt(sessionTimer.dataset.sessionStart, 10);
+            const sTarget = sessionTimer.dataset.targetEnd ? parseInt(sessionTimer.dataset.targetEnd, 10) : null;
+            const sNow = Date.now();
+            const _fmt = (ms) => {
+                const h = Math.floor(ms / 3600000);
+                const m = Math.floor((ms % 3600000) / 60000);
+                const s = Math.floor((ms % 60000) / 1000);
+                if (h > 0) return `${h}h ${m}m`;
+                if (m > 0) return `${m}m ${s}s`;
+                return `${s}s`;
+            };
+            if (sTarget) {
+                const rem = sTarget - sNow;
+                if (rem > 0) {
+                    sessionTimer.textContent = _fmt(rem) + ' left';
+                    sessionTimer.classList.remove('session-timer-overtime');
+                    sessionTimer.classList.add('session-timer-remaining');
+                } else {
+                    sessionTimer.textContent = '+' + _fmt(Math.abs(rem)) + ' over';
+                    sessionTimer.classList.remove('session-timer-remaining');
+                    sessionTimer.classList.add('session-timer-overtime');
+                }
+                // Also update progress bar
+                const progressFill = document.querySelector('.time-context-progress-fill');
+                const progressLabel = document.querySelector('.time-context-progress-label');
+                if (progressFill && progressLabel) {
+                    const total = sTarget - sStart;
+                    const elapsed = sNow - sStart;
+                    const pct = total > 0 ? Math.min(100, (elapsed / total) * 100) : 0;
+                    progressFill.style.width = `${Math.min(pct, 100)}%`;
+                    if (pct >= 100) progressFill.classList.add('over');
+                    progressLabel.textContent = `${Math.round(pct)}%`;
+                }
+            } else {
+                sessionTimer.textContent = _fmt(sNow - sStart);
+            }
+        }
+
+        // ── Update free time available duration (if focused) ──
+        const freeAvail = document.querySelector('.session-avail-duration[data-end-ms]');
+        if (freeAvail) {
+            const endMs = parseInt(freeAvail.dataset.endMs, 10);
+            const fNow = Date.now();
+            const remaining = Math.max(0, endMs - fNow);
+            const _fmtFree = (ms) => {
+                const h = Math.floor(ms / 3600000);
+                const m = Math.floor((ms % 3600000) / 60000);
+                const s = Math.floor((ms % 60000) / 1000);
+                if (h > 0) return `${h}h ${m}m`;
+                if (m > 0) return `${m}m ${s}s`;
+                return `${s}s`;
+            };
+            freeAvail.textContent = `⏱ ${_fmtFree(remaining)} available`;
+        }
+
         // Update working block if present
         const workingBlock = document.querySelector('.time-block-working');
         if (workingBlock) {
@@ -4778,10 +5495,20 @@ function createTimelineElement(entry) {
 // ── Past Work Entry: renders as a time block (like the live "working" block) ──
 function createWorkEntryBlock(entry) {
     const el = document.createElement('div');
-    el.className = 'time-block time-block-work-entry time-block-past';
+    el.className = 'time-block time-block-work-entry time-block-past focusable-block';
     el.dataset.id = entry.id;
+    el.dataset.startTime = entry.timestamp;
+    el.dataset.endTime = entry.endTime;
     el.style.cursor = 'pointer';
-    el.addEventListener('click', () => openEntryEditor(entry, el));
+    let labelText = entry.text || '';
+    if (labelText.startsWith('Worked on: ')) labelText = labelText.slice(11);
+    labelText = labelText.replace(/\s*\(\d+[hm]\s*\d*[m]?\)\s*$/, '');
+    el.addEventListener('click', () => toggleSessionFocus({
+        startMs: entry.timestamp, endMs: entry.endTime,
+        label: labelText || 'Work', type: 'work', icon: '🔥',
+        projectName: entry.projectName || null,
+        itemId: entry.itemId || null,
+    }));
 
     const durationMs = (entry.endTime || entry.timestamp) - entry.timestamp;
     const hrs = Math.floor(durationMs / 3600000);
@@ -4798,10 +5525,6 @@ function createWorkEntryBlock(entry) {
 
     const label = document.createElement('div');
     label.className = 'time-block-label';
-    // Strip "Worked on: " prefix and duration suffix for cleaner display
-    let labelText = entry.text || '';
-    if (labelText.startsWith('Worked on: ')) labelText = labelText.slice(11);
-    labelText = labelText.replace(/\s*\(\d+[hm]\s*\d*[m]?\)\s*$/, '');
     label.textContent = labelText;
 
     const time = document.createElement('div');
@@ -4824,6 +5547,16 @@ function createWorkEntryBlock(entry) {
         content.appendChild(tag);
     }
 
+    // Edit button (replaces click-to-edit)
+    const editBtn = document.createElement('button');
+    editBtn.className = 'time-block-edit-btn';
+    editBtn.textContent = '✏️';
+    editBtn.title = 'Edit entry';
+    editBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openEntryEditor(entry, el);
+    });
+
     // Delete button
     const delBtn = document.createElement('button');
     delBtn.className = 'plan-delete-btn';
@@ -4839,6 +5572,7 @@ function createWorkEntryBlock(entry) {
 
     el.appendChild(icon);
     el.appendChild(content);
+    el.appendChild(editBtn);
     el.appendChild(delBtn);
 
     return el;
@@ -4847,10 +5581,17 @@ function createWorkEntryBlock(entry) {
 // ── Past Break Entry: renders as a time block (like the live "break" block) ──
 function createBreakEntryBlock(entry) {
     const el = document.createElement('div');
-    el.className = 'time-block time-block-break-entry time-block-past';
+    el.className = 'time-block time-block-break-entry time-block-past focusable-block';
     el.dataset.id = entry.id;
+    el.dataset.startTime = entry.timestamp;
+    el.dataset.endTime = entry.endTime;
     el.style.cursor = 'pointer';
-    el.addEventListener('click', () => openEntryEditor(entry, el));
+    let breakLabelText = entry.text;
+    breakLabelText = breakLabelText.replace(/\s*\(\d+[hm]\s*\d*[m]?\)\s*$/, '');
+    el.addEventListener('click', () => toggleSessionFocus({
+        startMs: entry.timestamp, endMs: entry.endTime,
+        label: breakLabelText || 'Break', type: 'break', icon: '☕',
+    }));
 
     const durationMs = (entry.endTime || entry.timestamp) - entry.timestamp;
     const hrs = Math.floor(durationMs / 3600000);
@@ -4867,10 +5608,7 @@ function createBreakEntryBlock(entry) {
 
     const label = document.createElement('div');
     label.className = 'time-block-label';
-    // Strip duration suffix for cleaner display
-    let labelText = entry.text;
-    labelText = labelText.replace(/\s*\(\d+[hm]\s*\d*[m]?\)\s*$/, '');
-    label.textContent = labelText;
+    label.textContent = breakLabelText;
 
     const time = document.createElement('div');
     time.className = 'time-block-time';
@@ -4883,6 +5621,16 @@ function createBreakEntryBlock(entry) {
     content.appendChild(label);
     content.appendChild(time);
     content.appendChild(status);
+
+    // Edit button (replaces click-to-edit)
+    const editBtn = document.createElement('button');
+    editBtn.className = 'time-block-edit-btn';
+    editBtn.textContent = '✏️';
+    editBtn.title = 'Edit entry';
+    editBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openEntryEditor(entry, el);
+    });
 
     // Delete button
     const delBtn = document.createElement('button');
@@ -4899,6 +5647,7 @@ function createBreakEntryBlock(entry) {
 
     el.appendChild(icon);
     el.appendChild(content);
+    el.appendChild(editBtn);
     el.appendChild(delBtn);
 
     return el;
@@ -4956,10 +5705,18 @@ function createMomentEntry(entry) {
 
 function createPlannedTimeBlock(entry, isGhost = false) {
     const el = document.createElement('div');
-    el.className = 'time-block time-block-planned' + (isGhost ? ' plan-ghost' : '');
+    el.className = 'time-block time-block-planned focusable-block' + (isGhost ? ' plan-ghost' : '');
     el.dataset.id = entry.id;
+    el.dataset.startTime = entry.timestamp;
+    el.dataset.endTime = entry.endTime;
     el.style.cursor = 'pointer';
-    el.addEventListener('click', () => openEntryEditor(entry, el));
+    el.addEventListener('click', () => toggleSessionFocus({
+        startMs: entry.timestamp, endMs: entry.endTime,
+        label: entry.text || 'Planned', type: 'planned', icon: '📌',
+        projectName: entry.projectName || null,
+        itemId: entry.itemId || null,
+        entryId: entry.id,
+    }));
 
     const durationMs = (entry.endTime || entry.timestamp) - entry.timestamp;
     const hrs = Math.floor(durationMs / 3600000);
@@ -5010,6 +5767,16 @@ function createPlannedTimeBlock(entry, isGhost = false) {
         await startWorking(entry.itemId, entry.text, entry.projectName, entry.endTime);
     });
 
+    // Edit button (replaces click-to-edit)
+    const editBtn = document.createElement('button');
+    editBtn.className = 'time-block-edit-btn';
+    editBtn.textContent = '✏️';
+    editBtn.title = 'Edit entry';
+    editBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openEntryEditor(entry, el);
+    });
+
     // Delete button
     const delBtn = document.createElement('button');
     delBtn.className = 'plan-delete-btn';
@@ -5023,10 +5790,202 @@ function createPlannedTimeBlock(entry, isGhost = false) {
         renderTimeline();
     });
 
+    // ── Drop target for drag-to-schedule (same as free time blocks) ──
+    const dateKey = getDateKey(state.timelineViewDate);
+    const entryCtx = `${dateKey}@entry:${entry.id}`;
+
+    // Pre-compute descendant IDs for item-bound sessions
+    let planDescendantIds = null;
+    if (entry.itemId) {
+        const planItem = findItemById(entry.itemId);
+        if (planItem) planDescendantIds = new Set(collectDescendantIds(planItem));
+    }
+
+    const _acceptsDrag = (e) =>
+        e.dataTransfer.types.includes('application/x-action-id') ||
+        e.dataTransfer.types.includes('application/x-segment-item-id');
+
+    el.addEventListener('dragover', (e) => {
+        if (!_acceptsDrag(e)) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        el.classList.add('time-block-drag-over');
+    });
+    el.addEventListener('dragenter', (e) => {
+        if (!_acceptsDrag(e)) return;
+        e.preventDefault();
+        el.classList.add('time-block-drag-over');
+    });
+    el.addEventListener('dragleave', (e) => {
+        if (e.relatedTarget && el.contains(e.relatedTarget)) return;
+        el.classList.remove('time-block-drag-over');
+    });
+    el.addEventListener('drop', (e) => {
+        if (!_acceptsDrag(e)) return;
+        e.preventDefault();
+        el.classList.remove('time-block-drag-over');
+
+        // Cross-block drag: segment/entry item moving between blocks
+        if (e.dataTransfer.types.includes('application/x-segment-item-id')) {
+            const itemId = e.dataTransfer.getData('application/x-segment-item-id');
+            const oldCtx = e.dataTransfer.getData('application/x-segment-context');
+            if (itemId && oldCtx && oldCtx !== entryCtx) {
+                // Validate descendant constraint for item-bound sessions
+                if (planDescendantIds && !planDescendantIds.has(Number(itemId))) return;
+                (async () => {
+                    await degradeSegmentContext(itemId, oldCtx);
+                    await addSegmentContext(Number(itemId), entryCtx);
+                })();
+            }
+            return;
+        }
+
+        // Normal drag from Actions panel
+        const action = window._draggedAction;
+        if (!action) return;
+        // Validate descendant constraint for item-bound sessions
+        if (planDescendantIds && !planDescendantIds.has(action.id)) return;
+        window._draggedAction = null;
+        addSegmentContext(action.id, entryCtx);
+    });
+
     el.appendChild(icon);
     el.appendChild(content);
+    el.appendChild(editBtn);
     el.appendChild(startBtn);
     el.appendChild(delBtn);
+
+    // ── Nested entry-assigned items (appended after main content) ──
+    const allItems = collectAllItems();
+    const assignedItems = allItems.filter(a => {
+        const item = findItemById(a.id);
+        if (!item || !item.timeContexts) return false;
+        return item.timeContexts.includes(entryCtx);
+    });
+
+    if (assignedItems.length > 0) {
+        const queue = document.createElement('div');
+        queue.className = 'segment-queue';
+
+        let totalEstMins = 0;
+        for (const action of assignedItems) {
+            const item = findItemById(action.id);
+            const segDur = item?.segmentDurations?.[entryCtx];
+            const estMins = segDur != null ? segDur : (item?.estimatedDuration || 0);
+            totalEstMins += estMins;
+
+            const row = document.createElement('div');
+            row.className = 'segment-queue-item';
+            row.draggable = true;
+            row.dataset.itemId = action.id;
+
+            // Drag-out: allow dragging to other blocks
+            row.addEventListener('dragstart', (e) => {
+                e.stopPropagation();
+                e.dataTransfer.setData('application/x-segment-item-id', String(action.id));
+                e.dataTransfer.setData('application/x-segment-context', entryCtx);
+                e.dataTransfer.effectAllowed = 'move';
+                row.classList.add('segment-item-dragging');
+            });
+            row.addEventListener('dragend', () => {
+                row.classList.remove('segment-item-dragging');
+            });
+
+            const bullet = document.createElement('span');
+            bullet.className = 'segment-queue-bullet';
+            bullet.textContent = '○';
+
+            const nameSpan = document.createElement('span');
+            nameSpan.className = 'segment-queue-name';
+            nameSpan.textContent = action.name;
+
+            // Clickable est badge with inline edit
+            const est = document.createElement('span');
+            est.className = 'segment-queue-est';
+            est.textContent = estMins ? `~${estMins}m` : '⏱';
+            est.title = 'Click to set duration for this assignment';
+            est.addEventListener('click', (ev) => {
+                ev.stopPropagation();
+                document.querySelectorAll('.segment-duration-popover').forEach(p => p.remove());
+                const pop = document.createElement('div');
+                pop.className = 'segment-duration-popover';
+                const input = document.createElement('input');
+                input.type = 'number';
+                input.className = 'segment-duration-input';
+                input.min = '0';
+                input.max = '480';
+                input.value = estMins || '';
+                input.placeholder = 'min';
+                const saveBtn = document.createElement('button');
+                saveBtn.className = 'segment-duration-save';
+                saveBtn.textContent = '✓';
+                saveBtn.addEventListener('click', async (se) => {
+                    se.stopPropagation();
+                    const mins = parseInt(input.value, 10) || 0;
+                    if (!item.segmentDurations) item.segmentDurations = {};
+                    item.segmentDurations[entryCtx] = mins;
+                    await api.patch(`/items/${action.id}`, { segmentDurations: item.segmentDurations });
+                    pop.remove();
+                    renderAll();
+                });
+                pop.appendChild(input);
+                pop.appendChild(saveBtn);
+                row.appendChild(pop);
+                input.focus();
+                input.select();
+                const closeHandler = (ce) => {
+                    if (!pop.contains(ce.target)) {
+                        pop.remove();
+                        document.removeEventListener('click', closeHandler, true);
+                    }
+                };
+                setTimeout(() => document.addEventListener('click', closeHandler, true), 0);
+                input.addEventListener('keydown', (ke) => {
+                    if (ke.key === 'Enter') saveBtn.click();
+                    if (ke.key === 'Escape') pop.remove();
+                });
+            });
+
+            // Start button
+            const startBtn2 = document.createElement('button');
+            startBtn2.className = 'segment-queue-start';
+            startBtn2.textContent = '▶';
+            startBtn2.title = 'Start working on this';
+            startBtn2.draggable = false;
+            startBtn2.addEventListener('click', async (ev) => {
+                ev.stopPropagation();
+                const now = Date.now();
+                const durMins = estMins || 30;
+                const targetEnd = now + durMins * 60000;
+                const ancestors = action._path
+                    ? action._path.slice(0, -1).map(p => p.name).join(' › ')
+                    : '';
+                await startWorking(action.id, action.name, ancestors || null, targetEnd);
+            });
+
+            row.appendChild(bullet);
+            row.appendChild(nameSpan);
+            row.appendChild(est);
+            row.appendChild(startBtn2);
+            queue.appendChild(row);
+        }
+
+        el.appendChild(queue);
+
+        // Capacity bar
+        const availMins = Math.floor(durationMs / 60000);
+        if (totalEstMins > 0) {
+            const capBar = document.createElement('div');
+            capBar.className = 'segment-capacity-bar';
+            const fillPct = Math.min(100, (totalEstMins / availMins) * 100);
+            const isOver = totalEstMins > availMins;
+            capBar.innerHTML = `
+                <div class="segment-capacity-fill${isOver ? ' over-capacity' : ''}" style="width:${fillPct}%"></div>
+                <span class="segment-capacity-label">${totalEstMins}m / ${availMins}m</span>
+            `;
+            el.appendChild(capBar);
+        }
+    }
 
     return el;
 }
@@ -5039,6 +5998,7 @@ function openEntryEditor(entry, blockEl) {
 
     let planStartMs = entry.timestamp;
     let planEndMs = entry.endTime || entry.timestamp;
+    const originalDateKey = getDateKey(new Date(entry.timestamp));
     // For work/planned entries, try to find the matching item for preselection
     let preselectedAction = null;
     if (entry.itemId) {
@@ -5150,6 +6110,22 @@ function openEntryEditor(entry, blockEl) {
     timeRow.appendChild(durationInput);
     timeRow.appendChild(durationLabel);
 
+    // Row 2b: Date input for rescheduling to another day
+    const dateRow = document.createElement('div');
+    dateRow.className = 'plan-editor-row plan-editor-date-row';
+
+    const dateLabel = document.createElement('span');
+    dateLabel.className = 'plan-editor-date-label';
+    dateLabel.textContent = 'Date:';
+
+    const dateInput = document.createElement('input');
+    dateInput.type = 'date';
+    dateInput.className = 'plan-editor-date-input';
+    dateInput.value = originalDateKey;
+
+    dateRow.appendChild(dateLabel);
+    dateRow.appendChild(dateInput);
+
     // Row 3: Action buttons
     const actionsRow = document.createElement('div');
     actionsRow.className = 'plan-editor-row plan-editor-actions';
@@ -5178,6 +6154,7 @@ function openEntryEditor(entry, blockEl) {
 
     editorContent.appendChild(actionRow);
     editorContent.appendChild(timeRow);
+    editorContent.appendChild(dateRow);
     editorContent.appendChild(actionsRow);
 
     editor.appendChild(editorIcon);
@@ -5269,6 +6246,20 @@ function openEntryEditor(entry, blockEl) {
             return;
         }
 
+        // ── Handle date change: shift timestamps to the new date ──
+        const newDateKey = dateInput.value;
+        const dateChanged = newDateKey && newDateKey !== originalDateKey;
+        if (dateChanged) {
+            // Compute day delta from the date keys
+            const [oy, om, od] = originalDateKey.split('-').map(Number);
+            const [ny, nm, nd] = newDateKey.split('-').map(Number);
+            const oldDateMidnight = new Date(oy, om - 1, od).getTime();
+            const newDateMidnight = new Date(ny, nm - 1, nd).getTime();
+            const dayDeltaMs = newDateMidnight - oldDateMidnight;
+            planStartMs += dayDeltaMs;
+            planEndMs += dayDeltaMs;
+        }
+
         // Build the update payload
         const updates = {
             startTime: planStartMs,
@@ -5319,13 +6310,47 @@ function openEntryEditor(entry, blockEl) {
 
         await api.patch(`/timeline/${entry.id}`, updates);
 
-        // Update the local state
-        const localEntry = state.timeline.entries.find(e => e.id === entry.id);
-        if (localEntry) {
-            Object.assign(localEntry, updates);
+        // Re-fetch timeline from server so new timestamps are reflected
+        state.timeline = await api.get('/timeline');
+
+        // ── Update linked item's timeContexts when date changed ──
+        if (dateChanged) {
+            const itemId = updates.itemId || entry.itemId;
+            if (itemId) {
+                const item = findItemById(itemId);
+                if (item) {
+                    if (!item.timeContexts) item.timeContexts = [];
+                    // Remove old date and any segment/entry contexts for the old date
+                    item.timeContexts = item.timeContexts.filter(tc =>
+                        tc !== originalDateKey && !tc.startsWith(originalDateKey + '@'));
+                    // Add the new entry-specific context (date@entry:ID)
+                    const newEntryCtx = `${newDateKey}@entry:${entry.id}`;
+                    if (!item.timeContexts.includes(newEntryCtx)) {
+                        item.timeContexts.push(newEntryCtx);
+                    }
+                    // Remove 'someday' if present — we're scheduling to a specific date
+                    item.timeContexts = item.timeContexts.filter(tc => tc !== 'someday');
+                    // Migrate segmentDurations keys from old date to new date
+                    if (item.segmentDurations) {
+                        const newDurations = {};
+                        for (const [key, val] of Object.entries(item.segmentDurations)) {
+                            if (key.startsWith(originalDateKey + '@')) {
+                                const suffix = key.substring(originalDateKey.length);
+                                newDurations[newDateKey + suffix] = val;
+                            } else {
+                                newDurations[key] = val;
+                            }
+                        }
+                        item.segmentDurations = newDurations;
+                    }
+                    const patch = { timeContexts: item.timeContexts };
+                    if (item.segmentDurations) patch.segmentDurations = item.segmentDurations;
+                    await api.patch(`/items/${itemId}`, patch);
+                }
+            }
         }
 
-        renderTimeline();
+        renderAll();
     });
 }
 
@@ -5371,7 +6396,136 @@ function updateDateNav() {
 
 // ─── Context Labels ───
 function updateContextLabels() {
-    // No-op: context label removed from UI
+    const container = document.getElementById('actions-breadcrumbs');
+    if (!container) return;
+    container.innerHTML = '';
+
+    // ── What axis (left): project tree position ──
+    const whatRow = document.createElement('div');
+    whatRow.className = 'breadcrumb-row breadcrumb-what';
+
+    if (state.selectedItemId) {
+        const ancestors = getAncestorPath(state.selectedItemId);
+        const selectedItem = findItemById(state.selectedItemId);
+        if (selectedItem) {
+            // "All" root link
+            const allSeg = document.createElement('span');
+            allSeg.className = 'breadcrumb-segment breadcrumb-link';
+            allSeg.textContent = '📁 All';
+            allSeg.title = 'Clear project filter';
+            allSeg.addEventListener('click', () => {
+                state.selectedItemId = null;
+                savePref('selectedItemId', '');
+                renderAll();
+            });
+            whatRow.appendChild(allSeg);
+
+            // Ancestor segments
+            if (ancestors) {
+                for (const ancestor of ancestors) {
+                    if (ancestor.isInbox) continue;
+                    const sep = document.createElement('span');
+                    sep.className = 'breadcrumb-sep';
+                    sep.textContent = '›';
+                    whatRow.appendChild(sep);
+
+                    const seg = document.createElement('span');
+                    seg.className = 'breadcrumb-segment breadcrumb-link';
+                    seg.textContent = ancestor.name;
+                    seg.title = `Focus on "${ancestor.name}"`;
+                    seg.addEventListener('click', () => {
+                        state.selectedItemId = ancestor.id;
+                        savePref('selectedItemId', ancestor.id);
+                        renderAll();
+                        requestAnimationFrame(() => scrollToSelectedItem());
+                    });
+                    whatRow.appendChild(seg);
+                }
+            }
+
+            // Current (selected) item — bold, not clickable
+            const sep = document.createElement('span');
+            sep.className = 'breadcrumb-sep';
+            sep.textContent = '›';
+            whatRow.appendChild(sep);
+
+            const current = document.createElement('span');
+            current.className = 'breadcrumb-segment breadcrumb-current';
+            current.textContent = selectedItem.name;
+            whatRow.appendChild(current);
+        }
+    } else {
+        // Root level — show "All"
+        const allSeg = document.createElement('span');
+        allSeg.className = 'breadcrumb-segment breadcrumb-current';
+        allSeg.textContent = '📁 All';
+        whatRow.appendChild(allSeg);
+    }
+
+    container.appendChild(whatRow);
+
+    // ── When axis (right): time context focus ──
+    const whenRow = document.createElement('div');
+    whenRow.className = 'breadcrumb-row breadcrumb-when';
+
+    const viewDate = state.timelineViewDate;
+    const todayKey = getDateKey(getLogicalToday());
+    const viewKey = getDateKey(viewDate);
+    const isToday = viewKey === todayKey;
+
+    const focusedSession = state.focusStack.length > 0 ? state.focusStack[state.focusStack.length - 1] : null;
+
+    if (focusedSession) {
+        // Date segment — clickable to clear focus
+        const dateSeg = document.createElement('span');
+        dateSeg.className = 'breadcrumb-segment breadcrumb-link';
+        if (isToday) {
+            dateSeg.textContent = '📅 Today';
+        } else {
+            const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            dateSeg.textContent = `📅 ${days[viewDate.getDay()]}, ${months[viewDate.getMonth()]} ${viewDate.getDate()}`;
+        }
+        dateSeg.title = 'Back to full day';
+        dateSeg.addEventListener('click', () => {
+            state.focusStack = [];
+            renderAll();
+        });
+        whenRow.appendChild(dateSeg);
+
+        // Session segment
+        const sep = document.createElement('span');
+        sep.className = 'breadcrumb-sep';
+        sep.textContent = '›';
+        whenRow.appendChild(sep);
+
+        const sessionSeg = document.createElement('span');
+        sessionSeg.className = 'breadcrumb-segment breadcrumb-current';
+        const timeRange = `${formatTime(focusedSession.startMs)}–${formatTime(focusedSession.endMs)}`;
+        const typeLabel = focusedSession.label || focusedSession.type || '';
+        sessionSeg.textContent = `${timeRange} ${typeLabel}`.trim();
+        whenRow.appendChild(sessionSeg);
+    } else if (state.viewHorizon === 'someday') {
+        // Someday backlog view
+        const somedaySeg = document.createElement('span');
+        somedaySeg.className = 'breadcrumb-segment breadcrumb-current';
+        somedaySeg.textContent = '📦 Someday';
+        whenRow.appendChild(somedaySeg);
+    } else {
+        // No session focused — just show the date
+        const dateSeg = document.createElement('span');
+        dateSeg.className = 'breadcrumb-segment breadcrumb-current';
+        if (isToday) {
+            dateSeg.textContent = '📅 Today';
+        } else {
+            const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            dateSeg.textContent = `📅 ${days[viewDate.getDay()]}, ${months[viewDate.getMonth()]} ${viewDate.getDate()}`;
+        }
+        whenRow.appendChild(dateSeg);
+    }
+
+    container.appendChild(whenRow);
 }
 
 // ─── Duration Picker Popover ───
@@ -6286,17 +7440,14 @@ function openScheduleModal(itemIdOrIds, itemName) {
 
     // Normalize to array
     const itemIds = Array.isArray(itemIdOrIds) ? itemIdOrIds : [itemIdOrIds];
-    const isBulk = itemIds.length > 1;
 
-    // For single item, track assigned dates for visual feedback
-    // For bulk, show "assigned" only if ALL items have that date
-    function getAssignedDates() {
+    // Track assigned contexts for visual feedback
+    function getAssignedContexts() {
         const sets = itemIds.map(id => {
             const itm = findItemById(id);
             return new Set((itm && itm.timeContexts) || []);
         });
         if (sets.length === 1) return sets[0];
-        // Intersection of all sets
         const result = new Set();
         for (const d of sets[0]) {
             if (sets.every(s => s.has(d))) result.add(d);
@@ -6304,13 +7455,15 @@ function openScheduleModal(itemIdOrIds, itemName) {
         return result;
     }
 
-    let assignedDates = getAssignedDates();
+    let assignedContexts = getAssignedContexts();
 
-    let viewYear, viewMonth;
-    // Start on the current timeline view date
-    const now = new Date(state.timelineViewDate);
-    viewYear = now.getFullYear();
-    viewMonth = now.getMonth();
+    // Calendar state
+    const calNow = new Date(state.timelineViewDate);
+    let viewYear = calNow.getFullYear();
+    let viewMonth = calNow.getMonth();
+
+    // Session date nav state (independent)
+    let sessionViewDate = new Date(state.timelineViewDate);
 
     const overlay = document.createElement('div');
     overlay.id = 'schedule-modal-overlay';
@@ -6319,7 +7472,129 @@ function openScheduleModal(itemIdOrIds, itemName) {
     const modal = document.createElement('div');
     modal.className = 'modal-box schedule-modal-box';
 
-    function buildCalendar() {
+    // ── Helpers ──
+
+    function isSomedayAssigned() {
+        return assignedContexts.has('someday');
+    }
+
+    function getSessionDateKey() {
+        return getDateKey(sessionViewDate);
+    }
+
+    function formatSessionDate(d) {
+        const dk = getDateKey(d);
+        const todayKey = getDateKey(getLogicalToday());
+        if (dk === todayKey) return 'Today';
+        return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+    }
+
+    function getPlannedBlocksForDate(d) {
+        const { dayStart, dayEnd } = getDayBoundaries(d);
+        return (state.timeline?.entries || [])
+            .filter(e => e.type === 'planned' && e.endTime &&
+                e.timestamp >= dayStart.getTime() && e.timestamp < dayEnd.getTime())
+            .sort((a, b) => a.timestamp - b.timestamp);
+    }
+
+    function formatTime(ms) {
+        const d = new Date(ms);
+        return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    }
+
+    function segmentKeyForBlock(block) {
+        return `${getDateKey(new Date(block.timestamp))}@${formatTime(block.timestamp)}-${formatTime(block.endTime)}`;
+    }
+
+    // ── Mutate helpers ──
+
+    async function setContexts(newContexts) {
+        for (const id of itemIds) {
+            const itm = findItemById(id);
+            if (itm) {
+                itm.timeContexts = [...newContexts];
+                await api.patch(`/items/${id}`, { timeContexts: itm.timeContexts });
+            }
+        }
+        assignedContexts = getAssignedContexts();
+        buildContent();
+    }
+
+    async function toggleSomeday() {
+        if (isSomedayAssigned()) {
+            // Remove someday
+            for (const id of itemIds) {
+                const itm = findItemById(id);
+                if (itm) {
+                    itm.timeContexts = (itm.timeContexts || []).filter(tc => tc !== 'someday');
+                    await api.patch(`/items/${id}`, { timeContexts: itm.timeContexts });
+                }
+            }
+        } else {
+            // Set to someday — remove all date/segment contexts
+            await setContexts(['someday']);
+            return;
+        }
+        assignedContexts = getAssignedContexts();
+        buildContent();
+    }
+
+    async function toggleDate(dateKey) {
+        if (assignedContexts.has(dateKey)) {
+            // Remove this date and any segments for it
+            for (const id of itemIds) {
+                const itm = findItemById(id);
+                if (itm) {
+                    itm.timeContexts = (itm.timeContexts || []).filter(tc => tc !== dateKey && !tc.startsWith(dateKey + '@'));
+                    await api.patch(`/items/${id}`, { timeContexts: itm.timeContexts });
+                }
+            }
+        } else {
+            // Add date, remove someday
+            for (const id of itemIds) {
+                const itm = findItemById(id);
+                if (itm) {
+                    itm.timeContexts = (itm.timeContexts || []).filter(tc => tc !== 'someday');
+                    if (!itm.timeContexts.includes(dateKey)) itm.timeContexts.push(dateKey);
+                    await api.patch(`/items/${id}`, { timeContexts: itm.timeContexts });
+                }
+            }
+        }
+        assignedContexts = getAssignedContexts();
+        buildContent();
+    }
+
+    async function toggleSession(block) {
+        const segKey = segmentKeyForBlock(block);
+        const dateKey = getDateKey(new Date(block.timestamp));
+        if (assignedContexts.has(segKey)) {
+            // Remove this segment
+            for (const id of itemIds) {
+                const itm = findItemById(id);
+                if (itm) {
+                    itm.timeContexts = (itm.timeContexts || []).filter(tc => tc !== segKey);
+                    await api.patch(`/items/${id}`, { timeContexts: itm.timeContexts });
+                }
+            }
+        } else {
+            // Add segment + date, remove someday
+            for (const id of itemIds) {
+                const itm = findItemById(id);
+                if (itm) {
+                    itm.timeContexts = (itm.timeContexts || []).filter(tc => tc !== 'someday');
+                    if (!itm.timeContexts.includes(dateKey)) itm.timeContexts.push(dateKey);
+                    if (!itm.timeContexts.includes(segKey)) itm.timeContexts.push(segKey);
+                    await api.patch(`/items/${id}`, { timeContexts: itm.timeContexts });
+                }
+            }
+        }
+        assignedContexts = getAssignedContexts();
+        buildContent();
+    }
+
+    // ── Build UI ──
+
+    function buildContent() {
         const todayKey = getDateKey(getLogicalToday());
         const todayDate = getLogicalToday();
         const currentMonth = todayDate.getMonth();
@@ -6328,38 +7603,57 @@ function openScheduleModal(itemIdOrIds, itemName) {
             'July', 'August', 'September', 'October', 'November', 'December'];
         const dayNames = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 
-        // Can we go to the previous month? Only if it's the current month or later
         const canGoPrev = viewYear > currentYear || (viewYear === currentYear && viewMonth > currentMonth);
-
-        // First day of the month and number of days
         const firstDay = new Date(viewYear, viewMonth, 1).getDay();
         const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
 
+        // Session section data
+        const sessionDateStr = formatSessionDate(sessionViewDate);
+        const sessionBlocks = getPlannedBlocksForDate(sessionViewDate);
+        const sessionDateKey = getSessionDateKey();
+        const canSessionPrev = sessionDateKey > todayKey;
+
+        // Determine which tiers already have assignments → open those
+        const hasSomeday = isSomedayAssigned();
+        const hasDate = [...assignedContexts].some(tc => /^\d{4}-\d{2}-\d{2}$/.test(tc));
+        const hasSession = [...assignedContexts].some(tc => tc.includes('@'));
+
+        // ── Someday section ──
         let html = `
             <div class="modal-header">Schedule: ${itemName}</div>
-            <div class="modal-body">
-                <div class="schedule-cal-nav">
-                    <button class="schedule-cal-nav-btn${canGoPrev ? '' : ' schedule-cal-nav-btn-disabled'}" id="schedule-prev-month"${canGoPrev ? '' : ' disabled'}>‹</button>
-                    <span class="schedule-cal-month">${monthNames[viewMonth]} ${viewYear}</span>
-                    <button class="schedule-cal-nav-btn" id="schedule-next-month">›</button>
-                </div>
-                <div class="schedule-cal-grid">
+            <div class="modal-body schedule-modal-body">
+                <details class="schedule-section"${hasSomeday ? ' open' : ''}>
+                    <summary class="schedule-section-header">📦 Someday</summary>
+                    <div class="schedule-section-content">
+                        <div class="schedule-someday-toggle ${hasSomeday ? 'schedule-someday-active' : ''}" id="schedule-someday-btn">
+                            ${hasSomeday ? '✓ Assigned to Someday' : 'Move to Someday'}
+                        </div>
+                    </div>
+                </details>
         `;
 
-        // Day-of-week headers
+        // ── Day section ──
+        html += `
+                <details class="schedule-section"${hasDate ? ' open' : ''}>
+                    <summary class="schedule-section-header">📅 Day</summary>
+                    <div class="schedule-section-content">
+                        <div class="schedule-cal-nav">
+                            <button class="schedule-cal-nav-btn${canGoPrev ? '' : ' schedule-cal-nav-btn-disabled'}" id="schedule-prev-month"${canGoPrev ? '' : ' disabled'}>‹</button>
+                            <span class="schedule-cal-month">${monthNames[viewMonth]} ${viewYear}</span>
+                            <button class="schedule-cal-nav-btn" id="schedule-next-month">›</button>
+                        </div>
+                        <div class="schedule-cal-grid">
+        `;
+
         for (const dn of dayNames) {
             html += `<div class="schedule-cal-header">${dn}</div>`;
         }
-
-        // Empty cells before the 1st
         for (let i = 0; i < firstDay; i++) {
             html += `<div class="schedule-cal-empty"></div>`;
         }
-
-        // Day cells
         for (let d = 1; d <= daysInMonth; d++) {
             const dateKey = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-            const isAssigned = assignedDates.has(dateKey);
+            const isAssigned = assignedContexts.has(dateKey);
             const isToday = dateKey === todayKey;
             const isPast = dateKey < todayKey;
             let cls = 'schedule-cal-day';
@@ -6370,7 +7664,44 @@ function openScheduleModal(itemIdOrIds, itemName) {
         }
 
         html += `
-                </div>
+                        </div>
+                    </div>
+                </details>
+        `;
+
+        // ── Session section ──
+        html += `
+                <details class="schedule-section"${hasSession ? ' open' : ''}>
+                    <summary class="schedule-section-header">⏱️ Session</summary>
+                    <div class="schedule-section-content">
+                        <div class="schedule-session-nav">
+                            <button class="schedule-cal-nav-btn${canSessionPrev ? '' : ' schedule-cal-nav-btn-disabled'}" id="schedule-session-prev"${canSessionPrev ? '' : ' disabled'}>‹</button>
+                            <span class="schedule-session-date">${sessionDateStr}</span>
+                            <button class="schedule-cal-nav-btn" id="schedule-session-next">›</button>
+                        </div>
+                        <div class="schedule-session-list">
+        `;
+
+        if (sessionBlocks.length === 0) {
+            html += `<div class="schedule-session-empty">No planned sessions</div>`;
+        } else {
+            for (const block of sessionBlocks) {
+                const segKey = segmentKeyForBlock(block);
+                const isAssigned = assignedContexts.has(segKey);
+                const label = block.text || 'Planned';
+                const timeRange = `${formatTime(block.timestamp)} – ${formatTime(block.endTime)}`;
+                html += `<div class="schedule-session-item${isAssigned ? ' schedule-session-item-assigned' : ''}" data-seg-key="${segKey}" data-block-ts="${block.timestamp}">
+                    <span class="schedule-session-icon">📌</span>
+                    <span class="schedule-session-label">${label}</span>
+                    <span class="schedule-session-time">${timeRange}</span>
+                </div>`;
+            }
+        }
+
+        html += `
+                        </div>
+                    </div>
+                </details>
             </div>
             <div class="modal-actions">
                 <button class="modal-btn modal-btn-cancel" id="schedule-close">Close</button>
@@ -6379,53 +7710,61 @@ function openScheduleModal(itemIdOrIds, itemName) {
 
         modal.innerHTML = html;
 
-        // Wire up month nav
+        // ── Wire up events ──
+
+        // Someday toggle
+        modal.querySelector('#schedule-someday-btn')?.addEventListener('click', toggleSomeday);
+
+        // Calendar month nav
         if (canGoPrev) {
             modal.querySelector('#schedule-prev-month').addEventListener('click', () => {
                 viewMonth--;
                 if (viewMonth < 0) { viewMonth = 11; viewYear--; }
-                buildCalendar();
+                buildContent();
             });
         }
         modal.querySelector('#schedule-next-month').addEventListener('click', () => {
             viewMonth++;
             if (viewMonth > 11) { viewMonth = 0; viewYear++; }
-            buildCalendar();
+            buildContent();
         });
 
-        // Wire up day clicks
+        // Day clicks
         modal.querySelectorAll('.schedule-cal-day:not(.schedule-cal-day-disabled)').forEach(cell => {
-            cell.addEventListener('click', async () => {
-                const dateKey = cell.dataset.date;
-                if (assignedDates.has(dateKey)) {
-                    // Remove from all items
-                    assignedDates.delete(dateKey);
-                    for (const id of itemIds) {
-                        const itm = findItemById(id);
-                        if (itm) {
-                            itm.timeContexts = (itm.timeContexts || []).filter(tc => tc !== dateKey);
-                            await api.patch(`/items/${id}`, { timeContexts: itm.timeContexts });
-                        }
-                    }
-                } else {
-                    // Add to all items
-                    assignedDates.add(dateKey);
-                    for (const id of itemIds) {
-                        await addTimeContext(id, dateKey);
-                    }
-                }
-                buildCalendar();
+            cell.addEventListener('click', () => toggleDate(cell.dataset.date));
+        });
+
+        // Session date nav
+        if (canSessionPrev) {
+            modal.querySelector('#schedule-session-prev').addEventListener('click', () => {
+                sessionViewDate = new Date(sessionViewDate);
+                sessionViewDate.setDate(sessionViewDate.getDate() - 1);
+                buildContent();
+            });
+        }
+        modal.querySelector('#schedule-session-next').addEventListener('click', () => {
+            sessionViewDate = new Date(sessionViewDate);
+            sessionViewDate.setDate(sessionViewDate.getDate() + 1);
+            buildContent();
+        });
+
+        // Session block clicks
+        modal.querySelectorAll('.schedule-session-item').forEach(row => {
+            row.addEventListener('click', () => {
+                const ts = Number(row.dataset.blockTs);
+                const block = sessionBlocks.find(b => b.timestamp === ts);
+                if (block) toggleSession(block);
             });
         });
 
-        // Close button
+        // Close
         modal.querySelector('#schedule-close').addEventListener('click', () => {
             overlay.remove();
             renderAll();
         });
     }
 
-    buildCalendar();
+    buildContent();
     overlay.appendChild(modal);
     document.body.appendChild(overlay);
 
@@ -6679,7 +8018,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const d = new Date(state.timelineViewDate);
         d.setDate(d.getDate() - 1);
         state.timelineViewDate = d;
-        state.focusedSession = null; // clear session focus on day change
+        state.focusStack = []; // clear focus on day change
         savePref('timelineViewDate', d.toISOString());
         renderAll();
     });
@@ -6687,15 +8026,102 @@ document.addEventListener('DOMContentLoaded', () => {
         const d = new Date(state.timelineViewDate);
         d.setDate(d.getDate() + 1);
         state.timelineViewDate = d;
-        state.focusedSession = null; // clear session focus on day change
+        state.focusStack = []; // clear focus on day change
         renderAll();
     });
     // Click on date text to jump back to today
     document.getElementById('date-nav-date').addEventListener('click', () => {
         state.timelineViewDate = getLogicalToday();
-        state.focusedSession = null; // clear session focus on day change
+        state.focusStack = []; // clear focus on day change
         savePref('timelineViewDate', state.timelineViewDate.toISOString());
         renderAll();
+    });
+
+    // Day arrow DnD targets — drop to reschedule to prev/next day
+    function setupDayArrowDnD(btnId, dayOffset) {
+        const btn = document.getElementById(btnId);
+        btn.addEventListener('dragover', (e) => {
+            if (!window._draggedAction) return;
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            btn.classList.add('date-nav-btn-drag-over');
+        });
+        btn.addEventListener('dragleave', () => {
+            btn.classList.remove('date-nav-btn-drag-over');
+        });
+        btn.addEventListener('drop', async (e) => {
+            e.preventDefault();
+            btn.classList.remove('date-nav-btn-drag-over');
+            const actionId = e.dataTransfer.getData('application/x-action-id');
+            if (!actionId) return;
+            const d = new Date(state.timelineViewDate);
+            d.setDate(d.getDate() + dayOffset);
+            const targetDateKey = getDateKey(d);
+            await rescheduleToDate(parseInt(actionId, 10), targetDateKey);
+        });
+    }
+    setupDayArrowDnD('date-nav-prev', -1);
+    setupDayArrowDnD('date-nav-next', 1);
+
+    // ── Horizon layer click + DnD handlers ──
+    // Someday layer: click to navigate, drag to send items to someday
+    const somedayLayer = document.getElementById('horizon-someday-layer');
+    somedayLayer.addEventListener('click', () => {
+        state.focusStack = [];
+        state.viewHorizon = 'someday';
+        savePref('viewHorizon', 'someday');
+        renderAll();
+    });
+    somedayLayer.addEventListener('dragover', (e) => {
+        if (!window._draggedAction) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        somedayLayer.classList.add('horizon-layer-drag-over');
+    });
+    somedayLayer.addEventListener('dragleave', () => {
+        somedayLayer.classList.remove('horizon-layer-drag-over');
+    });
+    somedayLayer.addEventListener('drop', async (e) => {
+        e.preventDefault();
+        somedayLayer.classList.remove('horizon-layer-drag-over');
+        const actionId = e.dataTransfer.getData('application/x-action-id');
+        if (!actionId) return;
+        await sendToSomeday(parseInt(actionId, 10));
+    });
+
+    // Day layer: click to navigate back to day, drag to promote from someday
+    const dayLayer = document.getElementById('horizon-day-layer');
+    dayLayer.addEventListener('click', (e) => {
+        // Navigate: from session focus → back to day, or from someday → day
+        if (e.target.closest('.date-nav-btn')) return;
+        if (state.focusStack.length > 0) {
+            // Session focused — pop back to day
+            state.focusStack = [];
+            renderAll();
+            return;
+        }
+        if (state.viewHorizon !== 'someday') return;
+        state.focusStack = [];
+        state.viewHorizon = 'day';
+        savePref('viewHorizon', 'day');
+        renderAll();
+    });
+    dayLayer.addEventListener('dragover', (e) => {
+        if (!window._draggedAction) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        dayLayer.classList.add('horizon-layer-drag-over');
+    });
+    dayLayer.addEventListener('dragleave', () => {
+        dayLayer.classList.remove('horizon-layer-drag-over');
+    });
+    dayLayer.addEventListener('drop', async (e) => {
+        e.preventDefault();
+        dayLayer.classList.remove('horizon-layer-drag-over');
+        const actionId = e.dataTransfer.getData('application/x-action-id');
+        if (!actionId) return;
+        const dateKey = getDateKey(state.timelineViewDate);
+        await promoteFromSomeday(parseInt(actionId, 10), dateKey);
     });
 
     // hidePastEntries state is restored in loadAll() from backend preferences

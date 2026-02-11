@@ -39,17 +39,6 @@
             "2026-02-13"
           ],
           "estimatedDuration": null
-        },
-        {
-          "id": 106,
-          "name": "plan day",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770636201379,
-          "done": false,
-          "timeContexts": [
-            "2026-02-10"
-          ]
         }
       ],
       "expanded": false,
@@ -61,6 +50,133 @@
       "id": 9,
       "name": "anything",
       "children": [
+        {
+          "id": 251,
+          "name": "reconcile intentions",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770802452301,
+          "done": false,
+          "timeContexts": [
+            "someday"
+          ],
+          "segmentDurations": {}
+        },
+        {
+          "id": 250,
+          "name": "reschedule time blocks date",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770802101929,
+          "done": true
+        },
+        {
+          "id": 247,
+          "name": "duration attached to time context",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770773260252,
+          "done": false
+        },
+        {
+          "id": 245,
+          "name": "optional - location context",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770772376881,
+          "done": false,
+          "timeContexts": [
+            "someday"
+          ],
+          "segmentDurations": {}
+        },
+        {
+          "id": 244,
+          "name": "split",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770772153727,
+          "done": false
+        },
+        {
+          "id": 239,
+          "name": "fix divergence rendering",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770767029355,
+          "done": false,
+          "timeContexts": [
+            "someday"
+          ]
+        },
+        {
+          "id": 235,
+          "name": "code sanity - cleanup etc",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770738344929,
+          "done": false,
+          "timeContexts": [
+            "someday"
+          ],
+          "segmentDurations": {}
+        },
+        {
+          "id": 233,
+          "name": "maybe moving to react without breaking anything",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770736587170,
+          "done": false
+        },
+        {
+          "id": 232,
+          "name": "improve focus logic",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770736529679,
+          "done": false
+        },
+        {
+          "id": 231,
+          "name": "one click fix for overscheduled in free time",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770736378840,
+          "done": false
+        },
+        {
+          "id": 229,
+          "name": "recurring - typical day, typical week etc",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770734683068,
+          "done": false
+        },
+        {
+          "id": 228,
+          "name": "different views for \"actions\" - including tinder and brilly",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770734580320,
+          "done": false
+        },
+        {
+          "id": 227,
+          "name": "creating an item should create it in the current time context",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770734318979,
+          "done": false
+        },
+        {
+          "id": 226,
+          "name": "indicate current place in what in when in actions",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770734292438,
+          "done": false
+        },
         {
           "id": 225,
           "name": "and a why axis",
@@ -148,11 +264,8 @@
           "expanded": false,
           "createdAt": 1770729434541,
           "done": false,
-          "timeContexts": [
-            "2026-02-10@15:17-18:00"
-          ],
+          "timeContexts": [],
           "segmentDurations": {
-            "2026-02-10@15:17-18:00": 60,
             "2026-02-10@15:21-18:00": 60,
             "2026-02-10@15:24-18:00": 60
           }
@@ -165,7 +278,7 @@
           "createdAt": 1770728351008,
           "done": false,
           "timeContexts": [
-            "2026-02-10"
+            "someday"
           ],
           "segmentDurations": {}
         },
@@ -217,7 +330,7 @@
           "done": false,
           "estimatedDuration": 15,
           "timeContexts": [
-            "2026-02-10"
+            "someday"
           ],
           "segmentDurations": {}
         },
@@ -227,7 +340,13 @@
           "children": [],
           "expanded": false,
           "createdAt": 1770721366776,
-          "done": false
+          "done": true,
+          "timeContexts": [
+            "someday"
+          ],
+          "segmentDurations": {
+            "2026-02-10@entry:171": 10
+          }
         },
         {
           "id": 203,
@@ -269,8 +388,9 @@
           "createdAt": 1770675382995,
           "done": false,
           "timeContexts": [
-            "2026-02-11"
-          ]
+            "someday"
+          ],
+          "segmentDurations": {}
         },
         {
           "id": 182,
@@ -296,7 +416,7 @@
           "createdAt": 1770663362060,
           "done": false,
           "timeContexts": [
-            "2026-02-11"
+            "someday"
           ]
         },
         {
@@ -305,10 +425,13 @@
           "children": [],
           "expanded": false,
           "createdAt": 1770663355309,
-          "done": false,
+          "done": true,
           "timeContexts": [
             "2026-02-11"
-          ]
+          ],
+          "segmentDurations": {
+            "2026-02-10@entry:171": 25
+          }
         },
         {
           "id": 174,
@@ -318,7 +441,7 @@
           "createdAt": 1770663352183,
           "done": false,
           "timeContexts": [
-            "2026-02-11"
+            "someday"
           ]
         },
         {
@@ -329,7 +452,7 @@
           "createdAt": 1770663347809,
           "done": false,
           "timeContexts": [
-            "2026-02-11"
+            "someday"
           ]
         },
         {
@@ -340,7 +463,7 @@
           "createdAt": 1770661033696,
           "done": false,
           "timeContexts": [
-            "2026-02-10"
+            "someday"
           ]
         },
         {
@@ -359,7 +482,7 @@
           "createdAt": 1770660682341,
           "done": false,
           "timeContexts": [
-            "2026-02-10"
+            "someday"
           ]
         },
         {
@@ -378,7 +501,7 @@
           "createdAt": 1770654320969,
           "done": false,
           "timeContexts": [
-            "2026-02-11"
+            "someday"
           ]
         },
         {
@@ -400,7 +523,7 @@
           "createdAt": 1770651277312,
           "done": false,
           "timeContexts": [
-            "2026-02-10"
+            "someday"
           ]
         },
         {
@@ -411,7 +534,7 @@
           "createdAt": 1770651219396,
           "done": false,
           "timeContexts": [
-            "2026-02-11"
+            "someday"
           ]
         },
         {
@@ -422,7 +545,7 @@
           "createdAt": 1770650797164,
           "done": false,
           "timeContexts": [
-            "2026-02-11"
+            "someday"
           ]
         },
         {
@@ -433,7 +556,7 @@
           "createdAt": 1770650778588,
           "done": false,
           "timeContexts": [
-            "2026-02-11"
+            "someday"
           ]
         },
         {
@@ -468,7 +591,7 @@
           "createdAt": 1770650401980,
           "done": false,
           "timeContexts": [
-            "2026-02-10"
+            "someday"
           ]
         },
         {
@@ -479,7 +602,7 @@
           "createdAt": 1770654338173,
           "done": false,
           "timeContexts": [
-            "2026-02-11"
+            "someday"
           ]
         },
         {
@@ -490,7 +613,7 @@
           "createdAt": 1770654340606,
           "done": false,
           "timeContexts": [
-            "2026-02-11"
+            "someday"
           ]
         },
         {
@@ -501,7 +624,7 @@
           "createdAt": 1770661226767,
           "done": false,
           "timeContexts": [
-            "2026-02-10"
+            "someday"
           ]
         },
         {
@@ -530,7 +653,7 @@
           "createdAt": 1770657322191,
           "done": false,
           "timeContexts": [
-            "2026-02-11"
+            "someday"
           ]
         },
         {
@@ -541,7 +664,7 @@
           "createdAt": 1770638799102,
           "done": false,
           "timeContexts": [
-            "2026-02-10"
+            "someday"
           ]
         },
         {
@@ -625,7 +748,7 @@
           "createdAt": 1770647502173,
           "done": false,
           "timeContexts": [
-            "2026-02-10"
+            "someday"
           ]
         },
         {
@@ -644,7 +767,7 @@
           "createdAt": 1770646617509,
           "done": false,
           "timeContexts": [
-            "2026-02-10"
+            "someday"
           ]
         },
         {
@@ -671,7 +794,7 @@
           "createdAt": 1770642442555,
           "done": false,
           "timeContexts": [
-            "2026-02-10"
+            "someday"
           ]
         },
         {
@@ -682,7 +805,7 @@
           "createdAt": 1770649500390,
           "done": false,
           "timeContexts": [
-            "2026-02-10"
+            "someday"
           ]
         },
         {
@@ -693,7 +816,7 @@
           "createdAt": 1770642454591,
           "done": false,
           "timeContexts": [
-            "2026-02-10"
+            "someday"
           ]
         },
         {
@@ -720,7 +843,7 @@
           "createdAt": 1770639461658,
           "done": false,
           "timeContexts": [
-            "2026-02-10"
+            "someday"
           ]
         },
         {
@@ -731,7 +854,7 @@
           "createdAt": 1770639376901,
           "done": false,
           "timeContexts": [
-            "2026-02-10"
+            "someday"
           ]
         },
         {
@@ -742,7 +865,7 @@
           "createdAt": 1770640988461,
           "done": false,
           "timeContexts": [
-            "2026-02-10"
+            "someday"
           ]
         },
         {
@@ -753,7 +876,7 @@
           "createdAt": 1770637594249,
           "done": false,
           "timeContexts": [
-            "2026-02-10"
+            "someday"
           ]
         },
         {
@@ -764,7 +887,7 @@
           "createdAt": 1770593873975,
           "done": false,
           "timeContexts": [
-            "2026-02-10"
+            "someday"
           ]
         },
         {
@@ -775,7 +898,7 @@
           "createdAt": 1770609351497,
           "done": false,
           "timeContexts": [
-            "2026-02-10"
+            "someday"
           ]
         },
         {
@@ -786,7 +909,7 @@
           "createdAt": 1770594156678,
           "done": false,
           "timeContexts": [
-            "2026-02-10"
+            "someday"
           ]
         },
         {
@@ -805,7 +928,7 @@
           "createdAt": 1770594528651,
           "done": false,
           "timeContexts": [
-            "2026-02-10"
+            "someday"
           ]
         },
         {
@@ -816,7 +939,7 @@
           "createdAt": 1770595377744,
           "done": false,
           "timeContexts": [
-            "2026-02-10"
+            "someday"
           ]
         },
         {
@@ -851,7 +974,7 @@
           "createdAt": 1770597870510,
           "done": false,
           "timeContexts": [
-            "2026-02-10"
+            "someday"
           ]
         },
         {
@@ -862,7 +985,7 @@
           "createdAt": 1770598587986,
           "done": false,
           "timeContexts": [
-            "2026-02-10"
+            "someday"
           ]
         },
         {
@@ -881,7 +1004,7 @@
           "createdAt": 1770598966344,
           "done": false,
           "timeContexts": [
-            "2026-02-10"
+            "someday"
           ]
         },
         {
@@ -892,7 +1015,7 @@
           "createdAt": 1770600939148,
           "done": false,
           "timeContexts": [
-            "2026-02-10"
+            "someday"
           ]
         },
         {
@@ -911,7 +1034,7 @@
           "createdAt": 1770601206625,
           "done": false,
           "timeContexts": [
-            "2026-02-10"
+            "someday"
           ]
         },
         {
@@ -930,7 +1053,7 @@
           "createdAt": 1770601350383,
           "done": false,
           "timeContexts": [
-            "2026-02-10"
+            "someday"
           ]
         },
         {
@@ -941,7 +1064,7 @@
           "createdAt": 1770601683433,
           "done": false,
           "timeContexts": [
-            "2026-02-10"
+            "someday"
           ]
         },
         {
@@ -952,7 +1075,7 @@
           "createdAt": 1770601745251,
           "done": false,
           "timeContexts": [
-            "2026-02-10"
+            "someday"
           ]
         },
         {
@@ -963,7 +1086,7 @@
           "createdAt": 1770601968254,
           "done": false,
           "timeContexts": [
-            "2026-02-10"
+            "someday"
           ]
         },
         {
@@ -974,7 +1097,7 @@
           "createdAt": 1770602537587,
           "done": false,
           "timeContexts": [
-            "2026-02-10"
+            "someday"
           ]
         },
         {
@@ -993,7 +1116,7 @@
           "createdAt": 1770603250323,
           "done": false,
           "timeContexts": [
-            "2026-02-10"
+            "someday"
           ]
         },
         {
@@ -1004,7 +1127,7 @@
           "createdAt": 1770603381643,
           "done": false,
           "timeContexts": [
-            "2026-02-10"
+            "someday"
           ]
         },
         {
@@ -1015,7 +1138,7 @@
           "createdAt": 1770603478006,
           "done": false,
           "timeContexts": [
-            "2026-02-10"
+            "someday"
           ]
         },
         {
@@ -1026,7 +1149,7 @@
           "createdAt": 1770603489050,
           "done": false,
           "timeContexts": [
-            "2026-02-10"
+            "someday"
           ]
         },
         {
@@ -1037,7 +1160,7 @@
           "createdAt": 1770603539447,
           "done": false,
           "timeContexts": [
-            "2026-02-10"
+            "someday"
           ]
         },
         {
@@ -1048,7 +1171,7 @@
           "createdAt": 1770603549975,
           "done": false,
           "timeContexts": [
-            "2026-02-10"
+            "someday"
           ]
         },
         {
@@ -1059,7 +1182,7 @@
           "createdAt": 1770603566237,
           "done": false,
           "timeContexts": [
-            "2026-02-10"
+            "someday"
           ]
         },
         {
@@ -1070,7 +1193,7 @@
           "createdAt": 1770603583812,
           "done": false,
           "timeContexts": [
-            "2026-02-10"
+            "someday"
           ]
         },
         {
@@ -1081,7 +1204,7 @@
           "createdAt": 1770603597255,
           "done": false,
           "timeContexts": [
-            "2026-02-10"
+            "someday"
           ]
         },
         {
@@ -1092,7 +1215,7 @@
           "createdAt": 1770603737814,
           "done": false,
           "timeContexts": [
-            "2026-02-10"
+            "someday"
           ]
         },
         {
@@ -1103,7 +1226,7 @@
           "createdAt": 1770603872718,
           "done": false,
           "timeContexts": [
-            "2026-02-10"
+            "someday"
           ]
         },
         {
@@ -1114,7 +1237,7 @@
           "createdAt": 1770603882380,
           "done": false,
           "timeContexts": [
-            "2026-02-10"
+            "someday"
           ]
         },
         {
@@ -1125,7 +1248,7 @@
           "createdAt": 1770604006283,
           "done": false,
           "timeContexts": [
-            "2026-02-10"
+            "someday"
           ]
         },
         {
@@ -1136,7 +1259,7 @@
           "createdAt": 1770604091437,
           "done": false,
           "timeContexts": [
-            "2026-02-10"
+            "someday"
           ]
         },
         {
@@ -1147,7 +1270,7 @@
           "createdAt": 1770604186763,
           "done": false,
           "timeContexts": [
-            "2026-02-10"
+            "someday"
           ]
         },
         {
@@ -1158,7 +1281,7 @@
           "createdAt": 1770604210042,
           "done": false,
           "timeContexts": [
-            "2026-02-10"
+            "someday"
           ]
         },
         {
@@ -1169,7 +1292,7 @@
           "createdAt": 1770607114515,
           "done": false,
           "timeContexts": [
-            "2026-02-10"
+            "someday"
           ]
         },
         {
@@ -1180,7 +1303,7 @@
           "createdAt": 1770607883577,
           "done": false,
           "timeContexts": [
-            "2026-02-10"
+            "someday"
           ]
         },
         {
@@ -1191,7 +1314,7 @@
           "createdAt": 1770608099307,
           "done": false,
           "timeContexts": [
-            "2026-02-10"
+            "someday"
           ]
         },
         {
@@ -1202,7 +1325,7 @@
           "createdAt": 1770609487876,
           "done": false,
           "timeContexts": [
-            "2026-02-10"
+            "someday"
           ]
         },
         {
@@ -1213,7 +1336,7 @@
           "createdAt": 1770609763871,
           "done": false,
           "timeContexts": [
-            "2026-02-10"
+            "someday"
           ]
         },
         {
@@ -1224,7 +1347,7 @@
           "createdAt": 1770632243615,
           "done": false,
           "timeContexts": [
-            "2026-02-10"
+            "someday"
           ]
         },
         {
@@ -1243,7 +1366,7 @@
           "createdAt": 1770633393671,
           "done": false,
           "timeContexts": [
-            "2026-02-10"
+            "someday"
           ]
         },
         {
@@ -1254,7 +1377,7 @@
           "createdAt": 1770634606964,
           "done": false,
           "timeContexts": [
-            "2026-02-10"
+            "someday"
           ]
         },
         {
@@ -1265,7 +1388,7 @@
           "createdAt": 1770634623472,
           "done": false,
           "timeContexts": [
-            "2026-02-10"
+            "someday"
           ]
         },
         {
@@ -1276,7 +1399,7 @@
           "createdAt": 1770636133253,
           "done": false,
           "timeContexts": [
-            "2026-02-10"
+            "someday"
           ]
         },
         {
@@ -1287,7 +1410,7 @@
           "createdAt": 1770636174542,
           "done": false,
           "timeContexts": [
-            "2026-02-10"
+            "someday"
           ]
         },
         {
@@ -1296,9 +1419,9 @@
           "children": [],
           "expanded": false,
           "createdAt": 1770637132153,
-          "done": false,
+          "done": true,
           "timeContexts": [
-            "2026-02-10"
+            "someday"
           ]
         },
         {
@@ -1317,7 +1440,7 @@
           "createdAt": 1770637938839,
           "done": false,
           "timeContexts": [
-            "2026-02-10"
+            "someday"
           ]
         },
         {
@@ -1328,7 +1451,7 @@
           "createdAt": 1770638241418,
           "done": false,
           "timeContexts": [
-            "2026-02-10"
+            "someday"
           ]
         },
         {
@@ -1339,7 +1462,7 @@
           "createdAt": 1770642350190,
           "done": false,
           "timeContexts": [
-            "2026-02-10"
+            "someday"
           ]
         },
         {
@@ -1350,7 +1473,7 @@
           "createdAt": 1770646843257,
           "done": false,
           "timeContexts": [
-            "2026-02-10"
+            "someday"
           ]
         },
         {
@@ -1359,17 +1482,49 @@
           "children": [],
           "expanded": false,
           "createdAt": 1770641297342,
+          "done": true,
+          "timeContexts": [
+            "someday"
+          ]
+        },
+        {
+          "id": 106,
+          "name": "plan day",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770636201379,
           "done": false,
           "timeContexts": [
-            "2026-02-10"
-          ]
+            "someday"
+          ],
+          "segmentDurations": {}
+        },
+        {
+          "id": 237,
+          "name": "creating a \"someday\" horizon",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770765312656,
+          "done": true
         }
       ],
-      "expanded": false,
+      "expanded": true,
       "createdAt": 1770591468116,
       "done": false,
-      "timeContexts": [],
-      "estimatedDuration": 60
+      "timeContexts": [
+        "someday",
+        "2026-02-11@13:00-13:30",
+        "2026-02-11@11:47-13:30",
+        "2026-02-11@12:10-14:00"
+      ],
+      "estimatedDuration": 60,
+      "segmentDurations": {
+        "2026-02-10@entry:169": 60,
+        "2026-02-10@entry:171": 60,
+        "2026-02-11@13:00-13:30": 60,
+        "2026-02-11@11:47-13:30": 60,
+        "2026-02-11@12:10-14:00": 60
+      }
     },
     {
       "id": 181,
@@ -1379,13 +1534,28 @@
       "createdAt": 1770673365184,
       "done": false,
       "timeContexts": [
-        "2026-02-11"
+        "someday"
       ]
     },
     {
       "id": 28,
       "name": "health",
       "children": [
+        {
+          "id": 230,
+          "name": "שיננית",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770735935477,
+          "done": false,
+          "estimatedDuration": 60,
+          "timeContexts": [
+            "2026-02-26@entry:163"
+          ],
+          "segmentDurations": {
+            "2026-02-26@entry:163": 60
+          }
+        },
         {
           "id": 188,
           "name": "פמי",
@@ -1413,7 +1583,7 @@
           "createdAt": 1770646686091,
           "done": false,
           "timeContexts": [
-            "2026-02-10"
+            "someday"
           ]
         },
         {
@@ -1424,7 +1594,7 @@
           "createdAt": 1770594437194,
           "done": false,
           "timeContexts": [
-            "2026-02-10"
+            "someday"
           ]
         }
       ],
@@ -1473,22 +1643,37 @@
               "createdAt": 1770728565043,
               "done": false,
               "timeContexts": [
-                "2026-02-10"
+                "someday"
               ],
               "segmentDurations": {}
             },
             {
               "id": 211,
               "name": "download settings persistence",
-              "children": [],
-              "expanded": false,
+              "children": [
+                {
+                  "id": 238,
+                  "name": "מייל הבהרה לליאורה",
+                  "children": [],
+                  "expanded": false,
+                  "createdAt": 1770766015372,
+                  "done": false,
+                  "timeContexts": [
+                    "2026-02-11@16:30-00:30"
+                  ],
+                  "segmentDurations": {
+                    "2026-02-11@16:30-00:30": 0
+                  }
+                }
+              ],
+              "expanded": true,
               "createdAt": 1770728558328,
               "done": false,
               "timeContexts": [
-                "2026-02-10@01:30-02:30"
+                "someday"
               ],
               "segmentDurations": {
-                "2026-02-10@01:30-02:30": 0
+                "2026-02-10@01:20-02:30": 20
               }
             },
             {
@@ -1528,11 +1713,11 @@
               "createdAt": 1770673174336,
               "done": false,
               "timeContexts": [
-                "2026-02-10"
+                "someday"
               ]
             }
           ],
-          "expanded": true,
+          "expanded": false,
           "createdAt": 1770635308948,
           "done": false
         },
@@ -1545,7 +1730,7 @@
           "done": false
         }
       ],
-      "expanded": true,
+      "expanded": false,
       "createdAt": 1770603206837,
       "done": false,
       "timeContexts": []
@@ -1558,7 +1743,7 @@
       "createdAt": 1770607255310,
       "done": false,
       "timeContexts": [
-        "2026-02-10"
+        "someday"
       ]
     },
     {
@@ -1569,13 +1754,28 @@
       "createdAt": 1770603895087,
       "done": false,
       "timeContexts": [
-        "2026-02-10"
+        "someday"
       ]
     },
     {
       "id": 92,
       "name": "פרויקטי מוזיקה",
       "children": [
+        {
+          "id": 243,
+          "name": "סשן איתי",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770772108348,
+          "done": false,
+          "estimatedDuration": 180,
+          "timeContexts": [
+            "2026-02-11@entry:178"
+          ],
+          "segmentDurations": {
+            "2026-02-11@entry:178": 180
+          }
+        },
         {
           "id": 193,
           "name": "סשן שלי",
@@ -1606,7 +1806,7 @@
               "createdAt": 1770603919756,
               "done": false,
               "timeContexts": [
-                "2026-02-10"
+                "someday"
               ]
             }
           ],
@@ -1622,7 +1822,7 @@
           "createdAt": 1770609710103,
           "done": false,
           "timeContexts": [
-            "2026-02-10"
+            "someday"
           ]
         }
       ],
@@ -1642,7 +1842,7 @@
           "createdAt": 1770650992614,
           "done": false,
           "timeContexts": [
-            "2026-02-11"
+            "someday"
           ]
         },
         {
@@ -1653,7 +1853,7 @@
           "createdAt": 1770646799343,
           "done": false,
           "timeContexts": [
-            "2026-02-11"
+            "someday"
           ]
         }
       ],
@@ -1669,7 +1869,7 @@
       "createdAt": 1770639234396,
       "done": false,
       "timeContexts": [
-        "2026-02-11"
+        "2026-02-13"
       ]
     },
     {
@@ -1685,19 +1885,20 @@
           "done": false,
           "estimatedDuration": 90,
           "timeContexts": [
-            "2026-02-11@entry:158"
+            "2026-02-12@entry:182"
           ],
           "segmentDurations": {
-            "2026-02-11@entry:158": 90
+            "2026-02-12@entry:182": 90
           }
         }
       ],
-      "expanded": false,
+      "expanded": true,
       "createdAt": 1770646819822,
       "done": false,
       "timeContexts": [
-        "2026-02-11"
-      ]
+        "someday"
+      ],
+      "segmentDurations": {}
     },
     {
       "id": 144,
@@ -1707,7 +1908,7 @@
       "createdAt": 1770648773227,
       "done": false,
       "timeContexts": [
-        "2026-02-11"
+        "2026-02-14"
       ]
     },
     {
@@ -1725,7 +1926,7 @@
           "timeContexts": []
         }
       ],
-      "expanded": true,
+      "expanded": false,
       "createdAt": 1770648790566,
       "done": false
     },
@@ -1737,7 +1938,7 @@
       "createdAt": 1770651242811,
       "done": false,
       "timeContexts": [
-        "2026-02-11"
+        "2026-02-14"
       ]
     },
     {
@@ -1748,7 +1949,7 @@
       "createdAt": 1770654014475,
       "done": false,
       "timeContexts": [
-        "2026-02-10"
+        "someday"
       ]
     },
     {
@@ -1798,12 +1999,21 @@
     {
       "id": 167,
       "name": "לנגן משהו למתי",
-      "children": [],
-      "expanded": false,
+      "children": [
+        {
+          "id": 236,
+          "name": "להעלות לסושיאל",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770758160373,
+          "done": false
+        }
+      ],
+      "expanded": true,
       "createdAt": 1770656654513,
       "done": false,
       "timeContexts": [
-        "2026-02-10"
+        "someday"
       ]
     },
     {
@@ -1819,10 +2029,52 @@
           "done": false
         }
       ],
-      "expanded": true,
+      "expanded": false,
       "createdAt": 1770719785075,
       "done": false
+    },
+    {
+      "id": 240,
+      "name": "\"אני אומר לכל אלה שרוצים להתעסק באומנות - אם יש שני אנשים לפחות שאוהבים את מה שאתה עושה, יש לך קהל. הם אהבו דבר שאתה עשית כי היית נאמן לעצמך, ועל כן תישאר נאמן לעצמך והקהל שלך יגדל\" (מתי כספי בראיון לדני קושמרו,  N12).",
+      "children": [],
+      "expanded": false,
+      "createdAt": 1770767610338,
+      "done": false
+    },
+    {
+      "id": 242,
+      "name": "להגיד את האמת",
+      "children": [],
+      "expanded": false,
+      "createdAt": 1770768520962,
+      "done": false
+    },
+    {
+      "id": 248,
+      "name": "בית",
+      "children": [
+        {
+          "id": 234,
+          "name": "להתקלח",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770736677309,
+          "done": false,
+          "timeContexts": [
+            "2026-02-11@16:30-00:30"
+          ],
+          "segmentDurations": {
+            "2026-02-11@16:30-00:30": 10
+          }
+        }
+      ],
+      "expanded": true,
+      "createdAt": 1770773753107,
+      "done": false,
+      "timeContexts": [
+        "someday"
+      ]
     }
   ],
-  "nextId": 226
+  "nextId": 253
 }

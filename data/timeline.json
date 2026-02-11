@@ -912,7 +912,7 @@
       "projectName": "פרויקטי מוזיקה",
       "type": "planned",
       "startTime": 1770750000000,
-      "endTime": 1770766200000,
+      "endTime": 1770762600000,
       "itemId": 193,
       "id": 146,
       "timestamp": 1770750000000
@@ -1028,16 +1028,6 @@
       "timestamp": 1770725222131
     },
     {
-      "text": "שבעה סבתא של ירין",
-      "projectName": "חברים",
-      "type": "planned",
-      "startTime": 1770802200000,
-      "endTime": 1770807600000,
-      "itemId": 216,
-      "id": 158,
-      "timestamp": 1770802200000
-    },
-    {
       "text": "Break (0m)",
       "type": "break",
       "startTime": 1770729797019,
@@ -1060,7 +1050,217 @@
       "type": "completion",
       "id": 161,
       "timestamp": 1770730519808
+    },
+    {
+      "text": "שיננית",
+      "projectName": "health",
+      "type": "planned",
+      "startTime": 1772094600000,
+      "endTime": 1772098200000,
+      "itemId": 230,
+      "id": 163,
+      "timestamp": 1772094600000
+    },
+    {
+      "text": "Worked on: refactor time contexts - including one time and multiple (1h 37m)",
+      "projectName": "anything",
+      "type": "work",
+      "startTime": 1770730693200,
+      "endTime": 1770736555724,
+      "targetEndTime": 1770734293179,
+      "itemId": 209,
+      "id": 164,
+      "timestamp": 1770730693200
+    },
+    {
+      "text": "Worked on: להתקלח (10m)",
+      "projectName": "Inbox",
+      "type": "work",
+      "startTime": 1770736691354,
+      "endTime": 1770737334743,
+      "targetEndTime": 1770737591349,
+      "itemId": 234,
+      "id": 165,
+      "timestamp": 1770736691354
+    },
+    {
+      "text": "Worked on: לסדר את הבית (15m)",
+      "projectName": "anything",
+      "type": "work",
+      "startTime": 1770737338825,
+      "endTime": 1770738240584,
+      "targetEndTime": 1770738538819,
+      "itemId": 213,
+      "id": 166,
+      "timestamp": 1770737338825
+    },
+    {
+      "text": "Worked on: anything (11m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1770738406175,
+      "endTime": 1770739125471,
+      "itemId": 9,
+      "id": 167,
+      "timestamp": 1770738406175
+    },
+    {
+      "text": "Worked on: סשן שלי (1h 35m)",
+      "projectName": "פרויקטי מוזיקה",
+      "type": "work",
+      "startTime": 1770757855818,
+      "endTime": 1770763597268,
+      "targetEndTime": 1770766200000,
+      "itemId": 193,
+      "id": 168,
+      "timestamp": 1770757855818
+    },
+    {
+      "text": "anything",
+      "projectName": null,
+      "type": "planned",
+      "startTime": 1770763826047,
+      "endTime": 1770765300000,
+      "itemId": 9,
+      "id": 169,
+      "timestamp": 1770763826047
+    },
+    {
+      "text": "Worked on: anything (17m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1770764268135,
+      "endTime": 1770765332093,
+      "targetEndTime": 1770765626047,
+      "itemId": 9,
+      "id": 170,
+      "timestamp": 1770764268135
+    },
+    {
+      "text": "anything",
+      "projectName": null,
+      "type": "planned",
+      "startTime": 1770765346527,
+      "endTime": 1770770700000,
+      "itemId": 9,
+      "id": 171,
+      "timestamp": 1770765346527
+    },
+    {
+      "text": "Worked on: aggregate common ancestors in actions (0m)",
+      "projectName": "anything",
+      "type": "work",
+      "startTime": 1770765835686,
+      "endTime": 1770765858451,
+      "targetEndTime": 1770766435686,
+      "itemId": 204,
+      "id": 172,
+      "timestamp": 1770765835686
+    },
+    {
+      "text": "Worked on: aggregate common ancestors in actions (10m)",
+      "projectName": "anything",
+      "type": "work",
+      "startTime": 1770766078687,
+      "endTime": 1770766724690,
+      "targetEndTime": 1770766678687,
+      "itemId": 204,
+      "id": 173,
+      "timestamp": 1770766078687
+    },
+    {
+      "text": "Done: aggregate common ancestors in actions",
+      "projectName": "anything",
+      "type": "completion",
+      "id": 174,
+      "timestamp": 1770766732159
+    },
+    {
+      "text": "Worked on: someday (1h 6m)",
+      "projectName": "anything",
+      "type": "work",
+      "startTime": 1770767006156,
+      "endTime": 1770770984952,
+      "targetEndTime": 1770768506155,
+      "itemId": 175,
+      "id": 175,
+      "timestamp": 1770767006156
+    },
+    {
+      "text": "Done: someday",
+      "projectName": "anything",
+      "type": "completion",
+      "id": 176,
+      "timestamp": 1770771847436
+    },
+    {
+      "text": "Worked on: anything (13m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1770771197490,
+      "endTime": 1770772030894,
+      "itemId": 9,
+      "id": 177,
+      "timestamp": 1770771197490
+    },
+    {
+      "text": "סשן איתי",
+      "projectName": "פרויקטי מוזיקה",
+      "type": "planned",
+      "startTime": 1770811200000,
+      "endTime": 1770822000000,
+      "itemId": 243,
+      "id": 178,
+      "timestamp": 1770811200000
+    },
+    {
+      "text": "Worked on: reschedule time blocks date (9m)",
+      "projectName": "anything",
+      "type": "work",
+      "startTime": 1770802115194,
+      "endTime": 1770802658202,
+      "itemId": 250,
+      "id": 179,
+      "timestamp": 1770802115194
+    },
+    {
+      "text": "שבעה סבתא של ירין",
+      "projectName": "חברים",
+      "type": "planned",
+      "startTime": 1770885000000,
+      "endTime": 1770890400000,
+      "itemId": 216,
+      "id": 182,
+      "timestamp": 1770885000000
+    },
+    {
+      "text": "Done: reschedule time blocks date",
+      "projectName": "anything",
+      "type": "completion",
+      "id": 183,
+      "timestamp": 1770804370874
+    },
+    {
+      "text": "Done: creating a \"someday\" horizon",
+      "projectName": "anything",
+      "type": "completion",
+      "id": 184,
+      "timestamp": 1770804899653
+    },
+    {
+      "text": "Done: time context someday?",
+      "projectName": "anything",
+      "type": "completion",
+      "id": 185,
+      "timestamp": 1770804936905
+    },
+    {
+      "text": "Done: jump to today",
+      "projectName": "anything",
+      "type": "completion",
+      "id": 186,
+      "timestamp": 1770804947555
     }
   ],
-  "nextId": 163
+  "nextId": 187
 }
