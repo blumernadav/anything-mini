@@ -2052,6 +2052,72 @@ body {
     opacity: 0.9;
 }
 
+/* ─── Live Session Indicator ─── */
+.live-session-indicator {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    border-radius: var(--radius-sm);
+    background: var(--bg-hover);
+    transition: all var(--dur) var(--ease);
+    margin-bottom: 4px;
+}
+
+.live-session-indicator:hover {
+    background: var(--accent-dim);
+}
+
+.live-session-indicator-work {
+    border-left: 3px solid var(--accent);
+}
+
+.live-session-indicator-break {
+    border-left: 3px solid #2dd4bf;
+}
+
+.live-session-indicator-icon {
+    font-size: 14px;
+    line-height: 1;
+    animation: live-pulse 2s ease-in-out infinite;
+}
+
+.live-session-indicator-label {
+    flex: 1;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+}
+
+.live-session-indicator-timer {
+    font-size: 12px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: var(--accent);
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.live-session-indicator-overtime {
+    color: #ef4444;
+}
+
+@keyframes live-pulse {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.5;
+    }
+}
+
 /* ─── Edit Button (on past entries) ─── */
 .time-block-edit-btn {
     background: none;

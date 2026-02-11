@@ -1992,6 +1992,76 @@ body {
     opacity: 0.85;
 }
 
+/* ─── Live Session Indicator ─── */
+.live-session-indicator {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    border: 1px dashed var(--pencil-ghost);
+    border-radius: var(--radius);
+    background: transparent;
+    transition: all var(--dur) var(--ease);
+    margin-bottom: 4px;
+}
+
+.live-session-indicator:hover {
+    border-style: solid;
+    border-color: var(--pencil);
+}
+
+.live-session-indicator-work {
+    border-left: 2px solid var(--pencil);
+}
+
+.live-session-indicator-break {
+    border-left: 2px solid var(--blue-pen);
+}
+
+.live-session-indicator-icon {
+    font-size: 14px;
+    line-height: 1;
+    opacity: 0.7;
+    animation: live-pulse 2s ease-in-out infinite;
+}
+
+.live-session-indicator-label {
+    flex: 1;
+    font-size: 15px;
+    font-family: 'Caveat', cursive;
+    font-weight: 600;
+    color: var(--pencil);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+}
+
+.live-session-indicator-timer {
+    font-size: 15px;
+    font-family: 'Caveat', cursive;
+    font-weight: 600;
+    color: var(--blue-pen);
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.live-session-indicator-overtime {
+    color: var(--red-pen);
+}
+
+@keyframes live-pulse {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.5;
+    }
+}
+
 /* ─── Edit Button (on past entries) ─── */
 .time-block-edit-btn {
     background: none;

@@ -2162,6 +2162,80 @@ body {
     border-left: 4px solid var(--duo-gold);
 }
 
+/* ─── Live Session Indicator ─── */
+.live-session-indicator {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    border-radius: 10px;
+    background: var(--duo-bg);
+    border: 2px solid var(--duo-border);
+    transition: all var(--dur) var(--ease);
+    margin-bottom: 4px;
+    box-shadow: 0 2px 0 var(--duo-border);
+}
+
+.live-session-indicator:hover {
+    border-color: var(--duo-green);
+    transform: translateY(-1px);
+}
+
+.live-session-indicator:active {
+    transform: translateY(1px);
+    box-shadow: none;
+}
+
+.live-session-indicator-work {
+    border-left: 4px solid var(--duo-green);
+}
+
+.live-session-indicator-break {
+    border-left: 4px solid var(--duo-blue);
+}
+
+.live-session-indicator-icon {
+    font-size: 14px;
+    line-height: 1;
+    animation: live-pulse 2s ease-in-out infinite;
+}
+
+.live-session-indicator-label {
+    flex: 1;
+    font-size: 12px;
+    font-weight: 800;
+    color: var(--duo-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+}
+
+.live-session-indicator-timer {
+    font-size: 12px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    color: var(--duo-green);
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.live-session-indicator-overtime {
+    color: var(--duo-red);
+}
+
+@keyframes live-pulse {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.5;
+    }
+}
+
 /* ─── Edit Button (on past entries) ─── */
 .time-block-edit-btn {
     background: none;

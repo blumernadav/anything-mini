@@ -657,8 +657,26 @@ function buildSegmentContext(dateKey, startMs, endMs) {
     return `${dateKey}@${fmt(startMs)}-${fmt(endMs)}`;
 }
 
-// Add a segment context to an item, removing the plain date context if present
-async function addSegmentContext(itemId, segmentContextStr) {
+// Find the timeline entry ID for the currently-running work or break session
+function findLiveEntryId(type) {
+    const entries = state.timeline?.entries || [];
+    const liveState = type === 'work' ? state.workingOn : state.onBreak;
+    if (!liveState) return null;
+    // Match by type and start time
+    for (let i = entries.length - 1; i >= 0; i--) {
+        if (entries[i].type === type && entries[i].timestamp === liveState.startTime) return entries[i].id;
+    }
+    // Fallback: last entry of this type without endTime
+    for (let i = entries.length - 1; i >= 0; i--) {
+        if (entries[i].type === type && !entries[i].endTime) return entries[i].id;
+    }
+    return null;
+}
+
+// Add a segment context to an item, removing the plain date context if present.
+// seedDuration: if provided, always use this value for the new context's duration
+// (used when migrating duration from another context via drag).
+async function addSegmentContext(itemId, segmentContextStr, seedDuration) {
     itemId = Number(itemId);
     const item = findItemById(itemId);
     if (!item) return;
@@ -671,35 +689,47 @@ async function addSegmentContext(itemId, segmentContextStr) {
     if (!item.timeContexts.includes(segmentContextStr)) {
         item.timeContexts.push(segmentContextStr);
     }
-    // Seed segment duration from item's estimatedDuration
-    if (!item.segmentDurations) item.segmentDurations = {};
-    if (!(segmentContextStr in item.segmentDurations)) {
-        item.segmentDurations[segmentContextStr] = item.estimatedDuration || 0;
+    // Seed segment duration — use explicit seed if provided, else fall back
+    if (!item.contextDurations) item.contextDurations = {};
+    if (seedDuration != null) {
+        item.contextDurations[segmentContextStr] = seedDuration;
+    } else if (!(segmentContextStr in item.contextDurations)) {
+        item.contextDurations[segmentContextStr] = item.estimatedDuration || 0;
     }
-    await api.patch(`/items/${itemId}`, { timeContexts: item.timeContexts, segmentDurations: item.segmentDurations });
+    await api.patch(`/items/${itemId}`, { timeContexts: item.timeContexts, contextDurations: item.contextDurations });
     renderAll();
 }
 
-// Degrade a segment context back to its parent date context
+// Degrade a segment context back to its parent date context.
+// Returns the removed context's duration (if any) so callers can migrate it.
 async function degradeSegmentContext(itemId, segmentContextStr) {
     itemId = Number(itemId);
     const item = findItemById(itemId);
     if (!item || !item.timeContexts) return;
     const parsed = parseTimeContext(segmentContextStr);
     if (!parsed) return;
+    // Capture the duration before removing so callers can migrate it
+    const removedDuration = item.contextDurations?.[segmentContextStr];
     // Remove the segment context
     item.timeContexts = item.timeContexts.filter(tc => tc !== segmentContextStr);
     // Clean up segment duration
-    if (item.segmentDurations) delete item.segmentDurations[segmentContextStr];
+    if (item.contextDurations) delete item.contextDurations[segmentContextStr];
+    // Seed the removed duration into the parent date context key
+    if (removedDuration != null && item.contextDurations) {
+        if (!(parsed.date in item.contextDurations)) {
+            item.contextDurations[parsed.date] = removedDuration;
+        }
+    }
     // Add the parent date back if no other context for this date exists
     const hasOtherForDate = item.timeContexts.some(tc => contextMatchesDate(tc, parsed.date));
     if (!hasOtherForDate) {
         item.timeContexts.push(parsed.date);
     }
     const patch = { timeContexts: item.timeContexts };
-    if (item.segmentDurations) patch.segmentDurations = item.segmentDurations;
+    if (item.contextDurations) patch.contextDurations = item.contextDurations;
     await api.patch(`/items/${itemId}`, patch);
     renderAll();
+    return removedDuration;
 }
 
 // Degrade all segment/entry contexts referencing a specific entry ID
@@ -792,10 +822,31 @@ function getCurrentTimeContexts() {
         const dateKey = getDateKey(state.timelineViewDate);
         const ctx = [dateKey];
         if (focused.segmentKey) ctx.push(focused.segmentKey);
+        else if (focused.entryId) ctx.push(`${dateKey}@entry:${focused.entryId}`);
         return ctx;
     }
     if (state.viewHorizon === 'someday') return ['someday'];
     return [getDateKey(state.timelineViewDate)];
+}
+
+// Return the single most-specific context string for the current view state.
+// Used by the duration picker / badge to read/write context-coupled durations.
+function getCurrentViewContext() {
+    const focused = state.focusStack.length > 0 ? state.focusStack[state.focusStack.length - 1] : null;
+    if (focused && focused.segmentKey) return focused.segmentKey;
+    if (focused && focused.entryId) return `${getDateKey(state.timelineViewDate)}@entry:${focused.entryId}`;
+    if (state.viewHorizon === 'someday') return 'someday';
+    return getDateKey(state.timelineViewDate);
+}
+
+// Resolve the effective duration for an item in the current view context.
+// Fallback chain: contextDurations[ctx] → estimatedDuration → 0
+function getContextDuration(item, ctx) {
+    if (!item) return 0;
+    if (!ctx) ctx = getCurrentViewContext();
+    const ctxDur = item.contextDurations?.[ctx];
+    if (ctxDur != null) return ctxDur;
+    return item.estimatedDuration || 0;
 }
 
 // Check if an item has an epoch context (e.g. "someday") on itself or any ancestor.
@@ -848,8 +899,9 @@ async function addTimeContext(itemId, dateKey) {
     }
 }
 
-// Send an item to the someday backlog — strips all date/segment contexts and adds "someday"
-async function sendToSomeday(itemId) {
+// Send an item to the someday backlog — strips all date/segment contexts and adds "someday".
+// sourceDuration: if provided, seed it as the someday-level duration.
+async function sendToSomeday(itemId, sourceDuration) {
     itemId = Number(itemId);
     const item = findItemById(itemId);
     if (!item) return;
@@ -858,32 +910,47 @@ async function sendToSomeday(itemId) {
     if (!item.timeContexts.includes('someday')) {
         item.timeContexts.push('someday');
     }
-    // Clean segment durations since we removed segment contexts
-    if (item.segmentDurations) item.segmentDurations = {};
-    await api.patch(`/items/${itemId}`, { timeContexts: item.timeContexts, segmentDurations: item.segmentDurations || {} });
+    // Clean segment durations since we removed segment contexts,
+    // but seed the someday duration from the source if provided
+    if (!item.contextDurations) item.contextDurations = {};
+    const dur = sourceDuration != null ? sourceDuration : (item.contextDurations[Object.keys(item.contextDurations)[0]] ?? undefined);
+    item.contextDurations = {};
+    if (dur != null) item.contextDurations['someday'] = dur;
+    await api.patch(`/items/${itemId}`, { timeContexts: item.timeContexts, contextDurations: item.contextDurations });
     renderAll();
 }
 
-// Promote an item from someday — removes "someday", adds the target date
-async function promoteFromSomeday(itemId, dateKey) {
+// Promote an item from someday — removes "someday", adds the target date.
+// Migrates the someday-level duration to the new date context.
+async function promoteFromSomeday(itemId, dateKey, sourceDuration) {
     itemId = Number(itemId);
     const item = findItemById(itemId);
     if (!item) return;
     if (!item.timeContexts) item.timeContexts = [];
+    // Capture someday duration before removing
+    const somedayDur = sourceDuration != null ? sourceDuration : item.contextDurations?.['someday'];
     item.timeContexts = item.timeContexts.filter(tc => tc !== 'someday');
     if (!item.timeContexts.includes(dateKey)) {
         item.timeContexts.push(dateKey);
     }
-    await api.patch(`/items/${itemId}`, { timeContexts: item.timeContexts });
+    // Migrate duration to the new date key
+    if (!item.contextDurations) item.contextDurations = {};
+    delete item.contextDurations['someday'];
+    if (somedayDur != null) item.contextDurations[dateKey] = somedayDur;
+    await api.patch(`/items/${itemId}`, { timeContexts: item.timeContexts, contextDurations: item.contextDurations });
     renderAll();
 }
 
-// Reschedule an item to a specific date (used by DnD on day arrows)
+// Reschedule an item to a specific date (used by DnD on day arrows).
+// Preserves the source context's duration into the new date context.
 async function rescheduleToDate(itemId, dateKey) {
     itemId = Number(itemId);
     const item = findItemById(itemId);
     if (!item) return;
     if (!item.timeContexts) item.timeContexts = [];
+    // Capture best available duration from current contexts before clearing
+    const srcCtx = getCurrentViewContext();
+    const srcDur = item.contextDurations?.[srcCtx] ?? getContextDuration(item, srcCtx);
     // Remove all date/segment contexts and epoch contexts, add the target date
     item.timeContexts = item.timeContexts.filter(tc => isEpochContext(tc) && tc !== 'someday');
     item.timeContexts = item.timeContexts.filter(tc => !tc.match(/^\d{4}-\d{2}-\d{2}/));
@@ -892,8 +959,11 @@ async function rescheduleToDate(itemId, dateKey) {
     if (!item.timeContexts.includes(dateKey)) {
         item.timeContexts.push(dateKey);
     }
-    if (item.segmentDurations) item.segmentDurations = {};
-    await api.patch(`/items/${itemId}`, { timeContexts: item.timeContexts, segmentDurations: item.segmentDurations || {} });
+    // Migrate duration to the new date
+    if (!item.contextDurations) item.contextDurations = {};
+    item.contextDurations = {};
+    if (srcDur) item.contextDurations[dateKey] = srcDur;
+    await api.patch(`/items/${itemId}`, { timeContexts: item.timeContexts, contextDurations: item.contextDurations });
     renderAll();
 }
 
@@ -974,9 +1044,9 @@ async function cleanPastSessions(now) {
                 if (contextsToRemove.length > 0) {
                     item.timeContexts = item.timeContexts.filter(tc => !contextsToRemove.includes(tc));
                     // Clean up segment durations
-                    if (item.segmentDurations) {
+                    if (item.contextDurations) {
                         for (const ctx of contextsToRemove) {
-                            delete item.segmentDurations[ctx];
+                            delete item.contextDurations[ctx];
                         }
                     }
                     // Add the parent date back if no other context for this date exists
@@ -2337,7 +2407,7 @@ function getFilteredActions() {
             if (planDescendantIds && !planDescendantIds.has(a.id)) return false;
 
             // Items with entry-ID context matching the focused planned session
-            if (fs.type === 'planned' && fs.entryId && item.timeContexts) {
+            if (fs.entryId && item.timeContexts) {
                 const entryCtx = `${currentDateKey}@entry:${fs.entryId}`;
                 if (item.timeContexts.includes(entryCtx)) return true;
             }
@@ -2360,7 +2430,7 @@ function getFilteredActions() {
                 }
             }
             // Unscheduled items show in free time and planned sessions
-            if ((fs.type === 'free' || fs.type === 'planned') && isItemUnscheduled(a)) {
+            if ((fs.type === 'free' || fs.type === 'planned' || fs.type === 'working' || fs.type === 'work' || fs.type === 'break') && isItemUnscheduled(a)) {
                 return itemMatchesTimeContext(a, currentDateKey);
             }
             return false;
@@ -2723,12 +2793,12 @@ function createActionElement(action) {
         }
     }
 
-    // Duration estimate badge
+    // Duration estimate badge (context-aware)
     const estimateItem = findItemById(action.id);
     if (!action.done) {
         const estimateBadge = document.createElement('span');
         estimateBadge.className = 'action-estimate-badge';
-        const est = estimateItem?.estimatedDuration;
+        const est = getContextDuration(estimateItem);
         if (est) {
             estimateBadge.textContent = est >= 60 ? `${Math.floor(est / 60)}h${est % 60 ? ` ${est % 60}m` : ''}` : `${est}m`;
             estimateBadge.classList.add('has-estimate');
@@ -3174,26 +3244,89 @@ function renderTimeContext() {
             if (nextBtn) nextBtn.style.display = '';
             if (todayBadge) todayBadge.style.display = '';
         }
+    } else {
+
+        // Focused: transform the bar — keep horizon layers visible (dimmed by renderHorizonTower)
+        container.classList.add('time-context-focused');
+        // Set type class for skin-specific styling
+        container.className = container.className.replace(/\btime-context-type-\S+/g, '').trim();
+        container.classList.add(`time-context-type-${top.type}`);
+
+        // Keep date-nav visible — renderHorizonTower already dims it
+        const dateNav = container.querySelector('.date-nav');
+        if (dateNav) dateNav.style.display = '';
+        container.querySelectorAll('.time-context-session').forEach(el => el.remove());
+
+        const sessionEl = document.createElement('div');
+        sessionEl.className = `time-context-session time-context-session-${top.type} horizon-layer horizon-layer-active`;
+
+        // ── Duration helpers ──
+        const nowMs = Date.now();
+        const durationMs = top.endMs - top.startMs;
+        const _fmtDur = (ms) => {
+            const h = Math.floor(ms / 3600000);
+            const m = Math.floor((ms % 3600000) / 60000);
+            const s = Math.floor((ms % 60000) / 1000);
+            if (h > 0) return `${h}h ${m}m`;
+            if (m > 0) return `${m}m ${s}s`;
+            return `${s}s`;
+        };
+
+        // ── Render per-type content ──
+        if (top.type === 'working' || top.type === 'work') {
+            _renderWorkSession(sessionEl, top, nowMs, durationMs, _fmtDur);
+        } else if (top.type === 'planned') {
+            _renderPlannedSession(sessionEl, top, nowMs, durationMs, _fmtDur);
+        } else if (top.type === 'free') {
+            _renderFreeSession(sessionEl, top, nowMs, durationMs, _fmtDur);
+        } else if (top.type === 'break') {
+            _renderBreakSession(sessionEl, top, nowMs, durationMs, _fmtDur);
+        }
+
+        // ── Action count (shared) ──
+        const visibleActions = state._visibleActionIds || [];
+        const countRow = document.createElement('div');
+        countRow.className = 'time-context-row time-context-action-count';
+        countRow.textContent = `📋 ${visibleActions.length} related action${visibleActions.length !== 1 ? 's' : ''}`;
+        sessionEl.appendChild(countRow);
+
+        container.appendChild(sessionEl);
+    }
+
+    // ── Live session indicator (always visible when a session is running) ──
+    _renderLiveSessionIndicator(container);
+}
+
+// ── Live Session Indicator ──
+// Shows a compact clickable bar when a work/break session is running
+// but the user isn't already focused on it (different date, different horizon, etc.)
+function _renderLiveSessionIndicator(container) {
+    // Remove any existing indicator
+    container.querySelectorAll('.live-session-indicator').forEach(el => el.remove());
+
+    const liveSession = state.workingOn || state.onBreak;
+    if (!liveSession) return;
+
+    const isWork = !!state.workingOn;
+    const top = state.focusStack.length > 0 ? state.focusStack[state.focusStack.length - 1] : null;
+
+    // Hide indicator if already focused on this live session
+    if (top && (top.type === 'working' || (top.type === 'break' && state.onBreak))) {
         return;
     }
 
-    // Focused: transform the bar — keep horizon layers visible (dimmed by renderHorizonTower)
-    container.classList.add('time-context-focused');
-    // Set type class for skin-specific styling
-    container.className = container.className.replace(/\btime-context-type-\S+/g, '').trim();
-    container.classList.add(`time-context-type-${top.type}`);
+    // Hide on today's day view (unfocused) — the timeline already shows the live block
+    const today = getLogicalToday();
+    const viewDate = state.timelineViewDate;
+    const isToday = viewDate && today && viewDate.toDateString() === today.toDateString();
+    if (!top && state.viewHorizon === 'day' && isToday) {
+        return;
+    }
 
-    // Keep date-nav visible — renderHorizonTower already dims it
-    const dateNav = container.querySelector('.date-nav');
-    if (dateNav) dateNav.style.display = '';
-    container.querySelectorAll('.time-context-session').forEach(el => el.remove());
-
-    const sessionEl = document.createElement('div');
-    sessionEl.className = `time-context-session time-context-session-${top.type} horizon-layer horizon-layer-active`;
-
-    // ── Duration helpers ──
     const nowMs = Date.now();
-    const durationMs = top.endMs - top.startMs;
+    const startMs = liveSession.startTime;
+    const elapsed = Math.max(0, nowMs - startMs);
+
     const _fmtDur = (ms) => {
         const h = Math.floor(ms / 3600000);
         const m = Math.floor((ms % 3600000) / 60000);
@@ -3203,25 +3336,72 @@ function renderTimeContext() {
         return `${s}s`;
     };
 
-    // ── Render per-type content ──
-    if (top.type === 'working' || top.type === 'work') {
-        _renderWorkSession(sessionEl, top, nowMs, durationMs, _fmtDur);
-    } else if (top.type === 'planned') {
-        _renderPlannedSession(sessionEl, top, nowMs, durationMs, _fmtDur);
-    } else if (top.type === 'free') {
-        _renderFreeSession(sessionEl, top, nowMs, durationMs, _fmtDur);
-    } else if (top.type === 'break') {
-        _renderBreakSession(sessionEl, top, nowMs, durationMs, _fmtDur);
+    const indicator = document.createElement('div');
+    indicator.className = `live-session-indicator live-session-indicator-${isWork ? 'work' : 'break'}`;
+    indicator.style.cursor = 'pointer';
+    indicator.title = 'Click to return to running session';
+
+    // Icon
+    const icon = document.createElement('span');
+    icon.className = 'live-session-indicator-icon';
+    icon.textContent = isWork ? '🔥' : '☕';
+
+    // Label
+    const label = document.createElement('span');
+    label.className = 'live-session-indicator-label';
+    label.textContent = isWork ? (state.workingOn.itemName || 'Working') : 'Break';
+
+    // Timer
+    const timer = document.createElement('span');
+    timer.className = 'live-session-indicator-timer';
+    timer.dataset.sessionStart = startMs;
+    if (liveSession.targetEndTime) {
+        timer.dataset.targetEnd = liveSession.targetEndTime;
+        const rem = liveSession.targetEndTime - nowMs;
+        if (rem > 0) {
+            timer.textContent = _fmtDur(rem) + ' left';
+        } else {
+            timer.textContent = '+' + _fmtDur(Math.abs(rem)) + ' over';
+            timer.classList.add('live-session-indicator-overtime');
+        }
+    } else {
+        timer.textContent = _fmtDur(elapsed);
     }
 
-    // ── Action count (shared) ──
-    const visibleActions = state._visibleActionIds || [];
-    const countRow = document.createElement('div');
-    countRow.className = 'time-context-row time-context-action-count';
-    countRow.textContent = `📋 ${visibleActions.length} related action${visibleActions.length !== 1 ? 's' : ''}`;
-    sessionEl.appendChild(countRow);
+    indicator.appendChild(icon);
+    indicator.appendChild(label);
+    indicator.appendChild(timer);
 
-    container.appendChild(sessionEl);
+    // Click: navigate back to today + focus the running session
+    indicator.addEventListener('click', () => {
+        // 1. Navigate to today
+        state.timelineViewDate = getLogicalToday();
+        savePref('timelineViewDate', state.timelineViewDate.toISOString());
+        // 2. Switch to day horizon
+        state.viewHorizon = 'day';
+        savePref('viewHorizon', 'day');
+        // 3. Focus the running session
+        const endMs = isWork
+            ? Math.max(nowMs, state.workingOn.targetEndTime || nowMs)
+            : Math.max(nowMs, state.onBreak.targetEndTime || nowMs);
+        const sessionLabel = isWork ? (state.workingOn.itemName || 'Working') : 'Break';
+        state.focusStack = [{
+            startMs: liveSession.startTime,
+            endMs,
+            label: sessionLabel,
+            type: isWork ? 'working' : 'break',
+            icon: isWork ? '🔥' : '☕',
+            projectName: isWork ? state.workingOn.projectName : null,
+            itemId: isWork ? state.workingOn.itemId : null,
+            targetEndTime: liveSession.targetEndTime || null,
+            entryId: findLiveEntryId(isWork ? 'work' : 'break'),
+            tier: 'session',
+        }];
+        renderAll();
+    });
+
+    // Insert at the top of the container (before horizon layers)
+    container.insertBefore(indicator, container.firstChild);
 }
 
 // ── Work Session Header ──
@@ -4149,8 +4329,8 @@ function createFreeTimeBlock(startMs, endMs) {
             console.log('[FREE-BLOCK] cross-block drop, itemId:', itemId, 'oldCtx:', oldCtx, 'newCtx:', newSegCtx);
             if (itemId && oldCtx && oldCtx !== newSegCtx) {
                 (async () => {
-                    await degradeSegmentContext(itemId, oldCtx);
-                    await addSegmentContext(itemId, newSegCtx);
+                    const dur = await degradeSegmentContext(itemId, oldCtx);
+                    await addSegmentContext(itemId, newSegCtx, dur);
                 })();
             } else {
                 console.log('[FREE-BLOCK] cross-block drop skipped (same block or missing data)');
@@ -4163,7 +4343,9 @@ function createFreeTimeBlock(startMs, endMs) {
         console.log('[FREE-BLOCK] normal drop, action:', action?.id);
         if (!action) return;
         window._draggedAction = null;
-        addSegmentContext(action.id, newSegCtx);
+        // Carry duration from the current view context (Actions panel)
+        const srcDur = getContextDuration(findItemById(action.id));
+        addSegmentContext(action.id, newSegCtx, srcDur || undefined);
     });
 
     // ── Nested segment-assigned items ──
@@ -4188,7 +4370,7 @@ function createFreeTimeBlock(startMs, endMs) {
             const overlapEnd = Math.min(endMs, tcEnd);
             if (overlapEnd <= overlapStart) return false;
             // Duration-aware: block must be able to contain the item's estimated duration
-            const estMs = (item.estimatedDuration || 0) * 60000;
+            const estMs = getContextDuration(item) * 60000;
             return estMs === 0 || (endMs - startMs) >= estMs;
         });
     });
@@ -4213,7 +4395,7 @@ function createFreeTimeBlock(startMs, endMs) {
                 return Math.min(endMs, tcE) > Math.max(startMs, tcS);
             }) || segCtx;
             // Read segment-specific duration using the item's stored key
-            const segDur = item?.segmentDurations?.[itemSegCtx];
+            const segDur = item?.contextDurations?.[itemSegCtx];
             const estMins = segDur != null ? segDur : (item?.estimatedDuration || 0);
             totalEstMins += estMins;
 
@@ -4269,9 +4451,9 @@ function createFreeTimeBlock(startMs, endMs) {
                 saveBtn.addEventListener('click', async (se) => {
                     se.stopPropagation();
                     const mins = parseInt(input.value, 10) || 0;
-                    if (!item.segmentDurations) item.segmentDurations = {};
-                    item.segmentDurations[itemSegCtx] = mins;
-                    await api.patch(`/items/${action.id}`, { segmentDurations: item.segmentDurations });
+                    if (!item.contextDurations) item.contextDurations = {};
+                    item.contextDurations[itemSegCtx] = mins;
+                    await api.patch(`/items/${action.id}`, { contextDurations: item.contextDurations });
                     pop.remove();
                     renderAll();
                 });
@@ -4321,9 +4503,9 @@ function createFreeTimeBlock(startMs, endMs) {
                     if (matchingCtx) {
                         item.timeContexts = item.timeContexts.filter(tc => tc !== matchingCtx);
                         const patch = { timeContexts: item.timeContexts };
-                        if (item.segmentDurations) {
-                            delete item.segmentDurations[matchingCtx];
-                            patch.segmentDurations = item.segmentDurations;
+                        if (item.contextDurations) {
+                            delete item.contextDurations[matchingCtx];
+                            patch.contextDurations = item.contextDurations;
                         }
                         await api.patch(`/items/${action.id}`, patch);
                     }
@@ -4368,7 +4550,8 @@ function openPlanEditor(freeBlock, freeStartMs, freeEndMs, preselectedAction = n
 
     const DEFAULT_DURATION = 30 * 60 * 1000;
     const itemData = preselectedAction ? findItemById(preselectedAction.id) : null;
-    const estimatedMs = itemData?.estimatedDuration ? itemData.estimatedDuration * 60000 : DEFAULT_DURATION;
+    const ctxDur = getContextDuration(itemData);
+    const estimatedMs = ctxDur ? ctxDur * 60000 : DEFAULT_DURATION;
     const availableMs = freeEndMs - freeStartMs;
     let planStartMs = freeStartMs;
     let planEndMs = freeStartMs + Math.min(estimatedMs, availableMs);
@@ -4618,12 +4801,16 @@ function openPlanEditor(freeBlock, freeStartMs, freeEndMs, preselectedAction = n
         });
         state.timeline.entries.push(entry);
 
-        // Write back duration to item estimate (learn from scheduling)
+        // Write back duration to item context estimate (learn from scheduling)
         const durationMins = Math.round((planEndMs - planStartMs) / 60000);
         const existingItem = findItemById(selectedAction.id);
-        if (existingItem && !existingItem.estimatedDuration) {
-            existingItem.estimatedDuration = durationMins;
-            await api.patch(`/items/${selectedAction.id}`, { estimatedDuration: durationMins });
+        if (existingItem) {
+            const ctx = getCurrentViewContext();
+            if (!existingItem.contextDurations) existingItem.contextDurations = {};
+            if (!(ctx in existingItem.contextDurations)) {
+                existingItem.contextDurations[ctx] = durationMins;
+                await api.patch(`/items/${selectedAction.id}`, { contextDurations: existingItem.contextDurations });
+            }
         }
 
         // Link to parent session if creating inside one, otherwise link to own entry
@@ -4930,6 +5117,187 @@ function openIdleWorkEditor(idleBlock, idleStartMs, idleEndMs) {
     });
 }
 
+// ── Shared helper: attach drag-and-drop target + nested items queue to a block ──
+function _attachEntryDropAndQueue(el, entryId, durationMs) {
+    if (!entryId) return;
+    const dateKey = getDateKey(state.timelineViewDate);
+    const entryCtx = `${dateKey}@entry:${entryId}`;
+
+    // ── Drop target ──
+    const _acceptsDrag = (e) =>
+        e.dataTransfer.types.includes('application/x-action-id') ||
+        e.dataTransfer.types.includes('application/x-segment-item-id');
+
+    el.addEventListener('dragover', (e) => {
+        if (!_acceptsDrag(e)) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        el.classList.add('time-block-drag-over');
+    });
+    el.addEventListener('dragenter', (e) => {
+        if (!_acceptsDrag(e)) return;
+        e.preventDefault();
+        el.classList.add('time-block-drag-over');
+    });
+    el.addEventListener('dragleave', (e) => {
+        if (e.relatedTarget && el.contains(e.relatedTarget)) return;
+        el.classList.remove('time-block-drag-over');
+    });
+    el.addEventListener('drop', (e) => {
+        if (!_acceptsDrag(e)) return;
+        e.preventDefault();
+        el.classList.remove('time-block-drag-over');
+
+        // Cross-block drag: segment/entry item moving between blocks
+        if (e.dataTransfer.types.includes('application/x-segment-item-id')) {
+            const itemId = e.dataTransfer.getData('application/x-segment-item-id');
+            const oldCtx = e.dataTransfer.getData('application/x-segment-context');
+            if (itemId && oldCtx && oldCtx !== entryCtx) {
+                (async () => {
+                    await degradeSegmentContext(itemId, oldCtx);
+                    await addSegmentContext(Number(itemId), entryCtx);
+                })();
+            }
+            return;
+        }
+
+        // Normal drag from Actions panel
+        const action = window._draggedAction;
+        if (!action) return;
+        window._draggedAction = null;
+        addSegmentContext(action.id, entryCtx);
+    });
+
+    // ── Nested entry-assigned items ──
+    const allItems = collectAllItems();
+    const assignedItems = allItems.filter(a => {
+        const item = findItemById(a.id);
+        if (!item || !item.timeContexts) return false;
+        return item.timeContexts.includes(entryCtx);
+    });
+
+    if (assignedItems.length > 0) {
+        const queue = document.createElement('div');
+        queue.className = 'segment-queue';
+
+        let totalEstMins = 0;
+        for (const action of assignedItems) {
+            const item = findItemById(action.id);
+            const segDur = item?.contextDurations?.[entryCtx];
+            const estMins = segDur != null ? segDur : (item?.estimatedDuration || 0);
+            totalEstMins += estMins;
+
+            const row = document.createElement('div');
+            row.className = 'segment-queue-item';
+            row.draggable = true;
+            row.dataset.itemId = action.id;
+
+            row.addEventListener('dragstart', (e) => {
+                e.stopPropagation();
+                e.dataTransfer.setData('application/x-segment-item-id', String(action.id));
+                e.dataTransfer.setData('application/x-segment-context', entryCtx);
+                e.dataTransfer.effectAllowed = 'move';
+                row.classList.add('segment-item-dragging');
+            });
+            row.addEventListener('dragend', () => {
+                row.classList.remove('segment-item-dragging');
+            });
+
+            const bullet = document.createElement('span');
+            bullet.className = 'segment-queue-bullet';
+            bullet.textContent = '○';
+
+            const nameSpan = document.createElement('span');
+            nameSpan.className = 'segment-queue-name';
+            nameSpan.textContent = action.name;
+
+            const est = document.createElement('span');
+            est.className = 'segment-queue-est';
+            est.textContent = estMins ? `~${estMins}m` : '⏱';
+            est.title = 'Click to set duration for this assignment';
+            est.addEventListener('click', (ev) => {
+                ev.stopPropagation();
+                document.querySelectorAll('.segment-duration-popover').forEach(p => p.remove());
+                const pop = document.createElement('div');
+                pop.className = 'segment-duration-popover';
+                const input = document.createElement('input');
+                input.type = 'number';
+                input.className = 'segment-duration-input';
+                input.min = '0';
+                input.max = '480';
+                input.value = estMins || '';
+                input.placeholder = 'min';
+                const saveBtn = document.createElement('button');
+                saveBtn.className = 'segment-duration-save';
+                saveBtn.textContent = '✓';
+                saveBtn.addEventListener('click', async (se) => {
+                    se.stopPropagation();
+                    const mins = parseInt(input.value, 10) || 0;
+                    if (!item.contextDurations) item.contextDurations = {};
+                    item.contextDurations[entryCtx] = mins;
+                    await api.patch(`/items/${action.id}`, { contextDurations: item.contextDurations });
+                    pop.remove();
+                    renderAll();
+                });
+                pop.appendChild(input);
+                pop.appendChild(saveBtn);
+                row.appendChild(pop);
+                input.focus();
+                input.select();
+                const closeHandler = (ce) => {
+                    if (!pop.contains(ce.target)) {
+                        pop.remove();
+                        document.removeEventListener('click', closeHandler, true);
+                    }
+                };
+                setTimeout(() => document.addEventListener('click', closeHandler, true), 0);
+                input.addEventListener('keydown', (ke) => {
+                    if (ke.key === 'Enter') saveBtn.click();
+                    if (ke.key === 'Escape') pop.remove();
+                });
+            });
+
+            const startBtn2 = document.createElement('button');
+            startBtn2.className = 'segment-queue-start';
+            startBtn2.textContent = '▶';
+            startBtn2.title = 'Start working on this';
+            startBtn2.draggable = false;
+            startBtn2.addEventListener('click', async (ev) => {
+                ev.stopPropagation();
+                const now = Date.now();
+                const durMins = estMins || 30;
+                const targetEnd = now + durMins * 60000;
+                const ancestors = action._path
+                    ? action._path.slice(0, -1).map(p => p.name).join(' › ')
+                    : '';
+                await startWorking(action.id, action.name, ancestors || null, targetEnd);
+            });
+
+            row.appendChild(bullet);
+            row.appendChild(nameSpan);
+            row.appendChild(est);
+            row.appendChild(startBtn2);
+            queue.appendChild(row);
+        }
+
+        el.appendChild(queue);
+
+        // Capacity bar
+        const availMins = Math.floor(durationMs / 60000);
+        if (totalEstMins > 0) {
+            const capBar = document.createElement('div');
+            capBar.className = 'segment-capacity-bar';
+            const fillPct = Math.min(100, (totalEstMins / availMins) * 100);
+            const isOver = totalEstMins > availMins;
+            capBar.innerHTML = `
+                <div class="segment-capacity-fill${isOver ? ' over-capacity' : ''}" style="width:${fillPct}%"></div>
+                <span class="segment-capacity-label">${totalEstMins}m / ${availMins}m</span>
+            `;
+            el.appendChild(capBar);
+        }
+    }
+}
+
 function createWorkingTimeBlock(startMs, endMs) {
     const el = document.createElement('div');
     el.className = 'time-block time-block-working focusable-block';
@@ -4937,11 +5305,13 @@ function createWorkingTimeBlock(startMs, endMs) {
     el.dataset.endTime = endMs;
     el.style.cursor = 'pointer';
     const itemName = state.workingOn ? state.workingOn.itemName : 'Working';
+    const liveWorkEntryId = findLiveEntryId('work');
     el.addEventListener('click', () => toggleSessionFocus({
         startMs, endMs, label: itemName, type: 'working', icon: '⚡',
         projectName: state.workingOn ? state.workingOn.projectName : null,
         itemId: state.workingOn ? state.workingOn.itemId : null,
         targetEndTime: targetEnd,
+        entryId: liveWorkEntryId,
     }));
 
     const targetEnd = state.workingOn ? state.workingOn.targetEndTime : null;
@@ -5036,9 +5406,11 @@ function createBreakTimeBlock(startMs, endMs) {
     el.dataset.startTime = startMs;
     el.dataset.endTime = endMs;
     el.style.cursor = 'pointer';
+    const liveBreakEntryId = findLiveEntryId('break');
     el.addEventListener('click', () => toggleSessionFocus({
         startMs, endMs, label: 'Break', type: 'break', icon: '☕',
         targetEndTime: targetEnd,
+        entryId: liveBreakEntryId,
     }));
 
     const targetEnd = state.onBreak ? state.onBreak.targetEndTime : null;
@@ -5115,6 +5487,9 @@ function createBreakTimeBlock(startMs, endMs) {
     el.appendChild(content);
     el.appendChild(stopBtn);
 
+    // Drag-and-drop + nested items
+    _attachEntryDropAndQueue(el, liveBreakEntryId, endMs - startMs);
+
     return el;
 }
 
@@ -5162,6 +5537,34 @@ function startIdleUpdater() {
                 }
             } else {
                 sessionTimer.textContent = _fmt(sNow - sStart);
+            }
+        }
+
+        // ── Update live session indicator timer ──
+        const indicatorTimer = document.querySelector('.live-session-indicator-timer');
+        if (indicatorTimer) {
+            const iStart = parseInt(indicatorTimer.dataset.sessionStart, 10);
+            const iTarget = indicatorTimer.dataset.targetEnd ? parseInt(indicatorTimer.dataset.targetEnd, 10) : null;
+            const iNow = Date.now();
+            const _fmtI = (ms) => {
+                const h = Math.floor(ms / 3600000);
+                const m = Math.floor((ms % 3600000) / 60000);
+                const s = Math.floor((ms % 60000) / 1000);
+                if (h > 0) return `${h}h ${m}m`;
+                if (m > 0) return `${m}m ${s}s`;
+                return `${s}s`;
+            };
+            if (iTarget) {
+                const rem = iTarget - iNow;
+                if (rem > 0) {
+                    indicatorTimer.textContent = _fmtI(rem) + ' left';
+                    indicatorTimer.classList.remove('live-session-indicator-overtime');
+                } else {
+                    indicatorTimer.textContent = '+' + _fmtI(Math.abs(rem)) + ' over';
+                    indicatorTimer.classList.add('live-session-indicator-overtime');
+                }
+            } else {
+                indicatorTimer.textContent = _fmtI(iNow - iStart);
             }
         }
 
@@ -5508,6 +5911,7 @@ function createWorkEntryBlock(entry) {
         label: labelText || 'Work', type: 'work', icon: '🔥',
         projectName: entry.projectName || null,
         itemId: entry.itemId || null,
+        entryId: entry.id,
     }));
 
     const durationMs = (entry.endTime || entry.timestamp) - entry.timestamp;
@@ -5575,6 +5979,10 @@ function createWorkEntryBlock(entry) {
     el.appendChild(editBtn);
     el.appendChild(delBtn);
 
+    // Drag-and-drop + nested items
+    const durationMs_w = (entry.endTime || entry.timestamp) - entry.timestamp;
+    _attachEntryDropAndQueue(el, entry.id, durationMs_w);
+
     return el;
 }
 
@@ -5591,6 +5999,7 @@ function createBreakEntryBlock(entry) {
     el.addEventListener('click', () => toggleSessionFocus({
         startMs: entry.timestamp, endMs: entry.endTime,
         label: breakLabelText || 'Break', type: 'break', icon: '☕',
+        entryId: entry.id,
     }));
 
     const durationMs = (entry.endTime || entry.timestamp) - entry.timestamp;
@@ -5649,6 +6058,10 @@ function createBreakEntryBlock(entry) {
     el.appendChild(content);
     el.appendChild(editBtn);
     el.appendChild(delBtn);
+
+    // Drag-and-drop + nested items
+    const durationMs_b = (entry.endTime || entry.timestamp) - entry.timestamp;
+    _attachEntryDropAndQueue(el, entry.id, durationMs_b);
 
     return el;
 }
@@ -5833,8 +6246,8 @@ function createPlannedTimeBlock(entry, isGhost = false) {
                 // Validate descendant constraint for item-bound sessions
                 if (planDescendantIds && !planDescendantIds.has(Number(itemId))) return;
                 (async () => {
-                    await degradeSegmentContext(itemId, oldCtx);
-                    await addSegmentContext(Number(itemId), entryCtx);
+                    const dur = await degradeSegmentContext(itemId, oldCtx);
+                    await addSegmentContext(Number(itemId), entryCtx, dur);
                 })();
             }
             return;
@@ -5846,7 +6259,9 @@ function createPlannedTimeBlock(entry, isGhost = false) {
         // Validate descendant constraint for item-bound sessions
         if (planDescendantIds && !planDescendantIds.has(action.id)) return;
         window._draggedAction = null;
-        addSegmentContext(action.id, entryCtx);
+        // Carry duration from the current view context (Actions panel)
+        const srcDur = getContextDuration(findItemById(action.id));
+        addSegmentContext(action.id, entryCtx, srcDur || undefined);
     });
 
     el.appendChild(icon);
@@ -5870,7 +6285,7 @@ function createPlannedTimeBlock(entry, isGhost = false) {
         let totalEstMins = 0;
         for (const action of assignedItems) {
             const item = findItemById(action.id);
-            const segDur = item?.segmentDurations?.[entryCtx];
+            const segDur = item?.contextDurations?.[entryCtx];
             const estMins = segDur != null ? segDur : (item?.estimatedDuration || 0);
             totalEstMins += estMins;
 
@@ -5922,9 +6337,9 @@ function createPlannedTimeBlock(entry, isGhost = false) {
                 saveBtn.addEventListener('click', async (se) => {
                     se.stopPropagation();
                     const mins = parseInt(input.value, 10) || 0;
-                    if (!item.segmentDurations) item.segmentDurations = {};
-                    item.segmentDurations[entryCtx] = mins;
-                    await api.patch(`/items/${action.id}`, { segmentDurations: item.segmentDurations });
+                    if (!item.contextDurations) item.contextDurations = {};
+                    item.contextDurations[entryCtx] = mins;
+                    await api.patch(`/items/${action.id}`, { contextDurations: item.contextDurations });
                     pop.remove();
                     renderAll();
                 });
@@ -6330,10 +6745,10 @@ function openEntryEditor(entry, blockEl) {
                     }
                     // Remove 'someday' if present — we're scheduling to a specific date
                     item.timeContexts = item.timeContexts.filter(tc => tc !== 'someday');
-                    // Migrate segmentDurations keys from old date to new date
-                    if (item.segmentDurations) {
+                    // Migrate contextDurations keys from old date to new date
+                    if (item.contextDurations) {
                         const newDurations = {};
-                        for (const [key, val] of Object.entries(item.segmentDurations)) {
+                        for (const [key, val] of Object.entries(item.contextDurations)) {
                             if (key.startsWith(originalDateKey + '@')) {
                                 const suffix = key.substring(originalDateKey.length);
                                 newDurations[newDateKey + suffix] = val;
@@ -6341,10 +6756,10 @@ function openEntryEditor(entry, blockEl) {
                                 newDurations[key] = val;
                             }
                         }
-                        item.segmentDurations = newDurations;
+                        item.contextDurations = newDurations;
                     }
                     const patch = { timeContexts: item.timeContexts };
-                    if (item.segmentDurations) patch.segmentDurations = item.segmentDurations;
+                    if (item.contextDurations) patch.contextDurations = item.contextDurations;
                     await api.patch(`/items/${itemId}`, patch);
                 }
             }
@@ -6720,10 +7135,16 @@ function showEstimatePicker(anchorEl, itemId) {
     picker.style.left = `${left}px`;
     picker.style.zIndex = '10001';
 
-    // Title
+    // Title — show current context
+    const currentCtx = getCurrentViewContext();
     const title = document.createElement('div');
     title.className = 'duration-picker-title';
-    title.textContent = 'Estimate duration';
+    const parsed = parseTimeContext(currentCtx);
+    let ctxLabel = 'this context';
+    if (parsed?.epoch) ctxLabel = parsed.epoch;
+    else if (parsed?.segment) ctxLabel = `${parsed.segment.start}–${parsed.segment.end}`;
+    else if (parsed?.date) ctxLabel = parsed.date === getDateKey(new Date()) ? 'Today' : parsed.date;
+    title.textContent = `Duration for ${ctxLabel}`;
     picker.appendChild(title);
 
     // Preset buttons
@@ -6759,10 +7180,11 @@ function showEstimatePicker(anchorEl, itemId) {
     input.min = '1';
     input.max = '480';
 
-    // Pre-fill with existing estimate
+    // Pre-fill with existing context-aware estimate
     const existingItem = findItemById(itemId);
-    if (existingItem?.estimatedDuration) {
-        input.value = existingItem.estimatedDuration;
+    const existingEst = getContextDuration(existingItem, currentCtx);
+    if (existingEst) {
+        input.value = existingEst;
     }
 
     const minLabel = document.createElement('span');
@@ -6790,8 +7212,8 @@ function showEstimatePicker(anchorEl, itemId) {
     customRow.appendChild(setBtn);
     picker.appendChild(customRow);
 
-    // Clear button (if estimate exists)
-    if (existingItem?.estimatedDuration) {
+    // Clear button (if any effective duration is showing)
+    if (existingEst) {
         const clearBtn = document.createElement('button');
         clearBtn.className = 'duration-picker-preset';
         clearBtn.style.width = '100%';
@@ -6815,12 +7237,14 @@ function showEstimatePicker(anchorEl, itemId) {
 async function setEstimate(itemId, mins) {
     const item = findItemById(itemId);
     if (!item) return;
+    const ctx = getCurrentViewContext();
+    if (!item.contextDurations) item.contextDurations = {};
     if (mins === null) {
-        delete item.estimatedDuration;
-        await api.patch(`/items/${itemId}`, { estimatedDuration: null });
+        item.contextDurations[ctx] = 0;
+        await api.patch(`/items/${itemId}`, { contextDurations: item.contextDurations });
     } else {
-        item.estimatedDuration = mins;
-        await api.patch(`/items/${itemId}`, { estimatedDuration: mins });
+        item.contextDurations[ctx] = mins;
+        await api.patch(`/items/${itemId}`, { contextDurations: item.contextDurations });
     }
     renderActions();
 }
@@ -6838,8 +7262,9 @@ function updateCapacitySummary(sortedActions) {
     let estimatedCount = 0;
     for (const action of undone) {
         const item = findItemById(action.id);
-        if (item?.estimatedDuration) {
-            estimatedMins += item.estimatedDuration;
+        const ctxDur = getContextDuration(item);
+        if (ctxDur) {
+            estimatedMins += ctxDur;
             estimatedCount++;
         }
     }
@@ -8073,7 +8498,7 @@ document.addEventListener('DOMContentLoaded', () => {
         renderAll();
     });
     somedayLayer.addEventListener('dragover', (e) => {
-        if (!window._draggedAction) return;
+        if (!window._draggedAction && !e.dataTransfer.types.includes('application/x-segment-item-id')) return;
         e.preventDefault();
         e.dataTransfer.dropEffect = 'move';
         somedayLayer.classList.add('horizon-layer-drag-over');
@@ -8084,6 +8509,27 @@ document.addEventListener('DOMContentLoaded', () => {
     somedayLayer.addEventListener('drop', async (e) => {
         e.preventDefault();
         somedayLayer.classList.remove('horizon-layer-drag-over');
+        // Segment queue item (intention) drag
+        if (e.dataTransfer.types.includes('application/x-segment-item-id')) {
+            const itemId = e.dataTransfer.getData('application/x-segment-item-id');
+            const segCtx = e.dataTransfer.getData('application/x-segment-context');
+            if (!itemId) return;
+            // Capture segment duration before removing, then migrate to someday
+            let segDur;
+            if (segCtx) {
+                const item = findItemById(Number(itemId));
+                if (item) {
+                    segDur = item.contextDurations?.[segCtx];
+                    if (item.timeContexts) {
+                        item.timeContexts = item.timeContexts.filter(tc => tc !== segCtx);
+                    }
+                    if (item.contextDurations) delete item.contextDurations[segCtx];
+                }
+            }
+            await sendToSomeday(parseInt(itemId, 10), segDur);
+            return;
+        }
+        // Regular action/project drag
         const actionId = e.dataTransfer.getData('application/x-action-id');
         if (!actionId) return;
         await sendToSomeday(parseInt(actionId, 10));
@@ -8107,7 +8553,7 @@ document.addEventListener('DOMContentLoaded', () => {
         renderAll();
     });
     dayLayer.addEventListener('dragover', (e) => {
-        if (!window._draggedAction) return;
+        if (!window._draggedAction && !e.dataTransfer.types.includes('application/x-segment-item-id')) return;
         e.preventDefault();
         e.dataTransfer.dropEffect = 'move';
         dayLayer.classList.add('horizon-layer-drag-over');
@@ -8118,6 +8564,28 @@ document.addEventListener('DOMContentLoaded', () => {
     dayLayer.addEventListener('drop', async (e) => {
         e.preventDefault();
         dayLayer.classList.remove('horizon-layer-drag-over');
+        // Segment queue item (intention) drag
+        if (e.dataTransfer.types.includes('application/x-segment-item-id')) {
+            const itemId = e.dataTransfer.getData('application/x-segment-item-id');
+            const segCtx = e.dataTransfer.getData('application/x-segment-context');
+            if (!itemId) return;
+            // Capture segment duration before removing, then migrate to day
+            let segDur;
+            if (segCtx) {
+                const item = findItemById(Number(itemId));
+                if (item) {
+                    segDur = item.contextDurations?.[segCtx];
+                    if (item.timeContexts) {
+                        item.timeContexts = item.timeContexts.filter(tc => tc !== segCtx);
+                    }
+                    if (item.contextDurations) delete item.contextDurations[segCtx];
+                }
+            }
+            const dateKey = getDateKey(state.timelineViewDate);
+            await promoteFromSomeday(parseInt(itemId, 10), dateKey, segDur);
+            return;
+        }
+        // Regular action/project drag
         const actionId = e.dataTransfer.getData('application/x-action-id');
         if (!actionId) return;
         const dateKey = getDateKey(state.timelineViewDate);
