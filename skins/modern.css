@@ -3441,6 +3441,220 @@ body {
     text-decoration: underline;
 }
 
+/* ── Week View ── */
+.week-view {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 4px 0;
+}
+
+.week-day-row {
+    display: flex;
+    flex-direction: column;
+    padding: 6px 10px;
+    border-radius: var(--radius-sm);
+    transition: background var(--dur) var(--ease), outline-color var(--dur) var(--ease);
+    background: var(--bg-surface);
+    border: 1px solid transparent;
+}
+
+.week-day-row:hover {
+    background: var(--bg-hover);
+}
+
+.week-day-today {
+    border-color: var(--accent);
+    background: rgba(96, 165, 250, 0.04);
+}
+
+.week-day-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 4px;
+    cursor: pointer;
+}
+
+.week-day-toggle {
+    font-size: 14px;
+    color: var(--text-secondary, #888);
+    flex-shrink: 0;
+    width: 14px;
+    text-align: center;
+}
+
+.week-day-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text);
+    cursor: pointer;
+    transition: color var(--dur) var(--ease);
+}
+
+.week-day-label:hover {
+    color: var(--accent);
+}
+
+.week-day-today .week-day-label {
+    color: var(--accent);
+}
+
+.week-day-times {
+    font-size: 10px;
+    color: var(--text-faint);
+    font-variant-numeric: tabular-nums;
+    margin-left: auto;
+}
+
+.week-day-content {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px 12px;
+}
+
+.week-col-scheduled,
+.week-col-floating {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+}
+
+.week-col-scheduled {
+    flex: 1 1 180px;
+}
+
+.week-col-floating {
+    flex: 1 1 140px;
+}
+
+.week-day-content>.segment-capacity-bar {
+    flex-basis: 100%;
+}
+
+.week-appointment {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 6px;
+    border-radius: var(--radius-sm);
+    background: rgba(168, 85, 247, 0.06);
+    border-left: 2px solid rgba(168, 85, 247, 0.4);
+    font-size: 11px;
+    cursor: grab;
+    transition: background var(--dur) var(--ease);
+}
+
+.week-appointment:hover {
+    background: rgba(168, 85, 247, 0.12);
+}
+
+.week-appt-icon {
+    font-size: 10px;
+    flex-shrink: 0;
+}
+
+.week-appt-name {
+    flex: 1;
+    min-width: 0;
+    color: var(--text);
+}
+
+.week-appt-time {
+    font-size: 9px;
+    color: var(--text-faint);
+    font-variant-numeric: tabular-nums;
+    flex-shrink: 0;
+}
+
+.week-action-chip {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 6px;
+    border-radius: var(--radius-sm);
+    font-size: 11px;
+    cursor: grab;
+    transition: background var(--dur) var(--ease);
+}
+
+.week-action-chip:hover {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.week-chip-bullet {
+    flex-shrink: 0;
+    font-size: 10px;
+    color: var(--text-faint);
+    width: 14px;
+    text-align: center;
+}
+
+.week-chip-name {
+    flex: 1;
+    min-width: 0;
+    color: var(--text);
+}
+
+.week-chip-est {
+    font-size: 9px;
+    color: var(--text-faint);
+    flex-shrink: 0;
+}
+
+.week-item-done .week-chip-name {
+    text-decoration: line-through;
+    opacity: 0.5;
+}
+
+.week-item-done .week-chip-bullet {
+    color: var(--accent);
+}
+
+.week-session-summary {
+    font-size: 10px;
+    color: var(--text-faint);
+    padding: 2px 6px;
+    cursor: pointer;
+    transition: color var(--dur) var(--ease);
+}
+
+.week-session-summary:hover {
+    color: var(--text-soft);
+}
+
+.week-session-expanded {
+    padding-left: 8px;
+    border-left: 1px solid var(--border);
+    margin-left: 6px;
+}
+
+.week-session-chip {
+    opacity: 0.7;
+}
+
+.week-day-empty {
+    font-size: 11px;
+    color: var(--text-faint);
+    opacity: 0.4;
+    padding: 2px 6px;
+}
+
+.week-day-drag-over {
+    outline: 1px dashed var(--accent) !important;
+    background: var(--accent-dim) !important;
+    border-color: var(--accent) !important;
+}
+
+.week-item-dragging {
+    opacity: 0.4;
+}
+
+.week-day-row .segment-capacity-bar {
+    margin-top: 4px;
+}
+
 /* ── Horizon Layers (inline stack inside time-context) ── */
 .horizon-layer {
     display: flex;

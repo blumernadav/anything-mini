@@ -3265,6 +3265,219 @@ body {
     color: var(--pencil);
 }
 
+/* ── Week View ── */
+.week-view {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 4px 0;
+}
+
+.week-day-row {
+    display: flex;
+    flex-direction: column;
+    padding: 6px 10px;
+    border-radius: var(--radius);
+    border: 1px dashed transparent;
+    transition: background var(--dur) var(--ease);
+}
+
+.week-day-row:hover {
+    background: rgba(255, 243, 168, 0.15);
+}
+
+.week-day-today {
+    border-color: var(--blue-pen);
+    background: rgba(43, 87, 154, 0.03);
+}
+
+.week-day-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 4px;
+    cursor: pointer;
+}
+
+.week-day-toggle {
+    font-size: 14px;
+    color: var(--pencil-faint);
+    flex-shrink: 0;
+    width: 14px;
+    text-align: center;
+}
+
+.week-day-label {
+    font-size: 15px;
+    font-family: 'Caveat', cursive;
+    font-weight: 700;
+    color: var(--pencil);
+    cursor: pointer;
+    transition: color var(--dur) var(--ease);
+}
+
+.week-day-label:hover {
+    color: var(--blue-pen);
+}
+
+.week-day-today .week-day-label {
+    color: var(--blue-pen);
+}
+
+.week-day-times {
+    font-size: 13px;
+    font-family: 'Caveat', cursive;
+    color: var(--pencil-faint);
+    margin-left: auto;
+}
+
+.week-day-content {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px 12px;
+}
+
+.week-col-scheduled,
+.week-col-floating {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+}
+
+.week-col-scheduled {
+    flex: 1 1 180px;
+}
+
+.week-col-floating {
+    flex: 1 1 140px;
+}
+
+.week-day-content>.segment-capacity-bar {
+    flex-basis: 100%;
+}
+
+.week-appointment {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 6px;
+    border-radius: var(--radius);
+    background: rgba(90, 60, 150, 0.04);
+    border-left: 2px solid rgba(90, 60, 150, 0.3);
+    font-size: 14px;
+    cursor: grab;
+}
+
+.week-appointment:hover {
+    background: rgba(90, 60, 150, 0.08);
+}
+
+.week-appt-icon {
+    font-size: 11px;
+    flex-shrink: 0;
+}
+
+.week-appt-name {
+    flex: 1;
+    min-width: 0;
+    color: var(--pencil);
+}
+
+.week-appt-time {
+    font-size: 12px;
+    font-family: 'Caveat', cursive;
+    color: var(--pencil-faint);
+    flex-shrink: 0;
+}
+
+.week-action-chip {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 6px;
+    border-radius: var(--radius);
+    font-size: 14px;
+    cursor: grab;
+    transition: background var(--dur) var(--ease);
+}
+
+.week-action-chip:hover {
+    background: rgba(255, 243, 168, 0.2);
+}
+
+.week-chip-bullet {
+    flex-shrink: 0;
+    font-size: 12px;
+    color: var(--pencil-faint);
+    width: 14px;
+    text-align: center;
+}
+
+.week-chip-name {
+    flex: 1;
+    min-width: 0;
+    color: var(--pencil);
+}
+
+.week-chip-est {
+    font-size: 12px;
+    font-family: 'Caveat', cursive;
+    color: var(--pencil-faint);
+    flex-shrink: 0;
+}
+
+.week-item-done .week-chip-name {
+    text-decoration: line-through;
+    opacity: 0.5;
+}
+
+.week-item-done .week-chip-bullet {
+    color: #5eab5e;
+}
+
+.week-session-summary {
+    font-size: 13px;
+    font-family: 'Caveat', cursive;
+    color: var(--pencil-faint);
+    padding: 2px 6px;
+    cursor: pointer;
+}
+
+.week-session-summary:hover {
+    color: var(--pencil-soft);
+}
+
+.week-session-expanded {
+    padding-left: 8px;
+    border-left: 1px dashed var(--pencil-ghost);
+    margin-left: 6px;
+}
+
+.week-session-chip {
+    opacity: 0.7;
+}
+
+.week-day-empty {
+    font-size: 14px;
+    font-family: 'Caveat', cursive;
+    color: var(--pencil-ghost);
+    padding: 2px 6px;
+}
+
+.week-day-drag-over {
+    outline: 1.5px dashed var(--blue-pen) !important;
+    background: rgba(43, 87, 154, 0.06) !important;
+}
+
+.week-item-dragging {
+    opacity: 0.4;
+}
+
+.week-day-row .segment-capacity-bar {
+    margin-top: 4px;
+}
+
 /* ── Horizon Layers (inline stack inside time-context) ── */
 .horizon-layer {
     display: flex;

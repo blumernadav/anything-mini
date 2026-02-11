@@ -3607,6 +3607,223 @@ body {
     box-shadow: none;
 }
 
+/* ── Week View ── */
+.week-view {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 4px 0;
+}
+
+.week-day-row {
+    display: flex;
+    flex-direction: column;
+    padding: 8px 12px;
+    border-radius: var(--duo-radius-sm);
+    background: var(--duo-white);
+    border: 2px solid var(--duo-border);
+    box-shadow: 0 2px 0 var(--duo-border);
+    transition: background var(--dur) var(--ease);
+}
+
+.week-day-row:hover {
+    background: var(--duo-green-dim);
+}
+
+.week-day-today {
+    border-color: var(--duo-green);
+    box-shadow: 0 2px 0 var(--duo-green-dark);
+}
+
+.week-day-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 4px;
+    cursor: pointer;
+}
+
+.week-day-toggle {
+    font-size: 14px;
+    color: var(--duo-text-faint);
+    flex-shrink: 0;
+    width: 14px;
+    text-align: center;
+}
+
+.week-day-label {
+    font-size: 13px;
+    font-weight: 800;
+    color: var(--duo-text);
+    cursor: pointer;
+    transition: color var(--dur) var(--ease);
+}
+
+.week-day-label:hover {
+    color: var(--duo-green);
+}
+
+.week-day-today .week-day-label {
+    color: var(--duo-green);
+}
+
+.week-day-times {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--duo-text-faint);
+    margin-left: auto;
+}
+
+.week-day-content {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px 12px;
+}
+
+.week-col-scheduled,
+.week-col-floating {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+}
+
+.week-col-scheduled {
+    flex: 1 1 180px;
+}
+
+.week-col-floating {
+    flex: 1 1 140px;
+}
+
+.week-day-content>.segment-capacity-bar {
+    flex-basis: 100%;
+}
+
+.week-appointment {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    border-radius: var(--duo-radius-sm);
+    background: rgba(118, 75, 226, 0.08);
+    border-left: 3px solid rgba(118, 75, 226, 0.5);
+    font-size: 12px;
+    font-weight: 700;
+    cursor: grab;
+}
+
+.week-appointment:hover {
+    background: rgba(118, 75, 226, 0.14);
+}
+
+.week-appt-icon {
+    font-size: 11px;
+    flex-shrink: 0;
+}
+
+.week-appt-name {
+    flex: 1;
+    min-width: 0;
+    color: var(--duo-text);
+}
+
+.week-appt-time {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--duo-text-faint);
+    flex-shrink: 0;
+}
+
+.week-action-chip {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    border-radius: var(--duo-radius-sm);
+    font-size: 12px;
+    font-weight: 700;
+    cursor: grab;
+    transition: background var(--dur) var(--ease);
+}
+
+.week-action-chip:hover {
+    background: var(--duo-hover);
+}
+
+.week-chip-bullet {
+    flex-shrink: 0;
+    font-size: 11px;
+    color: var(--duo-text-faint);
+    width: 14px;
+    text-align: center;
+}
+
+.week-chip-name {
+    flex: 1;
+    min-width: 0;
+    color: var(--duo-text);
+}
+
+.week-chip-est {
+    font-size: 10px;
+    color: var(--duo-text-faint);
+    flex-shrink: 0;
+}
+
+.week-item-done .week-chip-name {
+    text-decoration: line-through;
+    opacity: 0.5;
+}
+
+.week-item-done .week-chip-bullet {
+    color: var(--duo-green);
+}
+
+.week-session-summary {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--duo-text-faint);
+    padding: 2px 8px;
+    cursor: pointer;
+}
+
+.week-session-summary:hover {
+    color: var(--duo-text);
+}
+
+.week-session-expanded {
+    padding-left: 10px;
+    border-left: 2px solid var(--duo-border);
+    margin-left: 8px;
+}
+
+.week-session-chip {
+    opacity: 0.7;
+}
+
+.week-day-empty {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--duo-text-faint);
+    opacity: 0.4;
+    padding: 2px 8px;
+}
+
+.week-day-drag-over {
+    outline: 2px dashed var(--duo-green) !important;
+    background: var(--duo-green-dim) !important;
+    border-color: var(--duo-green) !important;
+}
+
+.week-item-dragging {
+    opacity: 0.4;
+}
+
+.week-day-row .segment-capacity-bar {
+    margin-top: 4px;
+}
+
 /* ── Horizon Layers (inline stack inside time-context) ── */
 .horizon-layer {
     display: flex;

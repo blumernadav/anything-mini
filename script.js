@@ -31,6 +31,7 @@ const state = {
         dayEndHour: 22,
         dayEndMinute: 0,
         dayOverrides: {}, // { "2026-02-09": { dayStartHour, dayStartMinute, dayEndHour, dayEndMinute } }
+        weekStartDay: 0, // 0=Sun, 1=Mon, ..., 6=Sat
     },
 };
 
@@ -112,9 +113,10 @@ async function loadAll() {
     state.showDone = prefs.showDone === true;
     const validFilters = ['scheduled', 'scheduled+unscheduled', 'all'];
     state.scheduleFilter = validFilters.includes(prefs.scheduleFilter) ? prefs.scheduleFilter : 'scheduled+unscheduled';
-    const validHorizons = ['day', 'someday'];
+    const validHorizons = ['day', 'week', 'someday'];
     state.viewHorizon = validHorizons.includes(prefs.viewHorizon) ? prefs.viewHorizon : 'day';
     state.collapsedGroups = new Set(prefs.collapsedGroups || []);
+    state.weekCollapsedDays = prefs.weekCollapsedDays || {};
 
     // Auto-clean past schedules (fire-and-forget, don't block render)
     cleanPastSchedules();
@@ -612,16 +614,74 @@ function hasActiveGoal(action) {
 
 // Epoch-level contexts — coarser-than-day temporal horizons
 const EPOCH_CONTEXTS = ['someday'];
-function isEpochContext(ctx) { return EPOCH_CONTEXTS.includes(ctx); }
+function isEpochContext(ctx) { return EPOCH_CONTEXTS.includes(ctx) || isWeekContext(ctx); }
+
+// Week-level context: "week:2026-W07"
+function isWeekContext(ctx) { return typeof ctx === 'string' && /^week:\d{4}-(?:W\d{2}|\d{2}-\d{2})$/.test(ctx); }
+
+// Get ISO week key from a Date: "week:2026-W07"
+function getWeekKey(date) {
+    const wsd = state.settings.weekStartDay ?? 0; // 0=Sun default
+    const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    // Roll back to the start of the week
+    const diff = (d.getDay() - wsd + 7) % 7;
+    const weekStart = new Date(d);
+    weekStart.setDate(d.getDate() - diff);
+    // Use the week-start date as the key: week:YYYY-MM-DD
+    return `week:${getDateKey(weekStart)}`;
+}
+
+// Get date range for a week key
+function getWeekDateRange(weekKey) {
+    const m = weekKey.match(/^week:(\d{4})-(\d{2})-(\d{2})$/);
+    if (!m) {
+        // Legacy ISO format fallback: week:YYYY-WNN
+        const mIso = weekKey.match(/^week:(\d{4})-W(\d{2})$/);
+        if (!mIso) return null;
+        const year = parseInt(mIso[1], 10);
+        const week = parseInt(mIso[2], 10);
+        const jan4 = new Date(year, 0, 4);
+        const dayOfWeek = jan4.getDay() || 7;
+        const mon = new Date(jan4);
+        mon.setDate(jan4.getDate() - dayOfWeek + 1 + (week - 1) * 7);
+        const sun = new Date(mon);
+        sun.setDate(mon.getDate() + 6);
+        return { start: mon, end: sun };
+    }
+    const start = new Date(parseInt(m[1], 10), parseInt(m[2], 10) - 1, parseInt(m[3], 10));
+    const end = new Date(start);
+    end.setDate(start.getDate() + 6);
+    return { start, end };
+}
+
+// Check if a date falls within a given week key
+function dateInWeek(dateKey, weekKey) {
+    const range = getWeekDateRange(weekKey);
+    if (!range) return false;
+    const startKey = getDateKey(range.start);
+    const endKey = getDateKey(range.end);
+    return dateKey >= startKey && dateKey <= endKey;
+}
+
+// Check if an item belongs to a given week (has week context OR a date within the week)
+function isItemInWeek(item, weekKey) {
+    if (!item) return false;
+    const tcs = item.timeContexts || [];
+    if (tcs.includes(weekKey)) return true;
+    // Don't show items that have a specific day assigned — they show in day rows
+    return false;
+}
 
 // Parse a context string into components
 // "someday" → { epoch: "someday" }
+// "week:2026-W07" → { week: "2026-W07" }
 // "2026-02-10" → { date: "2026-02-10" }
 // "2026-02-10@10:00-12:00" → { date: "2026-02-10", segment: { start: "10:00", end: "12:00" } }
 // "2026-02-10@entry:abc123" → { date: "2026-02-10", entryId: "abc123" }
 function parseTimeContext(ctx) {
     if (!ctx || typeof ctx !== 'string') return null;
-    if (isEpochContext(ctx)) return { epoch: ctx };
+    if (ctx === 'someday') return { epoch: ctx };
+    if (isWeekContext(ctx)) return { week: ctx.substring(5) }; // strip "week:" prefix
     const atIdx = ctx.indexOf('@');
     if (atIdx === -1) return { date: ctx };
     const date = ctx.substring(0, atIdx);
@@ -846,6 +906,7 @@ function getCurrentTimeContexts() {
         return ctx;
     }
     if (state.viewHorizon === 'someday') return ['someday'];
+    if (state.viewHorizon === 'week') return [getWeekKey(state.timelineViewDate)];
     return [getDateKey(state.timelineViewDate)];
 }
 
@@ -857,6 +918,7 @@ function getCurrentViewContext() {
     if (focused && focused.liveType) return `${getDateKey(state.timelineViewDate)}@${focused.liveType}`;
     if (focused && focused.entryId) return `${getDateKey(state.timelineViewDate)}@entry:${focused.entryId}`;
     if (state.viewHorizon === 'someday') return 'someday';
+    if (state.viewHorizon === 'week') return getWeekKey(state.timelineViewDate);
     return getDateKey(state.timelineViewDate);
 }
 
@@ -958,17 +1020,54 @@ async function sendToSomeday(itemId, sourceDuration) {
     itemId = Number(itemId);
     const item = findItemById(itemId);
     if (!item) return;
-    // Strip all date/segment/entry contexts, keep only epoch contexts
-    item.timeContexts = (item.timeContexts || []).filter(tc => isEpochContext(tc));
-    if (!item.timeContexts.includes('someday')) {
-        item.timeContexts.push('someday');
-    }
+    // Strip all date/segment/entry/week contexts, keep only 'someday'
+    item.timeContexts = ['someday'];
     // Clean segment durations since we removed segment contexts,
     // but seed the someday duration from the source if provided
     if (!item.contextDurations) item.contextDurations = {};
     const dur = sourceDuration != null ? sourceDuration : (item.contextDurations[Object.keys(item.contextDurations)[0]] ?? undefined);
     item.contextDurations = {};
     if (dur != null) item.contextDurations['someday'] = dur;
+    await api.patch(`/items/${itemId}`, { timeContexts: item.timeContexts, contextDurations: item.contextDurations });
+    renderAll();
+}
+
+// Send an item to the week backlog — strips day/segment contexts, adds week context.
+async function sendToWeek(itemId, weekKey, sourceDuration) {
+    itemId = Number(itemId);
+    const item = findItemById(itemId);
+    if (!item) return;
+    // Strip all date/segment/entry/epoch contexts, add week
+    item.timeContexts = [weekKey];
+    if (!item.contextDurations) item.contextDurations = {};
+    const dur = sourceDuration != null ? sourceDuration : (item.contextDurations[Object.keys(item.contextDurations)[0]] ?? undefined);
+    item.contextDurations = {};
+    if (dur != null) item.contextDurations[weekKey] = dur;
+    await api.patch(`/items/${itemId}`, { timeContexts: item.timeContexts, contextDurations: item.contextDurations });
+    renderAll();
+}
+
+// Promote an item from week context to a specific day.
+async function promoteFromWeek(itemId, dateKey, sourceDuration) {
+    itemId = Number(itemId);
+    const item = findItemById(itemId);
+    if (!item) return;
+    if (!item.timeContexts) item.timeContexts = [];
+    // Capture week duration before removing
+    const weekCtx = item.timeContexts.find(tc => isWeekContext(tc));
+    const weekDur = sourceDuration != null ? sourceDuration : (weekCtx ? item.contextDurations?.[weekCtx] : undefined);
+    // Strip week contexts
+    item.timeContexts = item.timeContexts.filter(tc => !isWeekContext(tc));
+    // Also strip someday if present
+    item.timeContexts = item.timeContexts.filter(tc => tc !== 'someday');
+    if (!item.timeContexts.includes(dateKey)) {
+        item.timeContexts.push(dateKey);
+    }
+    // Migrate duration to the new date
+    if (!item.contextDurations) item.contextDurations = {};
+    if (weekCtx) delete item.contextDurations[weekCtx];
+    delete item.contextDurations['someday'];
+    if (weekDur != null) item.contextDurations[dateKey] = weekDur;
     await api.patch(`/items/${itemId}`, { timeContexts: item.timeContexts, contextDurations: item.contextDurations });
     renderAll();
 }
@@ -1004,10 +1103,8 @@ async function rescheduleToDate(itemId, dateKey) {
     // Capture best available duration from current contexts before clearing
     const srcCtx = getCurrentViewContext();
     const srcDur = item.contextDurations?.[srcCtx] ?? getContextDuration(item, srcCtx);
-    // Remove all date/segment contexts and epoch contexts, add the target date
-    item.timeContexts = item.timeContexts.filter(tc => isEpochContext(tc) && tc !== 'someday');
-    item.timeContexts = item.timeContexts.filter(tc => !tc.match(/^\d{4}-\d{2}-\d{2}/));
-    // Remove someday if present (promoting from backlog)
+    // Remove all date/segment/week/epoch contexts, add the target date
+    item.timeContexts = item.timeContexts.filter(tc => !isEpochContext(tc) && !isWeekContext(tc) && !tc.match(/^\d{4}-\d{2}-\d{2}/));
     item.timeContexts = item.timeContexts.filter(tc => tc !== 'someday');
     if (!item.timeContexts.includes(dateKey)) {
         item.timeContexts.push(dateKey);
@@ -1022,9 +1119,10 @@ async function rescheduleToDate(itemId, dateKey) {
 
 // ─── Auto-clean past schedules ───
 // Silently remove any timeContexts entries before today.
-// Items that had only past-date contexts are degraded to "someday" (backlog).
+// Items that had only past-date contexts are degraded to their week context.
 async function cleanPastSchedules() {
-    const todayKey = getDateKey(getLogicalToday());
+    const today = getLogicalToday();
+    const todayKey = getDateKey(today);
     let dirty = false;
 
     function walkItems(items) {
@@ -1038,19 +1136,23 @@ async function cleanPastSchedules() {
                 item.timeContexts = item.timeContexts.filter(tc => {
                     const parsed = parseTimeContext(tc);
                     if (!parsed) return false;
-                    // Keep epoch contexts as-is
+                    // Keep epoch and week contexts as-is
                     if (parsed.epoch) return true;
+                    if (isWeekContext(tc)) return true;
                     return parsed.date >= todayKey;
                 });
-                // If we removed date contexts and nothing date-level remains, degrade to someday
+                // If we removed date contexts and nothing date-level remains, degrade to week
                 if (item.timeContexts.length !== before) {
                     dirty = true;
                     const hasRemainingDates = item.timeContexts.some(tc => {
                         const p = parseTimeContext(tc);
                         return p && p.date;
                     });
-                    if (hadDateContexts && !hasRemainingDates && !item.timeContexts.includes('someday')) {
-                        item.timeContexts.push('someday');
+                    const hasWeek = item.timeContexts.some(tc => isWeekContext(tc));
+                    if (hadDateContexts && !hasRemainingDates && !hasWeek && !item.timeContexts.includes('someday')) {
+                        // Degrade to the current week context instead of someday
+                        const weekKey = getWeekKey(today);
+                        item.timeContexts.push(weekKey);
                     }
                 }
             }
@@ -1069,6 +1171,7 @@ async function cleanPastSchedules() {
 // ─── Auto-clean past sessions (intra-day) ───
 // Silently degrade segment contexts (e.g. "2026-02-11@10:00-12:00") whose end
 // time has already passed back to their parent date context.
+// Also handles segments from past dates — those are automatically expired.
 async function cleanPastSessions(now) {
     now = now || new Date();
     const todayKey = getDateKey(getLogicalToday());
@@ -1080,7 +1183,17 @@ async function cleanPastSessions(now) {
                 const contextsToRemove = [];
                 for (const tc of item.timeContexts) {
                     const parsed = parseTimeContext(tc);
-                    if (!parsed || !parsed.segment || parsed.date !== todayKey) continue;
+                    if (!parsed || !parsed.segment) continue;
+
+                    // Past-date segments are automatically expired
+                    if (parsed.date < todayKey) {
+                        contextsToRemove.push(tc);
+                        continue;
+                    }
+
+                    // Only check end-time for today's segments
+                    if (parsed.date !== todayKey) continue;
+
                     // Build actual end timestamp from the segment
                     const [endH, endM] = parsed.segment.end.split(':').map(Number);
                     const [startH, startM] = parsed.segment.start.split(':').map(Number);
@@ -1102,10 +1215,13 @@ async function cleanPastSessions(now) {
                             delete item.contextDurations[ctx];
                         }
                     }
-                    // Add the parent date back if no other context for this date exists
-                    const hasOtherForDate = item.timeContexts.some(tc => contextMatchesDate(tc, todayKey));
-                    if (!hasOtherForDate) {
-                        item.timeContexts.push(todayKey);
+                    // For each removed context, ensure the parent date is present
+                    const affectedDates = new Set(contextsToRemove.map(tc => parseTimeContext(tc)?.date).filter(Boolean));
+                    for (const dateKey of affectedDates) {
+                        const hasOtherForDate = item.timeContexts.some(tc => contextMatchesDate(tc, dateKey));
+                        if (!hasOtherForDate) {
+                            item.timeContexts.push(dateKey);
+                        }
                     }
                     dirty = true;
                 }
@@ -1674,6 +1790,9 @@ function collectTimeContextMatches(items, dateKey, visibleIds) {
         if (state.viewHorizon === 'someday') {
             // In someday horizon, show items with someday context (self or ancestor)
             selfMatch = isItemInEpoch(item, 'someday');
+        } else if (state.viewHorizon === 'week') {
+            const weekKey = getWeekKey(state.timelineViewDate);
+            selfMatch = isItemInWeek(item, weekKey);
         } else {
             selfMatch = itemMatchesTimeContext(item, dateKey);
         }
@@ -2516,6 +2635,10 @@ function getFilteredActions() {
     if (state.viewHorizon === 'someday') {
         // Show only items in the someday epoch
         allLeaves = allLeaves.filter(a => isItemInEpoch(a, 'someday'));
+    } else if (state.viewHorizon === 'week') {
+        // Show only items with the current week context (no specific day)
+        const weekKey = getWeekKey(state.timelineViewDate);
+        allLeaves = allLeaves.filter(a => isItemInWeek(a, weekKey));
     } else {
         allLeaves = allLeaves.filter(a => itemMatchesTimeContext(a, currentDateKey));
     }
@@ -3345,8 +3468,9 @@ function getLogicalToday() {
 
 function renderHorizonTower() {
     const somedayLayer = document.getElementById('horizon-someday-layer');
+    const weekLayer = document.getElementById('horizon-week-layer');
     const dayLayer = document.getElementById('horizon-day-layer');
-    if (!somedayLayer || !dayLayer) return;
+    if (!somedayLayer || !weekLayer || !dayLayer) return;
 
     const focused = state.focusStack.length > 0;
     const currentLevel = focused ? 'session' : state.viewHorizon;
@@ -3354,6 +3478,10 @@ function renderHorizonTower() {
     // Someday layer: active when viewHorizon is someday, dim otherwise
     somedayLayer.classList.toggle('horizon-layer-active', currentLevel === 'someday');
     somedayLayer.classList.toggle('horizon-layer-dim', currentLevel !== 'someday');
+
+    // Week layer: active when viewHorizon is week, dim otherwise
+    weekLayer.classList.toggle('horizon-layer-active', currentLevel === 'week');
+    weekLayer.classList.toggle('horizon-layer-dim', currentLevel !== 'week');
 
     // Day layer: active when viewHorizon is day and not session-focused, dim otherwise
     dayLayer.classList.toggle('horizon-layer-active', currentLevel === 'day');
@@ -3398,6 +3526,10 @@ function renderTimeContext() {
             if (prevBtn) prevBtn.style.display = 'none';
             if (nextBtn) nextBtn.style.display = 'none';
             if (todayBtn) todayBtn.style.display = 'none';
+        } else if (state.viewHorizon === 'week') {
+            if (prevBtn) prevBtn.style.display = '';
+            if (nextBtn) nextBtn.style.display = '';
+            // "This Week" button visibility handled by updateDateNav()
         } else {
             if (prevBtn) prevBtn.style.display = '';
             if (nextBtn) nextBtn.style.display = '';
@@ -4013,6 +4145,317 @@ function _renderBreakSession(sessionEl, top, nowMs, durationMs, _fmtDur) {
     }
 }
 
+// ─── Week View Rendering ───
+function renderWeekView(container) {
+    const weekKey = getWeekKey(state.timelineViewDate);
+    const range = getWeekDateRange(weekKey);
+    if (!range) return;
+
+    const todayKey = getDateKey(getLogicalToday());
+    const allItems = collectAllItems(state.items.items);
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+    const weekEl = document.createElement('div');
+    weekEl.className = 'week-view';
+
+    // Build 7 day rows (Mon → Sun)
+    for (let d = 0; d < 7; d++) {
+        const dayDate = new Date(range.start);
+        dayDate.setDate(range.start.getDate() + d);
+        const dateKey = getDateKey(dayDate);
+        const isToday = dateKey === todayKey;
+
+        // Get day boundaries
+        const dayTimes = getEffectiveDayTimes(dayDate);
+        const startStr = `${String(dayTimes.dayStartHour).padStart(2, '0')}:${String(dayTimes.dayStartMinute).padStart(2, '0')}`;
+        const endStr = `${String(dayTimes.dayEndHour).padStart(2, '0')}:${String(dayTimes.dayEndMinute).padStart(2, '0')}`;
+        let dayCapacityMins = ((dayTimes.dayEndHour * 60 + dayTimes.dayEndMinute) - (dayTimes.dayStartHour * 60 + dayTimes.dayStartMinute));
+        if (dayCapacityMins <= 0) dayCapacityMins += 24 * 60; // cross-midnight
+
+        const row = document.createElement('div');
+        row.className = 'week-day-row' + (isToday ? ' week-day-today' : '');
+        row.dataset.dateKey = dateKey;
+
+        // ── Header ──
+        const header = document.createElement('div');
+        header.className = 'week-day-header';
+
+        const toggle = document.createElement('span');
+        toggle.className = 'week-day-toggle';
+        toggle.textContent = '▾';
+
+        const dayLabel = document.createElement('span');
+        dayLabel.className = 'week-day-label';
+        dayLabel.textContent = `${dayNames[dayDate.getDay()]} ${monthNames[dayDate.getMonth()]} ${dayDate.getDate()}`;
+        if (isToday) dayLabel.textContent = `⬤ ${dayLabel.textContent}`;
+        dayLabel.title = 'Click to view this day';
+        dayLabel.addEventListener('click', (e) => {
+            e.stopPropagation();
+            state.timelineViewDate = new Date(dayDate);
+            savePref('timelineViewDate', state.timelineViewDate.toISOString());
+            state.viewHorizon = 'day';
+            savePref('viewHorizon', 'day');
+            state.focusStack = [];
+            renderAll();
+        });
+
+        const timesLabel = document.createElement('span');
+        timesLabel.className = 'week-day-times';
+        timesLabel.textContent = `${startStr}–${endStr}`;
+        timesLabel.title = 'Click to edit day boundaries';
+
+        header.appendChild(toggle);
+        header.appendChild(dayLabel);
+        header.appendChild(timesLabel);
+        row.appendChild(header);
+
+        // ── Content area: two-column layout ──
+        const content = document.createElement('div');
+        content.className = 'week-day-content';
+
+        const colScheduled = document.createElement('div');
+        colScheduled.className = 'week-col-scheduled';
+        const colFloating = document.createElement('div');
+        colFloating.className = 'week-col-floating';
+
+        // Gather data for this day
+        let totalEstMins = 0;
+
+        // 1. Scheduled plans (timeline entries for this date) → left column
+        const { dayStart: ds, dayEnd: de } = getDayBoundaries(dayDate);
+        const dayEntries = state.timeline.entries
+            .filter(e => e.timestamp >= ds.getTime() && e.timestamp < de.getTime() && e.endTime)
+            .sort((a, b) => a.timestamp - b.timestamp);
+
+        for (const entry of dayEntries) {
+            if (entry.type === 'work' || entry.type === 'break') continue; // skip live blocks
+            const entryMins = Math.round((entry.endTime - entry.timestamp) / 60000);
+            totalEstMins += entryMins;
+
+            const pin = document.createElement('div');
+            pin.className = 'week-appointment';
+            pin.draggable = true;
+            pin.dataset.entryId = String(entry.id);
+            pin.dataset.sourceDate = dateKey;
+
+            const timeStr = `${formatTime(entry.timestamp)}–${formatTime(entry.endTime)}`;
+            pin.innerHTML = `<span class="week-appt-icon">📌</span><span class="week-appt-name">${entry.text || entry.type}</span><span class="week-appt-time">${timeStr}</span>`;
+
+            pin.addEventListener('dragstart', (e) => {
+                e.stopPropagation();
+                e.dataTransfer.setData('application/x-week-entry-id', String(entry.id));
+                e.dataTransfer.setData('application/x-week-source-date', dateKey);
+                e.dataTransfer.effectAllowed = 'move';
+                pin.classList.add('week-item-dragging');
+            });
+            pin.addEventListener('dragend', () => pin.classList.remove('week-item-dragging'));
+
+            colScheduled.appendChild(pin);
+        }
+
+        // 2. Floating items → right column (day-level + session-level merged)
+        // Day-level action items (have date context but NOT segment/entry context)
+        const dayItems = allItems.filter(item => {
+            if (item.done && !state.showDone) return false;
+            const tcs = item.timeContexts || [];
+            return tcs.includes(dateKey) && !tcs.some(tc => tc.startsWith(dateKey + '@'));
+        });
+
+        for (const item of dayItems) {
+            const estMins = item.contextDurations?.[dateKey] ?? item.estimatedDuration ?? 0;
+            if (!item.done) totalEstMins += estMins;
+
+            const chip = document.createElement('div');
+            chip.className = 'week-action-chip' + (item.done ? ' week-item-done' : '');
+            chip.draggable = true;
+            chip.dataset.itemId = String(item.id);
+
+            chip.innerHTML = `<span class="week-chip-bullet">${item.done ? '✓' : '○'}</span><span class="week-chip-name">${item.name}</span>${estMins ? `<span class="week-chip-est">~${estMins}m</span>` : ''}`;
+
+            chip.addEventListener('dragstart', (e) => {
+                e.stopPropagation();
+                e.dataTransfer.setData('application/x-action-id', String(item.id));
+                e.dataTransfer.setData('application/x-week-source-date', dateKey);
+                e.dataTransfer.effectAllowed = 'move';
+                chip.classList.add('week-item-dragging');
+                window._draggedAction = true;
+            });
+            chip.addEventListener('dragend', () => {
+                chip.classList.remove('week-item-dragging');
+                window._draggedAction = false;
+            });
+
+            colFloating.appendChild(chip);
+        }
+
+        // Session-level items (have segment/entry/live context for this day) — also in floating column
+        const sessionItems = allItems.filter(item => {
+            if (item.done && !state.showDone) return false;
+            const tcs = item.timeContexts || [];
+            return tcs.some(tc => tc.startsWith(dateKey + '@'));
+        });
+
+        for (const sItem of sessionItems) {
+            const segCtx = sItem.timeContexts.find(tc => tc.startsWith(dateKey + '@'));
+            const estMins = sItem.contextDurations?.[segCtx] ?? sItem.contextDurations?.[dateKey] ?? sItem.estimatedDuration ?? 0;
+            if (!sItem.done) totalEstMins += estMins;
+
+            const chip = document.createElement('div');
+            chip.className = 'week-action-chip' + (sItem.done ? ' week-item-done' : '');
+            chip.draggable = true;
+            chip.dataset.itemId = String(sItem.id);
+
+            chip.innerHTML = `<span class="week-chip-bullet">${sItem.done ? '✓' : '○'}</span><span class="week-chip-name">${sItem.name}</span>${estMins ? `<span class="week-chip-est">~${estMins}m</span>` : ''}`;
+
+            chip.addEventListener('dragstart', (e) => {
+                e.stopPropagation();
+                e.dataTransfer.setData('application/x-action-id', String(sItem.id));
+                e.dataTransfer.setData('application/x-week-source-date', dateKey);
+                e.dataTransfer.effectAllowed = 'move';
+                chip.classList.add('week-item-dragging');
+                window._draggedAction = true;
+            });
+            chip.addEventListener('dragend', () => {
+                chip.classList.remove('week-item-dragging');
+                window._draggedAction = false;
+            });
+
+            colFloating.appendChild(chip);
+        }
+
+        // Assemble columns into content
+        const hasScheduled = colScheduled.children.length > 0;
+        const hasFloating = colFloating.children.length > 0;
+
+        if (hasScheduled || hasFloating) {
+            if (hasScheduled) content.appendChild(colScheduled);
+            if (hasFloating) content.appendChild(colFloating);
+        }
+
+        // Capacity bar (spans full width, below columns)
+        if (totalEstMins > 0 || hasScheduled || hasFloating) {
+            const capBar = document.createElement('div');
+            capBar.className = 'segment-capacity-bar';
+            const availMins = Math.max(1, dayCapacityMins);
+            const fillPct = Math.min(100, (totalEstMins / availMins) * 100);
+            const isOver = totalEstMins > availMins;
+            const hrsLabel = totalEstMins >= 60
+                ? `${Math.floor(totalEstMins / 60)}h${totalEstMins % 60 ? totalEstMins % 60 + 'm' : ''}`
+                : `${totalEstMins}m`;
+            const availLabel = dayCapacityMins >= 60
+                ? `${Math.floor(dayCapacityMins / 60)}h`
+                : `${dayCapacityMins}m`;
+            capBar.innerHTML = `
+                <div class="segment-capacity-fill${isOver ? ' over-capacity' : ''}" style="width:${fillPct}%"></div>
+                <span class="segment-capacity-label">${hrsLabel} / ${availLabel}</span>
+            `;
+            content.appendChild(capBar);
+        }
+
+        // Empty day indicator
+        if (content.children.length === 0) {
+            const emptyLabel = document.createElement('span');
+            emptyLabel.className = 'week-day-empty';
+            emptyLabel.textContent = '—';
+            content.appendChild(emptyLabel);
+        }
+
+        row.appendChild(content);
+
+        // ── Collapse toggle (persisted) ──
+        const collapsedDays = state.weekCollapsedDays || {};
+        const isPast = dateKey < todayKey;
+        // Default: past days collapsed, others expanded
+        const isCollapsed = dateKey in collapsedDays ? collapsedDays[dateKey] : isPast;
+        if (isCollapsed) {
+            content.style.display = 'none';
+            toggle.textContent = '▸';
+            row.classList.add('week-day-collapsed');
+        }
+        header.addEventListener('click', () => {
+            const wasCollapsed = content.style.display === 'none';
+            content.style.display = wasCollapsed ? '' : 'none';
+            toggle.textContent = wasCollapsed ? '▾' : '▸';
+            row.classList.toggle('week-day-collapsed', !wasCollapsed);
+            // Persist
+            if (!state.weekCollapsedDays) state.weekCollapsedDays = {};
+            state.weekCollapsedDays[dateKey] = !wasCollapsed;
+            savePref('weekCollapsedDays', state.weekCollapsedDays);
+        });
+
+        // ── Drop target: accept items dragged to this day row ──
+        row.addEventListener('dragover', (e) => {
+            if (!e.dataTransfer.types.some(t =>
+                t === 'application/x-action-id' ||
+                t === 'application/x-segment-item-id' ||
+                t === 'application/x-week-entry-id'
+            )) return;
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            row.classList.add('week-day-drag-over');
+        });
+        row.addEventListener('dragleave', (e) => {
+            // Only remove highlight if actually leaving the row
+            if (!row.contains(e.relatedTarget)) {
+                row.classList.remove('week-day-drag-over');
+            }
+        });
+        row.addEventListener('drop', async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            row.classList.remove('week-day-drag-over');
+
+            // Appointment reschedule
+            const entryId = e.dataTransfer.getData('application/x-week-entry-id');
+            if (entryId) {
+                const sourceDate = e.dataTransfer.getData('application/x-week-source-date');
+                if (sourceDate === dateKey) return; // same day, no-op
+                const entry = state.timeline.entries.find(en => String(en.id) === entryId);
+                if (entry) {
+                    // Calculate offset days and shift the entry
+                    const srcDate = new Date(sourceDate + 'T00:00:00');
+                    const tgtDate = new Date(dateKey + 'T00:00:00');
+                    const offsetMs = tgtDate.getTime() - srcDate.getTime();
+                    entry.timestamp += offsetMs;
+                    entry.endTime += offsetMs;
+                    await api.patch(`/timeline/${entry.id}`, { timestamp: entry.timestamp, endTime: entry.endTime });
+                    renderAll();
+                }
+                return;
+            }
+
+            // Segment item (drag out of session → degrade to day-level)
+            const segItemId = e.dataTransfer.getData('application/x-segment-item-id');
+            if (segItemId) {
+                const segCtx = e.dataTransfer.getData('application/x-segment-context');
+                const item = findItemById(Number(segItemId));
+                if (item && segCtx) {
+                    // Remove segment context
+                    const segDur = item.contextDurations?.[segCtx];
+                    if (item.timeContexts) {
+                        item.timeContexts = item.timeContexts.filter(tc => tc !== segCtx);
+                    }
+                    if (item.contextDurations) delete item.contextDurations[segCtx];
+                    // Reschedule to target date
+                    await rescheduleToDate(Number(segItemId), dateKey);
+                }
+                return;
+            }
+
+            // Regular action item
+            const actionId = e.dataTransfer.getData('application/x-action-id');
+            if (actionId) {
+                await rescheduleToDate(parseInt(actionId, 10), dateKey);
+            }
+        });
+
+        weekEl.appendChild(row);
+    }
+
+    container.appendChild(weekEl);
+}
+
 function renderTimeline() {
     const container = document.getElementById('timeline-list');
     const savedScrollTop = container.scrollTop;
@@ -4020,7 +4463,7 @@ function renderTimeline() {
     const quickLog = document.querySelector('.quick-log');
 
     // Clear all rendered blocks (including breadcrumb)
-    container.querySelectorAll('.time-block, .timeline-entry, .someday-placeholder, .timeline-overlap-group').forEach(el => el.remove());
+    container.querySelectorAll('.time-block, .timeline-entry, .someday-placeholder, .week-view, .timeline-overlap-group').forEach(el => el.remove());
 
     // ── Someday horizon: replace timeline with placeholder ──
     if (state.viewHorizon === 'someday') {
@@ -4040,6 +4483,16 @@ function renderTimeline() {
             renderAll();
         });
         container.appendChild(placeholder);
+        return;
+    }
+
+    // ── Week horizon: replace timeline with week view ──
+    if (state.viewHorizon === 'week') {
+        empty.style.display = 'none';
+        if (quickLog) quickLog.style.display = 'none';
+        // Also clear any week-view leftovers
+        container.querySelectorAll('.week-view').forEach(el => el.remove());
+        renderWeekView(container);
         return;
     }
 
@@ -7116,25 +7569,51 @@ function updateClock() {
 function updateDateNav() {
     const viewDate = state.timelineViewDate;
     const now = new Date();
-    const isToday = isCurrentDay(viewDate);
-
-    // Date display is determined by the day start date (viewDate)
-    const options = { weekday: 'short', month: 'short', day: 'numeric' };
-    let dateText = viewDate.toLocaleDateString('en-US', options);
-
-    // If it's a different year, add the year
-    if (viewDate.getFullYear() !== now.getFullYear()) {
-        dateText += `, ${viewDate.getFullYear()}`;
-    }
-
     const dateEl = document.getElementById('date-nav-date');
     const todayBtn = document.getElementById('date-nav-today-btn');
     const pickerEl = document.getElementById('date-nav-picker');
 
+    if (state.viewHorizon === 'week') {
+        // Week mode: show week range
+        const weekKey = getWeekKey(viewDate);
+        const range = getWeekDateRange(weekKey);
+        if (range) {
+            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            const startMonth = months[range.start.getMonth()];
+            const endMonth = months[range.end.getMonth()];
+            const startStr = `${startMonth} ${range.start.getDate()}`;
+            const endStr = startMonth === endMonth
+                ? `${range.end.getDate()}`
+                : `${endMonth} ${range.end.getDate()}`;
+            if (dateEl) dateEl.textContent = `${startStr}–${endStr}`;
+        }
+        const currentWeek = getWeekKey(getLogicalToday());
+        if (todayBtn) {
+            todayBtn.style.display = weekKey === currentWeek ? 'none' : '';
+            todayBtn.textContent = 'This Week';
+        }
+        if (pickerEl) {
+            const y = viewDate.getFullYear();
+            const m = String(viewDate.getMonth() + 1).padStart(2, '0');
+            const d = String(viewDate.getDate()).padStart(2, '0');
+            pickerEl.value = `${y}-${m}-${d}`;
+        }
+        return;
+    }
+
+    // Day mode
+    const isToday = isCurrentDay(viewDate);
+    const options = { weekday: 'short', month: 'short', day: 'numeric' };
+    let dateText = viewDate.toLocaleDateString('en-US', options);
+    if (viewDate.getFullYear() !== now.getFullYear()) {
+        dateText += `, ${viewDate.getFullYear()}`;
+    }
     if (dateEl) dateEl.textContent = dateText;
-    if (todayBtn) todayBtn.style.display = isToday ? 'none' : '';
+    if (todayBtn) {
+        todayBtn.style.display = isToday ? 'none' : '';
+        todayBtn.textContent = 'Today';
+    }
     if (pickerEl) {
-        // Sync the picker value with the current view date
         const y = viewDate.getFullYear();
         const m = String(viewDate.getMonth() + 1).padStart(2, '0');
         const d = String(viewDate.getDate()).padStart(2, '0');
@@ -7259,6 +7738,16 @@ function updateContextLabels() {
         somedaySeg.className = 'breadcrumb-segment breadcrumb-current';
         somedaySeg.textContent = '📦 Someday';
         whenRow.appendChild(somedaySeg);
+    } else if (state.viewHorizon === 'week') {
+        // Week view
+        const weekKey = getWeekKey(state.timelineViewDate);
+        const range = getWeekDateRange(weekKey);
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const label = range ? `📆 Week of ${months[range.start.getMonth()]} ${range.start.getDate()}` : '📆 Week';
+        const weekSeg = document.createElement('span');
+        weekSeg.className = 'breadcrumb-segment breadcrumb-current';
+        weekSeg.textContent = label;
+        whenRow.appendChild(weekSeg);
     } else {
         // No session focused — just show the date
         const dateSeg = document.createElement('span');
@@ -8680,6 +9169,19 @@ function openDefaultsModal() {
             <div class="modal-hint">If end is before start, the day crosses midnight.</div>
             <div class="modal-divider"></div>
             <div class="modal-field">
+                <label class="modal-label" for="defaults-week-start">📅 Week starts on</label>
+                <select id="defaults-week-start" class="modal-input">
+                    <option value="0">Sunday</option>
+                    <option value="1">Monday</option>
+                    <option value="2">Tuesday</option>
+                    <option value="3">Wednesday</option>
+                    <option value="4">Thursday</option>
+                    <option value="5">Friday</option>
+                    <option value="6">Saturday</option>
+                </select>
+            </div>
+            <div class="modal-divider"></div>
+            <div class="modal-field">
                 <label class="modal-label" for="modal-hide-past">Hide past entries in today</label>
                 <input type="checkbox" id="modal-hide-past" class="modal-checkbox" />
             </div>
@@ -8697,6 +9199,7 @@ function openDefaultsModal() {
         `${String(state.settings.dayStartHour).padStart(2, '0')}:${String(state.settings.dayStartMinute).padStart(2, '0')}`;
     document.getElementById('defaults-end-time').value =
         `${String(state.settings.dayEndHour).padStart(2, '0')}:${String(state.settings.dayEndMinute).padStart(2, '0')}`;
+    document.getElementById('defaults-week-start').value = String(state.settings.weekStartDay ?? 0);
 
     // Populate hide-past-entries checkbox
     const hidePastCheckbox = document.getElementById('modal-hide-past');
@@ -8723,6 +9226,7 @@ function openDefaultsModal() {
         state.settings.dayStartMinute = sm;
         state.settings.dayEndHour = eh;
         state.settings.dayEndMinute = em;
+        state.settings.weekStartDay = parseInt(document.getElementById('defaults-week-start').value, 10);
         await api.put('/settings', state.settings);
         overlay.remove();
         renderTimeline();
@@ -8782,7 +9286,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // Date nav buttons — renderAll() so actions list updates with time context
     document.getElementById('date-nav-prev').addEventListener('click', () => {
         const d = new Date(state.timelineViewDate);
-        d.setDate(d.getDate() - 1);
+        const step = state.viewHorizon === 'week' ? 7 : 1;
+        d.setDate(d.getDate() - step);
         state.timelineViewDate = d;
         state.focusStack = []; // clear focus on day change
         savePref('timelineViewDate', d.toISOString());
@@ -8790,7 +9295,8 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     document.getElementById('date-nav-next').addEventListener('click', () => {
         const d = new Date(state.timelineViewDate);
-        d.setDate(d.getDate() + 1);
+        const step = state.viewHorizon === 'week' ? 7 : 1;
+        d.setDate(d.getDate() + step);
         state.timelineViewDate = d;
         state.focusStack = []; // clear focus on day change
         renderAll();
@@ -8890,18 +9396,63 @@ document.addEventListener('DOMContentLoaded', () => {
         await sendToSomeday(parseInt(actionId, 10));
     });
 
+    // Week layer: click to navigate to week view, drag to degrade to week scope
+    const weekLayer = document.getElementById('horizon-week-layer');
+    weekLayer.addEventListener('click', () => {
+        state.focusStack = [];
+        state.viewHorizon = 'week';
+        savePref('viewHorizon', 'week');
+        renderAll();
+    });
+    weekLayer.addEventListener('dragover', (e) => {
+        if (!window._draggedAction && !e.dataTransfer.types.includes('application/x-segment-item-id')) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        weekLayer.classList.add('horizon-layer-drag-over');
+    });
+    weekLayer.addEventListener('dragleave', () => {
+        weekLayer.classList.remove('horizon-layer-drag-over');
+    });
+    weekLayer.addEventListener('drop', async (e) => {
+        e.preventDefault();
+        weekLayer.classList.remove('horizon-layer-drag-over');
+        const weekKey = getWeekKey(state.timelineViewDate);
+        // Segment queue item drag
+        if (e.dataTransfer.types.includes('application/x-segment-item-id')) {
+            const itemId = e.dataTransfer.getData('application/x-segment-item-id');
+            const segCtx = e.dataTransfer.getData('application/x-segment-context');
+            if (!itemId) return;
+            let segDur;
+            if (segCtx) {
+                const item = findItemById(Number(itemId));
+                if (item) {
+                    segDur = item.contextDurations?.[segCtx];
+                    if (item.timeContexts) item.timeContexts = item.timeContexts.filter(tc => tc !== segCtx);
+                    if (item.contextDurations) delete item.contextDurations[segCtx];
+                }
+            }
+            await sendToWeek(parseInt(itemId, 10), weekKey, segDur);
+            return;
+        }
+        // Regular action/project drag
+        const actionId = e.dataTransfer.getData('application/x-action-id');
+        if (!actionId) return;
+        await sendToWeek(parseInt(actionId, 10), weekKey);
+    });
+
     // Day layer: click to navigate back to day, drag to promote from someday
     const dayLayer = document.getElementById('horizon-day-layer');
     dayLayer.addEventListener('click', (e) => {
-        // Navigate: from session focus → back to day, or from someday → day
+        // Navigate: from session focus → back to day, or from someday/week → day
         if (e.target.closest('.date-nav-btn')) return;
+        if (e.target.closest('.date-nav-display')) return;
         if (state.focusStack.length > 0) {
             // Session focused — pop back to day
             state.focusStack = [];
             renderAll();
             return;
         }
-        if (state.viewHorizon !== 'someday') return;
+        if (state.viewHorizon === 'day') return;
         state.focusStack = [];
         state.viewHorizon = 'day';
         savePref('viewHorizon', 'day');
