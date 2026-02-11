@@ -657,20 +657,10 @@ function buildSegmentContext(dateKey, startMs, endMs) {
     return `${dateKey}@${fmt(startMs)}-${fmt(endMs)}`;
 }
 
-// Find the timeline entry ID for the currently-running work or break session
-function findLiveEntryId(type) {
-    const entries = state.timeline?.entries || [];
-    const liveState = type === 'work' ? state.workingOn : state.onBreak;
-    if (!liveState) return null;
-    // Match by type and start time
-    for (let i = entries.length - 1; i >= 0; i--) {
-        if (entries[i].type === type && entries[i].timestamp === liveState.startTime) return entries[i].id;
-    }
-    // Fallback: last entry of this type without endTime
-    for (let i = entries.length - 1; i >= 0; i--) {
-        if (entries[i].type === type && !entries[i].endTime) return entries[i].id;
-    }
-    return null;
+// Build the live context string for a running work or break session
+function getLiveContext(type) {
+    const dateKey = getDateKey(state.timelineViewDate);
+    return `${dateKey}@${type}`;
 }
 
 // Add a segment context to an item, removing the plain date context if present.
@@ -749,6 +739,35 @@ async function degradeEntryContexts(entryId) {
     }
 }
 
+// Degrade all @work or @break live contexts back to the parent day context
+async function _degradeLiveContexts(type) {
+    const dateKey = getDateKey(state.timelineViewDate);
+    const liveCtx = `${dateKey}@${type}`;
+    const allItems = collectAllItems(state.items.items);
+    for (const a of allItems) {
+        const item = findItemById(a.id);
+        if (!item || !item.timeContexts) continue;
+        if (item.timeContexts.includes(liveCtx)) {
+            // Remove the live context, migrate duration to day
+            item.timeContexts = item.timeContexts.filter(tc => tc !== liveCtx);
+            if (item.contextDurations && liveCtx in item.contextDurations) {
+                const dur = item.contextDurations[liveCtx];
+                delete item.contextDurations[liveCtx];
+                if (dur != null && !(dateKey in item.contextDurations)) {
+                    item.contextDurations[dateKey] = dur;
+                }
+            }
+            // Ensure the day context exists
+            if (!item.timeContexts.some(tc => contextMatchesDate(tc, dateKey))) {
+                item.timeContexts.push(dateKey);
+            }
+            const patch = { timeContexts: item.timeContexts };
+            if (item.contextDurations) patch.contextDurations = item.contextDurations;
+            await api.patch(`/items/${item.id}`, patch);
+        }
+    }
+}
+
 // Get effective time contexts for an item by merging its own contexts with all ancestors'
 function getEffectiveTimeContexts(itemId) {
     const contexts = new Set();
@@ -822,6 +841,7 @@ function getCurrentTimeContexts() {
         const dateKey = getDateKey(state.timelineViewDate);
         const ctx = [dateKey];
         if (focused.segmentKey) ctx.push(focused.segmentKey);
+        else if (focused.liveType) ctx.push(`${dateKey}@${focused.liveType}`);
         else if (focused.entryId) ctx.push(`${dateKey}@entry:${focused.entryId}`);
         return ctx;
     }
@@ -834,6 +854,7 @@ function getCurrentTimeContexts() {
 function getCurrentViewContext() {
     const focused = state.focusStack.length > 0 ? state.focusStack[state.focusStack.length - 1] : null;
     if (focused && focused.segmentKey) return focused.segmentKey;
+    if (focused && focused.liveType) return `${getDateKey(state.timelineViewDate)}@${focused.liveType}`;
     if (focused && focused.entryId) return `${getDateKey(state.timelineViewDate)}@entry:${focused.entryId}`;
     if (state.viewHorizon === 'someday') return 'someday';
     return getDateKey(state.timelineViewDate);
@@ -1667,7 +1688,7 @@ function renderProjects() {
     renderProjectLevel(state.items.items, fragment, 0, query, matchingIds);
 
     // Root drop zone — always visible to allow dragging items to root level
-    if (!query) {
+    {
         const rootDropZone = document.createElement('div');
         rootDropZone.className = 'project-root-dropzone';
         rootDropZone.textContent = 'Drop here to move to root';
@@ -1826,8 +1847,8 @@ function renderProjectLevel(items, parent, depth, query = '', matchingIds = new 
 
 
 
-        // ─── Insert marker BEFORE this item (skip before Inbox, skip during search) ───
-        if (!isInbox && !isSearching) {
+        // ─── Insert marker BEFORE this item (skip before Inbox) ───
+        if (!isInbox) {
             parent.appendChild(createInsertMarker(items, idx, depth));
         }
 
@@ -1843,8 +1864,8 @@ function renderProjectLevel(items, parent, depth, query = '', matchingIds = new 
         row.style.paddingLeft = `${10 + depth * 18}px`;
         row.dataset.id = item.id;
 
-        // ─── Drag source (Inbox is not draggable, disable during search) ───
-        if (!isInbox && !isSearching) {
+        // ─── Drag source (Inbox is not draggable) ───
+        if (!isInbox) {
             row.draggable = true;
             row.addEventListener('dragstart', (e) => {
                 dragState.draggedId = item.id;
@@ -1869,7 +1890,7 @@ function renderProjectLevel(items, parent, depth, query = '', matchingIds = new 
         }
 
         // ─── Drop target ───
-        if (!isSearching) {
+        {
             row.addEventListener('dragover', (e) => {
                 e.preventDefault();
                 e.dataTransfer.dropEffect = 'move';
@@ -2063,8 +2084,8 @@ function renderProjectLevel(items, parent, depth, query = '', matchingIds = new 
         parent.appendChild(node);
     }
 
-    // ─── Insert marker AFTER the last item (skip during search) ───
-    if (!isSearching) {
+    // ─── Insert marker AFTER the last item ───
+    {
         const hasNonInbox = items.some(i => !i.isInbox);
         if (items.length > 0 && (depth > 0 || hasNonInbox)) {
             parent.appendChild(createInsertMarker(items, items.length, depth));
@@ -2406,10 +2427,25 @@ function getFilteredActions() {
             // For item-bound planned sessions, enforce descendant constraint
             if (planDescendantIds && !planDescendantIds.has(a.id)) return false;
 
-            // Items with entry-ID context matching the focused planned session
+            // Items with live context matching the focused work/break session
+            if (fs.liveType && item.timeContexts) {
+                const liveCtx = `${currentDateKey}@${fs.liveType}`;
+                if (item.timeContexts.includes(liveCtx)) return true;
+            }
+
+            // Items with entry-ID context matching a focused planned/past session
             if (fs.entryId && item.timeContexts) {
                 const entryCtx = `${currentDateKey}@entry:${fs.entryId}`;
                 if (item.timeContexts.includes(entryCtx)) return true;
+            }
+
+            // For live sessions (working, break), don't fall through
+            // to time-overlap matching — only live-matched or unscheduled items
+            if (fs.liveType) {
+                if ((fs.type === 'working' || fs.type === 'break') && isItemUnscheduled(a)) {
+                    return itemMatchesTimeContext(a, currentDateKey);
+                }
+                return false;
             }
 
             // Items with segment context overlapping the session
@@ -2422,7 +2458,9 @@ function getFilteredActions() {
                         const [eh, em] = parsed.segment.end.split(':').map(Number);
                         const refDate = new Date(fs.startMs);
                         const tcStart = new Date(refDate.getFullYear(), refDate.getMonth(), refDate.getDate(), sh, sm).getTime();
-                        const tcEnd = new Date(refDate.getFullYear(), refDate.getMonth(), refDate.getDate(), eh, em).getTime();
+                        let tcEnd = new Date(refDate.getFullYear(), refDate.getMonth(), refDate.getDate(), eh, em).getTime();
+                        // Cross-midnight: if end time is before start time, end is next calendar day
+                        if (tcEnd <= tcStart) tcEnd += 24 * 60 * 60 * 1000;
                         const overlapStart = Math.max(fs.startMs, tcStart);
                         const overlapEnd = Math.min(fs.endMs, tcEnd);
                         if (overlapEnd > overlapStart) return true;
@@ -2430,7 +2468,7 @@ function getFilteredActions() {
                 }
             }
             // Unscheduled items show in free time and planned sessions
-            if ((fs.type === 'free' || fs.type === 'planned' || fs.type === 'working' || fs.type === 'work' || fs.type === 'break') && isItemUnscheduled(a)) {
+            if ((fs.type === 'free' || fs.type === 'planned') && isItemUnscheduled(a)) {
                 return itemMatchesTimeContext(a, currentDateKey);
             }
             return false;
@@ -3394,7 +3432,7 @@ function _renderLiveSessionIndicator(container) {
             projectName: isWork ? state.workingOn.projectName : null,
             itemId: isWork ? state.workingOn.itemId : null,
             targetEndTime: liveSession.targetEndTime || null,
-            entryId: findLiveEntryId(isWork ? 'work' : 'break'),
+            liveType: isWork ? 'work' : 'break',
             tier: 'session',
         }];
         renderAll();
@@ -3510,6 +3548,23 @@ function _renderWorkSession(sessionEl, top, nowMs, durationMs, _fmtDur) {
         durRow.appendChild(durEl);
         sessionEl.appendChild(durRow);
     }
+
+    // Intention count — items linked via @work/@break or @entry:ID context
+    const _workCtxStr = top.liveType
+        ? `${getDateKey(state.timelineViewDate)}@${top.liveType}`
+        : top.entryId ? `${getDateKey(state.timelineViewDate)}@entry:${top.entryId}` : null;
+    if (_workCtxStr) {
+        const allItems = collectAllItems(state.items.items);
+        const intentionCount = allItems.filter(item =>
+            item.timeContexts && item.timeContexts.includes(_workCtxStr)
+        ).length;
+        if (intentionCount > 0) {
+            const intentRow = document.createElement('div');
+            intentRow.className = 'time-context-row session-unsched-count';
+            intentRow.textContent = `📋 ${intentionCount} intention${intentionCount !== 1 ? 's' : ''} planned`;
+            sessionEl.appendChild(intentRow);
+        }
+    }
 }
 
 // ── Planned Session Header ──
@@ -3553,13 +3608,14 @@ function _renderPlannedSession(sessionEl, top, nowMs, durationMs, _fmtDur) {
     }
     sessionEl.appendChild(relRow);
 
-    // Intention count — items linked to this planned session via @entry:ID context
-    if (top.entryId) {
-        const currentDateKey = getDateKey(state.timelineViewDate);
-        const entryCtx = `${currentDateKey}@entry:${top.entryId}`;
+    // Intention count — items linked via @work/@break or @entry:ID context
+    const _breakCtxStr = top.liveType
+        ? `${getDateKey(state.timelineViewDate)}@${top.liveType}`
+        : top.entryId ? `${getDateKey(state.timelineViewDate)}@entry:${top.entryId}` : null;
+    if (_breakCtxStr) {
         const allItems = collectAllItems(state.items.items);
         const intentionCount = allItems.filter(item =>
-            item.timeContexts && item.timeContexts.includes(entryCtx)
+            item.timeContexts && item.timeContexts.includes(_breakCtxStr)
         ).length;
         if (intentionCount > 0) {
             const intentRow = document.createElement('div');
@@ -3776,6 +3832,22 @@ function _renderBreakSession(sessionEl, top, nowMs, durationMs, _fmtDur) {
         durEl.textContent = _fmtDur(durationMs);
         durRow.appendChild(durEl);
         sessionEl.appendChild(durRow);
+    }
+
+    // Intention count — items linked via @entry:ID context
+    if (top.entryId) {
+        const currentDateKey = getDateKey(state.timelineViewDate);
+        const entryCtx = `${currentDateKey}@entry:${top.entryId}`;
+        const allItems = collectAllItems(state.items.items);
+        const intentionCount = allItems.filter(item =>
+            item.timeContexts && item.timeContexts.includes(entryCtx)
+        ).length;
+        if (intentionCount > 0) {
+            const intentRow = document.createElement('div');
+            intentRow.className = 'time-context-row session-unsched-count';
+            intentRow.textContent = `📋 ${intentionCount} intention${intentionCount !== 1 ? 's' : ''} planned`;
+            sessionEl.appendChild(intentRow);
+        }
     }
 }
 
@@ -4243,7 +4315,8 @@ function createFreeTimeBlock(startMs, endMs) {
     el.dataset.endTime = endMs;
     el.style.cursor = 'pointer';
     el.addEventListener('click', () => toggleSessionFocus({
-        startMs, endMs, label: 'Free Time', type: 'free', icon: '✨'
+        startMs, endMs, label: 'Free Time', type: 'free', icon: '✨',
+        segmentKey: buildSegmentContext(getDateKey(state.timelineViewDate), startMs, endMs),
     }));
 
     const durationMs = endMs - startMs;
@@ -4355,6 +4428,7 @@ function createFreeTimeBlock(startMs, endMs) {
     const assignedItems = allItems.filter(a => {
         const item = findItemById(a.id);
         if (!item || !item.timeContexts) return false;
+        if (item.done && !state.showDone) return false;
         // Match: exact segment context OR overlapping segment context
         return item.timeContexts.some(tc => {
             if (tc === segCtx) return true;
@@ -4365,7 +4439,9 @@ function createFreeTimeBlock(startMs, endMs) {
             const [eh, em] = parsed.segment.end.split(':').map(Number);
             const refDate = new Date(startMs);
             const tcStart = new Date(refDate.getFullYear(), refDate.getMonth(), refDate.getDate(), sh, sm).getTime();
-            const tcEnd = new Date(refDate.getFullYear(), refDate.getMonth(), refDate.getDate(), eh, em).getTime();
+            let tcEnd = new Date(refDate.getFullYear(), refDate.getMonth(), refDate.getDate(), eh, em).getTime();
+            // Cross-midnight: if end time is before start time, end is next calendar day
+            if (tcEnd <= tcStart) tcEnd += 24 * 60 * 60 * 1000;
             const overlapStart = Math.max(startMs, tcStart);
             const overlapEnd = Math.min(endMs, tcEnd);
             if (overlapEnd <= overlapStart) return false;
@@ -4391,16 +4467,18 @@ function createFreeTimeBlock(startMs, endMs) {
                 const [eh, em] = p.segment.end.split(':').map(Number);
                 const refDate = new Date(startMs);
                 const tcS = new Date(refDate.getFullYear(), refDate.getMonth(), refDate.getDate(), sh, sm).getTime();
-                const tcE = new Date(refDate.getFullYear(), refDate.getMonth(), refDate.getDate(), eh, em).getTime();
+                let tcE = new Date(refDate.getFullYear(), refDate.getMonth(), refDate.getDate(), eh, em).getTime();
+                // Cross-midnight: if end time is before start time, end is next calendar day
+                if (tcE <= tcS) tcE += 24 * 60 * 60 * 1000;
                 return Math.min(endMs, tcE) > Math.max(startMs, tcS);
             }) || segCtx;
             // Read segment-specific duration using the item's stored key
             const segDur = item?.contextDurations?.[itemSegCtx];
             const estMins = segDur != null ? segDur : (item?.estimatedDuration || 0);
-            totalEstMins += estMins;
+            if (!item?.done) totalEstMins += estMins;
 
             const row = document.createElement('div');
-            row.className = 'segment-queue-item';
+            row.className = 'segment-queue-item' + (item?.done ? ' segment-item-done' : '');
             row.draggable = true;
             row.dataset.itemId = action.id;
 
@@ -4421,7 +4499,7 @@ function createFreeTimeBlock(startMs, endMs) {
 
             const bullet = document.createElement('span');
             bullet.className = 'segment-queue-bullet';
-            bullet.textContent = '○';
+            bullet.textContent = item?.done ? '✓' : '○';
 
             const nameSpan = document.createElement('span');
             nameSpan.className = 'segment-queue-name';
@@ -4885,9 +4963,9 @@ function createIdleTimeBlock(startMs, endMs) {
     breakBtn.className = 'idle-break-btn';
     breakBtn.textContent = '☕';
     breakBtn.title = 'Take a break';
-    breakBtn.addEventListener('click', (e) => {
+    breakBtn.addEventListener('click', async (e) => {
         e.stopPropagation();
-        startBreak();
+        await startBreak();
     });
     // Right-click: open duration picker for timed break
     breakBtn.addEventListener('contextmenu', (e) => {
@@ -5118,10 +5196,8 @@ function openIdleWorkEditor(idleBlock, idleStartMs, idleEndMs) {
 }
 
 // ── Shared helper: attach drag-and-drop target + nested items queue to a block ──
-function _attachEntryDropAndQueue(el, entryId, durationMs) {
-    if (!entryId) return;
-    const dateKey = getDateKey(state.timelineViewDate);
-    const entryCtx = `${dateKey}@entry:${entryId}`;
+function _attachEntryDropAndQueue(el, contextStr, durationMs) {
+    if (!contextStr) return;
 
     // ── Drop target ──
     const _acceptsDrag = (e) =>
@@ -5152,10 +5228,10 @@ function _attachEntryDropAndQueue(el, entryId, durationMs) {
         if (e.dataTransfer.types.includes('application/x-segment-item-id')) {
             const itemId = e.dataTransfer.getData('application/x-segment-item-id');
             const oldCtx = e.dataTransfer.getData('application/x-segment-context');
-            if (itemId && oldCtx && oldCtx !== entryCtx) {
+            if (itemId && oldCtx && oldCtx !== contextStr) {
                 (async () => {
                     await degradeSegmentContext(itemId, oldCtx);
-                    await addSegmentContext(Number(itemId), entryCtx);
+                    await addSegmentContext(Number(itemId), contextStr);
                 })();
             }
             return;
@@ -5165,7 +5241,7 @@ function _attachEntryDropAndQueue(el, entryId, durationMs) {
         const action = window._draggedAction;
         if (!action) return;
         window._draggedAction = null;
-        addSegmentContext(action.id, entryCtx);
+        addSegmentContext(action.id, contextStr);
     });
 
     // ── Nested entry-assigned items ──
@@ -5173,7 +5249,8 @@ function _attachEntryDropAndQueue(el, entryId, durationMs) {
     const assignedItems = allItems.filter(a => {
         const item = findItemById(a.id);
         if (!item || !item.timeContexts) return false;
-        return item.timeContexts.includes(entryCtx);
+        if (item.done && !state.showDone) return false;
+        return item.timeContexts.includes(contextStr);
     });
 
     if (assignedItems.length > 0) {
@@ -5183,19 +5260,19 @@ function _attachEntryDropAndQueue(el, entryId, durationMs) {
         let totalEstMins = 0;
         for (const action of assignedItems) {
             const item = findItemById(action.id);
-            const segDur = item?.contextDurations?.[entryCtx];
+            const segDur = item?.contextDurations?.[contextStr];
             const estMins = segDur != null ? segDur : (item?.estimatedDuration || 0);
-            totalEstMins += estMins;
+            if (!item?.done) totalEstMins += estMins;
 
             const row = document.createElement('div');
-            row.className = 'segment-queue-item';
+            row.className = 'segment-queue-item' + (item?.done ? ' segment-item-done' : '');
             row.draggable = true;
             row.dataset.itemId = action.id;
 
             row.addEventListener('dragstart', (e) => {
                 e.stopPropagation();
                 e.dataTransfer.setData('application/x-segment-item-id', String(action.id));
-                e.dataTransfer.setData('application/x-segment-context', entryCtx);
+                e.dataTransfer.setData('application/x-segment-context', contextStr);
                 e.dataTransfer.effectAllowed = 'move';
                 row.classList.add('segment-item-dragging');
             });
@@ -5205,7 +5282,7 @@ function _attachEntryDropAndQueue(el, entryId, durationMs) {
 
             const bullet = document.createElement('span');
             bullet.className = 'segment-queue-bullet';
-            bullet.textContent = '○';
+            bullet.textContent = item?.done ? '✓' : '○';
 
             const nameSpan = document.createElement('span');
             nameSpan.className = 'segment-queue-name';
@@ -5234,7 +5311,7 @@ function _attachEntryDropAndQueue(el, entryId, durationMs) {
                     se.stopPropagation();
                     const mins = parseInt(input.value, 10) || 0;
                     if (!item.contextDurations) item.contextDurations = {};
-                    item.contextDurations[entryCtx] = mins;
+                    item.contextDurations[contextStr] = mins;
                     await api.patch(`/items/${action.id}`, { contextDurations: item.contextDurations });
                     pop.remove();
                     renderAll();
@@ -5305,13 +5382,12 @@ function createWorkingTimeBlock(startMs, endMs) {
     el.dataset.endTime = endMs;
     el.style.cursor = 'pointer';
     const itemName = state.workingOn ? state.workingOn.itemName : 'Working';
-    const liveWorkEntryId = findLiveEntryId('work');
     el.addEventListener('click', () => toggleSessionFocus({
         startMs, endMs, label: itemName, type: 'working', icon: '⚡',
         projectName: state.workingOn ? state.workingOn.projectName : null,
         itemId: state.workingOn ? state.workingOn.itemId : null,
         targetEndTime: targetEnd,
-        entryId: liveWorkEntryId,
+        liveType: 'work',
     }));
 
     const targetEnd = state.workingOn ? state.workingOn.targetEndTime : null;
@@ -5398,6 +5474,9 @@ function createWorkingTimeBlock(startMs, endMs) {
     el.appendChild(content);
     el.appendChild(stopBtn);
 
+    // Drag-and-drop + nested items
+    _attachEntryDropAndQueue(el, getLiveContext('work'), endMs - startMs);
+
     return el;
 }
 function createBreakTimeBlock(startMs, endMs) {
@@ -5406,11 +5485,10 @@ function createBreakTimeBlock(startMs, endMs) {
     el.dataset.startTime = startMs;
     el.dataset.endTime = endMs;
     el.style.cursor = 'pointer';
-    const liveBreakEntryId = findLiveEntryId('break');
     el.addEventListener('click', () => toggleSessionFocus({
         startMs, endMs, label: 'Break', type: 'break', icon: '☕',
         targetEndTime: targetEnd,
-        entryId: liveBreakEntryId,
+        liveType: 'break',
     }));
 
     const targetEnd = state.onBreak ? state.onBreak.targetEndTime : null;
@@ -5488,7 +5566,7 @@ function createBreakTimeBlock(startMs, endMs) {
     el.appendChild(stopBtn);
 
     // Drag-and-drop + nested items
-    _attachEntryDropAndQueue(el, liveBreakEntryId, endMs - startMs);
+    _attachEntryDropAndQueue(el, getLiveContext('break'), endMs - startMs);
 
     return el;
 }
@@ -5979,9 +6057,6 @@ function createWorkEntryBlock(entry) {
     el.appendChild(editBtn);
     el.appendChild(delBtn);
 
-    // Drag-and-drop + nested items
-    const durationMs_w = (entry.endTime || entry.timestamp) - entry.timestamp;
-    _attachEntryDropAndQueue(el, entry.id, durationMs_w);
 
     return el;
 }
@@ -6059,9 +6134,6 @@ function createBreakEntryBlock(entry) {
     el.appendChild(editBtn);
     el.appendChild(delBtn);
 
-    // Drag-and-drop + nested items
-    const durationMs_b = (entry.endTime || entry.timestamp) - entry.timestamp;
-    _attachEntryDropAndQueue(el, entry.id, durationMs_b);
 
     return el;
 }
@@ -6129,6 +6201,7 @@ function createPlannedTimeBlock(entry, isGhost = false) {
         projectName: entry.projectName || null,
         itemId: entry.itemId || null,
         entryId: entry.id,
+        segmentKey: buildSegmentContext(getDateKey(new Date(entry.timestamp)), entry.timestamp, entry.endTime),
     }));
 
     const durationMs = (entry.endTime || entry.timestamp) - entry.timestamp;
@@ -6275,6 +6348,7 @@ function createPlannedTimeBlock(entry, isGhost = false) {
     const assignedItems = allItems.filter(a => {
         const item = findItemById(a.id);
         if (!item || !item.timeContexts) return false;
+        if (item.done && !state.showDone) return false;
         return item.timeContexts.includes(entryCtx);
     });
 
@@ -6287,10 +6361,10 @@ function createPlannedTimeBlock(entry, isGhost = false) {
             const item = findItemById(action.id);
             const segDur = item?.contextDurations?.[entryCtx];
             const estMins = segDur != null ? segDur : (item?.estimatedDuration || 0);
-            totalEstMins += estMins;
+            if (!item?.done) totalEstMins += estMins;
 
             const row = document.createElement('div');
-            row.className = 'segment-queue-item';
+            row.className = 'segment-queue-item' + (item?.done ? ' segment-item-done' : '');
             row.draggable = true;
             row.dataset.itemId = action.id;
 
@@ -6308,7 +6382,7 @@ function createPlannedTimeBlock(entry, isGhost = false) {
 
             const bullet = document.createElement('span');
             bullet.className = 'segment-queue-bullet';
-            bullet.textContent = '○';
+            bullet.textContent = item?.done ? '✓' : '○';
 
             const nameSpan = document.createElement('span');
             nameSpan.className = 'segment-queue-name';
@@ -7405,11 +7479,11 @@ function showBreakDurationPicker(anchorEl) {
         btn.className = 'duration-picker-preset';
         btn.textContent = preset.label;
         btn.addEventListener('mouseenter', () => checkOverlap(preset.mins, warning));
-        btn.addEventListener('click', (e) => {
+        btn.addEventListener('click', async (e) => {
             e.stopPropagation();
             const targetEnd = Date.now() + preset.mins * 60000;
             dismissDurationPicker();
-            startBreak(targetEnd);
+            await startBreak(targetEnd);
         });
         presets.appendChild(btn);
     }
@@ -7444,13 +7518,13 @@ function showBreakDurationPicker(anchorEl) {
     const startBtn = document.createElement('button');
     startBtn.className = 'duration-picker-start';
     startBtn.textContent = 'Start';
-    startBtn.addEventListener('click', (e) => {
+    startBtn.addEventListener('click', async (e) => {
         e.stopPropagation();
         const mins = parseInt(input.value, 10);
         if (!mins || mins <= 0) return;
         const targetEnd = Date.now() + mins * 60000;
         dismissDurationPicker();
-        startBreak(targetEnd);
+        await startBreak(targetEnd);
     });
 
     input.addEventListener('keydown', (e) => {
@@ -7522,11 +7596,12 @@ async function startWorking(itemId, itemName, projectName, targetEndTime) {
     if (state.onBreak) {
         await stopBreak();
     }
+    const now = Date.now();
     state.workingOn = {
         itemId,
         itemName,
         projectName: projectName || null,
-        startTime: Date.now(),
+        startTime: now,
         targetEndTime: targetEndTime || null,
     };
     savePref('workingOn', state.workingOn);
@@ -7542,7 +7617,7 @@ async function stopWorking() {
     const mins = Math.floor((durationMs % 3600000) / 60000);
     const durStr = hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
 
-    // Log work entry to timeline
+    // Create timeline entry on stop
     const entry = await api.post('/timeline', {
         text: `Worked on: ${state.workingOn.itemName} (${durStr})`,
         projectName: state.workingOn.projectName,
@@ -7554,6 +7629,9 @@ async function stopWorking() {
     });
     state.timeline.entries.push(entry);
 
+    // Degrade all @work contexts back to the day context
+    await _degradeLiveContexts('work');
+
     // Clear working state
     state.workingOn = null;
     savePref('workingOn', null);
@@ -7564,13 +7642,14 @@ async function stopWorking() {
 
 // ─── Break Timer ───
 
-function startBreak(targetEndTime) {
+async function startBreak(targetEndTime) {
     // If working on something, stop it first
     if (state.workingOn) {
-        stopWorking();
+        await stopWorking();
     }
+    const now = Date.now();
     state.onBreak = {
-        startTime: Date.now(),
+        startTime: now,
         targetEndTime: targetEndTime || null,
     };
     savePref('onBreak', state.onBreak);
@@ -7586,7 +7665,7 @@ async function stopBreak() {
     const mins = Math.floor((durationMs % 3600000) / 60000);
     const durStr = hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
 
-    // Log break entry to timeline
+    // Create timeline entry on stop
     const entry = await api.post('/timeline', {
         text: `Break (${durStr})`,
         type: 'break',
@@ -7595,6 +7674,9 @@ async function stopBreak() {
         targetEndTime: state.onBreak.targetEndTime || undefined,
     });
     state.timeline.entries.push(entry);
+
+    // Degrade all @break contexts back to the day context
+    await _degradeLiveContexts('break');
 
     // Clear break state
     state.onBreak = null;

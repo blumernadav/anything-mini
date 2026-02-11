@@ -2783,6 +2783,14 @@ body {
     opacity: 0.4;
 }
 
+.segment-item-done {
+    opacity: 0.45;
+}
+
+.segment-item-done .segment-queue-name {
+    text-decoration: line-through;
+}
+
 /* Capacity bar */
 .segment-capacity-bar {
     width: 100%;
@@ -3990,11 +3998,19 @@ body {
     background: rgba(96, 165, 250, 0.06);
 }
 
-.time-block-planned:has(.segment-queue) {
+.time-block-planned:has(.segment-queue),
+.time-block-working:has(.segment-queue),
+.time-block-work-entry:has(.segment-queue),
+.time-block-break:has(.segment-queue),
+.time-block-break-entry:has(.segment-queue) {
     flex-wrap: wrap;
 }
 
-.time-block-planned.time-block-drag-over {
+.time-block-planned.time-block-drag-over,
+.time-block-working.time-block-drag-over,
+.time-block-work-entry.time-block-drag-over,
+.time-block-break.time-block-drag-over,
+.time-block-break-entry.time-block-drag-over {
     border-color: #60a5fa;
     border-style: solid;
     background: rgba(96, 165, 250, 0.12);

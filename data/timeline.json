@@ -1260,7 +1260,112 @@
       "type": "completion",
       "id": 186,
       "timestamp": 1770804947555
+    },
+    {
+      "text": "Worked on: anything (57m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1770804259540,
+      "endTime": 1770807709027,
+      "itemId": 9,
+      "id": 187,
+      "timestamp": 1770804259540
+    },
+    {
+      "text": "Worked on: anything (6m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1770807718669,
+      "endTime": 1770808137246,
+      "itemId": 9,
+      "id": 188,
+      "timestamp": 1770807718669
+    },
+    {
+      "text": "Worked on: anything (0m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1770808219441,
+      "endTime": 1770808230737,
+      "itemId": 9,
+      "id": 189,
+      "timestamp": 1770808219441
+    },
+    {
+      "text": "Worked on: change the running block intentions to not need an id - there's only one anyway, degrade when stopping",
+      "projectName": "anything",
+      "type": "work",
+      "startTime": 1770808230765,
+      "endTime": 1770808230765,
+      "itemId": 271,
+      "id": 190,
+      "timestamp": 1770808230765
+    },
+    {
+      "text": "Worked on: change the running block intentions to not need an id - there's only one anyway, degrade when stopping (13m)",
+      "projectName": "anything",
+      "type": "work",
+      "startTime": 1770808230765,
+      "endTime": 1770809051830,
+      "itemId": 271,
+      "id": 191,
+      "timestamp": 1770808230765
+    },
+    {
+      "text": "Worked on: fix non showing blocks (0m)",
+      "projectName": "anything",
+      "type": "work",
+      "startTime": 1770809292834,
+      "endTime": 1770809325846,
+      "itemId": 262,
+      "id": 192,
+      "timestamp": 1770809292834
+    },
+    {
+      "text": "Worked on: fix non showing blocks (4m)",
+      "projectName": "anything",
+      "type": "work",
+      "startTime": 1770809423483,
+      "endTime": 1770809710648,
+      "itemId": 262,
+      "id": 193,
+      "timestamp": 1770809423483
+    },
+    {
+      "text": "Done: fix non showing blocks",
+      "projectName": "anything",
+      "type": "completion",
+      "id": 194,
+      "timestamp": 1770809715929
+    },
+    {
+      "text": "Done: create under free time (or any time block) context fix",
+      "projectName": "anything",
+      "type": "completion",
+      "id": 195,
+      "timestamp": 1770809972713
+    },
+    {
+      "text": "Worked on: create under free time (or any time block) context fix (6m)",
+      "projectName": "anything",
+      "type": "work",
+      "startTime": 1770809737336,
+      "endTime": 1770810152815,
+      "itemId": 267,
+      "id": 196,
+      "timestamp": 1770809737336
+    },
+    {
+      "text": "Worked on: לבדוק עם גל סשן קונטרבס (2m)",
+      "projectName": "פרויקטי מוזיקה",
+      "type": "work",
+      "startTime": 1770810156666,
+      "endTime": 1770810320550,
+      "targetEndTime": 1770810456657,
+      "itemId": 273,
+      "id": 197,
+      "timestamp": 1770810156666
     }
   ],
-  "nextId": 187
+  "nextId": 198
 }
