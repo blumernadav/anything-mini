@@ -13,7 +13,7 @@ const state = {
     timeline: { entries: [], nextId: 1 },
     selectedItemId: null, // selected node (project/branch) for filtering
     timelineViewDate: new Date(), // which day is displayed in timeline
-    hidePastEntries: false, // toggle to hide past entries in today's timeline
+    hidePastEntries: false, // toggle to hide past entries across all horizons
     showDone: false, // when true, done items are visible in actions and project tree
     scheduleFilter: 'scheduled+unscheduled', // 'scheduled' | 'scheduled+unscheduled' | 'all'
     viewHorizon: 'day', // 'day' | 'someday' — horizon level for timeline navigation
@@ -117,6 +117,10 @@ async function loadAll() {
     state.viewHorizon = validHorizons.includes(prefs.viewHorizon) ? prefs.viewHorizon : 'day';
     state.collapsedGroups = new Set(prefs.collapsedGroups || []);
     state.weekCollapsedDays = prefs.weekCollapsedDays || {};
+    // Restore week group expand state: stored as { key: [...ids] }, convert to { key: Set }
+    const rawWEG = prefs.weekExpandedGroups || {};
+    state._weekExpandedGroups = {};
+    for (const [k, v] of Object.entries(rawWEG)) state._weekExpandedGroups[k] = new Set(v);
 
     // Auto-clean past schedules (fire-and-forget, don't block render)
     cleanPastSchedules();
@@ -4237,6 +4241,11 @@ function renderWeekView(container) {
         }
 
         const isPast = dateKey < todayKey;
+        // Skip past days entirely when "Hide past entries" is on
+        if (isPast && state.hidePastEntries) {
+            prevDayEndMins = null; // null so no sleep divider renders before the first visible day
+            continue;
+        }
         const row = document.createElement('div');
         row.className = 'week-day-row' + (isToday ? ' week-day-today' : '') + (isPast ? ' week-day-past' : '');
         row.dataset.dateKey = dateKey;
@@ -4268,6 +4277,73 @@ function renderWeekView(container) {
         timesLabel.className = 'week-day-times';
         timesLabel.textContent = `${startStr}–${endStr}`;
         timesLabel.title = 'Click to edit day boundaries';
+
+        // Inline time editing on click
+        timesLabel.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (timesLabel.querySelector('input')) return; // already editing
+
+            timesLabel.textContent = '';
+            timesLabel.classList.add('week-day-times-editing');
+
+            const startInput = document.createElement('input');
+            startInput.type = 'time';
+            startInput.className = 'week-day-time-input';
+            startInput.value = startStr;
+
+            const sep = document.createElement('span');
+            sep.className = 'week-day-time-sep';
+            sep.textContent = '–';
+
+            const endInput = document.createElement('input');
+            endInput.type = 'time';
+            endInput.className = 'week-day-time-input';
+            endInput.value = endStr;
+
+            timesLabel.appendChild(startInput);
+            timesLabel.appendChild(sep);
+            timesLabel.appendChild(endInput);
+            startInput.focus();
+
+            let committed = false;
+            const commit = async () => {
+                if (committed) return;
+                committed = true;
+                const [newSH, newSM] = (startInput.value || startStr).split(':').map(Number);
+                const [newEH, newEM] = (endInput.value || endStr).split(':').map(Number);
+                const key = getDateKey(dayDate);
+                if (!state.settings.dayOverrides) state.settings.dayOverrides = {};
+                state.settings.dayOverrides[key] = {
+                    dayStartHour: newSH, dayStartMinute: newSM,
+                    dayEndHour: newEH, dayEndMinute: newEM,
+                };
+                await api.put('/settings', state.settings);
+                renderTimeline(); // re-renders week view
+            };
+            const cancel = () => {
+                if (committed) return;
+                committed = true;
+                timesLabel.classList.remove('week-day-times-editing');
+                timesLabel.textContent = `${startStr}–${endStr}`;
+            };
+
+            // Commit on blur (delayed to allow focus to shift between inputs)
+            const blurHandler = () => {
+                setTimeout(() => {
+                    if (!timesLabel.contains(document.activeElement)) commit();
+                }, 100);
+            };
+            startInput.addEventListener('blur', blurHandler);
+            endInput.addEventListener('blur', blurHandler);
+
+            // Enter commits, Escape cancels
+            const keyHandler = (e2) => {
+                if (e2.key === 'Enter') { e2.preventDefault(); commit(); }
+                else if (e2.key === 'Escape') { e2.preventDefault(); cancel(); }
+            };
+            startInput.addEventListener('keydown', keyHandler);
+            endInput.addEventListener('keydown', keyHandler);
+        });
 
         // Quick-add button (revealed on hover)
         const addBtn = document.createElement('button');
@@ -4346,16 +4422,91 @@ function renderWeekView(container) {
             return tcs.includes(dateKey) && !tcs.some(tc => tc.startsWith(dateKey + '@'));
         });
 
+        // Session-level items (have segment/entry/live context for this day)
+        const sessionItems = allItems.filter(item => {
+            if (item.done && !state.showDone) return false;
+            const tcs = item.timeContexts || [];
+            return tcs.some(tc => tc.startsWith(dateKey + '@'));
+        });
+
+        // Merge all floating items and compute estimated mins
+        const allFloating = [];
         for (const item of dayItems) {
             const estMins = item.contextDurations?.[dateKey] ?? item.estimatedDuration ?? 0;
             if (!item.done) totalEstMins += estMins;
+            allFloating.push({ item, estMins, ctx: dateKey });
+        }
+        for (const sItem of sessionItems) {
+            const segCtx = sItem.timeContexts.find(tc => tc.startsWith(dateKey + '@'));
+            const estMins = sItem.contextDurations?.[segCtx] ?? sItem.contextDurations?.[dateKey] ?? sItem.estimatedDuration ?? 0;
+            if (!sItem.done) totalEstMins += estMins;
+            allFloating.push({ item: sItem, estMins, ctx: segCtx || dateKey });
+        }
 
+        // Helper: create a draggable chip for a floating item
+        const _createWeekChip = ({ item, estMins, ctx }) => {
             const chip = document.createElement('div');
             chip.className = 'week-action-chip' + (item.done ? ' week-item-done' : '');
             chip.draggable = true;
             chip.dataset.itemId = String(item.id);
 
-            chip.innerHTML = `<span class="week-chip-bullet">${item.done ? '✓' : '○'}</span><span class="week-chip-name">${item.name}</span>${estMins ? `<span class="week-chip-est">~${estMins}m</span>` : ''}`;
+            const bullet = document.createElement('span');
+            bullet.className = 'week-chip-bullet';
+            bullet.textContent = item.done ? '✓' : '○';
+
+            const nameSpan = document.createElement('span');
+            nameSpan.className = 'week-chip-name';
+            nameSpan.textContent = item.name;
+
+            const est = document.createElement('span');
+            est.className = 'week-chip-est';
+            est.textContent = estMins ? `~${estMins}m` : '⏱';
+            est.title = 'Click to set duration';
+            est.addEventListener('click', (ev) => {
+                ev.stopPropagation();
+                document.querySelectorAll('.segment-duration-popover').forEach(p => p.remove());
+                const pop = document.createElement('div');
+                pop.className = 'segment-duration-popover';
+                const input = document.createElement('input');
+                input.type = 'number';
+                input.className = 'segment-duration-input';
+                input.min = '0';
+                input.max = '480';
+                input.value = estMins || '';
+                input.placeholder = 'min';
+                const saveBtn = document.createElement('button');
+                saveBtn.className = 'segment-duration-save';
+                saveBtn.textContent = '✓';
+                saveBtn.addEventListener('click', async (se) => {
+                    se.stopPropagation();
+                    const mins = parseInt(input.value, 10) || 0;
+                    if (!item.contextDurations) item.contextDurations = {};
+                    item.contextDurations[ctx] = mins;
+                    await api.patch(`/items/${item.id}`, { contextDurations: item.contextDurations });
+                    pop.remove();
+                    renderAll();
+                });
+                pop.appendChild(input);
+                pop.appendChild(saveBtn);
+                chip.appendChild(pop);
+                input.focus();
+                input.select();
+                const closeHandler = (ce) => {
+                    if (!pop.contains(ce.target)) {
+                        pop.remove();
+                        document.removeEventListener('click', closeHandler, true);
+                    }
+                };
+                setTimeout(() => document.addEventListener('click', closeHandler, true), 0);
+                input.addEventListener('keydown', (ke) => {
+                    if (ke.key === 'Enter') saveBtn.click();
+                    if (ke.key === 'Escape') pop.remove();
+                });
+            });
+
+            chip.appendChild(bullet);
+            chip.appendChild(nameSpan);
+            chip.appendChild(est);
 
             chip.addEventListener('dragstart', (e) => {
                 e.stopPropagation();
@@ -4369,43 +4520,74 @@ function renderWeekView(container) {
                 chip.classList.remove('week-item-dragging');
                 window._draggedAction = false;
             });
+            return chip;
+        };
 
-            colFloating.appendChild(chip);
+        // Group by root ancestor (same pattern as action area)
+        const rootGroups = new Map(); // rootId → { root, entries[] }
+        for (const entry of allFloating) {
+            const ancestors = getAncestorPath(entry.item.id);
+            const root = ancestors && ancestors.length > 0 ? ancestors[0] : null;
+            const rootId = root ? root.id : 0;
+            if (!rootGroups.has(rootId)) rootGroups.set(rootId, { root, entries: [] });
+            rootGroups.get(rootId).entries.push(entry);
         }
 
-        // Session-level items (have segment/entry/live context for this day) — also in floating column
-        const sessionItems = allItems.filter(item => {
-            if (item.done && !state.showDone) return false;
-            const tcs = item.timeContexts || [];
-            return tcs.some(tc => tc.startsWith(dateKey + '@'));
-        });
+        const shouldGroupWeek = rootGroups.size >= 2;
 
-        for (const sItem of sessionItems) {
-            const segCtx = sItem.timeContexts.find(tc => tc.startsWith(dateKey + '@'));
-            const estMins = sItem.contextDurations?.[segCtx] ?? sItem.contextDurations?.[dateKey] ?? sItem.estimatedDuration ?? 0;
-            if (!sItem.done) totalEstMins += estMins;
+        if (shouldGroupWeek) {
+            // Grouped rendering with collapsible headers (default: collapsed)
+            const expandedKey = `weekGroups_${dateKey}`;
+            if (!state._weekExpandedGroups) state._weekExpandedGroups = {};
+            const expanded = state._weekExpandedGroups[expandedKey] || new Set();
 
-            const chip = document.createElement('div');
-            chip.className = 'week-action-chip' + (sItem.done ? ' week-item-done' : '');
-            chip.draggable = true;
-            chip.dataset.itemId = String(sItem.id);
+            for (const [rootId, group] of rootGroups) {
+                const isCollapsed = !expanded.has(rootId);
+                const ghdr = document.createElement('div');
+                ghdr.className = 'week-group-header' + (isCollapsed ? ' collapsed' : '');
+                ghdr.dataset.rootId = rootId;
 
-            chip.innerHTML = `<span class="week-chip-bullet">${sItem.done ? '✓' : '○'}</span><span class="week-chip-name">${sItem.name}</span>${estMins ? `<span class="week-chip-est">~${estMins}m</span>` : ''}`;
+                const chevron = document.createElement('span');
+                chevron.className = 'week-group-chevron';
+                chevron.textContent = isCollapsed ? '▸' : '▾';
+                ghdr.appendChild(chevron);
 
-            chip.addEventListener('dragstart', (e) => {
-                e.stopPropagation();
-                e.dataTransfer.setData('application/x-action-id', String(sItem.id));
-                e.dataTransfer.setData('application/x-week-source-date', dateKey);
-                e.dataTransfer.effectAllowed = 'move';
-                chip.classList.add('week-item-dragging');
-                window._draggedAction = true;
-            });
-            chip.addEventListener('dragend', () => {
-                chip.classList.remove('week-item-dragging');
-                window._draggedAction = false;
-            });
+                const nameEl = document.createElement('span');
+                nameEl.className = 'week-group-name';
+                nameEl.textContent = group.root ? group.root.name : 'Ungrouped';
+                ghdr.appendChild(nameEl);
 
-            colFloating.appendChild(chip);
+                const countEl = document.createElement('span');
+                countEl.className = 'week-group-count';
+                countEl.textContent = group.entries.length;
+                ghdr.appendChild(countEl);
+
+                ghdr.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (!state._weekExpandedGroups) state._weekExpandedGroups = {};
+                    if (!state._weekExpandedGroups[expandedKey]) state._weekExpandedGroups[expandedKey] = new Set();
+                    const eset = state._weekExpandedGroups[expandedKey];
+                    if (eset.has(rootId)) eset.delete(rootId); else eset.add(rootId);
+                    // Persist: convert Sets to arrays
+                    const toSave = {};
+                    for (const [k, s] of Object.entries(state._weekExpandedGroups)) toSave[k] = [...s];
+                    savePref('weekExpandedGroups', toSave);
+                    renderTimeline(); // re-renders week view
+                });
+
+                colFloating.appendChild(ghdr);
+
+                if (!isCollapsed) {
+                    for (const entry of group.entries) {
+                        colFloating.appendChild(_createWeekChip(entry));
+                    }
+                }
+            }
+        } else {
+            // Flat — no grouping needed
+            for (const entry of allFloating) {
+                colFloating.appendChild(_createWeekChip(entry));
+            }
         }
 
         // Assemble columns into content
@@ -4566,6 +4748,20 @@ function renderWeekView(container) {
     }
 
     container.appendChild(weekEl);
+
+    // Auto-scroll to target day only on initial week entry (one-shot)
+    if (state._weekScrollTarget) {
+        const scrollTarget = state._weekScrollTarget;
+        delete state._weekScrollTarget;
+        requestAnimationFrame(() => {
+            const targetRow = weekEl.querySelector(`.week-day-row[data-date-key="${scrollTarget}"]`);
+            if (targetRow) {
+                const scrollParent = container.closest('.timeline-list') || container;
+                const rowTop = targetRow.offsetTop - scrollParent.offsetTop;
+                scrollParent.scrollTo({ top: rowTop - scrollParent.clientHeight / 3, behavior: 'smooth' });
+            }
+        });
+    }
 }
 
 function renderTimeline() {
@@ -4685,8 +4881,23 @@ function renderTimeline() {
 
     const fragment = document.createDocumentFragment();
 
-    // ── Day Start block (hidden when hiding past entries) ──
+    // ── Night indicator BEFORE Day Start (previous day's end → this day's start) ──
     if (!hidePast) {
+        const prevDay = new Date(viewDate);
+        prevDay.setDate(prevDay.getDate() - 1);
+        const prevTimes = getEffectiveDayTimes(prevDay);
+        const prevEndMins = prevTimes.dayEndHour * 60 + prevTimes.dayEndMinute;
+        const curStartMins = dayStart.getHours() * 60 + dayStart.getMinutes();
+        let nightBeforeMins = curStartMins - prevEndMins;
+        if (nightBeforeMins <= 0) nightBeforeMins += 24 * 60;
+        if (nightBeforeMins > 0 && nightBeforeMins < 24 * 60) {
+            const sleepDiv = document.createElement('div');
+            sleepDiv.className = 'week-sleep-divider';
+            const h = Math.floor(nightBeforeMins / 60);
+            const m = nightBeforeMins % 60;
+            sleepDiv.textContent = `🌙 ${h > 0 ? (m > 0 ? `${h}h${m}m` : `${h}h`) : `${m}m`}`;
+            fragment.appendChild(sleepDiv);
+        }
         fragment.appendChild(createDayBoundaryBlock('day-start', dayStart, now));
     }
 
@@ -4995,6 +5206,23 @@ function renderTimeline() {
         fragment.appendChild(createDayBoundaryBlock('day-end', dayEnd, now));
     }
 
+    // ── Night indicator AFTER Day End (this day's end → next day's start) ──
+    const nextDay = new Date(viewDate);
+    nextDay.setDate(nextDay.getDate() + 1);
+    const nextTimes = getEffectiveDayTimes(nextDay);
+    const curEndMins = dayEnd.getHours() * 60 + dayEnd.getMinutes();
+    const nextStartMins = nextTimes.dayStartHour * 60 + nextTimes.dayStartMinute;
+    let nightAfterMins = nextStartMins - curEndMins;
+    if (nightAfterMins <= 0) nightAfterMins += 24 * 60;
+    if (nightAfterMins > 0 && nightAfterMins < 24 * 60) {
+        const sleepDiv = document.createElement('div');
+        sleepDiv.className = 'week-sleep-divider';
+        const h = Math.floor(nightAfterMins / 60);
+        const m = nightAfterMins % 60;
+        sleepDiv.textContent = `🌙 ${h > 0 ? (m > 0 ? `${h}h${m}m` : `${h}h`) : `${m}m`}`;
+        fragment.appendChild(sleepDiv);
+    }
+
     // ── Session focus: if focused, filter timeline to session time range ──
     const focusedSession = state.focusStack.length > 0 ? state.focusStack[state.focusStack.length - 1] : null;
     if (focusedSession) {
@@ -5022,8 +5250,8 @@ function renderTimeline() {
         container.appendChild(fragment);
     }
 
-    // Restore scroll position after rebuild
-    container.scrollTop = savedScrollTop;
+    // Restore scroll position after rebuild (skip if week view is handling its own scroll)
+    if (!state._weekScrollPending) container.scrollTop = savedScrollTop;
 
     // Update date nav display
     updateDateNav();
@@ -9312,7 +9540,7 @@ function openDefaultsModal() {
             </div>
             <div class="modal-divider"></div>
             <div class="modal-field">
-                <label class="modal-label" for="modal-hide-past">Hide past entries in today</label>
+                <label class="modal-label" for="modal-hide-past">Hide past entries</label>
                 <input type="checkbox" id="modal-hide-past" class="modal-checkbox" />
             </div>
         </div>
@@ -9532,6 +9760,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Don't trigger horizon switch when clicking nav buttons, picker, or today btn
         if (e.target.closest('.week-nav-btn, .date-nav-picker, .date-nav-today-btn')) return;
         if (state.viewHorizon === 'week') return; // already active — don't re-trigger
+        state._weekScrollTarget = getDateKey(state.timelineViewDate); // remember source day
         state.focusStack = [];
         state.viewHorizon = 'week';
         savePref('viewHorizon', 'week');

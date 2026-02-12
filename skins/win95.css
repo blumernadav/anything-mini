@@ -2923,6 +2923,83 @@ body {
     font-size: 10px;
     color: var(--w-dark);
     margin-left: auto;
+    cursor: pointer;
+    transition: color 0.15s;
+}
+
+.week-day-times:hover {
+    text-decoration: underline;
+    color: var(--w-title);
+}
+
+.week-day-times-editing {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.week-day-time-input {
+    width: 68px;
+    padding: 1px 3px;
+    border: 2px solid;
+    border-color: var(--w-dark) var(--w-white) var(--w-white) var(--w-dark);
+    background: var(--w-field);
+    color: var(--w-text);
+    font-size: 10px;
+    font-family: inherit;
+    outline: none;
+    border-radius: 0;
+}
+
+.week-day-time-sep {
+    color: var(--w-dark);
+    font-size: 10px;
+}
+
+/* Week view project group headers */
+.week-group-header {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    padding: 1px 3px;
+    cursor: pointer;
+    font-size: 10px;
+}
+
+.week-group-header:hover {
+    background: #e8e8e8;
+}
+
+.week-group-chevron {
+    font-size: 10px;
+    color: var(--w-dark);
+    width: 10px;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.week-group-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--w-dark);
+    font-weight: 700;
+}
+
+.week-group-count {
+    font-size: 10px;
+    color: var(--w-dark);
+    flex-shrink: 0;
+}
+
+.week-group-header.collapsed {
+    opacity: 0.6;
+}
+
+.week-group-header.collapsed:hover {
+    opacity: 0.9;
 }
 
 .week-day-collapsed-bar {
@@ -3013,6 +3090,7 @@ body {
     padding: 2px 4px;
     font-size: 11px;
     cursor: grab;
+    position: relative;
 }
 
 .week-action-chip:hover {
@@ -3037,6 +3115,12 @@ body {
     font-size: 10px;
     color: var(--w-dark);
     flex-shrink: 0;
+    cursor: pointer;
+}
+
+.week-chip-est:hover {
+    text-decoration: underline;
+    color: var(--w-title);
 }
 
 .week-item-done .week-chip-name {

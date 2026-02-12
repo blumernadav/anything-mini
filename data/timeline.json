@@ -1626,7 +1626,24 @@
       "type": "completion",
       "id": 225,
       "timestamp": 1770854864962
+    },
+    {
+      "text": "Worked on: more info when collapsed (54m)",
+      "projectName": "anything › week horizon",
+      "type": "work",
+      "startTime": 1770852572921,
+      "endTime": 1770855861322,
+      "itemId": 324,
+      "id": 226,
+      "timestamp": 1770852572921
+    },
+    {
+      "text": "Done: more info when collapsed",
+      "projectName": "anything › week horizon",
+      "type": "completion",
+      "id": 227,
+      "timestamp": 1770855863990
     }
   ],
-  "nextId": 226
+  "nextId": 228
 }

@@ -3505,6 +3505,103 @@ body {
     color: var(--text-faint);
     font-variant-numeric: tabular-nums;
     margin-left: auto;
+    cursor: pointer;
+    border-bottom: 1px dashed transparent;
+    padding-bottom: 1px;
+    transition: all var(--dur) var(--ease);
+}
+
+.week-day-times:hover {
+    border-bottom-color: var(--accent);
+    color: var(--accent);
+}
+
+.week-day-times-editing {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    border-bottom: none;
+}
+
+.week-day-time-input {
+    width: 72px;
+    padding: 1px 3px;
+    border: 1px solid var(--border-focus);
+    border-radius: var(--radius-sm);
+    background: var(--bg-surface);
+    color: var(--text);
+    font-size: 10px;
+    font-family: inherit;
+    font-variant-numeric: tabular-nums;
+    outline: none;
+}
+
+.week-day-time-input::-webkit-calendar-picker-indicator {
+    filter: invert(0.7);
+    cursor: pointer;
+}
+
+.week-day-time-sep {
+    color: var(--text-faint);
+    font-size: 10px;
+}
+
+/* Week view project group headers */
+.week-group-header {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 4px;
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+    font-size: 10px;
+    transition: background var(--dur) var(--ease);
+}
+
+.week-group-header:hover {
+    background: var(--bg-hover);
+}
+
+.week-group-chevron {
+    font-size: 10px;
+    color: var(--text-faint);
+    width: 10px;
+    text-align: center;
+    flex-shrink: 0;
+    transition: color var(--dur) var(--ease);
+}
+
+.week-group-header:hover .week-group-chevron {
+    color: var(--text-soft);
+}
+
+.week-group-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--text-soft);
+    font-weight: 500;
+}
+
+.week-group-count {
+    font-size: 9px;
+    color: var(--text-faint);
+    background: var(--bg-surface);
+    padding: 0 4px;
+    border-radius: 8px;
+    min-width: 14px;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.week-group-header.collapsed {
+    opacity: 0.6;
+}
+
+.week-group-header.collapsed:hover {
+    opacity: 0.9;
 }
 
 .week-day-collapsed-bar {
@@ -3601,10 +3698,12 @@ body {
     font-size: 11px;
     cursor: grab;
     transition: background var(--dur) var(--ease);
+    position: relative;
 }
 
 .week-action-chip:hover {
-    background: rgba(0, 0, 0, 0.05);
+    background: var(--bg-surface);
+    box-shadow: 0 0 0 1px var(--border);
 }
 
 .week-chip-bullet {
@@ -3625,6 +3724,15 @@ body {
     font-size: 9px;
     color: var(--text-faint);
     flex-shrink: 0;
+    cursor: pointer;
+    border-bottom: 1px dashed transparent;
+    padding-bottom: 1px;
+    transition: all var(--dur) var(--ease);
+}
+
+.week-chip-est:hover {
+    border-bottom-color: var(--accent);
+    color: var(--accent);
 }
 
 .week-item-done .week-chip-name {

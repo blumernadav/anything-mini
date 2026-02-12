@@ -5,20 +5,6 @@
       "name": "Inbox",
       "children": [
         {
-          "id": 296,
-          "name": "לסדר טיפה את הבית",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770812039041,
-          "done": false,
-          "timeContexts": [
-            "2026-02-12"
-          ],
-          "contextDurations": {
-            "2026-02-12": 90
-          }
-        },
-        {
           "id": 285,
           "name": "לעבור על תאריכים חשובים בחודשיים הקרובים ולהכניס לכאן",
           "children": [],
@@ -321,7 +307,7 @@
               "children": [],
               "expanded": false,
               "createdAt": 1770852030965,
-              "done": false,
+              "done": true,
               "timeContexts": [
                 "week:2026-02-08"
               ],
@@ -2111,7 +2097,7 @@
           "done": false
         }
       ],
-      "expanded": true,
+      "expanded": false,
       "createdAt": 1770591468116,
       "done": false,
       "timeContexts": [
@@ -2257,7 +2243,7 @@
           "contextDurations": {}
         }
       ],
-      "expanded": true,
+      "expanded": false,
       "createdAt": 1770812573309,
       "done": false
     },
@@ -2802,6 +2788,18 @@
           "contextDurations": {
             "2026-02-11": 30
           }
+        },
+        {
+          "id": 296,
+          "name": "לסדר טיפה את הבית",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770812039041,
+          "done": false,
+          "timeContexts": [
+            "week:2026-02-08"
+          ],
+          "contextDurations": {}
         }
       ],
       "expanded": true,

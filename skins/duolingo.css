@@ -25,6 +25,7 @@
     --duo-shadow: 0 2px 0 #e5e5e5;
     --duo-radius: 16px;
     --duo-radius-sm: 12px;
+    --duo-hover: rgba(0, 0, 0, 0.05);
     --ease: cubic-bezier(0.4, 0, 0.2, 1);
     --dur: 200ms;
 }
@@ -3672,6 +3673,103 @@ body {
     font-weight: 700;
     color: var(--duo-text-faint);
     margin-left: auto;
+    cursor: pointer;
+    border-bottom: 2px dashed transparent;
+    padding-bottom: 1px;
+    transition: all var(--dur) var(--ease);
+}
+
+.week-day-times:hover {
+    border-bottom-color: var(--duo-green);
+    color: var(--duo-green);
+}
+
+.week-day-times-editing {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    border-bottom: none;
+}
+
+.week-day-time-input {
+    width: 72px;
+    padding: 2px 4px;
+    border: 2px solid var(--duo-green);
+    border-radius: 8px;
+    background: var(--duo-bg);
+    color: var(--duo-text);
+    font-size: 11px;
+    font-weight: 700;
+    font-family: inherit;
+    outline: none;
+}
+
+.week-day-time-input::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+}
+
+.week-day-time-sep {
+    color: var(--duo-text-faint);
+    font-size: 11px;
+    font-weight: 700;
+}
+
+/* Week view project group headers */
+.week-group-header {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 6px;
+    cursor: pointer;
+    border-radius: var(--duo-radius-sm);
+    font-size: 11px;
+    font-weight: 700;
+    transition: background var(--dur) var(--ease);
+}
+
+.week-group-header:hover {
+    background: var(--duo-hover);
+}
+
+.week-group-chevron {
+    font-size: 10px;
+    color: var(--duo-text-faint);
+    width: 10px;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.week-group-header:hover .week-group-chevron {
+    color: var(--duo-text);
+}
+
+.week-group-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--duo-text);
+}
+
+.week-group-count {
+    font-size: 10px;
+    font-weight: 800;
+    color: var(--duo-text-faint);
+    background: var(--duo-border);
+    padding: 0 5px;
+    border-radius: 10px;
+    min-width: 16px;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.week-group-header.collapsed {
+    opacity: 0.6;
+}
+
+.week-group-header.collapsed:hover {
+    opacity: 0.9;
 }
 
 .week-day-collapsed-bar {
@@ -3771,6 +3869,7 @@ body {
     font-weight: 700;
     cursor: grab;
     transition: background var(--dur) var(--ease);
+    position: relative;
 }
 
 .week-action-chip:hover {
@@ -3795,6 +3894,15 @@ body {
     font-size: 10px;
     color: var(--duo-text-faint);
     flex-shrink: 0;
+    cursor: pointer;
+    border-bottom: 2px dashed transparent;
+    padding-bottom: 1px;
+    transition: all var(--dur) var(--ease);
+}
+
+.week-chip-est:hover {
+    border-bottom-color: var(--duo-green);
+    color: var(--duo-green);
 }
 
 .week-item-done .week-chip-name {
