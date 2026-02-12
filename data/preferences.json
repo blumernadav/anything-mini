@@ -1,0 +1,65 @@
+{
+  "skin": "duolingo",
+  "showDone": false,
+  "showUnscheduled": true,
+  "panels": {
+    "left": 475,
+    "right": 292
+  },
+  "hidePastEntries": true,
+  "workingOn": {
+    "itemId": 351,
+    "itemName": "see the capacity of current context vs. what's visible?",
+    "projectName": "anything",
+    "startTime": 1770928000700,
+    "targetEndTime": null
+  },
+  "selectedItemId": "",
+  "onBreak": null,
+  "timelineViewDate": "2026-02-11T22:00:00.000Z",
+  "scheduleFilter": "scheduled+unscheduled",
+  "collapsedGroups": [
+    86,
+    78,
+    28,
+    181,
+    29,
+    157,
+    191,
+    167,
+    199,
+    240,
+    242
+  ],
+  "viewHorizon": "day",
+  "weekCollapsedDays": {
+    "2026-02-08": true,
+    "2026-02-09": true,
+    "2026-02-10": true,
+    "2026-02-11": true,
+    "2026-02-12": false,
+    "2026-02-13": true,
+    "2026-02-14": true,
+    "2026-04-15": false
+  },
+  "showSleepTimes": true,
+  "weekExpandedGroups": {
+    "weekGroups_2026-02-12": [
+      0,
+      17,
+      92,
+      9
+    ],
+    "weekGroups_2026-02-13": [
+      0,
+      9,
+      92,
+      17,
+      137
+    ],
+    "weekGroups_2026-02-15": [
+      300
+    ]
+  },
+  "focusStack": []
+}
