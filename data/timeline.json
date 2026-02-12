@@ -1602,7 +1602,31 @@
       "itemId": 316,
       "id": 222,
       "timestamp": 1770832037381
+    },
+    {
+      "text": "Worked on: week horizon (1h 18m)",
+      "projectName": "anything",
+      "type": "work",
+      "startTime": 1770847886355,
+      "endTime": 1770852572885,
+      "itemId": 317,
+      "id": 223,
+      "timestamp": 1770847886355
+    },
+    {
+      "text": "Done: week horizon",
+      "projectName": "anything",
+      "type": "completion",
+      "id": 224,
+      "timestamp": 1770852792792
+    },
+    {
+      "text": "Done: סשן איתי",
+      "projectName": "פרויקטי מוזיקה",
+      "type": "completion",
+      "id": 225,
+      "timestamp": 1770854864962
     }
   ],
-  "nextId": 223
+  "nextId": 226
 }

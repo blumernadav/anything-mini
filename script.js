@@ -1194,11 +1194,12 @@ async function cleanPastSessions(now) {
                     // Only check end-time for today's segments
                     if (parsed.date !== todayKey) continue;
 
-                    // Build actual end timestamp from the segment
+                    // Build actual end timestamp from the segment's date (not from `now`,
+                    // since the logical day may differ from the calendar date)
                     const [endH, endM] = parsed.segment.end.split(':').map(Number);
                     const [startH, startM] = parsed.segment.start.split(':').map(Number);
-                    const endDate = new Date(now);
-                    endDate.setHours(endH, endM, 0, 0);
+                    const [sY, sM, sD] = parsed.date.split('-').map(Number);
+                    const endDate = new Date(sY, sM - 1, sD, endH, endM, 0, 0);
                     // Cross-midnight: if end time is before start time, end is next calendar day
                     if (endH < startH || (endH === startH && endM < startM)) {
                         endDate.setDate(endDate.getDate() + 1);
@@ -3466,6 +3467,27 @@ function getLogicalToday() {
 // ─── Horizon Layer Stack ───
 // Syncs active/dim state on the inline someday + day header layers
 
+function _updateWeekNavLabel() {
+    const weekNavLabel = document.getElementById('week-nav-label');
+    if (!weekNavLabel) return;
+    const wk = getWeekKey(state.timelineViewDate);
+    const rng = getWeekDateRange(wk);
+    if (rng) {
+        const ms = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const sm = ms[rng.start.getMonth()];
+        const em = ms[rng.end.getMonth()];
+        const s = `${sm} ${rng.start.getDate()}`;
+        const e = sm === em ? `${rng.end.getDate()}` : `${em} ${rng.end.getDate()}`;
+        weekNavLabel.textContent = `${s}\u2013${e}`;
+    }
+    // Also update This Week button visibility immediately
+    const weekTodayBtn = document.getElementById('week-nav-today-btn');
+    if (weekTodayBtn) {
+        const currentWeek = getWeekKey(getLogicalToday());
+        weekTodayBtn.style.display = wk === currentWeek ? 'none' : '';
+    }
+}
+
 function renderHorizonTower() {
     const somedayLayer = document.getElementById('horizon-someday-layer');
     const weekLayer = document.getElementById('horizon-week-layer');
@@ -3482,7 +3504,31 @@ function renderHorizonTower() {
     // Week layer: active when viewHorizon is week, dim otherwise
     weekLayer.classList.toggle('horizon-layer-active', currentLevel === 'week');
     weekLayer.classList.toggle('horizon-layer-dim', currentLevel !== 'week');
+    // Show/hide week nav buttons and extra elements based on active state
+    const weekActive = currentLevel === 'week';
+    weekLayer.querySelectorAll('.week-nav-btn').forEach(btn => {
+        btn.style.display = weekActive ? '' : 'none';
+    });
+    const weekNavDisplay = weekLayer.querySelector('.week-nav-display');
+    if (weekNavDisplay) {
+        // Show This Week button & picker only when active
+        const weekTodayBtn = document.getElementById('week-nav-today-btn');
+        const weekPicker = document.getElementById('week-nav-picker');
+        if (!weekActive) {
+            if (weekTodayBtn) weekTodayBtn.style.display = 'none';
+            if (weekPicker) weekPicker.style.display = 'none';
+        }
+    }
+    // Set week label eagerly so it updates instantly
+    if (weekActive) {
+        _updateWeekNavLabel();
+    } else {
+        const weekNavLabel = document.getElementById('week-nav-label');
+        if (weekNavLabel) weekNavLabel.textContent = 'Week';
+    }
 
+    // Day layer: hide entirely when in week mode (its info is now in the week layer)
+    dayLayer.style.display = currentLevel === 'week' ? 'none' : '';
     // Day layer: active when viewHorizon is day and not session-focused, dim otherwise
     dayLayer.classList.toggle('horizon-layer-active', currentLevel === 'day');
     dayLayer.classList.toggle('horizon-layer-dim', currentLevel !== 'day');
@@ -4160,6 +4206,7 @@ function renderWeekView(container) {
     weekEl.className = 'week-view';
 
     // Build 7 day rows (Mon → Sun)
+    let prevDayEndMins = null; // track previous day's end (minutes from midnight)
     for (let d = 0; d < 7; d++) {
         const dayDate = new Date(range.start);
         dayDate.setDate(range.start.getDate() + d);
@@ -4170,11 +4217,28 @@ function renderWeekView(container) {
         const dayTimes = getEffectiveDayTimes(dayDate);
         const startStr = `${String(dayTimes.dayStartHour).padStart(2, '0')}:${String(dayTimes.dayStartMinute).padStart(2, '0')}`;
         const endStr = `${String(dayTimes.dayEndHour).padStart(2, '0')}:${String(dayTimes.dayEndMinute).padStart(2, '0')}`;
-        let dayCapacityMins = ((dayTimes.dayEndHour * 60 + dayTimes.dayEndMinute) - (dayTimes.dayStartHour * 60 + dayTimes.dayStartMinute));
+        const dayStartMins = dayTimes.dayStartHour * 60 + dayTimes.dayStartMinute;
+        let dayCapacityMins = ((dayTimes.dayEndHour * 60 + dayTimes.dayEndMinute) - dayStartMins);
         if (dayCapacityMins <= 0) dayCapacityMins += 24 * 60; // cross-midnight
 
+        // ── Sleep divider between days ──
+        if (prevDayEndMins !== null) {
+            let sleepMins = dayStartMins - prevDayEndMins;
+            if (sleepMins < 0) sleepMins += 24 * 60; // cross-midnight gap
+            if (sleepMins > 0) {
+                const sleepDiv = document.createElement('div');
+                sleepDiv.className = 'week-sleep-divider';
+                const sleepH = Math.floor(sleepMins / 60);
+                const sleepM = sleepMins % 60;
+                const sleepLabel = sleepH > 0 ? (sleepM > 0 ? `${sleepH}h${sleepM}m` : `${sleepH}h`) : `${sleepM}m`;
+                sleepDiv.textContent = `🌙 ${sleepLabel}`;
+                weekEl.appendChild(sleepDiv);
+            }
+        }
+
+        const isPast = dateKey < todayKey;
         const row = document.createElement('div');
-        row.className = 'week-day-row' + (isToday ? ' week-day-today' : '');
+        row.className = 'week-day-row' + (isToday ? ' week-day-today' : '') + (isPast ? ' week-day-past' : '');
         row.dataset.dateKey = dateKey;
 
         // ── Header ──
@@ -4205,8 +4269,28 @@ function renderWeekView(container) {
         timesLabel.textContent = `${startStr}–${endStr}`;
         timesLabel.title = 'Click to edit day boundaries';
 
+        // Quick-add button (revealed on hover)
+        const addBtn = document.createElement('button');
+        addBtn.className = 'week-day-add-btn';
+        addBtn.textContent = '+';
+        addBtn.title = 'Plan an action for this day';
+        addBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            // Navigate to this day's view and open the plan editor
+            state.timelineViewDate = new Date(dayDate);
+            savePref('timelineViewDate', state.timelineViewDate.toISOString());
+            state.viewHorizon = 'day';
+            savePref('viewHorizon', 'day');
+            state.focusStack = [];
+            renderAll();
+            // Open plan editor with the full day as the free range
+            const { dayStart: planDs, dayEnd: planDe } = getDayBoundaries(dayDate);
+            openPlanEditor(null, planDs.getTime(), planDe.getTime());
+        });
+
         header.appendChild(toggle);
         header.appendChild(dayLabel);
+        header.appendChild(addBtn);
         header.appendChild(timesLabel);
         row.appendChild(header);
 
@@ -4363,19 +4447,43 @@ function renderWeekView(container) {
 
         row.appendChild(content);
 
+        // ── Collapsed capacity bar (visible only when day is collapsed) ──
+        let collapsedBar = null;
+        if (totalEstMins > 0 || colScheduled.children.length > 0 || colFloating.children.length > 0) {
+            collapsedBar = document.createElement('div');
+            collapsedBar.className = 'segment-capacity-bar week-day-collapsed-bar';
+            const availMins = Math.max(1, dayCapacityMins);
+            const fillPct = Math.min(100, (totalEstMins / availMins) * 100);
+            const isOver = totalEstMins > availMins;
+            const hrsLabel = totalEstMins >= 60
+                ? `${Math.floor(totalEstMins / 60)}h${totalEstMins % 60 ? totalEstMins % 60 + 'm' : ''}`
+                : `${totalEstMins}m`;
+            const availLabel = dayCapacityMins >= 60
+                ? `${Math.floor(dayCapacityMins / 60)}h`
+                : `${dayCapacityMins}m`;
+            collapsedBar.innerHTML = `
+                <div class="segment-capacity-fill${isOver ? ' over-capacity' : ''}" style="width:${fillPct}%"></div>
+                <span class="segment-capacity-label">${hrsLabel} / ${availLabel}</span>
+            `;
+            row.appendChild(collapsedBar);
+        }
+
         // ── Collapse toggle (persisted) ──
         const collapsedDays = state.weekCollapsedDays || {};
-        const isPast = dateKey < todayKey;
         // Default: past days collapsed, others expanded
         const isCollapsed = dateKey in collapsedDays ? collapsedDays[dateKey] : isPast;
         if (isCollapsed) {
             content.style.display = 'none';
+            if (collapsedBar) collapsedBar.style.display = '';
             toggle.textContent = '▸';
             row.classList.add('week-day-collapsed');
+        } else {
+            if (collapsedBar) collapsedBar.style.display = 'none';
         }
         header.addEventListener('click', () => {
             const wasCollapsed = content.style.display === 'none';
             content.style.display = wasCollapsed ? '' : 'none';
+            if (collapsedBar) collapsedBar.style.display = wasCollapsed ? 'none' : '';
             toggle.textContent = wasCollapsed ? '▾' : '▸';
             row.classList.toggle('week-day-collapsed', !wasCollapsed);
             // Persist
@@ -4451,6 +4559,10 @@ function renderWeekView(container) {
         });
 
         weekEl.appendChild(row);
+
+        // Track this day's end for sleep gap calculation
+        const dayEndMins = dayTimes.dayEndHour * 60 + dayTimes.dayEndMinute;
+        prevDayEndMins = dayEndMins;
     }
 
     container.appendChild(weekEl);
@@ -7577,17 +7689,35 @@ function updateDateNav() {
         // Week mode: show week range
         const weekKey = getWeekKey(viewDate);
         const range = getWeekDateRange(weekKey);
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        let weekRangeStr = 'Week';
         if (range) {
-            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
             const startMonth = months[range.start.getMonth()];
             const endMonth = months[range.end.getMonth()];
             const startStr = `${startMonth} ${range.start.getDate()}`;
             const endStr = startMonth === endMonth
                 ? `${range.end.getDate()}`
                 : `${endMonth} ${range.end.getDate()}`;
-            if (dateEl) dateEl.textContent = `${startStr}–${endStr}`;
+            weekRangeStr = `${startStr}–${endStr}`;
+            if (dateEl) dateEl.textContent = weekRangeStr;
         }
+        // Also update the week layer label
+        const weekNavLabel = document.getElementById('week-nav-label');
+        if (weekNavLabel) weekNavLabel.textContent = weekRangeStr;
+        // Update week nav picker value
+        const weekPicker = document.getElementById('week-nav-picker');
+        if (weekPicker) {
+            const y = viewDate.getFullYear();
+            const m = String(viewDate.getMonth() + 1).padStart(2, '0');
+            const d = String(viewDate.getDate()).padStart(2, '0');
+            weekPicker.value = `${y}-${m}-${d}`;
+        }
+        // Update This Week button visibility
         const currentWeek = getWeekKey(getLogicalToday());
+        const weekTodayBtn = document.getElementById('week-nav-today-btn');
+        if (weekTodayBtn) {
+            weekTodayBtn.style.display = weekKey === currentWeek ? 'none' : '';
+        }
         if (todayBtn) {
             todayBtn.style.display = weekKey === currentWeek ? 'none' : '';
             todayBtn.textContent = 'This Week';
@@ -9398,10 +9528,57 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Week layer: click to navigate to week view, drag to degrade to week scope
     const weekLayer = document.getElementById('horizon-week-layer');
-    weekLayer.addEventListener('click', () => {
+    weekLayer.addEventListener('click', (e) => {
+        // Don't trigger horizon switch when clicking nav buttons, picker, or today btn
+        if (e.target.closest('.week-nav-btn, .date-nav-picker, .date-nav-today-btn')) return;
+        if (state.viewHorizon === 'week') return; // already active — don't re-trigger
         state.focusStack = [];
         state.viewHorizon = 'week';
         savePref('viewHorizon', 'week');
+        renderAll();
+    });
+    // Week nav arrow buttons
+    document.getElementById('week-nav-prev').addEventListener('click', (e) => {
+        e.stopPropagation();
+        state.timelineViewDate.setDate(state.timelineViewDate.getDate() - 7);
+        state.focusStack = [];
+        savePref('timelineViewDate', state.timelineViewDate.toISOString());
+        _updateWeekNavLabel();
+        renderAll();
+    });
+    document.getElementById('week-nav-next').addEventListener('click', (e) => {
+        e.stopPropagation();
+        state.timelineViewDate.setDate(state.timelineViewDate.getDate() + 7);
+        state.focusStack = [];
+        savePref('timelineViewDate', state.timelineViewDate.toISOString());
+        _updateWeekNavLabel();
+        renderAll();
+    });
+    // Week label click -> open date picker
+    const weekNavPicker = document.getElementById('week-nav-picker');
+    document.getElementById('week-nav-label').addEventListener('click', (e) => {
+        if (state.viewHorizon !== 'week') return; // let click bubble to switch horizon
+        e.stopPropagation();
+        weekNavPicker.showPicker();
+    });
+    weekNavPicker.addEventListener('click', (e) => e.stopPropagation());
+    weekNavPicker.addEventListener('change', () => {
+        const parts = weekNavPicker.value.split('-').map(Number);
+        if (parts.length === 3) {
+            state.timelineViewDate = new Date(parts[0], parts[1] - 1, parts[2]);
+            state.focusStack = [];
+            savePref('timelineViewDate', state.timelineViewDate.toISOString());
+            _updateWeekNavLabel();
+            renderAll();
+        }
+    });
+    // This Week button
+    document.getElementById('week-nav-today-btn').addEventListener('click', (e) => {
+        e.stopPropagation();
+        state.timelineViewDate = getLogicalToday();
+        state.focusStack = [];
+        savePref('timelineViewDate', state.timelineViewDate.toISOString());
+        _updateWeekNavLabel();
         renderAll();
     });
     weekLayer.addEventListener('dragover', (e) => {
@@ -9580,4 +9757,42 @@ document.addEventListener('DOMContentLoaded', () => {
     if (scrollBanner) {
         scrollBanner.addEventListener('click', () => scrollToSelectedItem());
     }
+
+    // ─── Week View Keyboard Shortcuts ───
+    document.addEventListener('keydown', (e) => {
+        // Only active in week horizon
+        if (state.viewHorizon !== 'week') return;
+        // Don't intercept when typing in inputs/textareas or modals
+        const tag = document.activeElement?.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+        if (document.querySelector('.plan-editor, .modal-overlay')) return;
+
+        if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+            e.preventDefault();
+            const offset = e.key === 'ArrowLeft' ? -7 : 7;
+            state.timelineViewDate.setDate(state.timelineViewDate.getDate() + offset);
+            savePref('timelineViewDate', state.timelineViewDate.toISOString());
+            renderAll();
+        } else if (e.key === 'e' || e.key === 'E') {
+            // Expand all days
+            state.weekCollapsedDays = {};
+            savePref('weekCollapsedDays', state.weekCollapsedDays);
+            renderAll();
+        } else if (e.key === 'c' || e.key === 'C') {
+            // Collapse all days
+            const weekKey = getWeekKey(state.timelineViewDate);
+            const range = getWeekDateRange(weekKey);
+            if (range) {
+                const collapsed = {};
+                for (let d = 0; d < 7; d++) {
+                    const dayDate = new Date(range.start);
+                    dayDate.setDate(range.start.getDate() + d);
+                    collapsed[getDateKey(dayDate)] = true;
+                }
+                state.weekCollapsedDays = collapsed;
+                savePref('weekCollapsedDays', state.weekCollapsedDays);
+                renderAll();
+            }
+        }
+    });
 });

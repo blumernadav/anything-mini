@@ -12,11 +12,10 @@
           "createdAt": 1770812039041,
           "done": false,
           "timeContexts": [
-            "2026-02-11@entry:203"
+            "2026-02-12"
           ],
           "contextDurations": {
-            "2026-02-11": 5,
-            "2026-02-11@entry:203": 0
+            "2026-02-12": 90
           }
         },
         {
@@ -27,7 +26,7 @@
           "createdAt": 1770810767800,
           "done": true,
           "timeContexts": [
-            "2026-02-11"
+            "week:2026-02-08"
           ],
           "contextDurations": {}
         },
@@ -156,10 +155,10 @@
           "children": [],
           "expanded": false,
           "createdAt": 1770772108348,
-          "done": false,
+          "done": true,
           "estimatedDuration": 180,
           "timeContexts": [
-            "2026-02-11@entry:178"
+            "week:2026-02-08"
           ],
           "contextDurations": {
             "2026-02-11@entry:178": 180
@@ -223,11 +222,10 @@
           "createdAt": 1770808570871,
           "done": false,
           "timeContexts": [
-            "2026-02-11@17:00-00:30"
+            "2026-02-12"
           ],
           "contextDurations": {
-            "2026-02-11": 5,
-            "2026-02-11@17:00-00:30": 5
+            "2026-02-12": 5
           }
         }
       ],
@@ -240,6 +238,28 @@
       "name": "anything",
       "children": [
         {
+          "id": 332,
+          "name": "see past and future total",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770854455978,
+          "done": false
+        },
+        {
+          "id": 329,
+          "name": "create items under day",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770852757866,
+          "done": false,
+          "timeContexts": [
+            "week:2026-02-08"
+          ],
+          "contextDurations": {
+            "week:2026-02-08": 15
+          }
+        },
+        {
           "id": 328,
           "name": "seconds timer for work in progress",
           "children": [],
@@ -247,9 +267,9 @@
           "createdAt": 1770852271463,
           "done": false,
           "timeContexts": [
-            "2026-02-11",
-            "2026-02-11@work"
-          ]
+            "week:2026-02-08"
+          ],
+          "contextDurations": {}
         },
         {
           "id": 327,
@@ -259,9 +279,9 @@
           "createdAt": 1770852260931,
           "done": false,
           "timeContexts": [
-            "2026-02-11",
-            "2026-02-11@work"
-          ]
+            "week:2026-02-08"
+          ],
+          "contextDurations": {}
         },
         {
           "id": 317,
@@ -338,11 +358,11 @@
               }
             }
           ],
-          "expanded": false,
+          "expanded": true,
           "createdAt": 1770832301356,
-          "done": false,
+          "done": true,
           "timeContexts": [
-            "2026-02-11"
+            "week:2026-02-08"
           ],
           "contextDurations": {
             "2026-02-11": 60
@@ -519,7 +539,7 @@
           "createdAt": 1770807975129,
           "done": true,
           "timeContexts": [
-            "2026-02-11"
+            "week:2026-02-08"
           ],
           "contextDurations": {
             "2026-02-11": 10
@@ -960,7 +980,7 @@
           "createdAt": 1770663355309,
           "done": true,
           "timeContexts": [
-            "2026-02-11"
+            "week:2026-02-08"
           ],
           "contextDurations": {
             "2026-02-10@entry:171": 25
@@ -2062,7 +2082,7 @@
           "createdAt": 1770807358182,
           "done": true,
           "timeContexts": [
-            "2026-02-11"
+            "week:2026-02-08"
           ],
           "contextDurations": {
             "2026-02-11": 0
@@ -2076,12 +2096,19 @@
           "createdAt": 1770806427542,
           "done": true,
           "timeContexts": [
-            "2026-02-11@17:00-00:30"
+            "week:2026-02-08"
           ],
           "contextDurations": {
-            "2026-02-11": 25,
-            "2026-02-11@17:00-00:30": 25
+            "2026-02-11": 25
           }
+        },
+        {
+          "id": 330,
+          "name": "keyboard shortcuts",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770854404239,
+          "done": false
         }
       ],
       "expanded": true,
@@ -2177,6 +2204,17 @@
       "name": "משפחה",
       "children": [
         {
+          "id": 331,
+          "name": "גבי",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770854416071,
+          "done": false,
+          "timeContexts": [
+            "week:2026-02-08"
+          ]
+        },
+        {
           "id": 309,
           "name": "שקדי ועומרי מתחתנים",
           "children": [],
@@ -2219,7 +2257,7 @@
           "contextDurations": {}
         }
       ],
-      "expanded": false,
+      "expanded": true,
       "createdAt": 1770812573309,
       "done": false
     },
@@ -2235,7 +2273,7 @@
           "createdAt": 1770832037368,
           "done": false,
           "timeContexts": [
-            "2026-02-11"
+            "week:2026-02-08"
           ],
           "contextDurations": {}
         },
@@ -2263,11 +2301,10 @@
               "createdAt": 1770810830525,
               "done": false,
               "timeContexts": [
-                "2026-02-11@17:00-00:30"
+                "week:2026-02-08"
               ],
               "contextDurations": {
-                "2026-02-11": 30,
-                "2026-02-11@17:00-00:30": 30
+                "2026-02-11": 30
               }
             }
           ],
@@ -2342,12 +2379,10 @@
               "createdAt": 1770728558328,
               "done": false,
               "timeContexts": [
-                "someday",
-                "2026-02-11@17:00-00:30"
+                "someday"
               ],
               "contextDurations": {
-                "2026-02-10@01:20-02:30": 20,
-                "2026-02-11@17:00-00:30": 10
+                "2026-02-10@01:20-02:30": 20
               }
             },
             {
@@ -2477,7 +2512,7 @@
           "createdAt": 1770832206994,
           "done": false,
           "timeContexts": [
-            "2026-02-11@entry:222"
+            "week:2026-02-08"
           ],
           "contextDurations": {
             "2026-02-11": 150,
@@ -2737,11 +2772,9 @@
           "createdAt": 1770736677309,
           "done": false,
           "timeContexts": [
-            "2026-02-11@16:30-00:30"
+            "week:2026-02-08"
           ],
-          "contextDurations": {
-            "2026-02-11@16:30-00:30": 10
-          }
+          "contextDurations": {}
         },
         {
           "id": 213,
@@ -2764,11 +2797,10 @@
           "createdAt": 1770808515559,
           "done": false,
           "timeContexts": [
-            "2026-02-11@17:00-00:30"
+            "week:2026-02-08"
           ],
           "contextDurations": {
-            "2026-02-11": 30,
-            "2026-02-11@17:00-00:30": 30
+            "2026-02-11": 30
           }
         }
       ],
@@ -2792,6 +2824,20 @@
       "name": "למצוא דירה",
       "children": [
         {
+          "id": 333,
+          "name": "לקבוע עם הרפז לתחילת שבוע הבא",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770854980211,
+          "done": false,
+          "timeContexts": [
+            "week:2026-02-08"
+          ],
+          "contextDurations": {
+            "week:2026-02-08": 10
+          }
+        },
+        {
           "id": 320,
           "name": "לדבר עם פרזון",
           "children": [],
@@ -2812,5 +2858,5 @@
       "done": false
     }
   ],
-  "nextId": 329
+  "nextId": 334
 }

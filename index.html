@@ -103,8 +103,15 @@
                     <span class="horizon-layer-label">Someday</span>
                 </div>
                 <div class="horizon-layer horizon-layer-week" id="horizon-week-layer">
-                    <span class="horizon-layer-icon">📆</span>
-                    <span class="horizon-layer-label">Week</span>
+                    <button class="date-nav-btn week-nav-btn" id="week-nav-prev" title="Previous week">‹</button>
+                    <div class="week-nav-display">
+                        <span class="horizon-layer-icon">📆</span>
+                        <span class="horizon-layer-label" id="week-nav-label">Week</span>
+                        <input type="date" id="week-nav-picker" class="date-nav-picker">
+                        <button class="date-nav-today-btn" id="week-nav-today-btn" style="display:none">This
+                            Week</button>
+                    </div>
+                    <button class="date-nav-btn week-nav-btn" id="week-nav-next" title="Next week">›</button>
                 </div>
                 <div class="date-nav" id="horizon-day-layer">
                     <button class="date-nav-btn" id="date-nav-prev" title="Previous day">‹</button>

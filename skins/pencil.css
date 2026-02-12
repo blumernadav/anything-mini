@@ -3331,6 +3331,31 @@ body {
     margin-left: auto;
 }
 
+.week-day-collapsed-bar {
+    margin-top: 4px;
+}
+
+.week-sleep-divider {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-size: 13px;
+    font-family: 'Caveat', cursive;
+    color: var(--pencil-faint);
+    opacity: 0.45;
+    padding: 2px 0;
+}
+
+.week-sleep-divider::before,
+.week-sleep-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--pencil-ghost);
+    opacity: 0.5;
+}
+
 .week-day-content {
     display: flex;
     flex-wrap: wrap;
@@ -3478,6 +3503,47 @@ body {
     margin-top: 4px;
 }
 
+/* Past day dimming */
+.week-day-past {
+    opacity: 0.5;
+}
+
+.week-day-past:hover {
+    opacity: 0.8;
+}
+
+/* Quick-add button in day header */
+.week-day-add-btn {
+    opacity: 0;
+    border: 1px dashed #5eab5e;
+    background: transparent;
+    color: #5eab5e;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 600;
+    width: 22px;
+    height: 22px;
+    border-radius: var(--radius);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--dur) var(--ease);
+    flex-shrink: 0;
+    font-family: inherit;
+    padding: 0;
+    line-height: 1;
+}
+
+.week-day-row:hover .week-day-add-btn {
+    opacity: 1;
+}
+
+.week-day-add-btn:hover {
+    border-style: solid;
+    border-color: #5eab5e;
+    background: rgba(94, 171, 94, 0.08);
+}
+
 /* ── Horizon Layers (inline stack inside time-context) ── */
 .horizon-layer {
     display: flex;
@@ -3522,6 +3588,42 @@ body {
 
 .horizon-layer-dim:hover {
     opacity: 0.8;
+}
+
+/* Week nav arrow buttons — use date-nav-btn class for styling, just position */
+.week-nav-display {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-width: 0;
+    cursor: pointer;
+}
+
+.horizon-layer-active #week-nav-label {
+    color: var(--pencil);
+    font-family: 'Caveat', cursive;
+    font-size: 16px;
+    transition: color var(--dur) var(--ease);
+}
+
+.horizon-layer-active #week-nav-label:hover {
+    color: var(--blue-pen);
+}
+
+#week-nav-next {
+    margin-left: auto;
+}
+
+.horizon-layer-week.horizon-layer-active {
+    justify-content: flex-start;
+}
+
+.horizon-layer-dim .week-nav-display {
+    flex: unset;
+    justify-content: flex-start;
+    cursor: default;
 }
 
 /* Date-nav dim: hide buttons, shrink text */

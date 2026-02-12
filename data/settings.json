@@ -31,7 +31,7 @@
     "2026-02-11": {
       "dayStartHour": 8,
       "dayStartMinute": 0,
-      "dayEndHour": 1,
+      "dayEndHour": 2,
       "dayEndMinute": 30
     }
   },
@@ -39,5 +39,6 @@
     "count": 3,
     "lastCheckInDate": "2026-02-10",
     "longestStreak": 3
-  }
+  },
+  "weekStartDay": 0
 }
