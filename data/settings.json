@@ -24,21 +24,21 @@
     },
     "2026-02-12": {
       "dayStartHour": 10,
-      "dayStartMinute": 0,
-      "dayEndHour": 0,
+      "dayStartMinute": 15,
+      "dayEndHour": 1,
       "dayEndMinute": 30
     },
     "2026-02-11": {
       "dayStartHour": 9,
       "dayStartMinute": 30,
-      "dayEndHour": 3,
-      "dayEndMinute": 15
+      "dayEndHour": 4,
+      "dayEndMinute": 0
     }
   },
   "streak": {
-    "count": 3,
-    "lastCheckInDate": "2026-02-10",
-    "longestStreak": 3
+    "count": 4,
+    "lastCheckInDate": "2026-02-11",
+    "longestStreak": 4
   },
   "weekStartDay": 0
 }

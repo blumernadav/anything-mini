@@ -75,6 +75,15 @@ function savePref(key, value) {
     api.put('/preferences', { [key]: value });
 }
 
+// Persist focusStack to backend (fire-and-forget)
+function saveFocusStack() {
+    savePref('focusStack', state.focusStack);
+}
+function clearFocusStack() {
+    state.focusStack = [];
+    saveFocusStack();
+}
+
 // ─── Load Data ───
 async function loadAll() {
     const [items, timeline, prefs] = await Promise.all([
@@ -121,9 +130,14 @@ async function loadAll() {
     const rawWEG = prefs.weekExpandedGroups || {};
     state._weekExpandedGroups = {};
     for (const [k, v] of Object.entries(rawWEG)) state._weekExpandedGroups[k] = new Set(v);
+    // Restore focusStack
+    if (Array.isArray(prefs.focusStack) && prefs.focusStack.length > 0) {
+        state.focusStack = prefs.focusStack;
+    }
 
     // Auto-clean past schedules (fire-and-forget, don't block render)
     cleanPastSchedules();
+    migrateEmptyTimeContexts();
     renderAll();
     syncSettingsUI();
     syncToggleUI();
@@ -155,6 +169,11 @@ function syncToggleUI() {
     if (hideDoneBtn) {
         hideDoneBtn.classList.toggle('active', state.showDone);
         hideDoneBtn.title = state.showDone ? 'Hide done' : 'Show done';
+    }
+    const hidePastBtn = document.getElementById('hide-past-btn');
+    if (hidePastBtn) {
+        hidePastBtn.classList.toggle('active', !state.hidePastEntries);
+        hidePastBtn.title = state.hidePastEntries ? 'Show past' : 'Hide past';
     }
     const showUnschedBtn = document.getElementById('show-unscheduled-btn');
     if (showUnschedBtn) {
@@ -672,6 +691,8 @@ function isItemInWeek(item, weekKey) {
     if (!item) return false;
     const tcs = item.timeContexts || [];
     if (tcs.includes(weekKey)) return true;
+    // Backward projection: check if a deadline shadow covers this week
+    if (_deadlineShadowMatchesWeek(item, weekKey)) return true;
     // Don't show items that have a specific day assigned — they show in day rows
     return false;
 }
@@ -863,8 +884,15 @@ function itemMatchesTimeContext(action, dateKey) {
     const ownContexts = (item && item.timeContexts) || [];
     // Item has its own contexts — only check those, don't inherit from ancestors
     if (ownContexts.length > 0) {
-        if (ownContexts.some(tc => isEpochContext(tc))) return false;
-        return ownContexts.some(tc => contextMatchesDate(tc, dateKey));
+        if (ownContexts.some(tc => isEpochContext(tc))) {
+            // Even epoch items can appear via deadline shadow
+            if (item && _deadlineShadowMatchesDate(item, dateKey)) return true;
+            return false;
+        }
+        if (ownContexts.some(tc => contextMatchesDate(tc, dateKey))) return true;
+        // Backward projection: check if a deadline shadow covers this date
+        if (item && _deadlineShadowMatchesDate(item, dateKey)) return true;
+        return false;
     }
     // No own contexts — fall back to ancestor chain
     const ancestors = getAncestorPath(action.id);
@@ -877,12 +905,12 @@ function itemMatchesTimeContext(action, dateKey) {
             }
         }
     }
-    // No contexts at any level = implicit "someday" → hide from day views
+    // No contexts at any level — should not happen after migration (data anomaly)
     return false;
 }
 
-// Check if an item is truly "unscheduled" (anytime) — no timeContexts on itself or any ancestor
-// Items with epoch contexts (e.g. "someday") are NOT unscheduled — they have temporal intent.
+// Check if an item is truly "unscheduled" (anytime) — no timeContexts on itself or any ancestor.
+// After migration, this should not return true for valid items (safety net for data anomalies).
 function isItemUnscheduled(itemOrAction) {
     const item = findItemById(itemOrAction.id);
     const ownContexts = (item && item.timeContexts) || [];
@@ -968,11 +996,123 @@ function getContextDuration(item, ctx) {
     return item.estimatedDuration || 0;
 }
 
+// ─── Backward Projection: contextLeadTimes ───
+
+// Get lead time (in seconds) for an item in a specific context.
+function getContextLeadTime(item, ctx) {
+    if (!item || !item.contextLeadTimes) return null;
+    if (ctx && item.contextLeadTimes[ctx] != null) return item.contextLeadTimes[ctx];
+    return null;
+}
+
+// Check if a context is a deadline (has a contextLeadTimes entry).
+function isDeadlineContext(item, ctx) {
+    return item?.contextLeadTimes?.[ctx] != null;
+}
+
+// Parse a date from a context string (returns Date or null).
+// Handles: "2026-02-15", "2026-02-15@18:00-20:00", "2026-02-15@entry:206", "week:2026-02-15"
+function parseDateFromContext(ctx) {
+    const parsed = parseTimeContext(ctx);
+    if (!parsed) return null;
+    if (parsed.date) {
+        const d = new Date(parsed.date + 'T00:00:00');
+        if (parsed.entryId) {
+            // Look up entry's actual start time from timeline
+            const entry = state.timeline?.entries?.find(e => String(e.id) === String(parsed.entryId));
+            if (entry?.startTime) return new Date(entry.startTime);
+        } else if (parsed.segment) {
+            const [h, m] = parsed.segment.start.split(':').map(Number);
+            d.setHours(h, m, 0, 0);
+        }
+        return d;
+    }
+    if (parsed.week) {
+        const range = getWeekDateRange('week:' + parsed.week);
+        return range ? range.end : null; // use end of week as deadline
+    }
+    return null;
+}
+
+// Get urgency level based on how close a deadline is.
+function getDeadlineUrgency(deadlineDate) {
+    const now = new Date();
+    const msLeft = deadlineDate.getTime() - now.getTime();
+    const daysLeft = msLeft / (1000 * 60 * 60 * 24);
+    if (daysLeft < 0) return 'overdue';
+    if (daysLeft < 1) return 'urgent';
+    if (daysLeft < 3) return 'soon';
+    return 'safe';
+}
+
+// Format a human-readable countdown to a deadline.
+function formatDeadlineCountdown(deadlineDate) {
+    const now = new Date();
+    const msLeft = deadlineDate.getTime() - now.getTime();
+    if (msLeft < 0) return 'overdue';
+    const mins = Math.floor(msLeft / 60000);
+    if (mins < 60) return `in ${mins}m`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `in ${hours}h`;
+    const days = Math.floor(hours / 24);
+    if (days === 1) return 'tomorrow';
+    if (days < 7) return `in ${days} days`;
+    const weeks = Math.floor(days / 7);
+    if (weeks === 1) return 'next week';
+    return `in ${weeks} weeks`;
+}
+
+// Check if a deadline context's lead time window covers the given dateKey.
+// Returns the urgency level if matched, or null if not in window.
+function _deadlineShadowMatchesDate(item, dateKey) {
+    if (!item || !item.contextLeadTimes) return null;
+    const today = new Date(dateKey + 'T00:00:00');
+    for (const [ctx, leadSec] of Object.entries(item.contextLeadTimes)) {
+        // Short lead times (< 24h) for entry/segment contexts: handled as phantom blocks in the timeline
+        const ctxParsed = parseTimeContext(ctx);
+        if (leadSec < 86400 && (ctxParsed?.entryId || ctxParsed?.segment)) continue;
+        const deadlineDate = parseDateFromContext(ctx);
+        if (!deadlineDate) continue;
+        const startDate = new Date(deadlineDate.getTime() - leadSec * 1000);
+        const startKey = getDateKey(startDate);
+        const deadlineKey = getDateKey(deadlineDate);
+        // Only match day-level shadows: ≤ 7 days lead time, or within last 7 days of a longer lead time
+        const daysBeforeDeadline = (deadlineDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24);
+        if (dateKey >= startKey && dateKey <= deadlineKey && daysBeforeDeadline <= 7) {
+            return getDeadlineUrgency(deadlineDate);
+        }
+    }
+    return null;
+}
+
+// Check if a deadline context's lead time window covers the given weekKey.
+// Only matches when the shadow is > 7 days away (week-level horizon).
+function _deadlineShadowMatchesWeek(item, weekKey) {
+    if (!item || !item.contextLeadTimes) return null;
+    const range = getWeekDateRange(weekKey);
+    if (!range) return null;
+    const weekStartKey = getDateKey(range.start);
+    const weekEndKey = getDateKey(range.end);
+    for (const [ctx, leadSec] of Object.entries(item.contextLeadTimes)) {
+        const deadlineDate = parseDateFromContext(ctx);
+        if (!deadlineDate) continue;
+        const startDate = new Date(deadlineDate.getTime() - leadSec * 1000);
+        const startKey = getDateKey(startDate);
+        const deadlineKey = getDateKey(deadlineDate);
+        // Check if the shadow window overlaps this week
+        if (startKey <= weekEndKey && deadlineKey >= weekStartKey) {
+            return getDeadlineUrgency(deadlineDate);
+        }
+    }
+    return null;
+}
+
 // Check if an item has an epoch context (e.g. "someday") on itself or any ancestor.
 // If the item has its own explicit timeContexts, those take priority — ancestor
 // epochs don't bleed through (e.g. a child with a date should NOT show in someday
 // just because its parent is someday).
-// Items with NO timeContexts at any level are treated as implicit "someday".
+// Every item should have explicit timeContexts (someday is the default).
+// Items with NO timeContexts at any level are a data anomaly — return false.
 function isItemInEpoch(itemOrAction, epochName) {
     const item = findItemById(itemOrAction.id);
     const ownContexts = (item && item.timeContexts) || [];
@@ -987,8 +1127,8 @@ function isItemInEpoch(itemOrAction, epochName) {
             }
         }
     }
-    // No contexts at any level — implicit "someday"
-    return epochName === 'someday';
+    // No contexts at any level — should not happen after migration
+    return false;
 }
 
 // Toggle a date in an item's timeContexts
@@ -999,6 +1139,8 @@ async function toggleTimeContext(itemId, dateKey) {
     const idx = item.timeContexts.indexOf(dateKey);
     if (idx >= 0) {
         item.timeContexts.splice(idx, 1);
+        // Never leave an item with no time context — fall back to someday
+        if (item.timeContexts.length === 0) item.timeContexts.push('someday');
     } else {
         item.timeContexts.push(dateKey);
     }
@@ -1143,6 +1285,8 @@ async function cleanPastSchedules() {
                     // Keep epoch and week contexts as-is
                     if (parsed.epoch) return true;
                     if (isWeekContext(tc)) return true;
+                    // Keep deadline contexts (anti-degradation) — they persist as overdue
+                    if (isDeadlineContext(item, tc)) return true;
                     return parsed.date >= todayKey;
                 });
                 // If we removed date contexts and nothing date-level remains, degrade to week
@@ -1241,6 +1385,22 @@ async function cleanPastSessions(now) {
     if (dirty) {
         await saveItems();
     }
+}
+
+// ─── One-time migration: assign 'someday' to items with no timeContexts ───
+async function migrateEmptyTimeContexts() {
+    let dirty = false;
+    function walkItems(items) {
+        for (const item of items) {
+            if (!item.timeContexts || item.timeContexts.length === 0) {
+                item.timeContexts = ['someday'];
+                dirty = true;
+            }
+            if (item.children && item.children.length > 0) walkItems(item.children);
+        }
+    }
+    walkItems(state.items.items);
+    if (dirty) await saveItems();
 }
 
 // ─── Drag & Drop State ───
@@ -1459,6 +1619,7 @@ function showProjectContextMenu(e, item) {
     });
     menu.appendChild(goalOpt);
 
+
     // Delete option
     const deleteOpt = document.createElement('div');
     deleteOpt.className = 'project-context-menu-item project-context-menu-item-danger';
@@ -1676,6 +1837,7 @@ function showActionContextMenu(e, action) {
         });
         menu.appendChild(goalOpt);
     }
+
 
     // Decline option (danger)
     const declineOpt = document.createElement('div');
@@ -2428,6 +2590,9 @@ function renderActions() {
     const savedScrollTop = container.scrollTop;
     const empty = document.getElementById('actions-empty');
 
+    // ── Ground indicator (live session) — always visible at top of Actions ──
+    _renderLiveSessionIndicator();
+
     // Remove existing items but not the empty state and bulk bar
     container.querySelectorAll('.action-item, .action-group-header').forEach(el => el.remove());
 
@@ -2493,7 +2658,7 @@ function renderActions() {
                 resetTime.title = 'Back to today';
                 resetTime.addEventListener('click', (e) => {
                     e.stopPropagation();
-                    state.focusStack = [];
+                    clearFocusStack();
                     state.viewHorizon = 'day';
                     savePref('viewHorizon', 'day');
                     state.timelineViewDate = new Date();
@@ -2586,6 +2751,19 @@ function renderActions() {
             countEl.className = 'action-group-count';
             countEl.textContent = group.actions.length;
             header.appendChild(countEl);
+
+            const groupTotalMins = group.actions.reduce((sum, a) => {
+                const item = findItemById(a.id);
+                return sum + getContextDuration(item);
+            }, 0);
+            if (groupTotalMins > 0) {
+                const durEl = document.createElement('span');
+                durEl.className = 'action-group-duration';
+                durEl.textContent = groupTotalMins >= 60
+                    ? `${Math.floor(groupTotalMins / 60)}h${groupTotalMins % 60 ? groupTotalMins % 60 + 'm' : ''}`
+                    : `${groupTotalMins}m`;
+                header.appendChild(durEl);
+            }
 
             header.addEventListener('click', () => {
                 if (state.collapsedGroups.has(rootId)) {
@@ -2716,18 +2894,54 @@ function getFilteredActions() {
             }
             return false;
         });
-        // Apply project filter if active
+        // Apply project filter if active (strict descendants only)
         if (state.selectedItemId) {
             const selectedItem = findItemById(state.selectedItemId);
             if (selectedItem) {
-                if (isLeaf(selectedItem)) {
-                    sessionLeaves = sessionLeaves.filter(leaf => leaf.id === selectedItem.id);
+                const descendantIds = collectDescendantIds(selectedItem);
+                sessionLeaves = sessionLeaves.filter(leaf => descendantIds.includes(leaf.id) && leaf.id !== selectedItem.id);
+            }
+        }
+
+        // ── Phantom lead-time clones: add ghost duplicate for items with sub-24h segment lead times ──
+        if (fs.type === 'free') {
+            const phantomClones = [];
+            for (const a of sessionLeaves) {
+                const item = findItemById(a.id);
+                if (!item?.contextLeadTimes) continue;
+                for (const [ctx, leadSec] of Object.entries(item.contextLeadTimes)) {
+                    if (leadSec >= 86400) continue;
+                    const parsed = parseTimeContext(ctx);
+                    if (!parsed?.segment || parsed.date !== currentDateKey) continue;
+                    const [sh, sm] = parsed.segment.start.split(':').map(Number);
+                    const [eh, em] = parsed.segment.end.split(':').map(Number);
+                    const refDate = new Date(fs.startMs);
+                    const tcStart = new Date(refDate.getFullYear(), refDate.getMonth(), refDate.getDate(), sh, sm).getTime();
+                    let tcEnd = new Date(refDate.getFullYear(), refDate.getMonth(), refDate.getDate(), eh, em).getTime();
+                    if (tcEnd <= tcStart) tcEnd += 24 * 60 * 60 * 1000;
+                    if (Math.min(fs.endMs, tcEnd) > Math.max(fs.startMs, tcStart)) {
+                        phantomClones.push({
+                            ...a,
+                            id: `phantom-${a.id}`,
+                            _realId: a.id,
+                            _isPhantom: true,
+                            _phantomDurMins: Math.round(leadSec / 60),
+                        });
+                        break;
+                    }
+                }
+            }
+            // Insert each phantom right before its corresponding real item
+            for (const clone of phantomClones) {
+                const idx = sessionLeaves.findIndex(l => String(l.id) === String(clone._realId));
+                if (idx >= 0) {
+                    sessionLeaves.splice(idx, 0, clone);
                 } else {
-                    const descendantIds = collectDescendantIds(selectedItem);
-                    sessionLeaves = sessionLeaves.filter(leaf => descendantIds.includes(leaf.id));
+                    sessionLeaves.unshift(clone);
                 }
             }
         }
+
         return sessionLeaves;
     }
 
@@ -2743,14 +2957,10 @@ function getFilteredActions() {
     const selectedItem = findItemById(state.selectedItemId);
     if (!selectedItem) return allLeaves;
 
-    // A leaf node has no children — show it as its own action.
-    if (isLeaf(selectedItem)) {
-        return allLeaves.filter(a => a.id === selectedItem.id);
-    }
-
+    // Strict descendants only — selecting a project shows its contents, not itself
     const descendantIds = collectDescendantIds(selectedItem);
 
-    return allLeaves.filter(leaf => descendantIds.includes(leaf.id));
+    return allLeaves.filter(leaf => descendantIds.includes(leaf.id) && leaf.id !== selectedItem.id);
 }
 
 // ─── Multiselect Helpers ───
@@ -2927,9 +3137,20 @@ document.addEventListener('DOMContentLoaded', () => {
                     window._draggedAction = null;
                     const ctxs = getCurrentTimeContexts();
                     (async () => {
+                        // Assign current time context
                         for (const ctx of ctxs) { await addTimeContext(itemId, ctx); }
-                        state.selectedItemId = itemId;
-                        savePref('selectedItemId', String(itemId));
+                        // Reparent under selected project if applicable
+                        if (state.selectedItemId && state.selectedItemId !== itemId) {
+                            const selectedItem = findItemById(state.selectedItemId);
+                            if (selectedItem) {
+                                // Only reparent if the item isn't already a descendant of the selected project
+                                const descIds = collectDescendantIds(selectedItem);
+                                if (!descIds.includes(itemId)) {
+                                    moveItem(itemId, { id: state.selectedItemId, position: 'inside' });
+                                    saveItems();
+                                }
+                            }
+                        }
                         renderAll();
                     })();
                 }
@@ -2939,6 +3160,28 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function createActionElement(action) {
+    // ── Phantom lead-time clone: simplified ghost rendering ──
+    if (action._isPhantom) {
+        const item = document.createElement('div');
+        item.className = 'action-item action-item-shadow';
+        item.style.cursor = 'default';
+        const content = document.createElement('div');
+        content.className = 'action-content';
+        const nameEl = document.createElement('span');
+        nameEl.className = 'action-name';
+        nameEl.textContent = `⏳ ${action.name}`;
+        content.appendChild(nameEl);
+        if (action._phantomDurMins) {
+            const dur = document.createElement('span');
+            dur.className = 'action-deadline-badge';
+            dur.textContent = `~${action._phantomDurMins}m`;
+            dur.style.marginLeft = '6px';
+            content.appendChild(dur);
+        }
+        item.appendChild(content);
+        return item;
+    }
+
     const item = document.createElement('div');
     const actionIdStr = String(action.id);
     item.className = 'action-item' + (action.done ? ' done' : '') + (state.selectedActionIds.has(actionIdStr) ? ' selected' : '');
@@ -3126,6 +3369,31 @@ function createActionElement(action) {
 
             if (progress.percent >= 100) badge.classList.add('action-goal-complete');
             badgesRow.appendChild(badge);
+        }
+    }
+
+    // Deadline/lead time badge
+    const actionItemForDeadline = findItemById(action.id);
+    if (actionItemForDeadline?.contextLeadTimes) {
+        const dateKey = getDateKey(state.timelineViewDate);
+        for (const [ctx, leadSec] of Object.entries(actionItemForDeadline.contextLeadTimes)) {
+            // Skip sub-24h segment/entry lead times — they're handled as phantom blocks
+            const ctxParsedBadge = parseTimeContext(ctx);
+            if (leadSec < 86400 && (ctxParsedBadge?.entryId || ctxParsedBadge?.segment)) continue;
+            const deadlineDate = parseDateFromContext(ctx);
+            if (!deadlineDate) continue;
+            const urgency = getDeadlineUrgency(deadlineDate);
+            const countdown = formatDeadlineCountdown(deadlineDate);
+            const badge = document.createElement('div');
+            badge.className = `action-deadline-badge deadline-${urgency}`;
+            // If this is a shadow appearance (not directly scheduled for today)
+            const directlyScheduled = (actionItemForDeadline.timeContexts || []).some(tc => contextMatchesDate(tc, dateKey));
+            if (!directlyScheduled) {
+                item.classList.add('action-item-shadow');
+            }
+            badge.textContent = `📅 ${countdown}`;
+            badgesRow.appendChild(badge);
+            break; // show only the nearest deadline
         }
     }
 
@@ -3545,9 +3813,11 @@ function toggleSessionFocus(session) {
     const top = state.focusStack.length > 0 ? state.focusStack[state.focusStack.length - 1] : null;
     if (top && top.startMs === session.startMs && top.endMs === session.endMs) {
         state.focusStack.pop();
+        saveFocusStack();
     } else {
         // For now, replace (single-tier). Future: push for multi-tier drill-down.
         state.focusStack = [{ ...session, tier: 'session' }];
+        saveFocusStack();
     }
     renderAll();
 }
@@ -3608,7 +3878,7 @@ function renderTimeContext() {
             const h = Math.floor(ms / 3600000);
             const m = Math.floor((ms % 3600000) / 60000);
             const s = Math.floor((ms % 60000) / 1000);
-            if (h > 0) return `${h}h ${m}m`;
+            if (h > 0) return `${h}h ${m}m ${s}s`;
             if (m > 0) return `${m}m ${s}s`;
             return `${s}s`;
         };
@@ -3634,16 +3904,18 @@ function renderTimeContext() {
         container.appendChild(sessionEl);
     }
 
-    // ── Live session indicator (always visible when a session is running) ──
-    _renderLiveSessionIndicator(container);
 }
 
-// ── Live Session Indicator ──
-// Shows a compact clickable bar when a work/break session is running
-// but the user isn't already focused on it (different date, different horizon, etc.)
-function _renderLiveSessionIndicator(container) {
+// ── Live Session Indicator ("Ground") ──
+// Shows a compact clickable bar at the top of the Actions area when a
+// work/break session is running. Clicking it navigates to the session
+// AND focuses the related project.
+function _renderLiveSessionIndicator() {
+    const section = document.getElementById('section-actions');
+    if (!section) return;
+
     // Remove any existing indicator
-    container.querySelectorAll('.live-session-indicator').forEach(el => el.remove());
+    section.querySelectorAll('.live-session-indicator').forEach(el => el.remove());
 
     const liveSession = state.workingOn || state.onBreak;
     if (!liveSession) return;
@@ -3651,18 +3923,15 @@ function _renderLiveSessionIndicator(container) {
     const isWork = !!state.workingOn;
     const top = state.focusStack.length > 0 ? state.focusStack[state.focusStack.length - 1] : null;
 
-    // Hide indicator if already focused on this live session
-    if (top && (top.type === 'working' || (top.type === 'break' && state.onBreak))) {
-        return;
-    }
-
-    // Hide on today's day view (unfocused) — the timeline already shows the live block
-    const today = getLogicalToday();
-    const viewDate = state.timelineViewDate;
-    const isToday = viewDate && today && viewDate.toDateString() === today.toDateString();
-    if (!top && state.viewHorizon === 'day' && isToday) {
-        return;
-    }
+    // Hide when already grounded: session is focused AND related project is selected
+    const sessionFocused = top && (top.type === 'working' || (top.type === 'break' && state.onBreak));
+    const projectFocused = (() => {
+        if (!isWork || !state.workingOn.itemId) return !state.selectedItemId;
+        const ancestors = getAncestorPath(state.workingOn.itemId);
+        const projectId = (ancestors && ancestors.length > 0) ? ancestors[0].id : state.workingOn.itemId;
+        return state.selectedItemId === projectId;
+    })();
+    if (sessionFocused && projectFocused) return;
 
     const nowMs = Date.now();
     const startMs = liveSession.startTime;
@@ -3672,7 +3941,7 @@ function _renderLiveSessionIndicator(container) {
         const h = Math.floor(ms / 3600000);
         const m = Math.floor((ms % 3600000) / 60000);
         const s = Math.floor((ms % 60000) / 1000);
-        if (h > 0) return `${h}h ${m}m`;
+        if (h > 0) return `${h}h ${m}m ${s}s`;
         if (m > 0) return `${m}m ${s}s`;
         return `${s}s`;
     };
@@ -3714,7 +3983,7 @@ function _renderLiveSessionIndicator(container) {
     indicator.appendChild(timer);
     if (liveSession.targetEndTime) indicator.appendChild(_createAdjustBtns());
 
-    // Click: navigate back to today + focus the running session
+    // Click: navigate back to today + focus the running session + select project
     indicator.addEventListener('click', () => {
         // 1. Navigate to today
         state.timelineViewDate = getLogicalToday();
@@ -3739,11 +4008,27 @@ function _renderLiveSessionIndicator(container) {
             liveType: isWork ? 'work' : 'break',
             tier: 'session',
         }];
+        saveFocusStack();
+        // 4. Focus the related project in the sidebar
+        if (isWork && state.workingOn.itemId) {
+            const ancestors = getAncestorPath(state.workingOn.itemId);
+            // Top-level item has no ancestors — use itemId itself
+            const projectId = (ancestors && ancestors.length > 0) ? ancestors[0].id : state.workingOn.itemId;
+            state.selectedItemId = projectId;
+            savePref('selectedItemId', projectId);
+        }
         renderAll();
+        // 5. Scroll to & highlight the project in the sidebar tree
+        scrollToSelectedItem();
     });
 
-    // Insert at the top of the container (before horizon layers)
-    container.insertBefore(indicator, container.firstChild);
+    // Insert after the section header, before actions-breadcrumbs
+    const breadcrumbs = section.querySelector('.actions-breadcrumbs');
+    if (breadcrumbs) {
+        section.insertBefore(indicator, breadcrumbs);
+    } else {
+        section.appendChild(indicator);
+    }
 }
 
 // ── Timer Adjustment Helper ──
@@ -3876,7 +4161,7 @@ function _renderWorkSession(sessionEl, top, nowMs, durationMs, _fmtDur) {
         stopBtn.className = 'session-cta session-cta-stop';
         stopBtn.textContent = '⏹ Stop';
         stopBtn.addEventListener('click', async () => {
-            state.focusStack = [];
+            clearFocusStack();
             await stopWorking();
         });
         ctaRow.appendChild(stopBtn);
@@ -4162,7 +4447,7 @@ function _renderBreakSession(sessionEl, top, nowMs, durationMs, _fmtDur) {
         stopBtn.className = 'session-cta session-cta-endbreak';
         stopBtn.textContent = '⏹ End Break';
         stopBtn.addEventListener('click', async () => {
-            state.focusStack = [];
+            clearFocusStack();
             await stopBreak();
         });
         ctaRow.appendChild(stopBtn);
@@ -4201,10 +4486,21 @@ function renderWeekView(container) {
     const range = getWeekDateRange(weekKey);
     if (!range) return;
 
-    const todayKey = getDateKey(getLogicalToday());
+    const logicalToday = getLogicalToday();
+    const todayKey = getDateKey(logicalToday);
     const allItems = collectAllItems(state.items.items);
     const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+    // Detect night state: current time is before logical-today's day-start
+    // (we're in the sleep gap — getLogicalToday fell back to calendar date
+    //  because neither yesterday's nor today's day range contains now)
+    const { dayStart: logicalDayStart } = getDayBoundaries(logicalToday);
+    const isNightTime = new Date() < logicalDayStart;
+    // The calendar date before logical today (the day whose row we want to keep visible)
+    const prevCalDay = new Date(logicalToday);
+    prevCalDay.setDate(prevCalDay.getDate() - 1);
+    const prevCalDayKey = getDateKey(prevCalDay);
 
     const weekEl = document.createElement('div');
     weekEl.className = 'week-view';
@@ -4215,7 +4511,7 @@ function renderWeekView(container) {
         const dayDate = new Date(range.start);
         dayDate.setDate(range.start.getDate() + d);
         const dateKey = getDateKey(dayDate);
-        const isToday = dateKey === todayKey;
+        const isToday = dateKey === todayKey && !isNightTime;
 
         // Get day boundaries
         const dayTimes = getEffectiveDayTimes(dayDate);
@@ -4235,14 +4531,26 @@ function renderWeekView(container) {
                 const sleepH = Math.floor(sleepMins / 60);
                 const sleepM = sleepMins % 60;
                 const sleepLabel = sleepH > 0 ? (sleepM > 0 ? `${sleepH}h${sleepM}m` : `${sleepH}h`) : `${sleepM}m`;
-                sleepDiv.textContent = `🌙 ${sleepLabel}`;
+                // Highlight sleep divider as "you are here" during night time
+                if (isNightTime && dateKey === todayKey) {
+                    sleepDiv.classList.add('week-sleep-current');
+                    const remainMs = logicalDayStart.getTime() - Date.now();
+                    const remainMins = Math.ceil(remainMs / 60000);
+                    const rH = Math.floor(remainMins / 60);
+                    const rM = remainMins % 60;
+                    const remainLabel = rH > 0 ? (rM > 0 ? `${rH}h${rM}m` : `${rH}h`) : `${rM}m`;
+                    sleepDiv.textContent = `🌙 ${remainLabel} left`;
+                } else {
+                    sleepDiv.textContent = `🌙 ${sleepLabel}`;
+                }
                 weekEl.appendChild(sleepDiv);
             }
         }
 
         const isPast = dateKey < todayKey;
         // Skip past days entirely when "Hide past entries" is on
-        if (isPast && state.hidePastEntries) {
+        // But always keep the previous day visible during night (so the sleep-current divider has context)
+        if (isPast && state.hidePastEntries && !(isNightTime && dateKey === prevCalDayKey)) {
             prevDayEndMins = null; // null so no sleep divider renders before the first visible day
             continue;
         }
@@ -4269,7 +4577,7 @@ function renderWeekView(container) {
             savePref('timelineViewDate', state.timelineViewDate.toISOString());
             state.viewHorizon = 'day';
             savePref('viewHorizon', 'day');
-            state.focusStack = [];
+            clearFocusStack();
             renderAll();
         });
 
@@ -4352,16 +4660,37 @@ function renderWeekView(container) {
         addBtn.title = 'Plan an action for this day';
         addBtn.addEventListener('click', (e) => {
             e.stopPropagation();
-            // Navigate to this day's view and open the plan editor
-            state.timelineViewDate = new Date(dayDate);
-            savePref('timelineViewDate', state.timelineViewDate.toISOString());
-            state.viewHorizon = 'day';
-            savePref('viewHorizon', 'day');
-            state.focusStack = [];
-            renderAll();
-            // Open plan editor with the full day as the free range
-            const { dayStart: planDs, dayEnd: planDe } = getDayBoundaries(dayDate);
-            openPlanEditor(null, planDs.getTime(), planDe.getTime());
+            // Expand the day if collapsed
+            if (content.style.display === 'none') {
+                header.click();
+            }
+            // Show inline input inside the content area
+            if (row.querySelector('.week-inline-add')) return; // already open
+            const inlineRow = document.createElement('div');
+            inlineRow.className = 'week-inline-add';
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'week-inline-add-input';
+            input.placeholder = "What's on your mind?";
+            inlineRow.appendChild(input);
+            content.insertBefore(inlineRow, content.firstChild);
+            input.focus();
+
+            let _removed = false;
+            const _remove = () => { if (!_removed) { _removed = true; inlineRow.remove(); } };
+            const commit = async () => {
+                const name = input.value.trim();
+                _remove();
+                if (!name) return;
+                await api.post('/items', { name, parentId: null, timeContexts: [dateKey] });
+                state.items = await api.get('/items');
+                renderAll();
+            };
+            input.addEventListener('keydown', (ke) => {
+                if (ke.key === 'Enter') { ke.preventDefault(); commit(); }
+                if (ke.key === 'Escape') { ke.preventDefault(); _remove(); }
+            });
+            input.addEventListener('blur', () => _remove());
         });
 
         header.appendChild(toggle);
@@ -4393,8 +4722,9 @@ function renderWeekView(container) {
             const entryMins = Math.round((entry.endTime - entry.timestamp) / 60000);
             totalEstMins += entryMins;
 
+            const isPastAppt = isToday && entry.endTime < Date.now();
             const pin = document.createElement('div');
-            pin.className = 'week-appointment';
+            pin.className = 'week-appointment' + (isPastAppt ? ' week-appt-past' : '');
             pin.draggable = true;
             pin.dataset.entryId = String(entry.id);
             pin.dataset.sourceDate = dateKey;
@@ -4561,6 +4891,16 @@ function renderWeekView(container) {
                 countEl.className = 'week-group-count';
                 countEl.textContent = group.entries.length;
                 ghdr.appendChild(countEl);
+
+                const wgTotalMins = group.entries.reduce((sum, e) => sum + (e.estMins || 0), 0);
+                if (wgTotalMins > 0) {
+                    const durEl = document.createElement('span');
+                    durEl.className = 'week-group-duration';
+                    durEl.textContent = wgTotalMins >= 60
+                        ? `${Math.floor(wgTotalMins / 60)}h${wgTotalMins % 60 ? wgTotalMins % 60 + 'm' : ''}`
+                        : `${wgTotalMins}m`;
+                    ghdr.appendChild(durEl);
+                }
 
                 ghdr.addEventListener('click', (e) => {
                     e.stopPropagation();
@@ -4771,7 +5111,7 @@ function renderTimeline() {
     const quickLog = document.querySelector('.quick-log');
 
     // Clear all rendered blocks (including breadcrumb)
-    container.querySelectorAll('.time-block, .timeline-entry, .someday-placeholder, .week-view, .timeline-overlap-group').forEach(el => el.remove());
+    container.querySelectorAll('.time-block, .timeline-entry, .someday-placeholder, .week-view, .timeline-overlap-group, .week-sleep-divider').forEach(el => el.remove());
 
     // ── Someday horizon: replace timeline with placeholder ──
     if (state.viewHorizon === 'someday') {
@@ -4822,6 +5162,36 @@ function renderTimeline() {
         .filter(e => e.timestamp >= dayStart.getTime() && e.timestamp < dayEnd.getTime())
         .sort((a, b) => a.timestamp - b.timestamp); // chronological
 
+    // ── Phantom lead-time blocks: inject prep blocks before planned entries with short lead times ──
+    const phantomEntries = [];
+    for (const entry of allDayEntries) {
+        if (entry.type !== 'planned' || !entry.itemId) continue;
+        const item = findItemById(entry.itemId);
+        if (!item?.contextLeadTimes) continue;
+        for (const [ctx, leadSec] of Object.entries(item.contextLeadTimes)) {
+            const ctxParsed = parseTimeContext(ctx);
+            if (!ctxParsed?.entryId || String(ctxParsed.entryId) !== String(entry.id)) continue;
+            if (leadSec >= 86400) continue; // Only sub-24h lead times become phantom blocks
+            const phantomEnd = entry.timestamp;
+            const phantomStart = phantomEnd - leadSec * 1000;
+            if (phantomStart >= phantomEnd) continue;
+            phantomEntries.push({
+                text: item.name,
+                type: 'planned',
+                timestamp: phantomStart,
+                startTime: phantomStart,
+                endTime: phantomEnd,
+                itemId: item.id,
+                id: `phantom-${entry.id}`,
+                _phantom: true,
+            });
+        }
+    }
+    if (phantomEntries.length > 0) {
+        allDayEntries.push(...phantomEntries);
+        allDayEntries.sort((a, b) => a.timestamp - b.timestamp);
+    }
+
     // ── Separate block entries (anchors) from moment entries (non-anchors) ──
     // Block entries have a time span (work, break, planned) and define the timeline structure.
     // Moment entries (completion, manual logs) happen at a point in time and render
@@ -4842,7 +5212,7 @@ function renderTimeline() {
         });
     }
     for (const entry of allDayEntries) {
-        if (entry.type !== 'planned' || !entry.endTime) continue;
+        if (entry.type !== 'planned' || !entry.endTime || entry._phantom) continue;
         const planStart = entry.timestamp;
         const planEnd = entry.endTime;
         const planDuration = planEnd - planStart;
@@ -5406,11 +5776,64 @@ function createFreeTimeBlock(startMs, endMs) {
         });
     });
 
-    if (assignedItems.length > 0) {
+    // ── Phantom items from segment-based lead times (< 24h) ──
+    // Items assigned to this block that also have a sub-24h lead time get a phantom
+    // prep item alongside them, adding the lead time duration to the block's capacity.
+    const phantomSegmentItems = [];
+    for (const a of assignedItems) {
+        const item = findItemById(a.id);
+        if (!item?.contextLeadTimes) continue;
+        for (const [ctx, leadSec] of Object.entries(item.contextLeadTimes)) {
+            if (leadSec >= 86400) continue; // Only sub-24h lead times
+            const parsed = parseTimeContext(ctx);
+            if (!parsed?.segment || parsed.date !== dateKey) continue;
+            // Verify this lead time context matches the segment this block covers
+            const [sh, sm] = parsed.segment.start.split(':').map(Number);
+            const [eh, em] = parsed.segment.end.split(':').map(Number);
+            const refDate = new Date(startMs);
+            const ctxStart = new Date(refDate.getFullYear(), refDate.getMonth(), refDate.getDate(), sh, sm).getTime();
+            let ctxEnd = new Date(refDate.getFullYear(), refDate.getMonth(), refDate.getDate(), eh, em).getTime();
+            if (ctxEnd <= ctxStart) ctxEnd += 24 * 60 * 60 * 1000;
+            // Only add if this block overlaps with the lead time's segment
+            if (Math.min(endMs, ctxEnd) > Math.max(startMs, ctxStart)) {
+                const prepDurMins = Math.round(leadSec / 60);
+                phantomSegmentItems.push({ id: a.id, name: a.name, _path: a._path, _phantomDur: prepDurMins });
+            }
+        }
+    }
+
+    if (assignedItems.length > 0 || phantomSegmentItems.length > 0) {
         const queue = document.createElement('div');
         queue.className = 'segment-queue';
 
         let totalEstMins = 0;
+
+        // ── Phantom segment-based lead time items (rendered first) ──
+        for (const phantom of phantomSegmentItems) {
+            totalEstMins += phantom._phantomDur;
+            const row = document.createElement('div');
+            row.className = 'segment-queue-item segment-queue-phantom';
+            row.dataset.itemId = phantom.id;
+
+            const bullet = document.createElement('span');
+            bullet.className = 'segment-queue-bullet';
+            bullet.textContent = '⏳';
+
+            const nameSpan = document.createElement('span');
+            nameSpan.className = 'segment-queue-name';
+            nameSpan.textContent = phantom.name;
+
+            const est = document.createElement('span');
+            est.className = 'segment-queue-est';
+            est.textContent = `~${phantom._phantomDur}m`;
+
+            row.appendChild(bullet);
+            row.appendChild(nameSpan);
+            row.appendChild(est);
+            queue.appendChild(row);
+        }
+
+        // ── Regular assigned items ──
         for (const action of assignedItems) {
             const item = findItemById(action.id);
             // Find the item's actual stored segment context matching this block
@@ -6239,8 +6662,26 @@ function openIdleWorkEditor(idleBlock, idleStartMs, idleEndMs) {
     });
 }
 
+// ── Shared helper: find deadline for stopwatch-style sessions (no target end) ──
+// Returns the earliest of: next scheduled plan start or day end
+function _getStopwatchDeadline() {
+    const { dayEnd } = getDayBoundaries(state.timelineViewDate);
+    const nowMs = Date.now();
+    const dayEndMs = dayEnd.getTime();
+    // Find the next planned entry that starts after now
+    let nextPlanStart = dayEndMs;
+    for (const entry of state.timeline.entries) {
+        if (entry.type === 'planned' && entry.endTime && entry.timestamp > nowMs) {
+            if (entry.timestamp < nextPlanStart) {
+                nextPlanStart = entry.timestamp;
+            }
+        }
+    }
+    return Math.min(nextPlanStart, dayEndMs);
+}
+
 // ── Shared helper: attach drag-and-drop target + nested items queue to a block ──
-function _attachEntryDropAndQueue(el, contextStr, durationMs) {
+function _attachEntryDropAndQueue(el, contextStr, deadlineMs) {
     if (!contextStr) return;
 
     // ── Drop target ──
@@ -6403,11 +6844,15 @@ function _attachEntryDropAndQueue(el, contextStr, durationMs) {
 
         el.appendChild(queue);
 
-        // Capacity bar
-        const availMins = Math.floor(durationMs / 60000);
+        // Capacity bar — uses remaining time (deadline - now) as available capacity
+        const nowCap = Date.now();
+        const remainingMs = Math.max(0, deadlineMs - nowCap);
+        const availMins = Math.max(1, Math.floor(remainingMs / 60000));
         if (totalEstMins > 0) {
             const capBar = document.createElement('div');
             capBar.className = 'segment-capacity-bar';
+            capBar.dataset.capDeadline = deadlineMs;
+            capBar.dataset.capTotalEst = totalEstMins;
             const fillPct = Math.min(100, (totalEstMins / availMins) * 100);
             const isOver = totalEstMins > availMins;
             capBar.innerHTML = `
@@ -6518,8 +6963,9 @@ function createWorkingTimeBlock(startMs, endMs) {
     el.appendChild(content);
     el.appendChild(stopBtn);
 
-    // Drag-and-drop + nested items
-    _attachEntryDropAndQueue(el, getLiveContext('work'), endMs - startMs);
+    // Drag-and-drop + nested items — use remaining time as capacity
+    const workDeadline = targetEnd || _getStopwatchDeadline();
+    _attachEntryDropAndQueue(el, getLiveContext('work'), workDeadline);
 
     return el;
 }
@@ -6609,8 +7055,9 @@ function createBreakTimeBlock(startMs, endMs) {
     el.appendChild(content);
     el.appendChild(stopBtn);
 
-    // Drag-and-drop + nested items
-    _attachEntryDropAndQueue(el, getLiveContext('break'), endMs - startMs);
+    // Drag-and-drop + nested items — use remaining time as capacity
+    const breakDeadline = targetEnd || _getStopwatchDeadline();
+    _attachEntryDropAndQueue(el, getLiveContext('break'), breakDeadline);
 
     return el;
 }
@@ -6631,7 +7078,7 @@ function startIdleUpdater() {
                 const h = Math.floor(ms / 3600000);
                 const m = Math.floor((ms % 3600000) / 60000);
                 const s = Math.floor((ms % 60000) / 1000);
-                if (h > 0) return `${h}h ${m}m`;
+                if (h > 0) return `${h}h ${m}m ${s}s`;
                 if (m > 0) return `${m}m ${s}s`;
                 return `${s}s`;
             };
@@ -6672,7 +7119,7 @@ function startIdleUpdater() {
                 const h = Math.floor(ms / 3600000);
                 const m = Math.floor((ms % 3600000) / 60000);
                 const s = Math.floor((ms % 60000) / 1000);
-                if (h > 0) return `${h}h ${m}m`;
+                if (h > 0) return `${h}h ${m}m ${s}s`;
                 if (m > 0) return `${m}m ${s}s`;
                 return `${s}s`;
             };
@@ -6757,6 +7204,9 @@ function startIdleUpdater() {
             // Push adjacent free time block (use projected end so free time starts after work)
             const workEffectiveEnd = targetEnd ? Math.max(nowMs, targetEnd) : nowMs;
             updateAdjacentFreeBlock(workingBlock, workEffectiveEnd);
+
+            // Update capacity bar remaining time
+            _updateLiveCapacityBar(workingBlock, targetEnd);
             return; // working block takes priority over idle
         }
 
@@ -6808,6 +7258,9 @@ function startIdleUpdater() {
             // Push adjacent free time block (use projected end so free time starts after break)
             const breakEffectiveEnd = targetEnd ? Math.max(nowMs, targetEnd) : nowMs;
             updateAdjacentFreeBlock(breakBlock, breakEffectiveEnd);
+
+            // Update capacity bar remaining time
+            _updateLiveCapacityBar(breakBlock, targetEnd);
             return; // break block takes priority over idle
         }
 
@@ -6844,6 +7297,31 @@ function startIdleUpdater() {
         // Push the adjacent free time block (shrink it)
         updateAdjacentFreeBlock(idleBlock, nowMs);
     }, 1000);
+}
+
+// ── Helper: dynamically update capacity bar in a live block ──
+function _updateLiveCapacityBar(blockEl, targetEnd) {
+    const capBar = blockEl.querySelector('.segment-capacity-bar[data-cap-deadline]');
+    if (!capBar) return;
+    const totalEst = parseInt(capBar.dataset.capTotalEst, 10);
+    if (!totalEst) return;
+    // Recompute deadline for stopwatch sessions (it can shift as time passes)
+    const deadline = targetEnd || _getStopwatchDeadline();
+    capBar.dataset.capDeadline = deadline;
+    const nowMs = Date.now();
+    const remainingMs = Math.max(0, deadline - nowMs);
+    const availMins = Math.max(1, Math.floor(remainingMs / 60000));
+    const fillPct = Math.min(100, (totalEst / availMins) * 100);
+    const isOver = totalEst > availMins;
+    const fill = capBar.querySelector('.segment-capacity-fill');
+    const label = capBar.querySelector('.segment-capacity-label');
+    if (fill) {
+        fill.style.width = `${fillPct}%`;
+        fill.classList.toggle('over-capacity', isOver);
+    }
+    if (label) {
+        label.textContent = `${totalEst}m / ${availMins}m`;
+    }
 }
 
 function updateAdjacentFreeBlock(block, nowMs) {
@@ -7004,7 +7482,7 @@ function createDayBoundaryBlock(type, boundaryTime, now) {
 function createTimelineElement(entry) {
     // Block entries (work, break, planned) render as time blocks
     if (entry.type === 'planned') {
-        return createPlannedTimeBlock(entry, entry._ghost);
+        return createPlannedTimeBlock(entry, entry._ghost, entry._phantom);
     }
     if (entry.type === 'work') {
         return createWorkEntryBlock(entry);
@@ -7232,9 +7710,9 @@ function createMomentEntry(entry) {
     return el;
 }
 
-function createPlannedTimeBlock(entry, isGhost = false) {
+function createPlannedTimeBlock(entry, isGhost = false, isPhantom = false) {
     const el = document.createElement('div');
-    el.className = 'time-block time-block-planned focusable-block' + (isGhost ? ' plan-ghost' : '');
+    el.className = 'time-block time-block-planned focusable-block' + (isGhost ? ' plan-ghost' : '') + (isPhantom ? ' time-block-phantom' : '');
     el.dataset.id = entry.id;
     el.dataset.startTime = entry.timestamp;
     el.dataset.endTime = entry.endTime;
@@ -7255,7 +7733,7 @@ function createPlannedTimeBlock(entry, isGhost = false) {
     // Icon
     const icon = document.createElement('div');
     icon.className = 'time-block-icon';
-    icon.textContent = '📌';
+    icon.textContent = isPhantom ? '⏳' : '📌';
 
     // Content
     const content = document.createElement('div');
@@ -7283,6 +7761,13 @@ function createPlannedTimeBlock(entry, isGhost = false) {
         tag.className = 'time-block-project';
         tag.textContent = entry.projectName;
         content.appendChild(tag);
+    }
+
+    // Phantom blocks: render only icon + content (no edit/delete/drag interactions)
+    if (isPhantom) {
+        el.appendChild(icon);
+        el.appendChild(content);
+        return el;
     }
 
     // Start working button — click to begin working on this planned item
@@ -8073,7 +8558,7 @@ function updateContextLabels() {
         }
         dateSeg.title = 'Back to full day';
         dateSeg.addEventListener('click', () => {
-            state.focusStack = [];
+            clearFocusStack();
             renderAll();
         });
         whenRow.appendChild(dateSeg);
@@ -8429,52 +8914,247 @@ async function setEstimate(itemId, mins) {
     renderActions();
 }
 
-// ─── Capacity Summary ───
+// ─── Lead Time Helpers ───
+
+function _formatLeadTimeBrief(sec) {
+    if (sec < 3600) return `${Math.round(sec / 60)}m`;
+    if (sec < 86400) return `${Math.round(sec / 3600)}h`;
+    if (sec < 604800) return `${Math.round(sec / 86400)}d`;
+    return `${Math.round(sec / 604800)}w`;
+}
+
+// Build an inline lead-time row for the schedule modal.
+// horizon: 'session' | 'day' | 'week'
+function _buildLeadTimeRow(itemIds, ctx, horizon, onUpdate) {
+    const row = document.createElement('div');
+    row.className = 'schedule-leadtime-row';
+
+    // Check existing lead time
+    const sampleItem = findItemById(itemIds[0]);
+    const existingLT = getContextLeadTime(sampleItem, ctx);
+
+    // Horizon-aware presets
+    const presetMap = {
+        session: [
+            { text: '15m', sec: 900 }, { text: '30m', sec: 1800 },
+            { text: '1h', sec: 3600 }, { text: '2h', sec: 7200 }, { text: '3h', sec: 10800 },
+        ],
+        day: [
+            { text: '1d', sec: 86400 }, { text: '2d', sec: 172800 },
+            { text: '3d', sec: 259200 }, { text: '5d', sec: 432000 },
+            { text: '1w', sec: 604800 }, { text: '2w', sec: 1209600 },
+        ],
+        week: [
+            { text: '1w', sec: 604800 }, { text: '2w', sec: 1209600 },
+            { text: '3w', sec: 1814400 }, { text: '4w', sec: 2419200 },
+        ],
+    };
+    const presets = presetMap[horizon] || presetMap.day;
+
+    // Preset buttons
+    const presetsDiv = document.createElement('div');
+    presetsDiv.className = 'schedule-leadtime-presets';
+    for (const preset of presets) {
+        const btn = document.createElement('button');
+        btn.className = 'schedule-leadtime-preset';
+        if (existingLT === preset.sec) btn.classList.add('schedule-leadtime-preset-active');
+        btn.textContent = preset.text;
+        btn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            for (const id of itemIds) await setLeadTime(id, ctx, preset.sec);
+            onUpdate();
+        });
+        presetsDiv.appendChild(btn);
+    }
+    row.appendChild(presetsDiv);
+
+    // Custom input row
+    const customDiv = document.createElement('div');
+    customDiv.className = 'schedule-leadtime-custom';
+
+    const input = document.createElement('input');
+    input.type = 'number';
+    input.className = 'schedule-leadtime-input';
+    input.placeholder = '#';
+    input.min = '1';
+    input.max = '999';
+
+    const unitSelect = document.createElement('select');
+    unitSelect.className = 'schedule-leadtime-input';
+    const unitMap = {
+        session: [{ label: 'min', mult: 60 }, { label: 'hours', mult: 3600 }],
+        day: [{ label: 'days', mult: 86400 }, { label: 'weeks', mult: 604800 }],
+        week: [{ label: 'weeks', mult: 604800 }],
+    };
+    for (const u of (unitMap[horizon] || unitMap.day)) {
+        const opt = document.createElement('option');
+        opt.value = u.mult;
+        opt.textContent = u.label;
+        unitSelect.appendChild(opt);
+    }
+
+    const setBtn = document.createElement('button');
+    setBtn.className = 'schedule-leadtime-set';
+    setBtn.textContent = 'Set';
+    setBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const val = parseInt(input.value, 10);
+        if (!val || val <= 0) return;
+        const sec = val * parseInt(unitSelect.value, 10);
+        for (const id of itemIds) await setLeadTime(id, ctx, sec);
+        onUpdate();
+    });
+
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') setBtn.click();
+    });
+
+    customDiv.appendChild(input);
+    customDiv.appendChild(unitSelect);
+    customDiv.appendChild(setBtn);
+
+    // Remove button (if existing lead time)
+    if (existingLT != null) {
+        const removeBtn = document.createElement('button');
+        removeBtn.className = 'schedule-leadtime-remove';
+        removeBtn.textContent = '×';
+        removeBtn.title = 'Remove lead time';
+        removeBtn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            for (const id of itemIds) await setLeadTime(id, ctx, null);
+            onUpdate();
+        });
+        customDiv.appendChild(removeBtn);
+    }
+
+    row.appendChild(customDiv);
+    return row;
+}
+
+async function setLeadTime(itemId, ctx, seconds) {
+    const item = findItemById(itemId);
+    if (!item) return;
+    if (!item.contextLeadTimes) item.contextLeadTimes = {};
+    if (seconds === null) {
+        delete item.contextLeadTimes[ctx];
+        if (Object.keys(item.contextLeadTimes).length === 0) delete item.contextLeadTimes;
+    } else {
+        item.contextLeadTimes[ctx] = seconds;
+    }
+    await api.patch(`/items/${itemId}`, { contextLeadTimes: item.contextLeadTimes || {} });
+    renderAll();
+}
+
+// ─── Pressure Bar ───
+function _formatDuration(mins) {
+    if (mins >= 60) {
+        const h = Math.floor(mins / 60);
+        const m = mins % 60;
+        return m ? `${h}h${m}m` : `${h}h`;
+    }
+    return `${mins}m`;
+}
+
 function updateCapacitySummary(sortedActions) {
-    const el = document.getElementById('capacity-summary');
-    if (!el) return;
+    const bar = document.getElementById('pressure-bar');
+    const fill = document.getElementById('pressure-bar-fill');
+    const label = document.getElementById('pressure-bar-label');
+    if (!bar || !fill || !label) return;
 
     const undone = sortedActions.filter(a => !a.done);
-    const count = undone.length;
 
-    // Sum estimated durations
-    let estimatedMins = 0;
-    let estimatedCount = 0;
+    // Sum estimated durations (demand) — all undone items compete for available time
+    const focusedSession = state.focusStack.length > 0 ? state.focusStack[state.focusStack.length - 1] : null;
+
+    let demandMins = 0;
     for (const action of undone) {
         const item = findItemById(action.id);
         const ctxDur = getContextDuration(item);
-        if (ctxDur) {
-            estimatedMins += ctxDur;
-            estimatedCount++;
+        if (ctxDur) demandMins += ctxDur;
+    }
+
+    // ── Someday: text-only, no bar ──
+    if (state.viewHorizon === 'someday') {
+        bar.classList.add('pressure-bar-text-only');
+        fill.style.width = '0%';
+        fill.classList.remove('over-capacity');
+        label.textContent = demandMins > 0 ? `~${_formatDuration(demandMins)} backlog` : `${undone.length} item${undone.length !== 1 ? 's' : ''}`;
+
+        return;
+    }
+    bar.classList.remove('pressure-bar-text-only');
+
+    // ── Determine available time ──
+    let availMins = 0;
+
+    if (focusedSession) {
+        // Session focus: remaining time in the session
+        const nowMs = Date.now();
+        const remainMs = Math.max(0, focusedSession.endMs - nowMs);
+        availMins = Math.round(remainMs / 60000);
+    } else if (state.viewHorizon === 'week') {
+        // Week: total waking hours × 7 (approximate)
+        const { dayStart, dayEnd } = getDayBoundaries(state.timelineViewDate);
+        const dayLenMins = Math.round((dayEnd.getTime() - dayStart.getTime()) / 60000);
+        availMins = dayLenMins * 7;
+    } else {
+        // Day: free time gaps minus day-scoped intention durations
+        availMins = calculateTotalFreeTime();
+
+        // Subtract durations of fuzzy session items — items whose timeContexts
+        // include a segment for today. Their contextDurations[segmentKey] tells
+        // us how much free time they'll consume.
+        const currentDateKey = getDateKey(state.timelineViewDate);
+        const viewingToday = isCurrentDay(state.timelineViewDate);
+        const nowMs = Date.now();
+        const allItems = collectAllItems(state.items.items);
+        let fuzzySubtracted = 0;
+        for (const item of allItems) {
+            if (!item || item.done) continue;
+            const contexts = item.timeContexts || [];
+            const durations = item.contextDurations;
+            if (!durations) continue;
+            // Find segment contexts for today
+            for (const tc of contexts) {
+                const parsed = parseTimeContext(tc);
+                if (!parsed || parsed.date !== currentDateKey) continue;
+                if (!parsed.segment) continue;
+                // Skip past segments when hidePastEntries is on
+                if (state.hidePastEntries && viewingToday && parsed.segment) {
+                    const [, endStr] = [parsed.segment.start, parsed.segment.end];
+                    const [eh, em] = endStr.split(':').map(Number);
+                    const endDate = new Date(state.timelineViewDate);
+                    endDate.setHours(eh, em, 0, 0);
+                    // Handle overnight segments (end < start means next day)
+                    if (endStr < parsed.segment.start) endDate.setDate(endDate.getDate() + 1);
+                    if (endDate.getTime() < nowMs) continue;
+                }
+                // This item is in a fuzzy session for today — subtract its duration
+                const dur = durations[tc];
+                if (dur > 0) {
+                    console.log('[pressure-bar] counting fuzzy:', item.id, item.name, tc, dur, 'mins');
+                    fuzzySubtracted += dur;
+                    availMins -= dur;
+                }
+            }
         }
+        console.log('[pressure-bar] hidePast:', state.hidePastEntries, 'viewingToday:', viewingToday, 'total fuzzy:', fuzzySubtracted);
+        availMins = Math.max(0, availMins);
     }
 
-    // Calculate total free time from timeline
-    const viewingToday = isCurrentDay(state.timelineViewDate);
-    let freeTimeMins = 0;
-    if (viewingToday) {
-        freeTimeMins = calculateTotalFreeTime();
+    // ── Render bar ──
+    if (availMins <= 0) {
+        // No available time — show full bar as over-capacity if there's demand
+        fill.style.width = demandMins > 0 ? '100%' : '0%';
+        fill.classList.toggle('over-capacity', demandMins > 0);
+        label.textContent = demandMins > 0 ? `${_formatDuration(demandMins)} / 0m` : '';
+    } else {
+        const fillPct = Math.min(100, (demandMins / availMins) * 100);
+        fill.style.width = `${fillPct}%`;
+        fill.classList.toggle('over-capacity', demandMins > availMins);
+        label.textContent = `${_formatDuration(demandMins)} / ${_formatDuration(availMins)}`;
     }
 
-    // Build summary text
-    const parts = [];
-    parts.push(`${count} item${count !== 1 ? 's' : ''}`);
-
-    if (estimatedCount > 0) {
-        const estStr = estimatedMins >= 60
-            ? `${Math.floor(estimatedMins / 60)}h${estimatedMins % 60 ? ` ${estimatedMins % 60}m` : ''}`
-            : `${estimatedMins}m`;
-        parts.push(`~${estStr} est.`);
-    }
-
-    if (viewingToday && freeTimeMins > 0) {
-        const freeStr = freeTimeMins >= 60
-            ? `${Math.floor(freeTimeMins / 60)}h${freeTimeMins % 60 ? ` ${freeTimeMins % 60}m` : ''}`
-            : `${freeTimeMins}m`;
-        parts.push(`${freeStr} free`);
-    }
-
-    el.textContent = parts.join(' · ');
 }
 
 function calculateTotalFreeTime() {
@@ -9078,6 +9758,9 @@ function openScheduleModal(itemIdOrIds, itemName) {
     // Session date nav state (independent)
     let sessionViewDate = new Date(state.timelineViewDate);
 
+    // Week nav state (independent)
+    let weekViewDate = new Date(state.timelineViewDate);
+
     const overlay = document.createElement('div');
     overlay.id = 'schedule-modal-overlay';
     overlay.className = 'modal-overlay';
@@ -9147,6 +9830,44 @@ function openScheduleModal(itemIdOrIds, itemName) {
             // Set to someday — remove all date/segment contexts
             await setContexts(['someday']);
             return;
+        }
+        assignedContexts = getAssignedContexts();
+        buildContent();
+    }
+
+    function getScheduleWeekKey() {
+        return getWeekKey(weekViewDate);
+    }
+
+    function formatWeekRange(d) {
+        const wk = getWeekKey(d);
+        const range = getWeekDateRange(wk);
+        if (!range) return '';
+        const fmt = (dt) => dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        return `${fmt(range.start)} – ${fmt(range.end)}`;
+    }
+
+    async function toggleWeek() {
+        const wk = getScheduleWeekKey();
+        if (assignedContexts.has(wk)) {
+            // Remove this week context
+            for (const id of itemIds) {
+                const itm = findItemById(id);
+                if (itm) {
+                    itm.timeContexts = (itm.timeContexts || []).filter(tc => tc !== wk);
+                    await api.patch(`/items/${id}`, { timeContexts: itm.timeContexts });
+                }
+            }
+        } else {
+            // Add week context, remove someday
+            for (const id of itemIds) {
+                const itm = findItemById(id);
+                if (itm) {
+                    itm.timeContexts = (itm.timeContexts || []).filter(tc => tc !== 'someday');
+                    if (!itm.timeContexts.includes(wk)) itm.timeContexts.push(wk);
+                    await api.patch(`/items/${id}`, { timeContexts: itm.timeContexts });
+                }
+            }
         }
         assignedContexts = getAssignedContexts();
         buildContent();
@@ -9226,16 +9947,59 @@ function openScheduleModal(itemIdOrIds, itemName) {
         const sessionDateKey = getSessionDateKey();
         const canSessionPrev = sessionDateKey > todayKey;
 
-        // Determine which tiers already have assignments → open those
+        // Snapshot current open/closed state of <details> sections before rebuild
+        const detailsSections = modal.querySelectorAll('details.schedule-section');
+        const prevOpenState = {};
+        let hasSnapshot = detailsSections.length > 0;
+        detailsSections.forEach((det, i) => {
+            const label = det.querySelector('summary')?.textContent?.trim() || `section-${i}`;
+            prevOpenState[label] = det.open;
+        });
+
+        // Determine which tiers already have assignments (used for first render only)
         const hasSomeday = isSomedayAssigned();
+        const hasWeek = [...assignedContexts].some(tc => isWeekContext(tc));
         const hasDate = [...assignedContexts].some(tc => /^\d{4}-\d{2}-\d{2}$/.test(tc));
         const hasSession = [...assignedContexts].some(tc => tc.includes('@'));
+
+        // Week section data
+        const scheduleWk = getScheduleWeekKey();
+        const weekRangeLabel = formatWeekRange(weekViewDate);
+        const isWeekAssigned = assignedContexts.has(scheduleWk);
+        const currentWeekKey = getWeekKey(getLogicalToday());
+        const canWeekPrev = scheduleWk > currentWeekKey;
+
+        // Compute lead-time prep windows for calendar highlighting
+        const sampleItem = findItemById(itemIds[0]);
+        const leadTimeWindows = new Map(); // dateKey -> true (prep day)
+        if (sampleItem?.contextLeadTimes) {
+            for (const [ctx, leadSec] of Object.entries(sampleItem.contextLeadTimes)) {
+                const deadlineDate = parseDateFromContext(ctx);
+                if (!deadlineDate || leadSec <= 0) continue;
+                const startDate = new Date(deadlineDate.getTime() - leadSec * 1000);
+                const iter = new Date(startDate);
+                iter.setHours(0, 0, 0, 0);
+                const deadlineKey = getDateKey(deadlineDate);
+                while (getDateKey(iter) < deadlineKey) {
+                    leadTimeWindows.set(getDateKey(iter), true);
+                    iter.setDate(iter.getDate() + 1);
+                }
+            }
+        }
+
+        // Week lead time chip label
+        const weekLeadTimeSec = sampleItem ? getContextLeadTime(sampleItem, scheduleWk) : null;
+        const weekLTLabel = weekLeadTimeSec != null ? `⏱ ${_formatLeadTimeBrief(weekLeadTimeSec)}` : null;
+
+        function sectionOpen(label, fallback) {
+            return hasSnapshot ? (prevOpenState[label] ?? fallback) : fallback;
+        }
 
         // ── Someday section ──
         let html = `
             <div class="modal-header">Schedule: ${itemName}</div>
             <div class="modal-body schedule-modal-body">
-                <details class="schedule-section"${hasSomeday ? ' open' : ''}>
+                <details class="schedule-section"${sectionOpen('📦 Someday', hasSomeday) ? ' open' : ''}>
                     <summary class="schedule-section-header">📦 Someday</summary>
                     <div class="schedule-section-content">
                         <div class="schedule-someday-toggle ${hasSomeday ? 'schedule-someday-active' : ''}" id="schedule-someday-btn">
@@ -9245,9 +10009,28 @@ function openScheduleModal(itemIdOrIds, itemName) {
                 </details>
         `;
 
+        // ── Week section ──
+        html += `
+                <details class="schedule-section"${sectionOpen('📆 Week', hasWeek) ? ' open' : ''}>
+                    <summary class="schedule-section-header">📆 Week</summary>
+                    <div class="schedule-section-content">
+                        <div class="schedule-week-nav">
+                            <button class="schedule-cal-nav-btn${canWeekPrev ? '' : ' schedule-cal-nav-btn-disabled'}" id="schedule-week-prev"${canWeekPrev ? '' : ' disabled'}>‹</button>
+                            <span class="schedule-week-label">${weekRangeLabel}</span>
+                            <button class="schedule-cal-nav-btn" id="schedule-week-next">›</button>
+                        </div>
+                        <div class="schedule-week-toggle ${isWeekAssigned ? 'schedule-week-active' : ''}" id="schedule-week-btn">
+                            ${isWeekAssigned ? '✓ Assigned to this Week' : 'Assign to this Week'}
+                            ${isWeekAssigned && weekLTLabel ? `<span class="schedule-leadtime-chip">${weekLTLabel}</span>` : ''}
+                        </div>
+                        <div id="schedule-week-lt-slot"></div>
+                    </div>
+                </details>
+        `;
+
         // ── Day section ──
         html += `
-                <details class="schedule-section"${hasDate ? ' open' : ''}>
+                <details class="schedule-section"${sectionOpen('📅 Day', hasDate) ? ' open' : ''}>
                     <summary class="schedule-section-header">📅 Day</summary>
                     <div class="schedule-section-content">
                         <div class="schedule-cal-nav">
@@ -9269,22 +10052,29 @@ function openScheduleModal(itemIdOrIds, itemName) {
             const isAssigned = assignedContexts.has(dateKey);
             const isToday = dateKey === todayKey;
             const isPast = dateKey < todayKey;
+            const isLeadTimePrep = !isAssigned && leadTimeWindows.has(dateKey);
             let cls = 'schedule-cal-day';
             if (isPast) cls += ' schedule-cal-day-disabled';
             if (isAssigned) cls += ' schedule-cal-day-assigned';
+            if (isLeadTimePrep) cls += ' schedule-cal-day-leadtime';
             if (isToday) cls += ' schedule-cal-day-today';
-            html += `<div class="${cls}" data-date="${dateKey}">${d}</div>`;
+            // Show lead time chip on assigned days
+            const dayLT = isAssigned ? getContextLeadTime(sampleItem, dateKey) : null;
+            const dayLTChip = dayLT != null ? ` <span class="schedule-leadtime-chip-mini">⏱${_formatLeadTimeBrief(dayLT)}</span>` : '';
+            html += `<div class="${cls}" data-date="${dateKey}">${d}${dayLTChip}</div>`;
         }
 
+        // Assigned day lead-time slot (populated by JS below)
         html += `
                         </div>
+                        <div id="schedule-day-lt-slot"></div>
                     </div>
                 </details>
         `;
 
         // ── Session section ──
         html += `
-                <details class="schedule-section"${hasSession ? ' open' : ''}>
+                <details class="schedule-section"${sectionOpen('⏱️ Session', hasSession) ? ' open' : ''}>
                     <summary class="schedule-section-header">⏱️ Session</summary>
                     <div class="schedule-section-content">
                         <div class="schedule-session-nav">
@@ -9303,11 +10093,15 @@ function openScheduleModal(itemIdOrIds, itemName) {
                 const isAssigned = assignedContexts.has(segKey);
                 const label = block.text || 'Planned';
                 const timeRange = `${formatTime(block.timestamp)} – ${formatTime(block.endTime)}`;
+                const sessLT = isAssigned ? getContextLeadTime(sampleItem, segKey) : null;
+                const sessLTChip = isAssigned && sessLT != null ? `<span class="schedule-leadtime-chip">⏱ ${_formatLeadTimeBrief(sessLT)}</span>` : '';
                 html += `<div class="schedule-session-item${isAssigned ? ' schedule-session-item-assigned' : ''}" data-seg-key="${segKey}" data-block-ts="${block.timestamp}">
                     <span class="schedule-session-icon">📌</span>
                     <span class="schedule-session-label">${label}</span>
                     <span class="schedule-session-time">${timeRange}</span>
-                </div>`;
+                    ${sessLTChip}
+                </div>
+                <div class="schedule-session-lt-slot" data-lt-seg="${segKey}"></div>`;
             }
         }
 
@@ -9327,6 +10121,23 @@ function openScheduleModal(itemIdOrIds, itemName) {
 
         // Someday toggle
         modal.querySelector('#schedule-someday-btn')?.addEventListener('click', toggleSomeday);
+
+        // Week toggle
+        modal.querySelector('#schedule-week-btn')?.addEventListener('click', toggleWeek);
+
+        // Week nav
+        if (canWeekPrev) {
+            modal.querySelector('#schedule-week-prev').addEventListener('click', () => {
+                weekViewDate = new Date(weekViewDate);
+                weekViewDate.setDate(weekViewDate.getDate() - 7);
+                buildContent();
+            });
+        }
+        modal.querySelector('#schedule-week-next')?.addEventListener('click', () => {
+            weekViewDate = new Date(weekViewDate);
+            weekViewDate.setDate(weekViewDate.getDate() + 7);
+            buildContent();
+        });
 
         // Calendar month nav
         if (canGoPrev) {
@@ -9368,6 +10179,57 @@ function openScheduleModal(itemIdOrIds, itemName) {
                 const block = sessionBlocks.find(b => b.timestamp === ts);
                 if (block) toggleSession(block);
             });
+        });
+
+        // Accordion behavior — opening one section closes the others
+        modal.querySelectorAll('details.schedule-section').forEach(det => {
+            det.addEventListener('toggle', () => {
+                if (det.open) {
+                    modal.querySelectorAll('details.schedule-section').forEach(other => {
+                        if (other !== det) other.open = false;
+                    });
+                }
+            });
+        });
+
+        // ── Inline lead-time rows ──
+
+        // Week lead time row
+        if (isWeekAssigned) {
+            const weekSlot = modal.querySelector('#schedule-week-lt-slot');
+            if (weekSlot) {
+                weekSlot.appendChild(_buildLeadTimeRow(itemIds, scheduleWk, 'week', buildContent));
+            }
+        }
+
+        // Day lead time rows — show row for the first assigned date in the visible month
+        const assignedDaysInView = [];
+        for (let d = 1; d <= daysInMonth; d++) {
+            const dk = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+            if (assignedContexts.has(dk)) assignedDaysInView.push(dk);
+        }
+        if (assignedDaysInView.length > 0) {
+            const daySlot = modal.querySelector('#schedule-day-lt-slot');
+            if (daySlot) {
+                for (const dk of assignedDaysInView) {
+                    const dayLTContainer = document.createElement('div');
+                    dayLTContainer.className = 'schedule-day-lt-group';
+                    const dayLabel = document.createElement('div');
+                    dayLabel.className = 'schedule-day-lt-label';
+                    dayLabel.textContent = dk;
+                    dayLTContainer.appendChild(dayLabel);
+                    dayLTContainer.appendChild(_buildLeadTimeRow(itemIds, dk, 'day', buildContent));
+                    daySlot.appendChild(dayLTContainer);
+                }
+            }
+        }
+
+        // Session lead time rows
+        modal.querySelectorAll('.schedule-session-lt-slot').forEach(slot => {
+            const segKey = slot.dataset.ltSeg;
+            if (segKey && assignedContexts.has(segKey)) {
+                slot.appendChild(_buildLeadTimeRow(itemIds, segKey, 'session', buildContent));
+            }
         });
 
         // Close
@@ -9538,11 +10400,7 @@ function openDefaultsModal() {
                     <option value="6">Saturday</option>
                 </select>
             </div>
-            <div class="modal-divider"></div>
-            <div class="modal-field">
-                <label class="modal-label" for="modal-hide-past">Hide past entries</label>
-                <input type="checkbox" id="modal-hide-past" class="modal-checkbox" />
-            </div>
+
         </div>
         <div class="modal-actions">
             <button class="modal-btn modal-btn-cancel" id="defaults-cancel">Cancel</button>
@@ -9559,14 +10417,6 @@ function openDefaultsModal() {
         `${String(state.settings.dayEndHour).padStart(2, '0')}:${String(state.settings.dayEndMinute).padStart(2, '0')}`;
     document.getElementById('defaults-week-start').value = String(state.settings.weekStartDay ?? 0);
 
-    // Populate hide-past-entries checkbox
-    const hidePastCheckbox = document.getElementById('modal-hide-past');
-    hidePastCheckbox.checked = state.hidePastEntries;
-    hidePastCheckbox.addEventListener('change', () => {
-        state.hidePastEntries = hidePastCheckbox.checked;
-        savePref('hidePastEntries', state.hidePastEntries);
-        renderTimeline();
-    });
 
     // Close on overlay click
     overlay.addEventListener('click', (e) => {
@@ -9647,7 +10497,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const step = state.viewHorizon === 'week' ? 7 : 1;
         d.setDate(d.getDate() - step);
         state.timelineViewDate = d;
-        state.focusStack = []; // clear focus on day change
+        clearFocusStack(); // clear focus on day change
         savePref('timelineViewDate', d.toISOString());
         renderAll();
     });
@@ -9656,19 +10506,21 @@ document.addEventListener('DOMContentLoaded', () => {
         const step = state.viewHorizon === 'week' ? 7 : 1;
         d.setDate(d.getDate() + step);
         state.timelineViewDate = d;
-        state.focusStack = []; // clear focus on day change
+        clearFocusStack(); // clear focus on day change
+        savePref('timelineViewDate', d.toISOString());
         renderAll();
     });
     // Click on date text to open native date picker
     const dateNavPicker = document.getElementById('date-nav-picker');
     document.getElementById('date-nav-date').addEventListener('click', () => {
+        if (state.viewHorizon !== 'day' || state.focusStack.length > 0) return; // don't open picker when not in day view or session focused
         dateNavPicker.showPicker();
     });
     dateNavPicker.addEventListener('change', () => {
         const parts = dateNavPicker.value.split('-').map(Number);
         if (parts.length === 3) {
             state.timelineViewDate = new Date(parts[0], parts[1] - 1, parts[2]);
-            state.focusStack = [];
+            clearFocusStack();
             savePref('timelineViewDate', state.timelineViewDate.toISOString());
             renderAll();
         }
@@ -9676,7 +10528,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Back to today button
     document.getElementById('date-nav-today-btn').addEventListener('click', () => {
         state.timelineViewDate = getLogicalToday();
-        state.focusStack = [];
+        clearFocusStack();
         savePref('timelineViewDate', state.timelineViewDate.toISOString());
         renderAll();
     });
@@ -9711,7 +10563,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Someday layer: click to navigate, drag to send items to someday
     const somedayLayer = document.getElementById('horizon-someday-layer');
     somedayLayer.addEventListener('click', () => {
-        state.focusStack = [];
+        clearFocusStack();
         state.viewHorizon = 'someday';
         savePref('viewHorizon', 'someday');
         renderAll();
@@ -9761,7 +10613,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.target.closest('.week-nav-btn, .date-nav-picker, .date-nav-today-btn')) return;
         if (state.viewHorizon === 'week') return; // already active — don't re-trigger
         state._weekScrollTarget = getDateKey(state.timelineViewDate); // remember source day
-        state.focusStack = [];
+        clearFocusStack();
         state.viewHorizon = 'week';
         savePref('viewHorizon', 'week');
         renderAll();
@@ -9770,7 +10622,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('week-nav-prev').addEventListener('click', (e) => {
         e.stopPropagation();
         state.timelineViewDate.setDate(state.timelineViewDate.getDate() - 7);
-        state.focusStack = [];
+        clearFocusStack();
         savePref('timelineViewDate', state.timelineViewDate.toISOString());
         _updateWeekNavLabel();
         renderAll();
@@ -9778,7 +10630,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('week-nav-next').addEventListener('click', (e) => {
         e.stopPropagation();
         state.timelineViewDate.setDate(state.timelineViewDate.getDate() + 7);
-        state.focusStack = [];
+        clearFocusStack();
         savePref('timelineViewDate', state.timelineViewDate.toISOString());
         _updateWeekNavLabel();
         renderAll();
@@ -9795,7 +10647,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const parts = weekNavPicker.value.split('-').map(Number);
         if (parts.length === 3) {
             state.timelineViewDate = new Date(parts[0], parts[1] - 1, parts[2]);
-            state.focusStack = [];
+            clearFocusStack();
             savePref('timelineViewDate', state.timelineViewDate.toISOString());
             _updateWeekNavLabel();
             renderAll();
@@ -9805,7 +10657,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('week-nav-today-btn').addEventListener('click', (e) => {
         e.stopPropagation();
         state.timelineViewDate = getLogicalToday();
-        state.focusStack = [];
+        clearFocusStack();
         savePref('timelineViewDate', state.timelineViewDate.toISOString());
         _updateWeekNavLabel();
         renderAll();
@@ -9851,15 +10703,16 @@ document.addEventListener('DOMContentLoaded', () => {
     dayLayer.addEventListener('click', (e) => {
         // Navigate: from session focus → back to day, or from someday/week → day
         if (e.target.closest('.date-nav-btn')) return;
-        if (e.target.closest('.date-nav-display')) return;
+        // Only ignore date-display clicks when already in day view with no focus
+        if (state.viewHorizon === 'day' && state.focusStack.length === 0 && e.target.closest('.date-nav-display')) return;
         if (state.focusStack.length > 0) {
             // Session focused — pop back to day
-            state.focusStack = [];
+            clearFocusStack();
             renderAll();
             return;
         }
         if (state.viewHorizon === 'day') return;
-        state.focusStack = [];
+        clearFocusStack();
         state.viewHorizon = 'day';
         savePref('viewHorizon', 'day');
         renderAll();
@@ -9904,7 +10757,18 @@ document.addEventListener('DOMContentLoaded', () => {
         await promoteFromSomeday(parseInt(actionId, 10), dateKey);
     });
 
+    // Hide-past toggle (default: OFF = past entries visible)
     // hidePastEntries state is restored in loadAll() from backend preferences
+    const hidePastBtn = document.getElementById('hide-past-btn');
+    hidePastBtn.classList.toggle('active', !state.hidePastEntries);
+    hidePastBtn.title = state.hidePastEntries ? 'Show past' : 'Hide past';
+    hidePastBtn.addEventListener('click', () => {
+        state.hidePastEntries = !state.hidePastEntries;
+        savePref('hidePastEntries', state.hidePastEntries);
+        hidePastBtn.classList.toggle('active', !state.hidePastEntries);
+        hidePastBtn.title = state.hidePastEntries ? 'Show past' : 'Hide past';
+        renderAll();
+    });
 
     // Streak check-in button
     document.getElementById('streak-checkin-btn').addEventListener('click', () => performCheckIn());

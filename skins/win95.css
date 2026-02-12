@@ -857,6 +857,13 @@ body {
     content: ')';
 }
 
+.action-group-duration {
+    font-size: 10px;
+    color: var(--w-disabled);
+    flex-shrink: 0;
+    font-variant-numeric: tabular-nums;
+}
+
 .action-group-header.collapsed {
     opacity: 0.6;
 }
@@ -1124,13 +1131,59 @@ body {
     opacity: 0.8;
 }
 
-/* ─── Capacity Summary ─── */
-.capacity-summary {
+/* ─── Pressure Bar ─── */
+.pressure-bar {
+    position: relative;
+    width: 80px;
+    height: 12px;
+    background: var(--w-field);
+    margin-left: auto;
+    flex-shrink: 0;
+    border: 2px solid;
+    border-color: var(--w-dark) var(--w-white) var(--w-white) var(--w-dark);
+}
+
+.pressure-bar-fill {
+    height: 100%;
+    background: #008000;
+}
+
+.pressure-bar-fill.over-capacity {
+    background: #cc0000;
+}
+
+.pressure-bar-label {
+    position: absolute;
+    right: calc(100% + 6px);
+    top: 50%;
+    transform: translateY(-50%);
     font-size: 10px;
     color: var(--w-disabled);
-    margin-left: auto;
     white-space: nowrap;
     font-variant-numeric: tabular-nums;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+    pointer-events: none;
+}
+
+.pressure-bar:hover .pressure-bar-label {
+    opacity: 1;
+}
+
+.pressure-bar.pressure-bar-text-only {
+    background: none;
+    border: none;
+    height: auto;
+}
+
+.pressure-bar.pressure-bar-text-only .pressure-bar-fill {
+    display: none;
+}
+
+.pressure-bar.pressure-bar-text-only .pressure-bar-label {
+    position: static;
+    font-size: 10px;
+    color: var(--w-disabled);
 }
 
 
@@ -1171,6 +1224,71 @@ body {
 .action-goal-complete .action-goal-label {
     color: #008000;
     font-weight: 700;
+}
+
+/* ─── Deadline / Lead Time Badges ─── */
+.action-deadline-badge {
+    display: inline-flex;
+    align-items: center;
+    font-size: 10px;
+    padding: 0px 4px;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.deadline-safe {
+    color: #008000;
+    background: var(--w-field);
+    border: 1px solid #008000;
+}
+
+.deadline-soon {
+    color: #808000;
+    background: var(--w-field);
+    border: 1px solid #808000;
+}
+
+.deadline-urgent {
+    color: #cc6600;
+    background: var(--w-field);
+    border: 1px solid #cc6600;
+    font-weight: 700;
+}
+
+.deadline-overdue {
+    color: #cc0000;
+    background: #ffe0e0;
+    border: 1px solid #cc0000;
+    font-weight: 700;
+    animation: deadline-pulse 2s ease-in-out infinite;
+}
+
+@keyframes deadline-pulse {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.6;
+    }
+}
+
+.action-item.action-item-shadow {
+    opacity: 0.7;
+    border-left: 2px dotted var(--w-dark);
+    padding-left: 4px;
+}
+
+.action-item.action-item-shadow:hover {
+    opacity: 1;
+}
+
+.action-item.selected.action-item-shadow .action-deadline-badge {
+    color: var(--w-white);
+    opacity: 0.8;
+    border-color: var(--w-white);
 }
 
 /* ─── Goal Badges (Projects) ─── */
@@ -1769,15 +1887,17 @@ body {
 
 /* ─── Live Session Indicator ─── */
 .live-session-indicator {
-    display: flex;
+    display: inline-flex;
     align-items: center;
-    gap: 6px;
-    padding: 3px 8px;
+    align-self: center;
+    gap: 4px;
+    padding: 2px 6px;
     background: var(--w-bg);
     border: 2px solid;
     border-color: var(--w-white) var(--w-darker) var(--w-darker) var(--w-white);
-    margin-bottom: 2px;
+    margin: 0 4px 4px;
     cursor: pointer;
+    font-size: 10px;
 }
 
 .live-session-indicator:active {
@@ -1799,14 +1919,13 @@ body {
 }
 
 .live-session-indicator-label {
-    flex: 1;
     font-size: 11px;
     font-weight: 700;
     color: var(--w-text);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    min-width: 0;
+    max-width: 100px;
     font-family: inherit;
 }
 
@@ -2089,6 +2208,46 @@ body {
     opacity: 0.85;
 }
 
+.schedule-week-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 4px;
+    margin-bottom: 4px;
+}
+
+.schedule-week-label {
+    font-size: 11px;
+    font-weight: bold;
+    color: var(--w-dark);
+}
+
+.schedule-week-toggle {
+    padding: 4px 8px;
+    text-align: center;
+    font-size: 11px;
+    color: var(--w-dark);
+    background: var(--w-bg);
+    border: 1px dashed var(--w-dark);
+    cursor: pointer;
+}
+
+.schedule-week-toggle:hover {
+    background: var(--w-title);
+    color: var(--w-white);
+}
+
+.schedule-week-active {
+    background: var(--w-title);
+    color: var(--w-white);
+    border-style: solid;
+    font-weight: bold;
+}
+
+.schedule-week-active:hover {
+    opacity: 0.85;
+}
+
 .schedule-session-nav {
     display: flex;
     align-items: center;
@@ -2262,6 +2421,170 @@ body {
     pointer-events: none;
 }
 
+/* ── Schedule Lead Time Inline UI ── */
+.schedule-cal-day-leadtime {
+    background: repeating-linear-gradient(-45deg,
+            var(--w-field),
+            var(--w-field) 3px,
+            #e0d8f0 3px,
+            #e0d8f0 6px);
+    color: var(--w-text);
+}
+
+.schedule-cal-day-leadtime:hover {
+    background: repeating-linear-gradient(-45deg,
+            var(--w-field),
+            var(--w-field) 3px,
+            #d0c0e8 3px,
+            #d0c0e8 6px);
+}
+
+.schedule-leadtime-chip {
+    display: inline-block;
+    font-size: 10px;
+    color: #6600aa;
+    margin-left: 4px;
+}
+
+.schedule-week-active .schedule-leadtime-chip,
+.schedule-session-item-assigned .schedule-leadtime-chip {
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.schedule-leadtime-chip-mini {
+    display: block;
+    font-size: 7px;
+    line-height: 1;
+    color: #6600aa;
+    margin-top: 1px;
+}
+
+.schedule-leadtime-row {
+    margin-top: 4px;
+    padding: 4px 6px;
+    background: var(--w-bg);
+    border: 2px solid;
+    border-color: var(--w-dark) var(--w-white) var(--w-white) var(--w-dark);
+}
+
+.schedule-leadtime-presets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px;
+    margin-bottom: 4px;
+}
+
+.schedule-leadtime-preset {
+    padding: 1px 6px;
+    font-size: 11px;
+    font-family: inherit;
+    border: 2px solid;
+    border-color: var(--w-white) var(--w-darker) var(--w-darker) var(--w-white);
+    border-radius: 0;
+    background: var(--w-bg);
+    color: var(--w-text);
+    cursor: pointer;
+}
+
+.schedule-leadtime-preset:hover {
+    background: #e8e8e8;
+}
+
+.schedule-leadtime-preset:active {
+    border-color: var(--w-darker) var(--w-white) var(--w-white) var(--w-darker);
+}
+
+.schedule-leadtime-preset-active {
+    background: var(--w-title);
+    color: var(--w-white);
+    font-weight: 700;
+}
+
+.schedule-leadtime-preset-active:hover {
+    opacity: 0.9;
+}
+
+.schedule-leadtime-custom {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+}
+
+.schedule-leadtime-input {
+    padding: 1px 3px;
+    font-size: 11px;
+    font-family: inherit;
+    border: 2px solid;
+    border-color: var(--w-dark) var(--w-white) var(--w-white) var(--w-dark);
+    border-radius: 0;
+    background: var(--w-field);
+    color: var(--w-text);
+    outline: none;
+}
+
+.schedule-leadtime-input[type="number"] {
+    width: 40px;
+}
+
+select.schedule-leadtime-input {
+    width: auto;
+}
+
+.schedule-leadtime-set {
+    padding: 1px 6px;
+    font-size: 11px;
+    font-family: inherit;
+    border: 2px solid;
+    border-color: var(--w-white) var(--w-darker) var(--w-darker) var(--w-white);
+    border-radius: 0;
+    background: var(--w-bg);
+    color: #6600aa;
+    cursor: pointer;
+    font-weight: 700;
+}
+
+.schedule-leadtime-set:active {
+    border-color: var(--w-darker) var(--w-white) var(--w-white) var(--w-darker);
+}
+
+.schedule-leadtime-remove {
+    padding: 1px 4px;
+    font-size: 12px;
+    font-family: inherit;
+    border: 2px solid;
+    border-color: var(--w-white) var(--w-darker) var(--w-darker) var(--w-white);
+    border-radius: 0;
+    background: var(--w-bg);
+    color: var(--w-dark);
+    cursor: pointer;
+    margin-left: auto;
+}
+
+.schedule-leadtime-remove:active {
+    border-color: var(--w-darker) var(--w-white) var(--w-white) var(--w-darker);
+}
+
+.schedule-leadtime-remove:hover {
+    color: #cc0000;
+}
+
+.schedule-day-lt-group {
+    margin-top: 4px;
+    padding-top: 4px;
+    border-top: 1px solid var(--w-dark);
+}
+
+.schedule-day-lt-label {
+    font-size: 10px;
+    color: var(--w-dark);
+    margin-bottom: 2px;
+    font-variant-numeric: tabular-nums;
+}
+
+.schedule-session-lt-slot:empty {
+    display: none;
+}
+
 /* ─── Time Blocks ─── */
 .time-block {
     display: flex;
@@ -2387,6 +2710,20 @@ body {
 
 .segment-queue-item:hover {
     background: #e8e8e8;
+}
+
+.segment-queue-phantom {
+    opacity: 0.6;
+    cursor: default;
+    border-left: 2px dotted #cc8800;
+}
+
+.segment-queue-phantom .segment-queue-name {
+    color: #cc8800;
+}
+
+.segment-queue-phantom .segment-queue-est {
+    color: #cc8800;
 }
 
 .segment-queue-bullet {
@@ -2994,6 +3331,13 @@ body {
     flex-shrink: 0;
 }
 
+.week-group-duration {
+    font-size: 10px;
+    color: var(--w-dark);
+    flex-shrink: 0;
+    font-variant-numeric: tabular-nums;
+}
+
 .week-group-header.collapsed {
     opacity: 0.6;
 }
@@ -3023,6 +3367,17 @@ body {
     flex: 1;
     height: 1px;
     background: #c0c0c0;
+}
+
+.week-sleep-current {
+    opacity: 1;
+    color: var(--w-title);
+    font-weight: 700;
+}
+
+.week-sleep-current::before,
+.week-sleep-current::after {
+    background: var(--w-title);
 }
 
 .week-day-content {
@@ -3064,6 +3419,15 @@ body {
 
 .week-appointment:hover {
     background: #e6d6f0;
+}
+
+.week-appt-past {
+    opacity: 0.45;
+    border-left-color: #cc99ee;
+}
+
+.week-appt-past:hover {
+    opacity: 0.7;
 }
 
 .week-appt-icon {
@@ -3179,6 +3543,30 @@ body {
 
 .week-day-past:hover {
     opacity: 0.8;
+}
+
+/* Inline quick-add in week day row */
+.week-inline-add {
+    width: 100%;
+    padding: 1px 0;
+}
+
+.week-inline-add-input {
+    width: 100%;
+    padding: 2px 4px;
+    border: 2px solid;
+    border-color: var(--w-dark) var(--w-white) var(--w-white) var(--w-dark);
+    border-radius: 0;
+    background: var(--w-field);
+    color: var(--w-text);
+    font-size: 12px;
+    font-family: inherit;
+    outline: none;
+    box-sizing: border-box;
+}
+
+.week-inline-add-input::placeholder {
+    color: var(--w-disabled);
 }
 
 /* Quick-add button in day header */
@@ -3883,6 +4271,26 @@ body {
 
 .plan-ghost:hover {
     opacity: 0.65;
+}
+
+/* Phantom prep block: lead-time preparation block before a planned entry */
+.time-block-phantom {
+    opacity: 0.65;
+    border-style: dotted;
+    border-left: 3px dotted #cc8800;
+    background: #fffff0;
+}
+
+.time-block-phantom:hover {
+    opacity: 0.85;
+}
+
+.time-block-phantom .time-block-label {
+    color: #cc8800;
+}
+
+.time-block-phantom .time-block-status {
+    color: #cc8800;
 }
 
 /* Timeline overlap group: side-by-side plan vs reality lanes */

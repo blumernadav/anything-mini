@@ -1227,11 +1227,11 @@
       "text": "שבעה סבתא של ירין",
       "projectName": "חברים",
       "type": "planned",
-      "startTime": 1770886800000,
-      "endTime": 1770892200000,
+      "startTime": 1770891300000,
+      "endTime": 1770896700000,
       "itemId": 216,
       "id": 182,
-      "timestamp": 1770886800000
+      "timestamp": 1770891300000
     },
     {
       "text": "Done: reschedule time blocks date",
@@ -1643,7 +1643,272 @@
       "type": "completion",
       "id": 227,
       "timestamp": 1770855863990
+    },
+    {
+      "text": "Worked on: editable (36m)",
+      "projectName": "anything › week horizon",
+      "type": "work",
+      "startTime": 1770855874541,
+      "endTime": 1770858045552,
+      "itemId": 325,
+      "id": 228,
+      "timestamp": 1770855874541
+    },
+    {
+      "text": "Done: aggregate",
+      "projectName": "anything › week horizon",
+      "type": "completion",
+      "id": 229,
+      "timestamp": 1770858078533
+    },
+    {
+      "text": "Done: editable",
+      "projectName": "anything › week horizon",
+      "type": "completion",
+      "id": 230,
+      "timestamp": 1770858162574
+    },
+    {
+      "text": "Done: create items under day",
+      "projectName": "anything",
+      "type": "completion",
+      "id": 231,
+      "timestamp": 1770858608045
+    },
+    {
+      "text": "Worked on: create items under day (6m)",
+      "projectName": "anything",
+      "type": "work",
+      "startTime": 1770858197552,
+      "endTime": 1770858611080,
+      "itemId": 329,
+      "id": 232,
+      "timestamp": 1770858197552
+    },
+    {
+      "text": "Done: add to schedule modal",
+      "projectName": "anything › week horizon",
+      "type": "completion",
+      "id": 233,
+      "timestamp": 1770858651973
+    },
+    {
+      "text": "Worked on: anything (31m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1770858611080,
+      "endTime": 1770860513177,
+      "itemId": 9,
+      "id": 234,
+      "timestamp": 1770858611080
+    },
+    {
+      "text": "Break (9m)",
+      "type": "break",
+      "startTime": 1770860810213,
+      "endTime": 1770861352756,
+      "targetEndTime": 1770861410213,
+      "id": 235,
+      "timestamp": 1770860810213
+    },
+    {
+      "text": "Worked on: לבדוק זמינות אוטו בסופ״ש (3m)",
+      "projectName": "Inbox",
+      "type": "work",
+      "startTime": 1770890043233,
+      "endTime": 1770890252733,
+      "itemId": 335,
+      "id": 236,
+      "timestamp": 1770890043233
+    },
+    {
+      "text": "Worked on: seconds timer for work in progress (0m)",
+      "projectName": "anything",
+      "type": "work",
+      "startTime": 1770890271266,
+      "endTime": 1770890275841,
+      "itemId": 328,
+      "id": 237,
+      "timestamp": 1770890271266
+    },
+    {
+      "text": "Worked on: seconds timer for work in progress (0m)",
+      "projectName": "anything",
+      "type": "work",
+      "startTime": 1770890325026,
+      "endTime": 1770890375941,
+      "targetEndTime": 1770890925026,
+      "itemId": 328,
+      "id": 238,
+      "timestamp": 1770890325026
+    },
+    {
+      "text": "Worked on: anything (1h 32m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1770890376014,
+      "endTime": 1770895922795,
+      "itemId": 9,
+      "id": 239,
+      "timestamp": 1770890376014
+    },
+    {
+      "text": "Worked on: kolwrite (11m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1770895949620,
+      "endTime": 1770896660444,
+      "itemId": 62,
+      "id": 240,
+      "timestamp": 1770895949620
+    },
+    {
+      "text": "Worked on: kolwrite (1h 33m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1770901864065,
+      "endTime": 1770907491639,
+      "itemId": 62,
+      "id": 241,
+      "timestamp": 1770901864065
+    },
+    {
+      "text": "Done: drag project to actions recursive bug",
+      "projectName": "anything",
+      "type": "completion",
+      "id": 242,
+      "timestamp": 1770908396632
+    },
+    {
+      "text": "Done: seconds timer for work in progress",
+      "projectName": "anything",
+      "type": "completion",
+      "id": 243,
+      "timestamp": 1770908865004
+    },
+    {
+      "text": "Done: indicate past in week view (also hide? not sure)",
+      "projectName": "anything",
+      "type": "completion",
+      "id": 244,
+      "timestamp": 1770909310618
+    },
+    {
+      "text": "Done: +- for work in progress",
+      "projectName": "anything",
+      "type": "completion",
+      "id": 245,
+      "timestamp": 1770909337594
+    },
+    {
+      "text": "Worked on: anything (36m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1770907534382,
+      "endTime": 1770909708530,
+      "itemId": 9,
+      "id": 246,
+      "timestamp": 1770907534382
+    },
+    {
+      "text": "Worked on: anything (48m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1770910173154,
+      "endTime": 1770913054552,
+      "itemId": 9,
+      "id": 247,
+      "timestamp": 1770910173154
+    },
+    {
+      "text": "Worked on: anything (1m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1770913061510,
+      "endTime": 1770913121959,
+      "itemId": 9,
+      "id": 248,
+      "timestamp": 1770913061510
+    },
+    {
+      "text": "Worked on: לדבר עם פרזון (3m)",
+      "projectName": "למצוא דירה",
+      "type": "work",
+      "startTime": 1770913121992,
+      "endTime": 1770913336609,
+      "itemId": 320,
+      "id": 249,
+      "timestamp": 1770913121992
+    },
+    {
+      "text": "Worked on: preparations (project to past) also on large projects scale! (1h 34m)",
+      "projectName": "anything",
+      "type": "work",
+      "startTime": 1770916554083,
+      "endTime": 1770922250073,
+      "targetEndTime": 1770921954083,
+      "itemId": 275,
+      "id": 250,
+      "timestamp": 1770916554083
+    },
+    {
+      "text": "Done: preparations (project to past) also on large projects scale!",
+      "projectName": "anything",
+      "type": "completion",
+      "id": 251,
+      "timestamp": 1770923336796
+    },
+    {
+      "text": "Worked on: לדבר עם ההורים (16m)",
+      "projectName": "משפחה",
+      "type": "work",
+      "startTime": 1770923350122,
+      "endTime": 1770924339199,
+      "itemId": 353,
+      "id": 252,
+      "timestamp": 1770923350122
+    },
+    {
+      "text": "Worked on: anything (4m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1770924339199,
+      "endTime": 1770924600033,
+      "itemId": 9,
+      "id": 253,
+      "timestamp": 1770924339199
+    },
+    {
+      "text": "Worked on: anything (12m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1770924600033,
+      "endTime": 1770925376276,
+      "itemId": 9,
+      "id": 254,
+      "timestamp": 1770924600033
+    },
+    {
+      "text": "Worked on: anything (43m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1770925387909,
+      "endTime": 1770928000659,
+      "targetEndTime": 1770928987901,
+      "itemId": 9,
+      "id": 255,
+      "timestamp": 1770925387909
+    },
+    {
+      "text": "פמי",
+      "projectName": "health",
+      "type": "planned",
+      "startTime": 1770966000000,
+      "endTime": 1770969600000,
+      "itemId": 188,
+      "id": 256,
+      "timestamp": 1770966000000
     }
   ],
-  "nextId": 228
+  "nextId": 257
 }

@@ -20,6 +20,7 @@
 
             <div class="top-bar-right">
                 <button class="top-bar-btn top-bar-toggle" id="hide-done-btn" title="Show done">✓</button>
+                <button class="top-bar-btn top-bar-toggle" id="hide-past-btn" title="Hide past">⏳</button>
                 <button class="top-bar-btn top-bar-toggle" id="show-unscheduled-btn" title="Show unscheduled"
                     style="display:none">📅</button>
                 <button class="top-bar-btn project-search-toggle" id="project-search-toggle"
@@ -69,7 +70,10 @@
             <section class="main-section section-actions" id="section-actions">
                 <div class="section-header">
                     <h2 class="section-title"><span class="title-icon">☑️</span> Actions</h2>
-                    <span class="capacity-summary" id="capacity-summary"></span>
+                    <div class="pressure-bar" id="pressure-bar">
+                        <div class="pressure-bar-fill" id="pressure-bar-fill"></div>
+                        <span class="pressure-bar-label" id="pressure-bar-label"></span>
+                    </div>
                 </div>
                 <div class="actions-breadcrumbs" id="actions-breadcrumbs"></div>
                 <div class="action-input-row" id="action-input-row">

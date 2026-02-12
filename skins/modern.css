@@ -1053,6 +1053,16 @@ body {
     font-variant-numeric: tabular-nums;
 }
 
+.action-group-duration {
+    font-size: 10px;
+    color: var(--text-faint);
+    background: var(--bg-surface);
+    padding: 0 6px;
+    border-radius: 8px;
+    flex-shrink: 0;
+    font-variant-numeric: tabular-nums;
+}
+
 .action-group-header.collapsed {
     opacity: 0.6;
 }
@@ -1410,14 +1420,61 @@ body {
     opacity: 0.8;
 }
 
-/* ─── Capacity Summary ─── */
-.capacity-summary {
-    font-size: 11px;
-    color: var(--text-faint);
+/* ─── Pressure Bar ─── */
+.pressure-bar {
+    position: relative;
+    width: 100px;
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
     margin-left: auto;
+    flex-shrink: 0;
+}
+
+.pressure-bar-fill {
+    height: 100%;
+    background: #34d399;
+    border-radius: 2px;
+    transition: width 0.3s ease;
+}
+
+.pressure-bar-fill.over-capacity {
+    background: #f43f5e;
+}
+
+.pressure-bar-label {
+    position: absolute;
+    right: calc(100% + 6px);
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 9px;
+    color: var(--text-faint);
     white-space: nowrap;
     font-variant-numeric: tabular-nums;
     letter-spacing: 0.01em;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+    pointer-events: none;
+}
+
+.pressure-bar:hover .pressure-bar-label {
+    opacity: 1;
+}
+
+.pressure-bar.pressure-bar-text-only {
+    background: none;
+    height: auto;
+    overflow: visible;
+}
+
+.pressure-bar.pressure-bar-text-only .pressure-bar-fill {
+    display: none;
+}
+
+.pressure-bar.pressure-bar-text-only .pressure-bar-label {
+    position: static;
+    font-size: 11px;
+    color: var(--text-faint);
 }
 
 
@@ -1465,6 +1522,67 @@ body {
 
 .action-goal-complete .action-goal-bar {
     border-color: rgba(34, 197, 94, 0.3);
+}
+
+/* ─── Deadline / Lead Time Badges ─── */
+.action-deadline-badge {
+    display: inline-flex;
+    align-items: center;
+    font-size: 10px;
+    padding: 0px 6px;
+    border-radius: 8px;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.deadline-safe {
+    color: #4ade80;
+    background: rgba(74, 222, 128, 0.1);
+    border: 1px solid rgba(74, 222, 128, 0.25);
+}
+
+.deadline-soon {
+    color: #facc15;
+    background: rgba(250, 204, 21, 0.1);
+    border: 1px solid rgba(250, 204, 21, 0.25);
+}
+
+.deadline-urgent {
+    color: #fb923c;
+    background: rgba(251, 146, 60, 0.1);
+    border: 1px solid rgba(251, 146, 60, 0.25);
+    font-weight: 600;
+}
+
+.deadline-overdue {
+    color: #f43f5e;
+    background: rgba(244, 63, 94, 0.12);
+    border: 1px solid rgba(244, 63, 94, 0.3);
+    font-weight: 600;
+    animation: deadline-pulse 2s ease-in-out infinite;
+}
+
+@keyframes deadline-pulse {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.7;
+    }
+}
+
+/* Shadow items (appearing via lead time backward projection) */
+.action-item.action-item-shadow {
+    opacity: 0.7;
+    border-left: 2px dashed var(--text-faint);
+    padding-left: 6px;
+}
+
+.action-item.action-item-shadow:hover {
+    opacity: 1;
 }
 
 /* ─── Goal Badges (Projects) ─── */
@@ -2129,14 +2247,16 @@ body {
 
 /* ─── Live Session Indicator ─── */
 .live-session-indicator {
-    display: flex;
+    display: inline-flex;
     align-items: center;
-    gap: 8px;
-    padding: 6px 14px;
-    border-radius: var(--radius-sm);
+    align-self: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 20px;
     background: var(--bg-hover);
     transition: all var(--dur) var(--ease);
-    margin-bottom: 4px;
+    margin: 0 14px 6px;
+    font-size: 11px;
 }
 
 .live-session-indicator:hover {
@@ -2158,18 +2278,17 @@ body {
 }
 
 .live-session-indicator-label {
-    flex: 1;
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 600;
     color: var(--text);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    min-width: 0;
+    max-width: 120px;
 }
 
 .live-session-indicator-timer {
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 600;
     font-variant-numeric: tabular-nums;
     color: var(--accent);
@@ -2493,6 +2612,51 @@ body {
     opacity: 0.85;
 }
 
+.schedule-week-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.schedule-week-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.schedule-week-toggle {
+    padding: 8px 12px;
+    text-align: center;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-soft);
+    background: var(--bg-surface);
+    border: 1px dashed var(--border);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all var(--dur) var(--ease);
+}
+
+.schedule-week-toggle:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--accent-dim);
+}
+
+.schedule-week-active {
+    background: var(--accent);
+    color: var(--bg);
+    border-style: solid;
+    border-color: var(--accent);
+    font-weight: 600;
+}
+
+.schedule-week-active:hover {
+    opacity: 0.85;
+}
+
 .schedule-session-nav {
     display: flex;
     align-items: center;
@@ -2675,6 +2839,175 @@ body {
     pointer-events: none;
 }
 
+/* ── Schedule Lead Time Inline UI ── */
+.schedule-cal-day-leadtime {
+    background: repeating-linear-gradient(-45deg,
+            transparent,
+            transparent 3px,
+            rgba(139, 92, 246, 0.12) 3px,
+            rgba(139, 92, 246, 0.12) 6px);
+    color: var(--text-soft);
+    border-radius: var(--radius-sm);
+}
+
+.schedule-cal-day-leadtime:hover {
+    background: repeating-linear-gradient(-45deg,
+            transparent,
+            transparent 3px,
+            rgba(139, 92, 246, 0.22) 3px,
+            rgba(139, 92, 246, 0.22) 6px);
+}
+
+.schedule-leadtime-chip {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 500;
+    color: #a78bfa;
+    margin-left: 6px;
+    opacity: 0.85;
+}
+
+.schedule-week-active .schedule-leadtime-chip,
+.schedule-session-item-assigned .schedule-leadtime-chip {
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.schedule-leadtime-chip-mini {
+    display: block;
+    font-size: 7px;
+    line-height: 1;
+    color: #c4b5fd;
+    margin-top: 1px;
+}
+
+.schedule-leadtime-row {
+    margin-top: 6px;
+    padding: 6px 8px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+}
+
+.schedule-leadtime-presets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-bottom: 6px;
+}
+
+.schedule-leadtime-preset {
+    padding: 3px 8px;
+    font-size: 11px;
+    font-family: inherit;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-panel);
+    color: var(--text-soft);
+    cursor: pointer;
+    transition: all var(--dur) var(--ease);
+}
+
+.schedule-leadtime-preset:hover {
+    border-color: #8b5cf6;
+    color: #a78bfa;
+    background: rgba(139, 92, 246, 0.08);
+}
+
+.schedule-leadtime-preset-active {
+    background: #8b5cf6;
+    color: #fff;
+    border-color: #8b5cf6;
+    font-weight: 600;
+}
+
+.schedule-leadtime-preset-active:hover {
+    opacity: 0.85;
+}
+
+.schedule-leadtime-custom {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.schedule-leadtime-input {
+    padding: 3px 6px;
+    font-size: 11px;
+    font-family: inherit;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-surface);
+    color: var(--text);
+    outline: none;
+    transition: border-color var(--dur) var(--ease);
+}
+
+.schedule-leadtime-input:focus {
+    border-color: var(--border-focus);
+}
+
+.schedule-leadtime-input[type="number"] {
+    width: 44px;
+}
+
+.schedule-leadtime-input select,
+select.schedule-leadtime-input {
+    width: auto;
+}
+
+.schedule-leadtime-set {
+    padding: 3px 8px;
+    font-size: 11px;
+    font-family: inherit;
+    border: 1px solid rgba(139, 92, 246, 0.3);
+    border-radius: var(--radius-sm);
+    background: rgba(139, 92, 246, 0.08);
+    color: #a78bfa;
+    cursor: pointer;
+    transition: all var(--dur) var(--ease);
+}
+
+.schedule-leadtime-set:hover {
+    background: rgba(139, 92, 246, 0.18);
+    border-color: #8b5cf6;
+}
+
+.schedule-leadtime-remove {
+    padding: 3px 6px;
+    font-size: 13px;
+    font-family: inherit;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-faint);
+    cursor: pointer;
+    transition: all var(--dur) var(--ease);
+    margin-left: auto;
+}
+
+.schedule-leadtime-remove:hover {
+    border-color: #f43f5e;
+    color: #f43f5e;
+    background: rgba(244, 63, 94, 0.08);
+}
+
+.schedule-day-lt-group {
+    margin-top: 8px;
+    padding-top: 6px;
+    border-top: 1px solid var(--border);
+}
+
+.schedule-day-lt-label {
+    font-size: 11px;
+    color: var(--text-faint);
+    margin-bottom: 4px;
+    font-variant-numeric: tabular-nums;
+}
+
+.schedule-session-lt-slot:empty {
+    display: none;
+}
+
 /* ─── Time Blocks ─── */
 .time-block {
     display: flex;
@@ -2798,6 +3131,20 @@ body {
 
 .segment-queue-item:hover {
     background: rgba(52, 211, 153, 0.08);
+}
+
+.segment-queue-phantom {
+    opacity: 0.65;
+    cursor: default;
+    border-left: 2px dashed rgba(251, 191, 36, 0.4);
+}
+
+.segment-queue-phantom .segment-queue-name {
+    color: #fbbf24;
+}
+
+.segment-queue-phantom .segment-queue-est {
+    color: rgba(251, 191, 36, 0.7);
 }
 
 .segment-queue-bullet {
@@ -3596,6 +3943,16 @@ body {
     flex-shrink: 0;
 }
 
+.week-group-duration {
+    font-size: 9px;
+    color: var(--text-faint);
+    background: var(--bg-surface);
+    padding: 0 4px;
+    border-radius: 8px;
+    flex-shrink: 0;
+    font-variant-numeric: tabular-nums;
+}
+
 .week-group-header.collapsed {
     opacity: 0.6;
 }
@@ -3626,6 +3983,18 @@ body {
     height: 1px;
     background: var(--border);
     opacity: 0.4;
+}
+
+.week-sleep-current {
+    opacity: 1;
+    color: var(--accent);
+    font-weight: 600;
+}
+
+.week-sleep-current::before,
+.week-sleep-current::after {
+    background: var(--accent);
+    opacity: 0.5;
 }
 
 .week-day-content {
@@ -3669,6 +4038,15 @@ body {
 
 .week-appointment:hover {
     background: rgba(168, 85, 247, 0.12);
+}
+
+.week-appt-past {
+    opacity: 0.45;
+    border-left-color: rgba(168, 85, 247, 0.2);
+}
+
+.week-appt-past:hover {
+    opacity: 0.7;
 }
 
 .week-appt-icon {
@@ -3794,6 +4172,30 @@ body {
 
 .week-day-past:hover {
     opacity: 0.8;
+}
+
+/* Inline quick-add in week day row */
+.week-inline-add {
+    width: 100%;
+    padding: 2px 0;
+}
+
+.week-inline-add-input {
+    width: 100%;
+    padding: 4px 8px;
+    border: 1px solid var(--border-focus);
+    border-radius: var(--radius-sm);
+    background: var(--bg-surface);
+    color: var(--text);
+    font-size: 11px;
+    font-family: inherit;
+    outline: none;
+    box-sizing: border-box;
+}
+
+.week-inline-add-input::placeholder {
+    color: var(--text-faint);
+    font-style: italic;
 }
 
 /* Quick-add button in day header */
@@ -4610,6 +5012,30 @@ body {
 
 .plan-ghost:hover {
     opacity: 0.65;
+}
+
+/* Phantom prep block: lead-time preparation block before a planned entry */
+.time-block-phantom {
+    opacity: 0.7;
+    border-left-style: dashed;
+    border-style: dashed;
+    background: rgba(251, 191, 36, 0.06);
+    border-color: rgba(251, 191, 36, 0.25);
+    border-left-color: #fbbf24;
+}
+
+.time-block-phantom:hover {
+    opacity: 0.9;
+    background: rgba(251, 191, 36, 0.1);
+}
+
+.time-block-phantom .time-block-label {
+    color: #fbbf24;
+}
+
+.time-block-phantom .time-block-status {
+    color: #fbbf24;
+    opacity: 0.8;
 }
 
 /* Timeline overlap group: side-by-side plan vs reality lanes */
