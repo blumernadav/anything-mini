@@ -11,12 +11,12 @@
     "itemId": 359,
     "itemName": "change session to a real horizon",
     "projectName": "anything › core",
-    "startTime": 1770974407541,
-    "targetEndTime": 1770976207541
+    "startTime": 1770979795848,
+    "targetEndTime": null
   },
-  "selectedItemId": "",
+  "selectedItemId": 9,
   "onBreak": null,
-  "timelineViewDate": "2026-02-12T22:00:00.000Z",
+  "timelineViewDate": "2026-02-13T10:52:38.763Z",
   "scheduleFilter": "scheduled+unscheduled",
   "collapsedGroups": [
     86,
@@ -38,7 +38,8 @@
     92,
     62,
     137,
-    145
+    145,
+    9
   ],
   "viewHorizon": "day",
   "weekCollapsedDays": {
@@ -73,7 +74,8 @@
     ]
   },
   "focusStack": [],
-  "projectTreeScrollTop": 28,
-  "darkMode": "dark",
-  "skinFamily": "duolingo"
+  "projectTreeScrollTop": 0,
+  "darkMode": "light",
+  "skinFamily": "duolingo",
+  "sessionIndex": 3
 }

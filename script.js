@@ -16,7 +16,8 @@ const state = {
     hidePastEntries: false, // toggle to hide past entries across all horizons
     showDone: false, // when true, done items are visible in actions and project tree
     scheduleFilter: 'scheduled+unscheduled', // 'scheduled' | 'scheduled+unscheduled' | 'all'
-    viewHorizon: 'day', // 'day' | 'someday' — horizon level for timeline navigation
+    viewHorizon: 'day', // 'day' | 'week' | 'someday' | 'session' — horizon level for timeline navigation
+    sessionIndex: 0, // index into buildPlanSegments() — which session is active at session horizon
     projectSearchQuery: '', // current search term for the project tree
     workingOn: null, // { itemId, itemName, projectName, startTime } — active work timer
     onBreak: null, // { startTime } — active break timer
@@ -122,8 +123,9 @@ async function loadAll() {
     state.showDone = prefs.showDone === true;
     const validFilters = ['scheduled', 'scheduled+unscheduled', 'all'];
     state.scheduleFilter = validFilters.includes(prefs.scheduleFilter) ? prefs.scheduleFilter : 'scheduled+unscheduled';
-    const validHorizons = ['day', 'week', 'someday'];
+    const validHorizons = ['day', 'week', 'someday', 'session'];
     state.viewHorizon = validHorizons.includes(prefs.viewHorizon) ? prefs.viewHorizon : 'day';
+    if (typeof prefs.sessionIndex === 'number') state.sessionIndex = prefs.sessionIndex;
     state.collapsedGroups = new Set(prefs.collapsedGroups || []);
     state.weekCollapsedDays = prefs.weekCollapsedDays || {};
     // Restore week group expand state: stored as { key: [...ids] }, convert to { key: Set }
@@ -855,6 +857,140 @@ async function degradeEntryContexts(entryId) {
     }
 }
 
+// ─── Plan Segments: derive the ordered session list from day entries ───
+// Returns an array of { type, label, startMs, endMs, icon, entryId?, itemId?, segmentKey }
+function buildPlanSegments(viewDate) {
+    const { dayStart, dayEnd } = getDayBoundaries(viewDate || state.timelineViewDate);
+    const dayStartMs = dayStart.getTime();
+    const dayEndMs = dayEnd.getTime();
+    const dateKey = getDateKey(viewDate || state.timelineViewDate);
+
+    // Collect planned entries within the day
+    const planned = (state.timeline?.entries || [])
+        .filter(e => e.type === 'planned' && e.endTime && e.timestamp >= dayStartMs && e.timestamp < dayEndMs)
+        .sort((a, b) => a.timestamp - b.timestamp);
+
+    const segments = [];
+    let cursor = dayStartMs;
+
+    const _fmtTime = (ms) => {
+        const d = new Date(ms);
+        return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    };
+
+    for (const entry of planned) {
+        const entryStart = entry.timestamp;
+        const entryEnd = entry.endTime;
+
+        // Free gap before this planned entry
+        if (entryStart > cursor) {
+            segments.push({
+                type: 'free',
+                label: `Free Time · ${_fmtTime(cursor)}–${_fmtTime(entryStart)}`,
+                startMs: cursor,
+                endMs: entryStart,
+                icon: '✨',
+                segmentKey: buildSegmentContext(dateKey, cursor, entryStart),
+            });
+        }
+
+        // The planned entry itself
+        const entryLabel = entry.text || (entry.itemId ? (findItemById(entry.itemId)?.name || 'Planned') : 'Planned');
+        segments.push({
+            type: 'planned',
+            label: `${entryLabel} · ${_fmtTime(entryStart)}–${_fmtTime(entryEnd)}`,
+            startMs: entryStart,
+            endMs: entryEnd,
+            icon: '📋',
+            entryId: entry.id,
+            itemId: entry.itemId || null,
+            segmentKey: `${dateKey}@entry:${entry.id}`,
+        });
+
+        cursor = Math.max(cursor, entryEnd);
+    }
+
+    // Trailing free gap after last planned entry
+    if (cursor < dayEndMs) {
+        segments.push({
+            type: 'free',
+            label: `Free Time · ${_fmtTime(cursor)}–${_fmtTime(dayEndMs)}`,
+            startMs: cursor,
+            endMs: dayEndMs,
+            icon: '✨',
+            segmentKey: buildSegmentContext(dateKey, cursor, dayEndMs),
+        });
+    }
+
+    // Fallback: if no planned entries, the entire day is one free session
+    if (segments.length === 0) {
+        segments.push({
+            type: 'free',
+            label: `Free Time · ${_fmtTime(dayStartMs)}–${_fmtTime(dayEndMs)}`,
+            startMs: dayStartMs,
+            endMs: dayEndMs,
+            icon: '✨',
+            segmentKey: buildSegmentContext(dateKey, dayStartMs, dayEndMs),
+        });
+    }
+
+    return segments;
+}
+
+// Find the index of the segment containing now (or nearest future segment)
+function getCurrentSessionIndex(segments) {
+    const nowMs = Date.now();
+    for (let i = 0; i < segments.length; i++) {
+        if (nowMs >= segments[i].startMs && nowMs < segments[i].endMs) return i;
+    }
+    // If now is past all segments, return last; if before all, return first
+    for (let i = 0; i < segments.length; i++) {
+        if (segments[i].startMs > nowMs) return i;
+    }
+    return segments.length - 1;
+}
+
+// Navigate between sessions (+1 = next, -1 = prev)
+function navigateSession(direction) {
+    const segments = buildPlanSegments();
+    if (segments.length === 0) return;
+    state.sessionIndex = Math.max(0, Math.min(segments.length - 1, state.sessionIndex + direction));
+    savePref('sessionIndex', state.sessionIndex);
+    // Auto-populate focusStack with the selected segment
+    _syncSessionToFocusStack(segments[state.sessionIndex]);
+    renderAll();
+}
+
+// Get the currently-active session segment object (or null)
+function getActiveSession() {
+    if (state.viewHorizon !== 'session') return null;
+    const segments = buildPlanSegments();
+    if (segments.length === 0) return null;
+    const idx = Math.max(0, Math.min(segments.length - 1, state.sessionIndex));
+    return segments[idx];
+}
+
+// Sync the session horizon selection into the focusStack so existing filtering/rendering works
+function _syncSessionToFocusStack(segment) {
+    if (!segment) {
+        state.focusStack = [];
+        saveFocusStack();
+        return;
+    }
+    state.focusStack = [{
+        startMs: segment.startMs,
+        endMs: segment.endMs,
+        label: segment.label.split(' · ')[0], // strip time range for the focus label
+        type: segment.type,
+        icon: segment.icon,
+        tier: 'session',
+        segmentKey: segment.segmentKey,
+        entryId: segment.entryId || null,
+        itemId: segment.itemId || null,
+    }];
+    saveFocusStack();
+}
+
 // Degrade all @work or @break live contexts back to the parent day context
 async function _degradeLiveContexts(type) {
     const dateKey = getDateKey(state.timelineViewDate);
@@ -966,6 +1102,14 @@ function isItemUnscheduled(itemOrAction) {
 // Return the default timeContexts array for newly-created items,
 // based on the current view horizon / focused session.
 function getCurrentTimeContexts() {
+    if (state.viewHorizon === 'session') {
+        // At session horizon, return the segment context for the active session
+        const seg = getActiveSession();
+        if (seg) {
+            const dateKey = getDateKey(state.timelineViewDate);
+            return [dateKey, seg.segmentKey];
+        }
+    }
     const focused = state.focusStack.length > 0 ? state.focusStack[state.focusStack.length - 1] : null;
     if (focused) {
         // In a focused session, inherit the session's segment context + the date
@@ -4255,10 +4399,10 @@ function renderHorizonTower() {
     const somedayLayer = document.getElementById('horizon-someday-layer');
     const weekLayer = document.getElementById('horizon-week-layer');
     const dayLayer = document.getElementById('horizon-day-layer');
+    const sessionLayer = document.getElementById('horizon-session-layer');
     if (!somedayLayer || !weekLayer || !dayLayer) return;
 
-    const focused = state.focusStack.length > 0;
-    const currentLevel = focused ? 'session' : state.viewHorizon;
+    const currentLevel = state.viewHorizon;
 
     // Someday layer: active when viewHorizon is someday, dim otherwise
     somedayLayer.classList.toggle('horizon-layer-active', currentLevel === 'someday');
@@ -4292,24 +4436,78 @@ function renderHorizonTower() {
 
     // Day layer: hide entirely when in week mode (its info is now in the week layer)
     dayLayer.style.display = currentLevel === 'week' ? 'none' : '';
-    // Day layer: active when viewHorizon is day and not session-focused, dim otherwise
+    // Day layer: active when viewHorizon is day, dim otherwise (session dims it too)
     dayLayer.classList.toggle('horizon-layer-active', currentLevel === 'day');
-    dayLayer.classList.toggle('horizon-layer-dim', currentLevel !== 'day');
+    dayLayer.classList.toggle('horizon-layer-dim', currentLevel !== 'day' && currentLevel !== 'week');
+
+    // Session layer: only visible when at session or day level
+    if (sessionLayer) {
+        sessionLayer.style.display = (currentLevel === 'session' || currentLevel === 'day') ? '' : 'none';
+        sessionLayer.classList.toggle('horizon-layer-active', currentLevel === 'session');
+        sessionLayer.classList.toggle('horizon-layer-dim', currentLevel !== 'session');
+
+        if (currentLevel === 'session') {
+            // Update session label and icon from active segment
+            const segments = buildPlanSegments();
+            const idx = Math.max(0, Math.min(segments.length - 1, state.sessionIndex));
+            const seg = segments[idx];
+            const sessionIcon = document.getElementById('session-layer-icon');
+            const sessionLabel = document.getElementById('session-nav-label');
+            if (seg) {
+                if (sessionIcon) sessionIcon.textContent = seg.icon;
+                if (sessionLabel) sessionLabel.textContent = seg.label;
+            }
+            // Show nav buttons
+            const prevBtn = document.getElementById('session-nav-prev');
+            const nextBtn = document.getElementById('session-nav-next');
+            if (prevBtn) prevBtn.style.display = '';
+            if (nextBtn) nextBtn.style.display = '';
+        } else {
+            // Dim mode: show compact label, hide nav buttons
+            const sessionIcon = document.getElementById('session-layer-icon');
+            const sessionLabel = document.getElementById('session-nav-label');
+            if (sessionIcon) sessionIcon.textContent = '⏱️';
+            if (sessionLabel) sessionLabel.textContent = 'Session';
+            const prevBtn = document.getElementById('session-nav-prev');
+            const nextBtn = document.getElementById('session-nav-next');
+            if (prevBtn) prevBtn.style.display = 'none';
+            if (nextBtn) nextBtn.style.display = 'none';
+        }
+    }
 }
 
 // ─── Session Focus ───
 
-// Toggle focus on a session (push/pop from focusStack)
+// Toggle focus on a session (enter/exit session horizon)
 function toggleSessionFocus(session) {
-    const top = state.focusStack.length > 0 ? state.focusStack[state.focusStack.length - 1] : null;
-    if (top && top.startMs === session.startMs && top.endMs === session.endMs) {
-        state.focusStack.pop();
-        saveFocusStack();
-    } else {
-        // For now, replace (single-tier). Future: push for multi-tier drill-down.
-        state.focusStack = [{ ...session, tier: 'session' }];
-        saveFocusStack();
+    if (state.viewHorizon === 'session') {
+        // Check if clicking the same session → pop back to day
+        const top = state.focusStack.length > 0 ? state.focusStack[state.focusStack.length - 1] : null;
+        if (top && top.startMs === session.startMs && top.endMs === session.endMs) {
+            state.viewHorizon = 'day';
+            savePref('viewHorizon', 'day');
+            clearFocusStack();
+            renderAll();
+            return;
+        }
     }
+    // Enter session horizon — find matching plan segment
+    const segments = buildPlanSegments();
+    let matchIdx = -1;
+    for (let i = 0; i < segments.length; i++) {
+        const seg = segments[i];
+        // Match by time range overlap
+        if (session.startMs >= seg.startMs && session.startMs < seg.endMs) {
+            matchIdx = i;
+            break;
+        }
+    }
+    if (matchIdx === -1) matchIdx = getCurrentSessionIndex(segments);
+    state.sessionIndex = matchIdx;
+    state.viewHorizon = 'session';
+    savePref('viewHorizon', 'session');
+    savePref('sessionIndex', state.sessionIndex);
+    _syncSessionToFocusStack(segments[state.sessionIndex]);
     renderAll();
 }
 
@@ -5823,7 +6021,7 @@ function renderTimeline() {
     const quickLog = document.querySelector('.quick-log');
 
     // Clear all rendered blocks (including breadcrumb)
-    container.querySelectorAll('.time-block, .timeline-entry, .someday-placeholder, .week-view, .timeline-overlap-group, .week-sleep-divider').forEach(el => el.remove());
+    container.querySelectorAll('.time-block, .timeline-entry, .someday-placeholder, .week-view, .session-panel, .timeline-overlap-group, .week-sleep-divider').forEach(el => el.remove());
 
     // ── Someday horizon: replace timeline with placeholder ──
     if (state.viewHorizon === 'someday') {
@@ -5853,6 +6051,155 @@ function renderTimeline() {
         // Also clear any week-view leftovers
         container.querySelectorAll('.week-view').forEach(el => el.remove());
         renderWeekView(container);
+        return;
+    }
+
+    // ── Session horizon: replace timeline with session panel ──
+    if (state.viewHorizon === 'session') {
+        empty.style.display = 'none';
+        if (quickLog) quickLog.style.display = 'none';
+        container.querySelectorAll('.session-panel').forEach(el => el.remove());
+
+        const segments = buildPlanSegments();
+        const idx = Math.max(0, Math.min(segments.length - 1, state.sessionIndex));
+        const seg = segments[idx];
+        if (!seg) return;
+
+        const panel = document.createElement('div');
+        panel.className = 'session-panel';
+
+        const nowMs = Date.now();
+        const elapsed = Math.max(0, Math.min(nowMs - seg.startMs, seg.endMs - seg.startMs));
+        const total = seg.endMs - seg.startMs;
+        const remaining = Math.max(0, seg.endMs - nowMs);
+        const progress = total > 0 ? (elapsed / total) * 100 : 0;
+        const isCurrent = nowMs >= seg.startMs && nowMs < seg.endMs;
+        const isPast = nowMs >= seg.endMs;
+
+        const _fmtDur = (ms) => {
+            const mins = Math.round(ms / 60000);
+            if (mins < 60) return `${mins}m`;
+            const h = Math.floor(mins / 60);
+            const m = mins % 60;
+            return m > 0 ? `${h}h ${m}m` : `${h}h`;
+        };
+
+        // ── Progress section ──
+        const progressSection = document.createElement('div');
+        progressSection.className = 'session-panel-progress';
+        const progressBar = document.createElement('div');
+        progressBar.className = 'session-panel-progress-bar';
+        const fill = document.createElement('div');
+        fill.className = 'session-panel-progress-fill';
+        fill.style.width = `${Math.min(100, progress)}%`;
+        if (isPast) fill.classList.add('session-panel-progress-complete');
+        progressBar.appendChild(fill);
+        progressSection.appendChild(progressBar);
+
+        const timeLabel = document.createElement('div');
+        timeLabel.className = 'session-panel-time-label';
+        if (isCurrent) {
+            timeLabel.textContent = `${_fmtDur(remaining)} remaining`;
+        } else if (isPast) {
+            timeLabel.textContent = 'Completed';
+        } else {
+            timeLabel.textContent = `Starts in ${_fmtDur(seg.startMs - nowMs)}`;
+        }
+        progressSection.appendChild(timeLabel);
+        panel.appendChild(progressSection);
+
+        // ── Reality overlay ──
+        const dateKey = getDateKey(state.timelineViewDate);
+        const dayEntries = (state.timeline?.entries || [])
+            .filter(e => e.timestamp >= seg.startMs && e.timestamp < seg.endMs && e.endTime);
+        let workedMs = 0, breakMs = 0;
+        for (const e of dayEntries) {
+            const eStart = Math.max(e.timestamp, seg.startMs);
+            const eEnd = Math.min(e.endTime, seg.endMs);
+            const dur = Math.max(0, eEnd - eStart);
+            if (e.type === 'work') workedMs += dur;
+            else if (e.type === 'break') breakMs += dur;
+        }
+        // Include live state if within this session
+        if (state.workingOn && state.workingOn.startTime < seg.endMs && nowMs >= seg.startMs && nowMs < seg.endMs) {
+            workedMs += Math.max(0, nowMs - Math.max(state.workingOn.startTime, seg.startMs));
+        }
+        if (state.onBreak && state.onBreak.startTime < seg.endMs && nowMs >= seg.startMs && nowMs < seg.endMs) {
+            breakMs += Math.max(0, nowMs - Math.max(state.onBreak.startTime, seg.startMs));
+        }
+        const idleMs = Math.max(0, elapsed - workedMs - breakMs);
+
+        const realitySection = document.createElement('div');
+        realitySection.className = 'session-panel-reality';
+        realitySection.innerHTML = `
+            <div class="session-panel-reality-title">Reality</div>
+            <div class="session-panel-reality-stats">
+                <span class="session-reality-stat">🔥 ${_fmtDur(workedMs)} worked</span>
+                <span class="session-reality-stat">☕ ${_fmtDur(breakMs)} break</span>
+                <span class="session-reality-stat">💤 ${_fmtDur(idleMs)} idle</span>
+            </div>
+        `;
+        panel.appendChild(realitySection);
+
+        // ── Live state ──
+        if (isCurrent) {
+            const liveSection = document.createElement('div');
+            liveSection.className = 'session-panel-live';
+            if (state.workingOn) {
+                const workDur = nowMs - state.workingOn.startTime;
+                liveSection.innerHTML = `<span class="session-live-indicator live-working">🔥 Working on ${state.workingOn.itemName || 'something'} · ${_fmtDur(workDur)}</span>`;
+            } else if (state.onBreak) {
+                const breakDur = nowMs - state.onBreak.startTime;
+                liveSection.innerHTML = `<span class="session-live-indicator live-break">☕ On break · ${_fmtDur(breakDur)}</span>`;
+            } else {
+                liveSection.innerHTML = `<span class="session-live-indicator live-idle">💤 Idle</span>`;
+            }
+            panel.appendChild(liveSection);
+        }
+
+        // ── Capacity ──
+        const allItems = collectAllItems(state.items.items);
+        const sessionItems = allItems.filter(item => {
+            if (!item.timeContexts) return false;
+            return item.timeContexts.some(tc => {
+                if (seg.segmentKey && tc === seg.segmentKey) return true;
+                if (seg.entryId && tc === `${dateKey}@entry:${seg.entryId}`) return true;
+                // Check time overlap for segment contexts
+                const p = parseTimeContext(tc);
+                if (!p || !p.segment || p.date !== dateKey) return false;
+                const [sh, sm] = p.segment.start.split(':').map(Number);
+                const [eh, em] = p.segment.end.split(':').map(Number);
+                const ref = new Date(state.timelineViewDate);
+                const tcStart = new Date(ref.getFullYear(), ref.getMonth(), ref.getDate(), sh, sm).getTime();
+                const tcEnd = new Date(ref.getFullYear(), ref.getMonth(), ref.getDate(), eh, em).getTime();
+                return tcStart < seg.endMs && tcEnd > seg.startMs;
+            });
+        });
+        const totalEstimated = sessionItems.reduce((sum, item) => {
+            const dur = item.contextDurations?.[seg.segmentKey] || item.estimatedDuration || 0;
+            return sum + dur;
+        }, 0);
+        const capacitySection = document.createElement('div');
+        capacitySection.className = 'session-panel-capacity';
+        capacitySection.innerHTML = `
+            <div class="session-panel-capacity-title">Capacity</div>
+            <div class="session-panel-capacity-info">
+                <span>${sessionItems.length} item${sessionItems.length !== 1 ? 's' : ''} · ${_fmtDur(totalEstimated * 1000)} estimated</span>
+                <span class="session-capacity-session-dur">${_fmtDur(total)} session</span>
+            </div>
+        `;
+        panel.appendChild(capacitySection);
+
+        // ── What's next (for context) ──
+        if (idx < segments.length - 1) {
+            const nextSeg = segments[idx + 1];
+            const whatsNext = document.createElement('div');
+            whatsNext.className = 'session-panel-next';
+            whatsNext.innerHTML = `<span class="session-next-label">Next:</span> <span class="session-next-value">${nextSeg.icon} ${nextSeg.label}</span>`;
+            panel.appendChild(whatsNext);
+        }
+
+        container.appendChild(panel);
         return;
     }
 
@@ -12286,12 +12633,14 @@ document.addEventListener('DOMContentLoaded', () => {
     // Day layer: click to navigate back to day, drag to promote from someday
     const dayLayer = document.getElementById('horizon-day-layer');
     dayLayer.addEventListener('click', (e) => {
-        // Navigate: from session focus → back to day, or from someday/week → day
+        // Navigate: from session → back to day, or from someday/week → day
         if (e.target.closest('.date-nav-btn')) return;
-        // Only ignore date-display clicks when already in day view with no focus
-        if (state.viewHorizon === 'day' && state.focusStack.length === 0 && e.target.closest('.date-nav-display')) return;
-        if (state.focusStack.length > 0) {
-            // Session focused — pop back to day
+        // Only ignore date-display clicks when already in day view
+        if (state.viewHorizon === 'day' && e.target.closest('.date-nav-display')) return;
+        if (state.viewHorizon === 'session') {
+            // Pop out of session horizon → back to day
+            state.viewHorizon = 'day';
+            savePref('viewHorizon', 'day');
             clearFocusStack();
             renderAll();
             return;
@@ -12341,6 +12690,68 @@ document.addEventListener('DOMContentLoaded', () => {
         const dateKey = getDateKey(state.timelineViewDate);
         await promoteFromSomeday(parseInt(actionId, 10), dateKey);
     });
+
+    // ── Session layer: click to enter session horizon, prev/next to navigate, DnD to schedule ──
+    const sessionLayer = document.getElementById('horizon-session-layer');
+    if (sessionLayer) {
+        sessionLayer.addEventListener('click', (e) => {
+            if (e.target.closest('.session-nav-btn')) return;
+            if (state.viewHorizon === 'session') return; // already active
+            // Enter session horizon — auto-select current segment
+            const segments = buildPlanSegments();
+            state.sessionIndex = getCurrentSessionIndex(segments);
+            state.viewHorizon = 'session';
+            savePref('viewHorizon', 'session');
+            savePref('sessionIndex', state.sessionIndex);
+            _syncSessionToFocusStack(segments[state.sessionIndex]);
+            renderAll();
+        });
+        document.getElementById('session-nav-prev').addEventListener('click', (e) => {
+            e.stopPropagation();
+            navigateSession(-1);
+        });
+        document.getElementById('session-nav-next').addEventListener('click', (e) => {
+            e.stopPropagation();
+            navigateSession(+1);
+        });
+        sessionLayer.addEventListener('dragover', (e) => {
+            if (!window._draggedAction && !e.dataTransfer.types.includes('application/x-segment-item-id')) return;
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            sessionLayer.classList.add('horizon-layer-drag-over');
+        });
+        sessionLayer.addEventListener('dragleave', () => {
+            sessionLayer.classList.remove('horizon-layer-drag-over');
+        });
+        sessionLayer.addEventListener('drop', async (e) => {
+            e.preventDefault();
+            sessionLayer.classList.remove('horizon-layer-drag-over');
+            // Get active session segment for context
+            const seg = getActiveSession();
+            if (!seg) return;
+            // Segment queue item drag
+            if (e.dataTransfer.types.includes('application/x-segment-item-id')) {
+                const itemId = e.dataTransfer.getData('application/x-segment-item-id');
+                const segCtx = e.dataTransfer.getData('application/x-segment-context');
+                if (!itemId) return;
+                // Remove old segment context
+                if (segCtx) {
+                    const item = findItemById(Number(itemId));
+                    if (item) {
+                        if (item.timeContexts) item.timeContexts = item.timeContexts.filter(tc => tc !== segCtx);
+                        if (item.contextDurations) delete item.contextDurations[segCtx];
+                    }
+                }
+                // Add to the active session's segment
+                await addSegmentContext(parseInt(itemId, 10), seg.segmentKey);
+                return;
+            }
+            // Regular action drag
+            const actionId = e.dataTransfer.getData('application/x-action-id');
+            if (!actionId) return;
+            await addSegmentContext(parseInt(actionId, 10), seg.segmentKey);
+        });
+    }
 
     // Hide-past toggle (default: OFF = past entries visible)
     // hidePastEntries state is restored in loadAll() from backend preferences

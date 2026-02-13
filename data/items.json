@@ -307,6 +307,54 @@
       "name": "anything",
       "children": [
         {
+          "id": 394,
+          "name": "general titles or specific values? if specific - remember last and persist it?",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770979982757,
+          "done": false,
+          "timeContexts": [
+            "2026-02-13",
+            "2026-02-13@work"
+          ]
+        },
+        {
+          "id": 393,
+          "name": "maybe decouple 2 concepts - \"lock\" horizons to a project, and schedule under",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770979784782,
+          "done": false,
+          "timeContexts": [
+            "2026-02-13",
+            "2026-02-13@entry:297"
+          ]
+        },
+        {
+          "id": 392,
+          "name": "reconcile what's in the timeline and what's in actions",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770979755970,
+          "done": false,
+          "timeContexts": [
+            "2026-02-13",
+            "2026-02-13@entry:297"
+          ]
+        },
+        {
+          "id": 390,
+          "name": "what appears under live work / break / idle? what's planned or is it its own time context?",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770976741920,
+          "done": false,
+          "timeContexts": [
+            "2026-02-13",
+            "2026-02-13@11:15-13:44"
+          ]
+        },
+        {
           "id": 386,
           "name": "differentiate focus sessions from appointments",
           "children": [
@@ -319,7 +367,10 @@
               "done": false,
               "timeContexts": [
                 "2026-02-13"
-              ]
+              ],
+              "contextDurations": {
+                "2026-02-13": 30
+              }
             }
           ],
           "expanded": false,
@@ -856,7 +907,7 @@
               }
             }
           ],
-          "expanded": true,
+          "expanded": false,
           "createdAt": 1770939013487,
           "done": false,
           "timeContexts": [
@@ -1171,7 +1222,7 @@
               ]
             }
           ],
-          "expanded": true,
+          "expanded": false,
           "createdAt": 1770939127641,
           "done": false,
           "timeContexts": [
@@ -1530,7 +1581,7 @@
               ]
             }
           ],
-          "expanded": true,
+          "expanded": false,
           "createdAt": 1770939024902,
           "done": false,
           "timeContexts": [
@@ -1541,6 +1592,18 @@
           "id": 364,
           "name": "bugs",
           "children": [
+            {
+              "id": 389,
+              "name": "durations under a session in actions area",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770976616634,
+              "done": false,
+              "timeContexts": [
+                "2026-02-13",
+                "2026-02-13@11:15-13:44"
+              ]
+            },
             {
               "id": 299,
               "name": "mismatch in running",
@@ -1575,7 +1638,7 @@
               ]
             }
           ],
-          "expanded": false,
+          "expanded": true,
           "createdAt": 1770938999434,
           "done": false,
           "timeContexts": [
@@ -2830,7 +2893,7 @@
           ]
         }
       ],
-      "expanded": true,
+      "expanded": false,
       "createdAt": 1770591468116,
       "done": false,
       "timeContexts": [
@@ -3725,6 +3788,20 @@
           "contextDurations": {
             "2026-02-13@12:18-16:00": 10
           }
+        },
+        {
+          "id": 391,
+          "name": "א. צהריים",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770976860202,
+          "done": false,
+          "timeContexts": [
+            "2026-02-13"
+          ],
+          "contextDurations": {
+            "2026-02-13": 30
+          }
         }
       ],
       "expanded": true,
@@ -3788,5 +3865,5 @@
       ]
     }
   ],
-  "nextId": 389
+  "nextId": 395
 }

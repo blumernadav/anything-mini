@@ -4836,6 +4836,7 @@ select.schedule-leadtime-input {
 .horizon-layer {
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 6px;
     padding: 4px 10px;
     cursor: pointer;
@@ -4910,7 +4911,7 @@ select.schedule-leadtime-input {
 
 .horizon-layer-dim .week-nav-display {
     flex: unset;
-    justify-content: flex-start;
+    justify-content: center;
     cursor: default;
 }
 
@@ -4965,6 +4966,193 @@ select.schedule-leadtime-input {
 .date-nav-btn-drag-over {
     background: rgba(55, 100, 200, 0.08) !important;
     color: var(--blue-pen) !important;
+}
+
+/* ── Session Horizon Layer ── */
+.horizon-layer-session {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    cursor: pointer;
+    font-size: 13px;
+    font-family: 'Caveat', cursive;
+    color: var(--pencil-faint);
+    transition: all var(--dur) var(--ease);
+}
+
+.horizon-layer-session:hover {
+    background: rgba(0, 0, 0, 0.03);
+    color: var(--pencil);
+}
+
+.session-nav-display {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-width: 0;
+}
+
+.session-nav-btn {
+    flex-shrink: 0;
+}
+
+.horizon-layer-session.horizon-layer-active {
+    justify-content: flex-start;
+    padding: 5px 10px;
+    font-size: 16px;
+    color: var(--pencil);
+    font-weight: 700;
+}
+
+.horizon-layer-session.horizon-layer-active .horizon-layer-icon {
+    font-size: 15px;
+}
+
+.horizon-layer-session.horizon-layer-active .horizon-layer-label {
+    font-size: 16px;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.horizon-layer-session.horizon-layer-dim {
+    opacity: 0.5;
+    padding: 3px 10px;
+}
+
+.horizon-layer-session.horizon-layer-dim:hover {
+    opacity: 0.8;
+}
+
+/* ── Session Panel ── */
+.session-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 14px;
+}
+
+.session-panel-progress {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.session-panel-progress-bar {
+    width: 100%;
+    height: 4px;
+    background: var(--pencil-ghost);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.session-panel-progress-fill {
+    height: 100%;
+    background: var(--blue-pen);
+    border-radius: 2px;
+    transition: width 1s ease;
+}
+
+.session-panel-progress-complete {
+    background: #5eab5e;
+}
+
+.session-panel-time-label {
+    font-size: 15px;
+    font-family: 'Caveat', cursive;
+    color: var(--pencil);
+}
+
+.session-panel-reality {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.session-panel-reality-title,
+.session-panel-capacity-title {
+    font-size: 12px;
+    font-family: 'Caveat', cursive;
+    color: var(--pencil-faint);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.session-panel-reality-stats {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.session-reality-stat {
+    font-size: 14px;
+    font-family: 'Caveat', cursive;
+    color: var(--pencil);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.session-panel-live {
+    padding: 8px 10px;
+    border-radius: var(--radius);
+    background: rgba(255, 243, 168, 0.2);
+}
+
+.session-live-indicator {
+    font-size: 14px;
+    font-family: 'Caveat', cursive;
+}
+
+.live-working {
+    color: #c17f24;
+}
+
+.live-break {
+    color: var(--blue-pen);
+}
+
+.live-idle {
+    color: var(--pencil-faint);
+}
+
+.session-panel-capacity {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.session-panel-capacity-info {
+    display: flex;
+    justify-content: space-between;
+    font-size: 14px;
+    font-family: 'Caveat', cursive;
+    color: var(--pencil);
+}
+
+.session-capacity-session-dur {
+    color: var(--pencil-faint);
+}
+
+.session-panel-next {
+    font-size: 13px;
+    font-family: 'Caveat', cursive;
+    color: var(--pencil-faint);
+    padding-top: 8px;
+    border-top: 1px dashed var(--pencil-ghost);
+}
+
+.session-next-label {
+    font-weight: 700;
+    color: var(--pencil);
+}
+
+.session-next-value {
+    color: var(--pencil-soft);
 }
 
 .timeline-entry {

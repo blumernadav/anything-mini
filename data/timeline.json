@@ -2241,7 +2241,39 @@
       "targetEndTime": 1770973814871,
       "id": 299,
       "timestamp": 1770973214871
+    },
+    {
+      "text": "Worked on: change session to a real horizon (24m)",
+      "projectName": "anything › core",
+      "type": "work",
+      "startTime": 1770974407541,
+      "endTime": 1770975866258,
+      "targetEndTime": 1770976207541,
+      "itemId": 359,
+      "id": 300,
+      "timestamp": 1770974407541
+    },
+    {
+      "text": "Worked on: change session to a real horizon (11m)",
+      "projectName": "anything › core",
+      "type": "work",
+      "startTime": 1770976146457,
+      "endTime": 1770976810455,
+      "itemId": 359,
+      "id": 301,
+      "timestamp": 1770976146457
+    },
+    {
+      "text": "Worked on: א. צהריים (43m)",
+      "projectName": "בית",
+      "type": "work",
+      "startTime": 1770976915819,
+      "endTime": 1770979507391,
+      "targetEndTime": 1770978715819,
+      "itemId": 391,
+      "id": 302,
+      "timestamp": 1770976915819
     }
   ],
-  "nextId": 300
+  "nextId": 303
 }
