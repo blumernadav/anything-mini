@@ -1410,7 +1410,8 @@ body {
 }
 
 .action-item:hover .action-locate-btn,
-.segment-queue-item:hover .action-locate-btn {
+.segment-queue-item:hover .action-locate-btn,
+.time-block-label.action-name-row:hover>.action-locate-btn {
     max-width: 20px;
     opacity: 0.4;
     margin-right: 4px;
@@ -2794,9 +2795,8 @@ body {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 18px;
+    width: 0;
     height: 18px;
-    max-width: 0;
     opacity: 0;
     overflow: hidden;
     border: none;
@@ -2809,13 +2809,13 @@ body {
     padding: 0;
     flex-shrink: 0;
     margin-left: 0;
-    transition: max-width 0.25s var(--ease), opacity 0.2s var(--ease), margin 0.25s var(--ease), background 0.15s var(--ease), color 0.15s var(--ease);
+    transition: width 0.2s var(--ease), opacity 0.2s var(--ease), margin 0.2s var(--ease), background 0.15s var(--ease), color 0.15s var(--ease);
 }
 
 .live-session-indicator:hover .live-session-stop-btn {
-    max-width: 22px;
+    width: 18px;
     opacity: 1;
-    margin-left: 2px;
+    margin-left: 4px;
 }
 
 .live-session-stop-btn:hover {
@@ -5612,6 +5612,38 @@ select.schedule-leadtime-input {
     animation: plan-shake 0.3s ease;
 }
 
+.plan-editor-input-linked {
+    border-color: rgba(96, 165, 250, 0.5);
+    background: rgba(96, 165, 250, 0.06);
+}
+
+.plan-editor-clear-btn {
+    position: absolute;
+    right: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+    border: none;
+    background: rgba(96, 165, 250, 0.15);
+    color: #60a5fa;
+    font-size: 13px;
+    font-weight: 600;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    padding: 0;
+    transition: all var(--dur) var(--ease);
+    z-index: 1;
+}
+
+.plan-editor-clear-btn:hover {
+    background: rgba(96, 165, 250, 0.3);
+}
+
 @keyframes plan-shake {
 
     0%,
@@ -5691,6 +5723,20 @@ select.schedule-leadtime-input {
 
 .plan-editor-suggestion-create .plan-editor-suggestion-name {
     font-weight: 400;
+}
+
+/* Free-text session row */
+.plan-editor-suggestion-free {
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-surface);
+}
+
+.plan-editor-suggestion-free:hover {
+    background: rgba(96, 165, 250, 0.12);
+}
+
+.plan-editor-suggestion-free .plan-editor-suggestion-name {
+    color: #60a5fa;
 }
 
 /* Parent selector */

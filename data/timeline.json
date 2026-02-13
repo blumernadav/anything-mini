@@ -2328,7 +2328,54 @@
       "type": "completion",
       "id": 309,
       "timestamp": 1770985790712
+    },
+    {
+      "text": "Worked on: anything (25m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1770984787256,
+      "endTime": 1770986336193,
+      "itemId": 9,
+      "id": 310,
+      "timestamp": 1770984787256
+    },
+    {
+      "text": "Worked on: anything (5m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1770986339934,
+      "endTime": 1770986666843,
+      "itemId": 9,
+      "id": 311,
+      "timestamp": 1770986339934
+    },
+    {
+      "text": "Worked on: מקלחת (11m)",
+      "projectName": "בית",
+      "type": "work",
+      "startTime": 1770986688642,
+      "endTime": 1770987357698,
+      "itemId": 387,
+      "id": 312,
+      "timestamp": 1770986688642
+    },
+    {
+      "text": "Done: מקלחת",
+      "projectName": "בית",
+      "type": "completion",
+      "id": 313,
+      "timestamp": 1770987362681
+    },
+    {
+      "text": "להתכונן לחתונה של יונתן",
+      "projectName": null,
+      "type": "planned",
+      "startTime": 1770991200000,
+      "endTime": 1770998400000,
+      "itemId": null,
+      "id": 314,
+      "timestamp": 1770991200000
     }
   ],
-  "nextId": 310
+  "nextId": 315
 }

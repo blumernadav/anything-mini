@@ -336,7 +336,7 @@ function collectDescendantIds(item) {
 // ── Shared Autocomplete with Create ──
 // Used by plan editor, idle-work editor, and past-entry editor.
 // Returns { getSelected, setSelected } so callers can read/write selectedAction.
-function setupAutocomplete(actionInput, suggestions, { onSelect, allowCreate = true, scopeItemId = null } = {}) {
+function setupAutocomplete(actionInput, suggestions, { onSelect, allowCreate = true, allowFreeText = false, scopeItemId = null } = {}) {
     let selectedAction = null;
     let allActions = collectAllItems().filter(a => !a.done);
     // Scope autocomplete to descendants of a specific item (for item-bound planned sessions)
@@ -349,6 +349,34 @@ function setupAutocomplete(actionInput, suggestions, { onSelect, allowCreate = t
     }
     let isParentMode = false;
     let createName = '';
+
+    // ── Linked-item clear button ──
+    const clearBtn = document.createElement('button');
+    clearBtn.className = 'plan-editor-clear-btn';
+    clearBtn.type = 'button';
+    clearBtn.textContent = '×';
+    clearBtn.title = 'Unlink item';
+    clearBtn.style.display = 'none';
+    actionInput.parentElement.appendChild(clearBtn);
+
+    function updateLinkedState() {
+        if (selectedAction) {
+            actionInput.classList.add('plan-editor-input-linked');
+            clearBtn.style.display = '';
+        } else {
+            actionInput.classList.remove('plan-editor-input-linked');
+            clearBtn.style.display = 'none';
+        }
+    }
+
+    clearBtn.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        selectedAction = null;
+        actionInput.value = '';
+        updateLinkedState();
+        actionInput.focus();
+    });
 
     // ── Build hierarchical tree for parent selector ──
     function buildParentTree(items, depth = 0, filter = '') {
@@ -452,6 +480,7 @@ function setupAutocomplete(actionInput, suggestions, { onSelect, allowCreate = t
         if (created) {
             selectedAction = created;
             actionInput.value = created.name;
+            updateLinkedState();
             if (onSelect) onSelect(created);
         }
 
@@ -472,12 +501,36 @@ function setupAutocomplete(actionInput, suggestions, { onSelect, allowCreate = t
         const q = query.toLowerCase();
         const matches = allActions.filter(a => a.name.toLowerCase().includes(q));
 
-        // Show dropdown if we have matches or if allowCreate is on
-        if (matches.length === 0 && !allowCreate) {
+        // Show dropdown if we have matches or if allowCreate/allowFreeText is on
+        if (matches.length === 0 && !allowCreate && !allowFreeText) {
             suggestions.style.display = 'none';
             return;
         }
         suggestions.style.display = 'block';
+
+        // Free-text row: allow using typed text as a standalone session title
+        if (allowFreeText && query.trim()) {
+            const freeRow = document.createElement('div');
+            freeRow.className = 'plan-editor-suggestion plan-editor-suggestion-free';
+
+            const freeText = document.createElement('span');
+            freeText.className = 'plan-editor-suggestion-name';
+            freeText.innerHTML = `📌 <strong>${query.trim()}</strong>`;
+            freeRow.appendChild(freeText);
+
+            const freeHint = document.createElement('span');
+            freeHint.className = 'plan-editor-suggestion-project';
+            freeHint.textContent = 'standalone session';
+            freeRow.appendChild(freeHint);
+
+            freeRow.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                selectedAction = null;
+                updateLinkedState();
+                suggestions.style.display = 'none';
+            });
+            suggestions.appendChild(freeRow);
+        }
 
         for (const action of matches.slice(0, 8)) {
             const opt = document.createElement('div');
@@ -499,6 +552,7 @@ function setupAutocomplete(actionInput, suggestions, { onSelect, allowCreate = t
                 e.preventDefault();
                 selectedAction = action;
                 actionInput.value = action.name;
+                updateLinkedState();
                 suggestions.style.display = 'none';
                 if (onSelect) onSelect(action);
             });
@@ -527,6 +581,7 @@ function setupAutocomplete(actionInput, suggestions, { onSelect, allowCreate = t
 
     actionInput.addEventListener('input', () => {
         selectedAction = null;
+        updateLinkedState();
         if (isParentMode) {
             isParentMode = false;
         }
@@ -563,7 +618,7 @@ function setupAutocomplete(actionInput, suggestions, { onSelect, allowCreate = t
 
     return {
         getSelected: () => selectedAction,
-        setSelected: (action) => { selectedAction = action; },
+        setSelected: (action) => { selectedAction = action; updateLinkedState(); },
     };
 }
 
@@ -7410,7 +7465,7 @@ function createFreeTimeBlock(startMs, endMs) {
 
 // ── Plan Next: inline editor ──
 
-function openPlanEditor(freeBlock, freeStartMs, freeEndMs, preselectedAction = null, parentEntryId = null, scopeItemId = null) {
+function openPlanEditor(freeBlock, freeStartMs, freeEndMs, preselectedAction = null, parentEntryId = null, scopeItemId = null, initialMode = 'plan') {
     // Close any existing editor
     document.querySelectorAll('.plan-editor').forEach(ed => ed.remove());
 
@@ -7453,7 +7508,7 @@ function openPlanEditor(freeBlock, freeStartMs, freeEndMs, preselectedAction = n
     editor.className = 'time-block plan-editor';
 
     // ── Mode toggle: Plan (📌) vs Intend (📋) ──
-    let editorMode = 'plan'; // 'plan' | 'intend'
+    let editorMode = initialMode; // 'plan' | 'intend'
 
     // Single-icon toggle with tooltip
     const toggleWrap = document.createElement('div');
@@ -7462,7 +7517,7 @@ function openPlanEditor(freeBlock, freeStartMs, freeEndMs, preselectedAction = n
 
     const activeIcon = document.createElement('span');
     activeIcon.className = 'plan-editor-toggle-icon';
-    activeIcon.textContent = '📌';
+    activeIcon.textContent = initialMode === 'intend' ? '📋' : '📌';
 
     toggleWrap.appendChild(activeIcon);
 
@@ -7511,7 +7566,7 @@ function openPlanEditor(freeBlock, freeStartMs, freeEndMs, preselectedAction = n
     const actionInput = document.createElement('input');
     actionInput.type = 'text';
     actionInput.className = 'plan-editor-input';
-    actionInput.placeholder = 'Action or session title…';
+    actionInput.placeholder = initialMode === 'intend' ? 'Search for an item…' : 'Action or session title…';
 
     const suggestions = document.createElement('div');
     suggestions.className = 'plan-editor-suggestions';
@@ -7608,6 +7663,11 @@ function openPlanEditor(freeBlock, freeStartMs, freeEndMs, preselectedAction = n
     // ── Insert editor after the free time block ──
     freeBlock.after(editor);
 
+    // Apply initial mode visuals (needed when initialMode !== 'plan')
+    if (initialMode !== 'plan') {
+        setEditorMode(initialMode);
+    }
+
     // If we have a preselected action (from drag-to-schedule), pre-fill the input
     if (preselectedAction) {
         actionInput.value = preselectedAction.name;
@@ -7621,7 +7681,7 @@ function openPlanEditor(freeBlock, freeStartMs, freeEndMs, preselectedAction = n
     }
 
     // ── Autocomplete logic ──
-    const autocomplete = setupAutocomplete(actionInput, suggestions, { scopeItemId });
+    const autocomplete = setupAutocomplete(actionInput, suggestions, { scopeItemId, allowFreeText: true });
     if (preselectedAction) {
         autocomplete.setSelected(preselectedAction);
     }
@@ -8320,7 +8380,29 @@ function createWorkingTimeBlock(startMs, endMs) {
 
     const label = document.createElement('div');
     label.className = 'time-block-label';
-    label.textContent = state.workingOn ? state.workingOn.itemName : 'Working';
+    const workItemName = state.workingOn ? state.workingOn.itemName : 'Working';
+    label.textContent = workItemName;
+
+    // Locate-in-sidebar icon for item-linked work sessions
+    if (state.workingOn && state.workingOn.itemId) {
+        label.classList.add('action-name-row');
+        const labelText = document.createElement('span');
+        labelText.textContent = workItemName;
+        label.textContent = '';
+        const locateBtn = document.createElement('span');
+        locateBtn.className = 'action-locate-btn';
+        locateBtn.textContent = '◉';
+        locateBtn.title = 'Locate in projects';
+        locateBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            state.selectedItemId = state.workingOn.itemId;
+            savePref('selectedItemId', state.workingOn.itemId);
+            renderAll();
+            requestAnimationFrame(() => scrollToSelectedItem());
+        });
+        label.appendChild(locateBtn);
+        label.appendChild(labelText);
+    }
 
     const time = document.createElement('div');
     time.className = 'time-block-time working-time-range';
@@ -9165,6 +9247,27 @@ function createPlannedTimeBlock(entry, isGhost = false, isPhantom = false) {
     label.className = 'time-block-label';
     label.textContent = entry.text;
 
+    // Locate-in-sidebar icon for item-linked sessions
+    if (entry.itemId) {
+        label.classList.add('action-name-row');
+        const labelText = document.createElement('span');
+        labelText.textContent = entry.text;
+        label.textContent = '';
+        const locateBtn = document.createElement('span');
+        locateBtn.className = 'action-locate-btn';
+        locateBtn.textContent = '◉';
+        locateBtn.title = 'Locate in projects';
+        locateBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            state.selectedItemId = entry.itemId;
+            savePref('selectedItemId', entry.itemId);
+            renderAll();
+            requestAnimationFrame(() => scrollToSelectedItem());
+        });
+        label.appendChild(locateBtn);
+        label.appendChild(labelText);
+    }
+
     const time = document.createElement('div');
     time.className = 'time-block-time';
     time.textContent = `${formatTime(entry.timestamp)} – ${formatTime(entry.endTime)}`;
@@ -9288,10 +9391,21 @@ function createPlannedTimeBlock(entry, isGhost = false, isPhantom = false) {
         addSegmentContext(action.id, entryCtx, srcDur || undefined);
     });
 
+    // Add intention button (+)
+    const addIntentBtn = document.createElement('button');
+    addIntentBtn.className = 'plan-next-btn';
+    addIntentBtn.textContent = '+';
+    addIntentBtn.title = 'Add intention to this session';
+    addIntentBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openPlanEditor(el, entry.timestamp, entry.endTime, null, entry.id, entry.itemId || null, 'intend');
+    });
+
     el.appendChild(icon);
     el.appendChild(content);
     el.appendChild(editBtn);
     el.appendChild(startBtn);
+    el.appendChild(addIntentBtn);
     el.appendChild(delBtn);
 
     // ── Nested entry-assigned items (appended after main content) ──
@@ -9510,7 +9624,7 @@ function openEntryEditor(entry, blockEl) {
         actionInput.disabled = true;
         actionInput.style.opacity = '0.7';
     } else {
-        actionInput.placeholder = 'Search for an item…';
+        actionInput.placeholder = 'Session title or item…';
         // Pre-fill with current item name
         if (preselectedAction) {
             actionInput.value = preselectedAction.name;
@@ -9630,7 +9744,7 @@ function openEntryEditor(entry, blockEl) {
     // ── Autocomplete logic (only for non-break entries) ──
     let autocomplete = null;
     if (entry.type !== 'break') {
-        autocomplete = setupAutocomplete(actionInput, suggestions);
+        autocomplete = setupAutocomplete(actionInput, suggestions, { allowFreeText: true });
         if (preselectedAction) {
             autocomplete.setSelected(preselectedAction);
         }

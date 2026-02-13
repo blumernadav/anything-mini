@@ -295,7 +295,7 @@
           }
         }
       ],
-      "expanded": false,
+      "expanded": true,
       "createdAt": 1770609703744,
       "done": false,
       "timeContexts": [
@@ -517,18 +517,31 @@
               "contextDurations": {}
             },
             {
-              "id": 357,
-              "name": "drag into prep time",
-              "children": [],
-              "expanded": false,
-              "createdAt": 1770926420908,
+              "id": 405,
+              "name": "prep time - need to think through the concept",
+              "children": [
+                {
+                  "id": 357,
+                  "name": "drag into prep time",
+                  "children": [],
+                  "expanded": false,
+                  "createdAt": 1770926420908,
+                  "done": false,
+                  "timeContexts": [
+                    "2026-02-13"
+                  ],
+                  "contextDurations": {
+                    "2026-02-13": 10
+                  }
+                }
+              ],
+              "expanded": true,
+              "createdAt": 1770988289520,
               "done": false,
               "timeContexts": [
-                "2026-02-13"
+                "week:2026-02-15"
               ],
-              "contextDurations": {
-                "2026-02-13": 10
-              }
+              "contextDurations": {}
             },
             {
               "id": 202,
@@ -961,7 +974,7 @@
               }
             }
           ],
-          "expanded": false,
+          "expanded": true,
           "createdAt": 1770939013487,
           "done": false,
           "timeContexts": [
@@ -3477,12 +3490,27 @@
         {
           "id": 310,
           "name": "איתי ואריאל מתחתנים",
-          "children": [],
+          "children": [
+            {
+              "id": 401,
+              "name": "להכין משהו לחתונה של איתי ואריאל?",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770987686182,
+              "done": false,
+              "timeContexts": [
+                "ongoing"
+              ],
+              "contextLeadTimes": {
+                "2026-04-16": 3628800
+              }
+            }
+          ],
           "expanded": false,
           "createdAt": 1770824559160,
           "done": false,
           "timeContexts": [
-            "2026-04-16@entry:212"
+            "2026-02-26"
           ],
           "contextDurations": {
             "2026-02-14": 480,
@@ -3507,7 +3535,19 @@
         {
           "id": 304,
           "name": "חתונה של יונתן",
-          "children": [],
+          "children": [
+            {
+              "id": 400,
+              "name": "כיף כיופאק",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770987671358,
+              "done": false,
+              "timeContexts": [
+                "2026-02-13"
+              ]
+            }
+          ],
           "expanded": false,
           "createdAt": 1770823995914,
           "done": false,
@@ -3519,10 +3559,7 @@
             "week:2026-02-08": 5,
             "ongoing": 360
           },
-          "contextLeadTimes": {
-            "2026-02-13@entry:206": 7200,
-            "2026-02-13@18:00-00:00": 7200
-          }
+          "contextLeadTimes": {}
         },
         {
           "id": 216,
@@ -3554,7 +3591,7 @@
           }
         }
       ],
-      "expanded": false,
+      "expanded": true,
       "createdAt": 1770646819822,
       "done": false,
       "timeContexts": [
@@ -3823,11 +3860,10 @@
           "createdAt": 1770909150598,
           "done": false,
           "timeContexts": [
-            "2026-02-13"
+            "2026-02-13@entry:314"
           ],
           "contextDurations": {
-            "2026-02-12": 10,
-            "2026-02-13": 10
+            "2026-02-13@entry:314": 10
           }
         },
         {
@@ -3836,12 +3872,13 @@
           "children": [],
           "expanded": false,
           "createdAt": 1770972747119,
-          "done": false,
+          "done": true,
           "timeContexts": [
             "2026-02-13@12:18-16:00"
           ],
           "contextDurations": {
-            "2026-02-13@12:18-16:00": 10
+            "2026-02-13@12:18-16:00": 10,
+            "2026-02-13@13:44-18:00": 30
           }
         },
         {
@@ -3920,5 +3957,5 @@
       ]
     }
   ],
-  "nextId": 400
+  "nextId": 406
 }

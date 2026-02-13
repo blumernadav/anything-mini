@@ -1162,7 +1162,8 @@ body {
 }
 
 .action-item:hover .action-locate-btn,
-.segment-queue-item:hover .action-locate-btn {
+.segment-queue-item:hover .action-locate-btn,
+.time-block-label.action-name-row:hover>.action-locate-btn {
     max-width: 18px;
     opacity: 0.5;
     margin-right: 3px;
@@ -2470,9 +2471,8 @@ body {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 16px;
+    width: 0;
     height: 16px;
-    max-width: 0;
     opacity: 0;
     overflow: hidden;
     border: 2px solid;
@@ -2488,13 +2488,13 @@ body {
     font-family: inherit;
     font-weight: 700;
     border-radius: 0;
-    transition: max-width 0.2s ease, opacity 0.15s ease, margin 0.2s ease;
+    transition: width 0.2s ease, opacity 0.2s ease, margin 0.2s ease;
 }
 
 .live-session-indicator:hover .live-session-stop-btn {
-    max-width: 20px;
+    width: 16px;
     opacity: 1;
-    margin-left: 2px;
+    margin-left: 4px;
 }
 
 .live-session-stop-btn:active {
@@ -5004,6 +5004,36 @@ select.schedule-leadtime-input {
     animation: plan-shake 0.3s ease;
 }
 
+.plan-editor-input-linked {
+    background: #e8f0ff;
+}
+
+.plan-editor-clear-btn {
+    position: absolute;
+    right: 4px;
+    top: 50%;
+    transform: translateY(-50%);
+    border: 1px solid var(--w-dark);
+    background: var(--w-bg);
+    color: var(--w-text);
+    font-size: 12px;
+    font-weight: 700;
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    padding: 0;
+    font-family: inherit;
+    z-index: 1;
+}
+
+.plan-editor-clear-btn:active {
+    border-color: var(--w-darker) var(--w-white) var(--w-white) var(--w-darker);
+}
+
 @keyframes plan-shake {
 
     0%,
@@ -5094,6 +5124,20 @@ select.schedule-leadtime-input {
 
 .plan-editor-suggestion-create .plan-editor-suggestion-name {
     font-weight: 400;
+}
+
+/* Free-text session row */
+.plan-editor-suggestion-free {
+    border-bottom: 1px solid var(--w-dark);
+    background: #f0f4ff;
+}
+
+.plan-editor-suggestion-free:hover {
+    background: #e0e8ff;
+}
+
+.plan-editor-suggestion-free .plan-editor-suggestion-name {
+    color: #0066cc;
 }
 
 /* Parent selector */
