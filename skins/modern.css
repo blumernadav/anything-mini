@@ -911,6 +911,7 @@ body {
     gap: 0;
     font-size: 11px;
     min-width: 0;
+    max-width: 35%;
     flex-shrink: 1;
     position: relative;
     z-index: 1;

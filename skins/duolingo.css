@@ -974,6 +974,7 @@ body {
     font-size: 12px;
     font-weight: 700;
     min-width: 0;
+    max-width: 35%;
     flex-shrink: 1;
     position: relative;
     z-index: 1;

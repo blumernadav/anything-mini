@@ -765,6 +765,7 @@ body {
     gap: 0;
     font-size: 12px;
     min-width: 0;
+    max-width: 35%;
     flex-shrink: 1;
     background: var(--w-bg);
     padding: 2px 0 2px 6px;

@@ -893,6 +893,7 @@ body {
     font-size: 13px;
     font-family: 'Caveat', cursive;
     min-width: 0;
+    max-width: 35%;
     flex-shrink: 1;
     position: relative;
     z-index: 1;
