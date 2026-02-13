@@ -5,6 +5,20 @@
       "name": "Inbox",
       "children": [
         {
+          "id": 361,
+          "name": "לדבר עם יונתן",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770932403465,
+          "done": false,
+          "timeContexts": [
+            "2026-02-13"
+          ],
+          "contextDurations": {
+            "2026-02-13": 10
+          }
+        },
+        {
           "id": 335,
           "name": "לבדוק זמינות אוטו בסופ״ש",
           "children": [],
@@ -15,7 +29,8 @@
             "2026-02-13"
           ],
           "contextDurations": {
-            "2026-02-12": 5
+            "2026-02-12": 5,
+            "2026-02-13": 10
           }
         },
         {
@@ -44,7 +59,22 @@
         {
           "id": 45,
           "name": "test",
-          "children": [],
+          "children": [
+            {
+              "id": 378,
+              "name": "blabalala",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770949004455,
+              "done": false,
+              "timeContexts": [
+                "2026-02-13"
+              ],
+              "contextDurations": {
+                "2026-02-13": 0
+              }
+            }
+          ],
           "expanded": false,
           "createdAt": 1770598460620,
           "done": true,
@@ -62,7 +92,10 @@
           "timeContexts": [
             "2026-02-13"
           ],
-          "estimatedDuration": null
+          "estimatedDuration": null,
+          "contextDurations": {
+            "2026-02-13": 10
+          }
         }
       ],
       "expanded": true,
@@ -100,12 +133,10 @@
               "createdAt": 1770730496059,
               "done": false,
               "timeContexts": [
-                "2026-02-12@20:54-00:30"
+                "2026-02-13"
               ],
               "contextDurations": {
-                "2026-02-11": 25,
-                "2026-02-12": 25,
-                "2026-02-12@20:54-00:30": 25
+                "2026-02-13": 25
               }
             }
           ],
@@ -234,7 +265,9 @@
           "timeContexts": [
             "2026-02-13"
           ],
-          "contextDurations": {}
+          "contextDurations": {
+            "2026-02-13": 15
+          }
         },
         {
           "id": 273,
@@ -247,7 +280,8 @@
             "2026-02-13"
           ],
           "contextDurations": {
-            "2026-02-12": 5
+            "2026-02-12": 5,
+            "2026-02-13": 5
           }
         },
         {
@@ -277,25 +311,1432 @@
       "name": "anything",
       "children": [
         {
-          "id": 359,
-          "name": "change session to a real horizon",
+          "id": 374,
+          "name": "prep time should be occupied time",
           "children": [],
           "expanded": false,
-          "createdAt": 1770927503105,
+          "createdAt": 1770943488414,
+          "done": false,
+          "timeContexts": [
+            "week:2026-02-08"
+          ],
+          "contextDurations": {}
+        },
+        {
+          "id": 375,
+          "name": "special idle running in night (between day close/end)",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770944485303,
           "done": false,
           "timeContexts": [
             "someday"
           ]
         },
         {
-          "id": 357,
-          "name": "drag into prep time",
-          "children": [],
+          "id": 365,
+          "name": "core",
+          "children": [
+            {
+              "id": 349,
+              "name": "month horizon",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770913093639,
+              "done": false,
+              "timeContexts": [
+                "week:2026-02-08"
+              ],
+              "contextDurations": {
+                "week:2026-02-08": 60
+              }
+            },
+            {
+              "id": 363,
+              "name": "year horizon",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770938985086,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ],
+              "contextDurations": {
+                "someday": 120
+              }
+            },
+            {
+              "id": 359,
+              "name": "change session to a real horizon",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770927503105,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ],
+              "contextDurations": {
+                "someday": 60
+              }
+            },
+            {
+              "id": 354,
+              "name": "plan modal - forward plan, backwards plan",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770925458743,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ],
+              "contextDurations": {}
+            },
+            {
+              "id": 357,
+              "name": "drag into prep time",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770926420908,
+              "done": false,
+              "timeContexts": [
+                "week:2026-02-08"
+              ],
+              "contextDurations": {
+                "week:2026-02-08": 30
+              }
+            },
+            {
+              "id": 202,
+              "name": "move",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770720806010,
+              "done": true,
+              "timeContexts": [
+                "someday"
+              ]
+            },
+            {
+              "id": 317,
+              "name": "week horizon",
+              "children": [
+                {
+                  "id": 326,
+                  "name": "aggregate",
+                  "children": [],
+                  "expanded": false,
+                  "createdAt": 1770852039123,
+                  "done": true,
+                  "timeContexts": [
+                    "week:2026-02-08"
+                  ],
+                  "contextDurations": {
+                    "week:2026-02-08": 10
+                  }
+                },
+                {
+                  "id": 325,
+                  "name": "editable",
+                  "children": [],
+                  "expanded": false,
+                  "createdAt": 1770852032333,
+                  "done": true,
+                  "timeContexts": [
+                    "week:2026-02-08"
+                  ],
+                  "contextDurations": {
+                    "week:2026-02-08": 10
+                  }
+                },
+                {
+                  "id": 324,
+                  "name": "more info when collapsed",
+                  "children": [],
+                  "expanded": false,
+                  "createdAt": 1770852030965,
+                  "done": true,
+                  "timeContexts": [
+                    "week:2026-02-08"
+                  ],
+                  "contextDurations": {
+                    "week:2026-02-08": 5
+                  }
+                },
+                {
+                  "id": 322,
+                  "name": "add to schedule modal",
+                  "children": [],
+                  "expanded": false,
+                  "createdAt": 1770852013276,
+                  "done": true,
+                  "timeContexts": [
+                    "week:2026-02-15"
+                  ],
+                  "contextDurations": {
+                    "week:2026-02-08": 5
+                  }
+                }
+              ],
+              "expanded": false,
+              "createdAt": 1770832301356,
+              "done": true,
+              "timeContexts": [
+                "week:2026-02-08"
+              ],
+              "contextDurations": {
+                "2026-02-11": 60
+              }
+            },
+            {
+              "id": 344,
+              "name": "actions for the item itself in breadcrumb (including d&d)",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770909682024,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ],
+              "contextDurations": {
+                "someday": 30
+              }
+            },
+            {
+              "id": 323,
+              "name": "see past logs in every epoch",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770852026134,
+              "done": false,
+              "timeContexts": [
+                "week:2026-02-08"
+              ],
+              "contextDurations": {
+                "week:2026-02-08": 15
+              }
+            },
+            {
+              "id": 302,
+              "name": "live blocks - work, break, idle - print to past and you can reconcile with plans, including general work plans",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770822520306,
+              "done": false,
+              "timeContexts": [
+                "week:2026-02-08"
+              ],
+              "contextDurations": {
+                "week:2026-02-08": 60
+              }
+            },
+            {
+              "id": 298,
+              "name": "capacity calc should be based on actual time after a resize",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770812152653,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ],
+              "contextDurations": {
+                "someday": 5
+              }
+            },
+            {
+              "id": 297,
+              "name": "start an item during a live session/plan - split/background/reconcile later?",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770812091726,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ],
+              "contextDurations": {
+                "someday": 120
+              }
+            },
+            {
+              "id": 295,
+              "name": "idle during plans",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770811888997,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ],
+              "contextDurations": {
+                "someday": 60
+              }
+            },
+            {
+              "id": 290,
+              "name": "improve plan absorbing",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770811099646,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ],
+              "contextDurations": {
+                "someday": 60
+              }
+            },
+            {
+              "id": 282,
+              "name": "idea - move \"done\" to be done under a context",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770810064805,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ],
+              "contextDurations": {
+                "someday": 60
+              }
+            },
+            {
+              "id": 251,
+              "name": "reconcile intentions",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770802452301,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ],
+              "contextDurations": {
+                "someday": 60
+              }
+            },
+            {
+              "id": 168,
+              "name": "resolve helper",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770657322191,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ],
+              "contextDurations": {
+                "someday": 60
+              }
+            },
+            {
+              "id": 281,
+              "name": "improve session timeline context",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770809993629,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ]
+            },
+            {
+              "id": 276,
+              "name": "maybe even the running item itself is an intention in the working so it won't show on today",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770809480418,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ]
+            },
+            {
+              "id": 239,
+              "name": "fix divergence rendering",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770767029355,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ]
+            },
+            {
+              "id": 256,
+              "name": "goals and commitments - top down, acheive",
+              "children": [
+                {
+                  "id": 257,
+                  "name": "translate a goal to actions",
+                  "children": [],
+                  "expanded": false,
+                  "createdAt": 1770805755712,
+                  "done": false,
+                  "timeContexts": [
+                    "someday"
+                  ]
+                }
+              ],
+              "expanded": false,
+              "createdAt": 1770805487565,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ]
+            },
+            {
+              "id": 247,
+              "name": "duration attached to time context",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770773260252,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ]
+            },
+            {
+              "id": 106,
+              "name": "plan day",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770636201379,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ],
+              "contextDurations": {}
+            },
+            {
+              "id": 69,
+              "name": "day close and open dialogs",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770603489050,
+              "done": false,
+              "timeContexts": [
+                "week:2026-02-08"
+              ],
+              "contextDurations": {
+                "week:2026-02-08": 25
+              }
+            },
+            {
+              "id": 203,
+              "name": "due statuses",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770721314816,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ]
+            },
+            {
+              "id": 130,
+              "name": "preparations",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770642350190,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ]
+            },
+            {
+              "id": 81,
+              "name": "past and collisions",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770604006283,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ]
+            },
+            {
+              "id": 162,
+              "name": "undo",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770654338173,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ]
+            },
+            {
+              "id": 95,
+              "name": "day open and close actually set the day start/end times",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770632243615,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ]
+            },
+            {
+              "id": 70,
+              "name": "time block statuses",
+              "children": [
+                {
+                  "id": 71,
+                  "name": "in x minutes for upcoming",
+                  "children": [],
+                  "expanded": false,
+                  "createdAt": 1770603549975,
+                  "done": false,
+                  "timeContexts": [
+                    "someday"
+                  ]
+                }
+              ],
+              "expanded": false,
+              "createdAt": 1770603539447,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ]
+            },
+            {
+              "id": 261,
+              "name": "more context from projects menu - maybe right click and \"properties\" (e.g duration)",
+              "children": [
+                {
+                  "id": 373,
+                  "name": "created at",
+                  "children": [],
+                  "expanded": false,
+                  "createdAt": 1770942971259,
+                  "done": false,
+                  "timeContexts": [
+                    "someday"
+                  ]
+                }
+              ],
+              "expanded": false,
+              "createdAt": 1770807016332,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ]
+            },
+            {
+              "id": 209,
+              "name": "refactor time contexts - fix sessions in schedule modal",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770726107923,
+              "done": false,
+              "timeContexts": [
+                "week:2026-02-08"
+              ],
+              "contextDurations": {
+                "week:2026-02-08": 60
+              }
+            }
+          ],
           "expanded": false,
-          "createdAt": 1770926420908,
+          "createdAt": 1770939013487,
           "done": false,
           "timeContexts": [
-            "2026-02-13"
+            "someday"
+          ]
+        },
+        {
+          "id": 367,
+          "name": "future",
+          "children": [
+            {
+              "id": 381,
+              "name": "share",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770949862364,
+              "done": false,
+              "timeContexts": [
+                "week:2026-02-08"
+              ]
+            },
+            {
+              "id": 347,
+              "name": "connect to Ai agents",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770912320550,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ]
+            },
+            {
+              "id": 348,
+              "name": "reorder on a specific focus context and remember it/reset it?",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770912748944,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ]
+            },
+            {
+              "id": 343,
+              "name": "one button \"start being productive\" or \"fun\"",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770909284596,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ],
+              "contextDurations": {}
+            },
+            {
+              "id": 332,
+              "name": "see past and future total",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770854455978,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ]
+            },
+            {
+              "id": 291,
+              "name": "mobile app",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770811241187,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ]
+            },
+            {
+              "id": 279,
+              "name": "onboarding",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770809873991,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ]
+            },
+            {
+              "id": 254,
+              "name": "notifications and nudges",
+              "children": [
+                {
+                  "id": 72,
+                  "name": "pop ups when time has arrived for x",
+                  "children": [],
+                  "expanded": false,
+                  "createdAt": 1770603566237,
+                  "done": false,
+                  "timeContexts": [
+                    "someday"
+                  ]
+                }
+              ],
+              "expanded": false,
+              "createdAt": 1770805412771,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ]
+            },
+            {
+              "id": 134,
+              "name": "habits",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770646617509,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ]
+            },
+            {
+              "id": 163,
+              "name": "better handling of generic duration vs timecontext durations",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770654340606,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ]
+            },
+            {
+              "id": 289,
+              "name": "maybe toggle compact blocks (e.g free time)?",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770811045397,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ]
+            },
+            {
+              "id": 286,
+              "name": "plan/breakdown/overview sessions",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770810818397,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ]
+            },
+            {
+              "id": 260,
+              "name": "פטנט על האפליקציה?",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770806980696,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ]
+            },
+            {
+              "id": 253,
+              "name": "goals",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770805128980,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ]
+            },
+            {
+              "id": 245,
+              "name": "optional - location context",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770772376881,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ],
+              "contextDurations": {}
+            },
+            {
+              "id": 222,
+              "name": "ideas vs actions and notes",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770731101261,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ]
+            },
+            {
+              "id": 330,
+              "name": "keyboard shortcuts",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770854404239,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ]
+            },
+            {
+              "id": 85,
+              "name": "habit goals",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770607114515,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ]
+            },
+            {
+              "id": 22,
+              "name": "acheivments",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770594156678,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ]
+            },
+            {
+              "id": 205,
+              "name": "commitments",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770721486434,
+              "done": false,
+              "estimatedDuration": 15,
+              "timeContexts": [
+                "someday"
+              ],
+              "contextDurations": {}
+            },
+            {
+              "id": 183,
+              "name": "AI",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770675382995,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ],
+              "contextDurations": {}
+            },
+            {
+              "id": 173,
+              "name": "starvations",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770663347809,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ]
+            },
+            {
+              "id": 99,
+              "name": "import and export",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770633393671,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ]
+            },
+            {
+              "id": 35,
+              "name": "overview",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770594528651,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ]
+            },
+            {
+              "id": 172,
+              "name": "maybe start from idle",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770661226767,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ]
+            },
+            {
+              "id": 382,
+              "name": "reopening needs to be intentional and set sleep time again",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770950388960,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ]
+            }
+          ],
+          "expanded": true,
+          "createdAt": 1770939127641,
+          "done": false,
+          "timeContexts": [
+            "someday"
+          ]
+        },
+        {
+          "id": 366,
+          "name": "nice to have",
+          "children": [
+            {
+              "id": 376,
+              "name": "dark mode",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770947420700,
+              "done": true,
+              "timeContexts": [
+                "week:2026-02-08"
+              ]
+            },
+            {
+              "id": 372,
+              "name": "multiselect in projects",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770942845212,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ]
+            },
+            {
+              "id": 362,
+              "name": "drag into the live activity bar",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770933646937,
+              "done": true,
+              "timeContexts": [
+                "someday"
+              ]
+            },
+            {
+              "id": 360,
+              "name": "remove from current time context with trash icon",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770932288475,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ]
+            },
+            {
+              "id": 350,
+              "name": "break intentions?",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770913857546,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ],
+              "contextDurations": {}
+            },
+            {
+              "id": 338,
+              "name": "indicate how many items are in upper horizons while focused on lower?",
+              "children": [],
+              "expanded": true,
+              "createdAt": 1770890607428,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ]
+            },
+            {
+              "id": 336,
+              "name": "in week/session - show x/y total on hover",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770860404935,
+              "done": true,
+              "timeContexts": [
+                "someday"
+              ]
+            },
+            {
+              "id": 314,
+              "name": "mark waiting",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770827010963,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ]
+            },
+            {
+              "id": 292,
+              "name": "fun!",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770811414790,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ]
+            },
+            {
+              "id": 278,
+              "name": "animations",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770809865316,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ]
+            },
+            {
+              "id": 368,
+              "name": "wrap breadcrumb to keep live activity indicator centered",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770939994723,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ],
+              "contextDurations": {}
+            },
+            {
+              "id": 60,
+              "name": "notifications",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770602537587,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ]
+            },
+            {
+              "id": 244,
+              "name": "split",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770772153727,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ]
+            },
+            {
+              "id": 235,
+              "name": "code sanity - cleanup etc",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770738344929,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ],
+              "contextDurations": {}
+            },
+            {
+              "id": 233,
+              "name": "maybe moving to react without breaking anything",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770736587170,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ]
+            },
+            {
+              "id": 224,
+              "name": "search - global, not only in projects",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770733735758,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ]
+            },
+            {
+              "id": 158,
+              "name": "sounds",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770654246975,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ],
+              "contextDurations": {
+                "someday": 15
+              }
+            },
+            {
+              "id": 53,
+              "name": "@ for creating under x",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770601206625,
+              "done": true,
+              "timeContexts": [
+                "someday"
+              ]
+            },
+            {
+              "id": 90,
+              "name": "good morning screen",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770609351497,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ]
+            },
+            {
+              "id": 21,
+              "name": "good night screen",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770593873975,
+              "done": true,
+              "timeContexts": [
+                "someday"
+              ]
+            },
+            {
+              "id": 46,
+              "name": "animations",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770598587986,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ]
+            },
+            {
+              "id": 73,
+              "name": "brilly mode or tinder mode",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770603583812,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ]
+            },
+            {
+              "id": 217,
+              "name": "indicate parent when editing a time block",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770729610088,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ]
+            },
+            {
+              "id": 131,
+              "name": "indicate scheduled in projects",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770642442555,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ]
+            },
+            {
+              "id": 219,
+              "name": "right click for specific time isn't good, better always show it",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770729825658,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ]
+            },
+            {
+              "id": 64,
+              "name": "improve rename indicator in actions",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770603250323,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ]
+            },
+            {
+              "id": 255,
+              "name": "maybe if context is empty, suggest from other projects / time contexts",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770805468476,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ]
+            },
+            {
+              "id": 228,
+              "name": "different views for \"actions\" - including tinder and brilly",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770734580320,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ]
+            },
+            {
+              "id": 49,
+              "name": "rename from project - improve style, maybe double click",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770598966344,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ]
+            },
+            {
+              "id": 184,
+              "name": "clear to default day boundary time - improve UI action for it",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770677117477,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ]
+            },
+            {
+              "id": 91,
+              "name": "merge styles of entries and blocks, to either direction",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770609487876,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ]
+            }
+          ],
+          "expanded": false,
+          "createdAt": 1770939024902,
+          "done": false,
+          "timeContexts": [
+            "someday"
+          ]
+        },
+        {
+          "id": 364,
+          "name": "bugs",
+          "children": [
+            {
+              "id": 299,
+              "name": "mismatch in running",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770812213025,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ]
+            },
+            {
+              "id": 294,
+              "name": "fix the 2 insert markers - one works one not",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770811440975,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ]
+            },
+            {
+              "id": 215,
+              "name": "duration is not preserved, check why",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770729538351,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ]
+            }
+          ],
+          "expanded": false,
+          "createdAt": 1770938999434,
+          "done": false,
+          "timeContexts": [
+            "someday"
+          ]
+        },
+        {
+          "id": 369,
+          "name": "ideas",
+          "children": [
+            {
+              "id": 225,
+              "name": "and a why axis",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770733742947,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ]
+            },
+            {
+              "id": 223,
+              "name": "maybe also a \"where\" axis",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770733716283,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ]
+            },
+            {
+              "id": 176,
+              "name": "context switch tax?",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770663362060,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ]
+            },
+            {
+              "id": 152,
+              "name": "adhd tools (braindump etc.)",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770650797164,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ]
+            },
+            {
+              "id": 214,
+              "name": "order in a free time context",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770729462418,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ]
+            },
+            {
+              "id": 141,
+              "name": "deadline goals, habit goals",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770647502173,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ]
+            },
+            {
+              "id": 231,
+              "name": "one click fix for overscheduled in free time",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770736378840,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ]
+            },
+            {
+              "id": 229,
+              "name": "recurring - typical day, typical week etc",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770734683068,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ]
+            },
+            {
+              "id": 196,
+              "name": "quick start instead of create?",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770719293133,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ]
+            },
+            {
+              "id": 150,
+              "name": "visual indicators for scheduled projects",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770650401980,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ]
+            },
+            {
+              "id": 126,
+              "name": "paused items",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770640988461,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ]
+            },
+            {
+              "id": 171,
+              "name": "log aggregations",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770661033696,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ]
+            },
+            {
+              "id": 207,
+              "name": "under time context - maybe show suggestions from the level \"above\" in addition to explicitly scheduled there",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770722464348,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ]
+            },
+            {
+              "id": 206,
+              "name": "overview time to see all time contexts",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770721578013,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ]
+            },
+            {
+              "id": 159,
+              "name": "maybe enable reorder in actions?",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770654320969,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ]
+            }
+          ],
+          "expanded": false,
+          "createdAt": 1770941149764,
+          "done": false,
+          "timeContexts": [
+            "someday"
           ]
         },
         {
@@ -304,85 +1745,14 @@
           "children": [],
           "expanded": false,
           "createdAt": 1770922479749,
-          "done": false,
+          "done": true,
           "timeContexts": [
-            "2026-02-21"
+            "someday"
           ],
           "contextDurations": {
             "2026-02-12": 10
           },
           "contextLeadTimes": {}
-        },
-        {
-          "id": 350,
-          "name": "break intentions?",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770913857546,
-          "done": false,
-          "timeContexts": [
-            "someday"
-          ],
-          "contextDurations": {}
-        },
-        {
-          "id": 349,
-          "name": "month horizon",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770913093639,
-          "done": false,
-          "timeContexts": [
-            "2026-02-13"
-          ],
-          "contextDurations": {
-            "2026-02-12": 60
-          }
-        },
-        {
-          "id": 348,
-          "name": "reorder on a specific focus context and remember it/reset it?",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770912748944,
-          "done": false,
-          "timeContexts": [
-            "someday"
-          ]
-        },
-        {
-          "id": 347,
-          "name": "connect to Ai agents",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770912320550,
-          "done": false,
-          "timeContexts": [
-            "someday"
-          ]
-        },
-        {
-          "id": 344,
-          "name": "actions for the item itself in breadcrumb (including d&d)",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770909682024,
-          "done": false,
-          "timeContexts": [
-            "someday"
-          ]
-        },
-        {
-          "id": 343,
-          "name": "one button \"start being productive\" or \"fun\"",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770909284596,
-          "done": false,
-          "timeContexts": [
-            "someday"
-          ],
-          "contextDurations": {}
         },
         {
           "id": 341,
@@ -396,45 +1766,12 @@
           ]
         },
         {
-          "id": 338,
-          "name": "indicate how many items are in upper horizons while focused on lower?",
-          "children": [],
-          "expanded": true,
-          "createdAt": 1770890607428,
-          "done": false,
-          "timeContexts": [
-            "someday"
-          ]
-        },
-        {
           "id": 337,
           "name": "drag project to actions recursive bug",
           "children": [],
           "expanded": false,
           "createdAt": 1770860785215,
           "done": true,
-          "timeContexts": [
-            "someday"
-          ]
-        },
-        {
-          "id": 336,
-          "name": "in week/session - show x/y total on hover",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770860404935,
-          "done": false,
-          "timeContexts": [
-            "someday"
-          ]
-        },
-        {
-          "id": 332,
-          "name": "see past and future total",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770854455978,
-          "done": false,
           "timeContexts": [
             "someday"
           ]
@@ -461,7 +1798,7 @@
           "createdAt": 1770852271463,
           "done": true,
           "timeContexts": [
-            "2026-02-12"
+            "week:2026-02-08"
           ],
           "contextDurations": {
             "2026-02-12": 10
@@ -475,278 +1812,11 @@
           "createdAt": 1770852260931,
           "done": true,
           "timeContexts": [
-            "2026-02-12"
+            "week:2026-02-08"
           ],
           "contextDurations": {
             "2026-02-12": 10
           }
-        },
-        {
-          "id": 317,
-          "name": "week horizon",
-          "children": [
-            {
-              "id": 326,
-              "name": "aggregate",
-              "children": [],
-              "expanded": false,
-              "createdAt": 1770852039123,
-              "done": true,
-              "timeContexts": [
-                "week:2026-02-08"
-              ],
-              "contextDurations": {
-                "week:2026-02-08": 10
-              }
-            },
-            {
-              "id": 325,
-              "name": "editable",
-              "children": [],
-              "expanded": false,
-              "createdAt": 1770852032333,
-              "done": true,
-              "timeContexts": [
-                "week:2026-02-08"
-              ],
-              "contextDurations": {
-                "week:2026-02-08": 10
-              }
-            },
-            {
-              "id": 324,
-              "name": "more info when collapsed",
-              "children": [],
-              "expanded": false,
-              "createdAt": 1770852030965,
-              "done": true,
-              "timeContexts": [
-                "week:2026-02-08"
-              ],
-              "contextDurations": {
-                "week:2026-02-08": 5
-              }
-            },
-            {
-              "id": 323,
-              "name": "see past logs",
-              "children": [],
-              "expanded": false,
-              "createdAt": 1770852026134,
-              "done": false,
-              "timeContexts": [
-                "week:2026-02-08"
-              ],
-              "contextDurations": {
-                "week:2026-02-08": 15
-              }
-            },
-            {
-              "id": 322,
-              "name": "add to schedule modal",
-              "children": [],
-              "expanded": false,
-              "createdAt": 1770852013276,
-              "done": true,
-              "timeContexts": [
-                "week:2026-02-15"
-              ],
-              "contextDurations": {
-                "week:2026-02-08": 5
-              }
-            }
-          ],
-          "expanded": false,
-          "createdAt": 1770832301356,
-          "done": true,
-          "timeContexts": [
-            "week:2026-02-08"
-          ],
-          "contextDurations": {
-            "2026-02-11": 60
-          }
-        },
-        {
-          "id": 314,
-          "name": "mark waiting",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770827010963,
-          "done": false,
-          "timeContexts": [
-            "someday"
-          ]
-        },
-        {
-          "id": 302,
-          "name": "live blocks - work, break, idle - print to past and you can reconcile with plans, including general work plans",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770822520306,
-          "done": false,
-          "timeContexts": [
-            "2026-02-13"
-          ],
-          "contextDurations": {
-            "2026-02-12": 60
-          }
-        },
-        {
-          "id": 299,
-          "name": "mismatch in running",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770812213025,
-          "done": false,
-          "timeContexts": [
-            "someday"
-          ]
-        },
-        {
-          "id": 298,
-          "name": "capacity calc should be based on actual time after a resize",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770812152653,
-          "done": false,
-          "timeContexts": [
-            "someday"
-          ],
-          "contextDurations": {
-            "someday": 5
-          }
-        },
-        {
-          "id": 297,
-          "name": "start an item during a live session/plan - split/background/reconcile later?",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770812091726,
-          "done": false,
-          "timeContexts": [
-            "someday"
-          ]
-        },
-        {
-          "id": 295,
-          "name": "idle during plans",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770811888997,
-          "done": false,
-          "timeContexts": [
-            "someday"
-          ]
-        },
-        {
-          "id": 294,
-          "name": "fix the 2 insert markers - one works one not",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770811440975,
-          "done": false,
-          "timeContexts": [
-            "someday"
-          ]
-        },
-        {
-          "id": 292,
-          "name": "fun!",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770811414790,
-          "done": false,
-          "timeContexts": [
-            "someday"
-          ]
-        },
-        {
-          "id": 291,
-          "name": "mobile app",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770811241187,
-          "done": false,
-          "timeContexts": [
-            "someday"
-          ]
-        },
-        {
-          "id": 289,
-          "name": "maybe toggle compact blocks (e.g free time)?",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770811045397,
-          "done": false,
-          "timeContexts": [
-            "someday"
-          ]
-        },
-        {
-          "id": 290,
-          "name": "improve plan absorbing",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770811099646,
-          "done": false,
-          "timeContexts": [
-            "someday"
-          ]
-        },
-        {
-          "id": 286,
-          "name": "plan/breakdown/overview sessions",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770810818397,
-          "done": false,
-          "timeContexts": [
-            "someday"
-          ]
-        },
-        {
-          "id": 282,
-          "name": "idea - move \"done\" to be done under a context",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770810064805,
-          "done": false,
-          "timeContexts": [
-            "someday"
-          ]
-        },
-        {
-          "id": 281,
-          "name": "improve session timeline context",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770809993629,
-          "done": false,
-          "timeContexts": [
-            "someday"
-          ]
-        },
-        {
-          "id": 279,
-          "name": "onboarding",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770809873991,
-          "done": false,
-          "timeContexts": [
-            "someday"
-          ]
-        },
-        {
-          "id": 278,
-          "name": "animations",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770809865316,
-          "done": false,
-          "timeContexts": [
-            "someday"
-          ]
         },
         {
           "id": 318,
@@ -754,35 +1824,13 @@
           "children": [],
           "expanded": false,
           "createdAt": 1770847736743,
-          "done": false,
+          "done": true,
           "timeContexts": [
-            "2026-02-13"
+            "week:2026-02-08"
           ],
           "contextDurations": {
             "2026-02-12": 45
           }
-        },
-        {
-          "id": 276,
-          "name": "maybe even the running item itself is an intention in the working so it won't show on today",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770809480418,
-          "done": false,
-          "timeContexts": [
-            "someday"
-          ]
-        },
-        {
-          "id": 271,
-          "name": "change the running block intentions to not need an id - there's only one anyway, degrade when stopping",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770808198138,
-          "done": false,
-          "timeContexts": [
-            "someday"
-          ]
         },
         {
           "id": 267,
@@ -799,11 +1847,45 @@
           }
         },
         {
-          "id": 261,
-          "name": "more context from projects menu - maybe right click and \"properties\" (e.g duration)",
-          "children": [],
+          "id": 371,
+          "name": "soft stuff",
+          "children": [
+            {
+              "id": 76,
+              "name": "anything values - life is fun",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770603872718,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ]
+            },
+            {
+              "id": 87,
+              "name": "tolerance for mental health",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770607883577,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ]
+            },
+            {
+              "id": 77,
+              "name": "should find a nice animal + name for it",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770603882380,
+              "done": false,
+              "timeContexts": [
+                "someday"
+              ]
+            }
+          ],
           "expanded": false,
-          "createdAt": 1770807016332,
+          "createdAt": 1770941480044,
           "done": false,
           "timeContexts": [
             "someday"
@@ -817,91 +1899,11 @@
           "createdAt": 1770809109151,
           "done": true,
           "timeContexts": [
-            "2026-02-12@20:51-00:30"
+            "week:2026-02-08"
           ],
           "contextDurations": {
-            "2026-02-12": 90,
-            "2026-02-12@20:51-00:30": 90
+            "2026-02-12": 90
           }
-        },
-        {
-          "id": 260,
-          "name": "פטנט על האפליקציה?",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770806980696,
-          "done": false,
-          "timeContexts": [
-            "someday"
-          ]
-        },
-        {
-          "id": 256,
-          "name": "goals and deadlines - top down, acheive",
-          "children": [
-            {
-              "id": 257,
-              "name": "translate a goal to actions",
-              "children": [],
-              "expanded": false,
-              "createdAt": 1770805755712,
-              "done": false,
-              "timeContexts": [
-                "someday"
-              ]
-            }
-          ],
-          "expanded": true,
-          "createdAt": 1770805487565,
-          "done": false,
-          "timeContexts": [
-            "someday"
-          ]
-        },
-        {
-          "id": 255,
-          "name": "maybe if context is empty, suggest from other projects / time contexts",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770805468476,
-          "done": false,
-          "timeContexts": [
-            "someday"
-          ]
-        },
-        {
-          "id": 254,
-          "name": "notifications and nudges",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770805412771,
-          "done": false,
-          "timeContexts": [
-            "someday"
-          ]
-        },
-        {
-          "id": 253,
-          "name": "goals and deadlines",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770805128980,
-          "done": false,
-          "timeContexts": [
-            "someday"
-          ]
-        },
-        {
-          "id": 251,
-          "name": "reconcile intentions",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770802452301,
-          "done": false,
-          "timeContexts": [
-            "someday"
-          ],
-          "contextDurations": {}
         },
         {
           "id": 250,
@@ -910,74 +1912,6 @@
           "expanded": false,
           "createdAt": 1770802101929,
           "done": true,
-          "timeContexts": [
-            "someday"
-          ]
-        },
-        {
-          "id": 247,
-          "name": "duration attached to time context",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770773260252,
-          "done": false,
-          "timeContexts": [
-            "someday"
-          ]
-        },
-        {
-          "id": 245,
-          "name": "optional - location context",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770772376881,
-          "done": false,
-          "timeContexts": [
-            "someday"
-          ],
-          "contextDurations": {}
-        },
-        {
-          "id": 244,
-          "name": "split",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770772153727,
-          "done": false,
-          "timeContexts": [
-            "someday"
-          ]
-        },
-        {
-          "id": 239,
-          "name": "fix divergence rendering",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770767029355,
-          "done": false,
-          "timeContexts": [
-            "someday"
-          ]
-        },
-        {
-          "id": 235,
-          "name": "code sanity - cleanup etc",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770738344929,
-          "done": false,
-          "timeContexts": [
-            "someday"
-          ],
-          "contextDurations": {}
-        },
-        {
-          "id": 233,
-          "name": "maybe moving to react without breaking anything",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770736587170,
-          "done": false,
           "timeContexts": [
             "someday"
           ]
@@ -994,45 +1928,12 @@
           ]
         },
         {
-          "id": 231,
-          "name": "one click fix for overscheduled in free time",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770736378840,
-          "done": false,
-          "timeContexts": [
-            "someday"
-          ]
-        },
-        {
-          "id": 229,
-          "name": "recurring - typical day, typical week etc",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770734683068,
-          "done": false,
-          "timeContexts": [
-            "someday"
-          ]
-        },
-        {
-          "id": 228,
-          "name": "different views for \"actions\" - including tinder and brilly",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770734580320,
-          "done": false,
-          "timeContexts": [
-            "someday"
-          ]
-        },
-        {
           "id": 227,
           "name": "creating an item should create it in the current time context",
           "children": [],
           "expanded": false,
           "createdAt": 1770734318979,
-          "done": false,
+          "done": true,
           "timeContexts": [
             "someday"
           ]
@@ -1043,51 +1944,7 @@
           "children": [],
           "expanded": false,
           "createdAt": 1770734292438,
-          "done": false,
-          "timeContexts": [
-            "someday"
-          ]
-        },
-        {
-          "id": 225,
-          "name": "and a why axis",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770733742947,
-          "done": false,
-          "timeContexts": [
-            "someday"
-          ]
-        },
-        {
-          "id": 224,
-          "name": "search - global, not only in projects",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770733735758,
-          "done": false,
-          "timeContexts": [
-            "someday"
-          ]
-        },
-        {
-          "id": 223,
-          "name": "maybe also a \"where\" axis",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770733716283,
-          "done": false,
-          "timeContexts": [
-            "someday"
-          ]
-        },
-        {
-          "id": 222,
-          "name": "ideas vs actions and notes",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770731101261,
-          "done": false,
+          "done": true,
           "timeContexts": [
             "someday"
           ]
@@ -1104,56 +1961,12 @@
           ]
         },
         {
-          "id": 219,
-          "name": "right click for specific time isn't good, better always show it",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770729825658,
-          "done": false,
-          "timeContexts": [
-            "someday"
-          ]
-        },
-        {
           "id": 218,
           "name": "drag from projects to timeline",
           "children": [],
           "expanded": false,
           "createdAt": 1770729688687,
-          "done": false,
-          "timeContexts": [
-            "someday"
-          ]
-        },
-        {
-          "id": 217,
-          "name": "indicate parent when editing a time block",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770729610088,
-          "done": false,
-          "timeContexts": [
-            "someday"
-          ]
-        },
-        {
-          "id": 215,
-          "name": "duration is not preserved, check why",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770729538351,
-          "done": false,
-          "timeContexts": [
-            "someday"
-          ]
-        },
-        {
-          "id": 214,
-          "name": "order in a free time context",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770729462418,
-          "done": false,
+          "done": true,
           "timeContexts": [
             "someday"
           ]
@@ -1171,23 +1984,6 @@
           "contextDurations": {}
         },
         {
-          "id": 209,
-          "name": "refactor time contexts - fix sessions in schedule modal",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770726107923,
-          "done": false,
-          "timeContexts": [
-            "2026-02-13"
-          ],
-          "contextDurations": {
-            "2026-02-10@15:16-18:00": 60,
-            "2026-02-10@15:21-18:00": 60,
-            "2026-02-10@15:24-18:00": 60,
-            "2026-02-12": 30
-          }
-        },
-        {
           "id": 208,
           "name": "schedule with no fixed time (under a free time block)",
           "children": [],
@@ -1197,41 +1993,6 @@
           "timeContexts": [
             "someday"
           ]
-        },
-        {
-          "id": 207,
-          "name": "under time context - maybe show suggestions from the level \"above\" in addition to explicitly scheduled there",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770722464348,
-          "done": false,
-          "timeContexts": [
-            "someday"
-          ]
-        },
-        {
-          "id": 206,
-          "name": "overview time to see all time contexts",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770721578013,
-          "done": false,
-          "timeContexts": [
-            "someday"
-          ]
-        },
-        {
-          "id": 205,
-          "name": "commitments",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770721486434,
-          "done": false,
-          "estimatedDuration": 15,
-          "timeContexts": [
-            "someday"
-          ],
-          "contextDurations": {}
         },
         {
           "id": 204,
@@ -1248,60 +2009,15 @@
           }
         },
         {
-          "id": 203,
-          "name": "due statuses",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770721314816,
-          "done": false,
-          "timeContexts": [
-            "someday"
-          ]
-        },
-        {
-          "id": 202,
-          "name": "move",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770720806010,
-          "done": false,
-          "timeContexts": [
-            "someday"
-          ]
-        },
-        {
           "id": 198,
           "name": "change dynamically working time block duration",
           "children": [],
           "expanded": false,
           "createdAt": 1770719584735,
-          "done": false,
+          "done": true,
           "timeContexts": [
             "someday"
           ]
-        },
-        {
-          "id": 196,
-          "name": "quick start instead of create?",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770719293133,
-          "done": false,
-          "timeContexts": [
-            "someday"
-          ]
-        },
-        {
-          "id": 183,
-          "name": "AI",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770675382995,
-          "done": false,
-          "timeContexts": [
-            "someday"
-          ],
-          "contextDurations": {}
         },
         {
           "id": 182,
@@ -1326,17 +2042,6 @@
           ]
         },
         {
-          "id": 176,
-          "name": "context switch tax?",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770663362060,
-          "done": false,
-          "timeContexts": [
-            "someday"
-          ]
-        },
-        {
           "id": 175,
           "name": "someday",
           "children": [],
@@ -1356,40 +2061,7 @@
           "children": [],
           "expanded": false,
           "createdAt": 1770663352183,
-          "done": false,
-          "timeContexts": [
-            "someday"
-          ]
-        },
-        {
-          "id": 173,
-          "name": "starvations",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770663347809,
-          "done": false,
-          "timeContexts": [
-            "someday"
-          ]
-        },
-        {
-          "id": 171,
-          "name": "log aggregations",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770661033696,
-          "done": false,
-          "timeContexts": [
-            "someday"
-          ]
-        },
-        {
-          "id": 184,
-          "name": "clear to default day boundary time",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770677117477,
-          "done": false,
+          "done": true,
           "timeContexts": [
             "someday"
           ]
@@ -1417,29 +2089,6 @@
           ]
         },
         {
-          "id": 159,
-          "name": "maybe enable reorder in actions?",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770654320969,
-          "done": false,
-          "timeContexts": [
-            "someday"
-          ]
-        },
-        {
-          "id": 158,
-          "name": "sounds",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770654246975,
-          "done": false,
-          "timeContexts": [
-            "2026-02-13"
-          ],
-          "contextDurations": {}
-        },
-        {
           "id": 156,
           "name": "sequence vs parallel",
           "children": [],
@@ -1456,29 +2105,7 @@
           "children": [],
           "expanded": false,
           "createdAt": 1770651219396,
-          "done": false,
-          "timeContexts": [
-            "someday"
-          ]
-        },
-        {
-          "id": 152,
-          "name": "adhd tools (braindump etc.)",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770650797164,
-          "done": false,
-          "timeContexts": [
-            "someday"
-          ]
-        },
-        {
-          "id": 151,
-          "name": "onboarding",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770650778588,
-          "done": false,
+          "done": true,
           "timeContexts": [
             "someday"
           ]
@@ -1517,50 +2144,6 @@
           ]
         },
         {
-          "id": 150,
-          "name": "visual indicators for scheduled projects",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770650401980,
-          "done": false,
-          "timeContexts": [
-            "someday"
-          ]
-        },
-        {
-          "id": 162,
-          "name": "undo",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770654338173,
-          "done": false,
-          "timeContexts": [
-            "someday"
-          ]
-        },
-        {
-          "id": 163,
-          "name": "durations",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770654340606,
-          "done": false,
-          "timeContexts": [
-            "someday"
-          ]
-        },
-        {
-          "id": 172,
-          "name": "maybe start from idle",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770661226767,
-          "done": false,
-          "timeContexts": [
-            "someday"
-          ]
-        },
-        {
           "id": 125,
           "name": "clarify timers and stopwatches difference - maybe even on a bigger scale",
           "children": [],
@@ -1578,17 +2161,6 @@
           "expanded": false,
           "createdAt": 1770648273022,
           "done": true,
-          "timeContexts": [
-            "someday"
-          ]
-        },
-        {
-          "id": 168,
-          "name": "resolve helper",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770657322191,
-          "done": false,
           "timeContexts": [
             "someday"
           ]
@@ -1704,34 +2276,12 @@
           ]
         },
         {
-          "id": 141,
-          "name": "deadline goals, habit goals",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770647502173,
-          "done": false,
-          "timeContexts": [
-            "someday"
-          ]
-        },
-        {
           "id": 108,
           "name": "unify past logs and planned logs",
           "children": [],
           "expanded": false,
           "createdAt": 1770636809678,
           "done": true,
-          "timeContexts": [
-            "someday"
-          ]
-        },
-        {
-          "id": 134,
-          "name": "habits",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770646617509,
-          "done": false,
           "timeContexts": [
             "someday"
           ]
@@ -1754,17 +2304,6 @@
           "expanded": false,
           "createdAt": 1770641550203,
           "done": true,
-          "timeContexts": [
-            "someday"
-          ]
-        },
-        {
-          "id": 131,
-          "name": "indicate scheduled in projects",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770642442555,
-          "done": false,
           "timeContexts": [
             "someday"
           ]
@@ -1836,56 +2375,12 @@
           ]
         },
         {
-          "id": 126,
-          "name": "paused items",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770640988461,
-          "done": false,
-          "timeContexts": [
-            "someday"
-          ]
-        },
-        {
           "id": 113,
           "name": "idea - starting working on automatically focuses",
           "children": [],
           "expanded": false,
           "createdAt": 1770637594249,
-          "done": false,
-          "timeContexts": [
-            "someday"
-          ]
-        },
-        {
-          "id": 21,
-          "name": "good night screen",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770593873975,
-          "done": false,
-          "timeContexts": [
-            "someday"
-          ]
-        },
-        {
-          "id": 90,
-          "name": "good morning screen",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770609351497,
-          "done": false,
-          "timeContexts": [
-            "someday"
-          ]
-        },
-        {
-          "id": 22,
-          "name": "acheivments",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770594156678,
-          "done": false,
+          "done": true,
           "timeContexts": [
             "someday"
           ]
@@ -1902,23 +2397,12 @@
           ]
         },
         {
-          "id": 35,
-          "name": "overview",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770594528651,
-          "done": false,
-          "timeContexts": [
-            "someday"
-          ]
-        },
-        {
           "id": 36,
           "name": "visible actions and projects are determined by time context",
           "children": [],
           "expanded": false,
           "createdAt": 1770595377744,
-          "done": false,
+          "done": true,
           "timeContexts": [
             "someday"
           ]
@@ -1957,28 +2441,6 @@
           ]
         },
         {
-          "id": 42,
-          "name": "notifications",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770597870510,
-          "done": false,
-          "timeContexts": [
-            "someday"
-          ]
-        },
-        {
-          "id": 46,
-          "name": "animations",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770598587986,
-          "done": false,
-          "timeContexts": [
-            "someday"
-          ]
-        },
-        {
           "id": 48,
           "name": "show done",
           "children": [],
@@ -1990,23 +2452,12 @@
           ]
         },
         {
-          "id": 49,
-          "name": "rename from project - improve style, maybe double click",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770598966344,
-          "done": false,
-          "timeContexts": [
-            "someday"
-          ]
-        },
-        {
           "id": 51,
           "name": "deadlines?",
           "children": [],
           "expanded": false,
           "createdAt": 1770600939148,
-          "done": false,
+          "done": true,
           "timeContexts": [
             "someday"
           ]
@@ -2018,17 +2469,6 @@
           "expanded": false,
           "createdAt": 1770601200574,
           "done": true,
-          "timeContexts": [
-            "someday"
-          ]
-        },
-        {
-          "id": 53,
-          "name": "@ for creating under x",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770601206625,
-          "done": false,
           "timeContexts": [
             "someday"
           ]
@@ -2050,7 +2490,7 @@
           "children": [],
           "expanded": false,
           "createdAt": 1770601350383,
-          "done": false,
+          "done": true,
           "timeContexts": [
             "someday"
           ]
@@ -2061,7 +2501,7 @@
           "children": [],
           "expanded": false,
           "createdAt": 1770601683433,
-          "done": false,
+          "done": true,
           "timeContexts": [
             "someday"
           ]
@@ -2072,29 +2512,7 @@
           "children": [],
           "expanded": false,
           "createdAt": 1770601745251,
-          "done": false,
-          "timeContexts": [
-            "someday"
-          ]
-        },
-        {
-          "id": 58,
-          "name": "wait?",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770601968254,
-          "done": false,
-          "timeContexts": [
-            "someday"
-          ]
-        },
-        {
-          "id": 60,
-          "name": "notifications",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770602537587,
-          "done": false,
+          "done": true,
           "timeContexts": [
             "someday"
           ]
@@ -2111,23 +2529,12 @@
           ]
         },
         {
-          "id": 64,
-          "name": "improve rename indicator in actions",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770603250323,
-          "done": false,
-          "timeContexts": [
-            "someday"
-          ]
-        },
-        {
           "id": 65,
           "name": "ident child item entry in project",
           "children": [],
           "expanded": false,
           "createdAt": 1770603381643,
-          "done": false,
+          "done": true,
           "timeContexts": [
             "someday"
           ]
@@ -2138,67 +2545,7 @@
           "children": [],
           "expanded": false,
           "createdAt": 1770603478006,
-          "done": false,
-          "timeContexts": [
-            "someday"
-          ]
-        },
-        {
-          "id": 69,
-          "name": "day close and open dialogs",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770603489050,
-          "done": false,
-          "timeContexts": [
-            "2026-02-13"
-          ],
-          "contextDurations": {
-            "someday": 25,
-            "2026-02-11": 25,
-            "2026-02-12": 60
-          }
-        },
-        {
-          "id": 70,
-          "name": "time block statuses",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770603539447,
-          "done": false,
-          "timeContexts": [
-            "someday"
-          ]
-        },
-        {
-          "id": 71,
-          "name": "in x minutes for upcoming",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770603549975,
-          "done": false,
-          "timeContexts": [
-            "someday"
-          ]
-        },
-        {
-          "id": 72,
-          "name": "pop ups when time has arrived for x",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770603566237,
-          "done": false,
-          "timeContexts": [
-            "someday"
-          ]
-        },
-        {
-          "id": 73,
-          "name": "brilly mode or tinder mode",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770603583812,
-          "done": false,
+          "done": true,
           "timeContexts": [
             "someday"
           ]
@@ -2209,7 +2556,7 @@
           "children": [],
           "expanded": false,
           "createdAt": 1770603597255,
-          "done": false,
+          "done": true,
           "timeContexts": [
             "someday"
           ]
@@ -2226,45 +2573,12 @@
           ]
         },
         {
-          "id": 76,
-          "name": "anything values - life is fun",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770603872718,
-          "done": false,
-          "timeContexts": [
-            "someday"
-          ]
-        },
-        {
-          "id": 77,
-          "name": "should find a nice animal + name for it",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770603882380,
-          "done": false,
-          "timeContexts": [
-            "someday"
-          ]
-        },
-        {
-          "id": 81,
-          "name": "past and collisions",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770604006283,
-          "done": false,
-          "timeContexts": [
-            "someday"
-          ]
-        },
-        {
           "id": 82,
           "name": "countdown for in progress scheduled items",
           "children": [],
           "expanded": false,
           "createdAt": 1770604091437,
-          "done": false,
+          "done": true,
           "timeContexts": [
             "someday"
           ]
@@ -2292,44 +2606,11 @@
           ]
         },
         {
-          "id": 85,
-          "name": "habit goals",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770607114515,
-          "done": false,
-          "timeContexts": [
-            "someday"
-          ]
-        },
-        {
-          "id": 87,
-          "name": "tolerance for mental health",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770607883577,
-          "done": false,
-          "timeContexts": [
-            "someday"
-          ]
-        },
-        {
           "id": 88,
           "name": "warning when days collide (day start before prev day end)",
           "children": [],
           "expanded": false,
           "createdAt": 1770608099307,
-          "done": false,
-          "timeContexts": [
-            "someday"
-          ]
-        },
-        {
-          "id": 91,
-          "name": "merge styles of entries and blocks, to either direction",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770609487876,
           "done": false,
           "timeContexts": [
             "someday"
@@ -2352,18 +2633,7 @@
           "children": [],
           "expanded": false,
           "createdAt": 1770810985430,
-          "done": false,
-          "timeContexts": [
-            "someday"
-          ]
-        },
-        {
-          "id": 95,
-          "name": "day open and close actually set the day start/end times",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770632243615,
-          "done": false,
+          "done": true,
           "timeContexts": [
             "someday"
           ]
@@ -2380,23 +2650,12 @@
           ]
         },
         {
-          "id": 99,
-          "name": "import and export",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770633393671,
-          "done": false,
-          "timeContexts": [
-            "someday"
-          ]
-        },
-        {
           "id": 100,
           "name": "persistent running",
           "children": [],
           "expanded": false,
           "createdAt": 1770634606964,
-          "done": false,
+          "done": true,
           "timeContexts": [
             "someday"
           ]
@@ -2407,7 +2666,7 @@
           "children": [],
           "expanded": false,
           "createdAt": 1770634623472,
-          "done": false,
+          "done": true,
           "timeContexts": [
             "someday"
           ]
@@ -2473,18 +2732,7 @@
           "children": [],
           "expanded": false,
           "createdAt": 1770638241418,
-          "done": false,
-          "timeContexts": [
-            "someday"
-          ]
-        },
-        {
-          "id": 130,
-          "name": "preparations",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770642350190,
-          "done": false,
+          "done": true,
           "timeContexts": [
             "someday"
           ]
@@ -2495,7 +2743,7 @@
           "children": [],
           "expanded": false,
           "createdAt": 1770646843257,
-          "done": false,
+          "done": true,
           "timeContexts": [
             "someday"
           ]
@@ -2510,18 +2758,6 @@
           "timeContexts": [
             "someday"
           ]
-        },
-        {
-          "id": 106,
-          "name": "plan day",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770636201379,
-          "done": false,
-          "timeContexts": [
-            "someday"
-          ],
-          "contextDurations": {}
         },
         {
           "id": 237,
@@ -2563,27 +2799,29 @@
           }
         },
         {
-          "id": 330,
-          "name": "keyboard shortcuts",
+          "id": 271,
+          "name": "change the running block intentions to not need an id - there's only one anyway, degrade when stopping",
           "children": [],
           "expanded": false,
-          "createdAt": 1770854404239,
+          "createdAt": 1770808198138,
           "done": false,
           "timeContexts": [
             "someday"
           ]
         },
         {
-          "id": 354,
-          "name": "plan modal - forward plan, backwards plan",
+          "id": 380,
+          "name": "testy test",
           "children": [],
           "expanded": false,
-          "createdAt": 1770925458743,
+          "createdAt": 1770949491203,
           "done": false,
           "timeContexts": [
-            "someday"
+            "2026-02-13"
           ],
-          "contextDurations": {}
+          "contextDurations": {
+            "2026-02-13": 0
+          }
         }
       ],
       "expanded": true,
@@ -2594,7 +2832,9 @@
       ],
       "estimatedDuration": 60,
       "contextDurations": {
-        "someday": 0
+        "someday": 0,
+        "2026-02-12": 30,
+        "2026-02-12@entry:259": 60
       }
     },
     {
@@ -2714,12 +2954,15 @@
           "createdAt": 1770922605406,
           "done": false,
           "timeContexts": [
-            "2026-04-15"
+            "2026-06-17"
           ],
           "contextLeadTimes": {
             "2026-04-15": 5443200
           },
-          "contextDurations": {}
+          "contextDurations": {
+            "week:2026-02-08": 15,
+            "week:2026-02-15": 10
+          }
         },
         {
           "id": 331,
@@ -2730,7 +2973,10 @@
           "done": false,
           "timeContexts": [
             "week:2026-02-15"
-          ]
+          ],
+          "contextDurations": {
+            "week:2026-02-15": 5
+          }
         },
         {
           "id": 309,
@@ -2755,11 +3001,11 @@
           "createdAt": 1770824044768,
           "done": false,
           "timeContexts": [
+            "2026-02-15@entry:287",
             "2026-02-15@entry:207"
           ],
           "contextDurations": {
-            "2026-02-15": 30,
-            "2026-02-15@entry:207": 0
+            "2026-02-15@entry:287": 0
           }
         },
         {
@@ -2775,7 +3021,7 @@
           "contextDurations": {}
         }
       ],
-      "expanded": true,
+      "expanded": false,
       "createdAt": 1770812573309,
       "done": false,
       "timeContexts": [
@@ -2794,10 +3040,11 @@
           "createdAt": 1770912310256,
           "done": false,
           "timeContexts": [
-            "2026-02-12"
+            "2026-02-13"
           ],
           "contextDurations": {
-            "2026-02-12": 60
+            "2026-02-12": 60,
+            "2026-02-13": 30
           }
         },
         {
@@ -2808,10 +3055,11 @@
           "createdAt": 1770912286750,
           "done": false,
           "timeContexts": [
-            "2026-02-12"
+            "2026-02-13"
           ],
           "contextDurations": {
-            "2026-02-12": 30
+            "2026-02-12": 30,
+            "2026-02-13": 15
           }
         },
         {
@@ -2822,10 +3070,10 @@
           "createdAt": 1770832037368,
           "done": false,
           "timeContexts": [
-            "2026-02-13"
+            "2026-02-14"
           ],
           "contextDurations": {
-            "2026-02-12": 60
+            "2026-02-14": 60
           }
         },
         {
@@ -2852,10 +3100,11 @@
               "createdAt": 1770810830525,
               "done": false,
               "timeContexts": [
-                "2026-02-12"
+                "2026-02-13"
               ],
               "contextDurations": {
-                "2026-02-12": 60
+                "2026-02-12": 60,
+                "2026-02-13": 30
               }
             }
           ],
@@ -3050,7 +3299,10 @@
       "done": false,
       "timeContexts": [
         "2026-02-13"
-      ]
+      ],
+      "contextDurations": {
+        "2026-02-13": 15
+      }
     },
     {
       "id": 137,
@@ -3068,7 +3320,8 @@
           ],
           "contextDurations": {
             "2026-02-11": 150,
-            "2026-02-11@entry:222": 0
+            "2026-02-11@entry:222": 0,
+            "week:2026-02-15": 5
           }
         },
         {
@@ -3127,7 +3380,9 @@
             "2026-02-13"
           ],
           "contextDurations": {
-            "someday": 360
+            "someday": 360,
+            "2026-02-13": 5,
+            "week:2026-02-08": 5
           },
           "contextLeadTimes": {
             "2026-02-13@entry:206": 7200,
@@ -3143,7 +3398,7 @@
           "done": false,
           "estimatedDuration": 90,
           "timeContexts": [
-            "2026-02-12@entry:182"
+            "week:2026-02-08"
           ],
           "contextDurations": {
             "2026-02-12@entry:182": 90
@@ -3158,7 +3413,10 @@
           "done": false,
           "timeContexts": [
             "2026-02-13"
-          ]
+          ],
+          "contextDurations": {
+            "2026-02-13": 10
+          }
         }
       ],
       "expanded": false,
@@ -3201,7 +3459,10 @@
       "done": false,
       "timeContexts": [
         "2026-02-13"
-      ]
+      ],
+      "contextDurations": {
+        "2026-02-13": 60
+      }
     },
     {
       "id": 155,
@@ -3267,8 +3528,11 @@
       "createdAt": 1770654424971,
       "done": false,
       "timeContexts": [
-        "2026-02-13"
-      ]
+        "someday"
+      ],
+      "contextDurations": {
+        "someday": 10
+      }
     },
     {
       "id": 191,
@@ -3367,11 +3631,10 @@
           "createdAt": 1770736677309,
           "done": false,
           "timeContexts": [
-            "2026-02-12@20:55-00:30"
+            "someday"
           ],
           "contextDurations": {
-            "2026-02-12": 15,
-            "2026-02-12@20:55-00:30": 20
+            "2026-02-12": 15
           }
         },
         {
@@ -3397,11 +3660,10 @@
           "createdAt": 1770808515559,
           "done": false,
           "timeContexts": [
-            "2026-02-12@20:55-00:30"
+            "2026-02-13"
           ],
           "contextDurations": {
-            "2026-02-12": 30,
-            "2026-02-12@20:55-00:30": 30
+            "2026-02-13": 30
           }
         },
         {
@@ -3416,7 +3678,7 @@
           ],
           "contextDurations": {
             "2026-02-12": 45,
-            "2026-02-13": 120
+            "2026-02-13": 60
           }
         },
         {
@@ -3430,7 +3692,8 @@
             "2026-02-13"
           ],
           "contextDurations": {
-            "2026-02-12": 10
+            "2026-02-12": 10,
+            "2026-02-13": 10
           }
         }
       ],
@@ -3482,7 +3745,8 @@
           ],
           "contextDurations": {
             "2026-02-11": 10,
-            "2026-02-12": 5
+            "2026-02-12": 5,
+            "2026-02-13": 5
           }
         }
       ],
@@ -3494,5 +3758,5 @@
       ]
     }
   ],
-  "nextId": 360
+  "nextId": 383
 }

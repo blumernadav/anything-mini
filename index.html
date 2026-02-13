@@ -15,7 +15,7 @@
             <div class="streak-widget" id="streak-widget" title="Daily streak">
                 <span class="streak-fire" id="streak-fire">🔥</span>
                 <span class="streak-count" id="streak-count">0</span>
-                <button class="streak-checkin-btn" id="streak-checkin-btn" title="Check in today">✓</button>
+                <button class="streak-checkin-btn" id="streak-checkin-btn" title="Close your day">🌙</button>
             </div>
 
             <div class="top-bar-right">
@@ -26,15 +26,7 @@
                 <button class="top-bar-btn project-search-toggle" id="project-search-toggle"
                     title="Search projects">🔍</button>
                 <button class="top-bar-btn" id="settings-btn" title="Settings">⚙</button>
-                <div class="skin-selector">
-                    <label class="skin-label" for="skin-select">Skin:</label>
-                    <select id="skin-select" class="skin-select">
-                        <option value="modern">Modern</option>
-                        <option value="win95">Windows 95</option>
-                        <option value="duolingo">Duolingo</option>
-                        <option value="pencil">Pencil & Paper</option>
-                    </select>
-                </div>
+                <button class="top-bar-btn" id="dark-mode-toggle" title="Toggle dark mode">🌙</button>
                 <span class="greeting-time" id="greeting-time">00:00</span>
             </div>
         </div>
@@ -68,14 +60,20 @@
         <!-- Center -->
         <main class="main-content" id="main-content">
             <section class="main-section section-actions" id="section-actions">
-                <div class="section-header">
-                    <h2 class="section-title"><span class="title-icon">☑️</span> Actions</h2>
-                    <div class="pressure-bar" id="pressure-bar">
-                        <div class="pressure-bar-fill" id="pressure-bar-fill"></div>
-                        <span class="pressure-bar-label" id="pressure-bar-label"></span>
+                <div class="section-header" id="section-header-actions">
+                    <div class="header-breadcrumb-what" id="header-breadcrumb-what"></div>
+                    <div class="header-live-slot" id="header-live-slot"></div>
+                    <div class="header-right-cluster">
+                        <div class="header-breadcrumb-when" id="header-breadcrumb-when"></div>
+                        <div class="header-status-cluster">
+                            <div class="pressure-bar" id="pressure-bar">
+                                <div class="pressure-bar-fill" id="pressure-bar-fill"></div>
+                                <span class="pressure-bar-label" id="pressure-bar-label"></span>
+                            </div>
+                        </div>
                     </div>
+                    <span class="pressure-bar-missing" id="pressure-bar-missing"></span>
                 </div>
-                <div class="actions-breadcrumbs" id="actions-breadcrumbs"></div>
                 <div class="action-input-row" id="action-input-row">
                     <input class="action-input" id="action-input" placeholder="What's on your mind?" type="text"
                         autocomplete="off">

@@ -1,22 +1,16 @@
 {
-  "skin": "duolingo",
+  "skin": "duolingo-dark",
   "showDone": false,
   "showUnscheduled": true,
   "panels": {
-    "left": 475,
-    "right": 292
+    "left": 500,
+    "right": 317
   },
   "hidePastEntries": true,
-  "workingOn": {
-    "itemId": 351,
-    "itemName": "see the capacity of current context vs. what's visible?",
-    "projectName": "anything",
-    "startTime": 1770928000700,
-    "targetEndTime": null
-  },
+  "workingOn": null,
   "selectedItemId": "",
   "onBreak": null,
-  "timelineViewDate": "2026-02-11T22:00:00.000Z",
+  "timelineViewDate": "2026-02-15T22:00:00.000Z",
   "scheduleFilter": "scheduled+unscheduled",
   "collapsedGroups": [
     86,
@@ -29,7 +23,19 @@
     167,
     199,
     240,
-    242
+    242,
+    319,
+    9,
+    293,
+    300,
+    164,
+    17,
+    92,
+    62,
+    248,
+    145,
+    137,
+    122
   ],
   "viewHorizon": "day",
   "weekCollapsedDays": {
@@ -40,7 +46,14 @@
     "2026-02-12": false,
     "2026-02-13": true,
     "2026-02-14": true,
-    "2026-04-15": false
+    "2026-04-15": false,
+    "2026-03-15": true,
+    "2026-03-16": true,
+    "2026-03-17": true,
+    "2026-03-18": true,
+    "2026-03-19": true,
+    "2026-03-20": true,
+    "2026-03-21": true
   },
   "showSleepTimes": true,
   "weekExpandedGroups": {
@@ -50,16 +63,13 @@
       92,
       9
     ],
-    "weekGroups_2026-02-13": [
-      0,
-      9,
-      92,
-      17,
-      137
-    ],
+    "weekGroups_2026-02-13": [],
     "weekGroups_2026-02-15": [
       300
     ]
   },
-  "focusStack": []
+  "focusStack": [],
+  "projectTreeScrollTop": 309,
+  "darkMode": "auto",
+  "skinFamily": "duolingo"
 }

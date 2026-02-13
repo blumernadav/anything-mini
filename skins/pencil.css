@@ -875,11 +875,69 @@ body {
 .section-header {
     display: flex;
     align-items: center;
-    justify-content: flex-end;
-    padding: 6px 14px 4px 50px;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 12px 14px 4px 50px;
     flex-shrink: 0;
     position: relative;
     z-index: 2;
+    min-height: 28px;
+}
+
+/* ── Consolidated toolbar sub-containers ── */
+.header-breadcrumb-what {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0;
+    font-size: 13px;
+    font-family: 'Caveat', cursive;
+    min-width: 0;
+    flex-shrink: 1;
+    position: relative;
+    z-index: 1;
+}
+
+.header-live-slot {
+    position: absolute;
+    left: 50px;
+    right: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    justify-content: center;
+    pointer-events: none;
+}
+
+.header-live-slot>* {
+    pointer-events: auto;
+}
+
+.header-right-cluster {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+    flex-shrink: 0;
+    margin-left: auto;
+    position: relative;
+    z-index: 1;
+}
+
+.header-status-cluster {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.header-breadcrumb-when {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    font-size: 13px;
+    font-family: 'Caveat', cursive;
+    flex-shrink: 0;
 }
 
 .section-title {
@@ -911,19 +969,9 @@ body {
     display: none;
 }
 
-/* ─── Actions Breadcrumbs ─── */
+/* ─── Actions Breadcrumbs (legacy – now rendered in header) ─── */
 .actions-breadcrumbs {
-    padding: 0 14px 2px 50px;
-    flex-shrink: 0;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    position: relative;
-    z-index: 2;
-}
-
-.breadcrumb-when {
-    margin-left: auto;
+    display: none;
 }
 
 .breadcrumb-row {
@@ -954,6 +1002,7 @@ body {
     color: var(--blue-pen);
     cursor: pointer;
     padding: 0 3px;
+    max-width: 15ch;
     transition: all var(--dur) var(--ease);
 }
 
@@ -967,6 +1016,9 @@ body {
     color: var(--pencil);
     font-weight: 600;
     padding: 0 3px;
+    max-width: 20ch;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 /* ─── Actions ─── */
@@ -1334,7 +1386,6 @@ body {
     height: 4px;
     background: var(--pencil-ghost);
     border-radius: 2px;
-    margin-left: auto;
     flex-shrink: 0;
     opacity: 0.7;
 }
@@ -1369,10 +1420,9 @@ body {
 }
 
 .pressure-bar.pressure-bar-text-only {
-    background: none;
+    background: transparent;
     height: auto;
-    overflow: visible;
-    opacity: 1;
+    width: auto;
 }
 
 .pressure-bar.pressure-bar-text-only .pressure-bar-fill {
@@ -1381,11 +1431,88 @@ body {
 
 .pressure-bar.pressure-bar-text-only .pressure-bar-label {
     position: static;
+    transform: none;
+    opacity: 1;
+    font-size: 11px;
+    font-family: 'Caveat', cursive;
+}
+
+
+/* ─── Missing Duration Indicator ─── */
+.pressure-bar-missing {
+    display: none;
     font-size: 13px;
     font-family: 'Caveat', cursive;
     color: var(--pencil-faint);
+    border: 1px dashed var(--pencil-ghost);
+    padding: 0px 6px;
+    border-radius: var(--radius);
+    cursor: pointer;
+    margin-left: 6px;
+    flex-shrink: 0;
+    white-space: nowrap;
+    transition: all var(--dur) var(--ease);
 }
 
+.pressure-bar-missing.visible {
+    display: inline-flex;
+    align-items: center;
+}
+
+.pressure-bar-missing:hover {
+    border-color: var(--blue-pen);
+    border-style: solid;
+    color: var(--blue-pen);
+}
+
+.missing-dur-popover {
+    width: 260px;
+}
+
+.missing-dur-row {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 4px 0;
+    border-bottom: 1px dashed var(--pencil-ghost);
+}
+
+.missing-dur-row:last-child {
+    border-bottom: none;
+}
+
+.missing-dur-name {
+    font-size: 15px;
+    font-family: inherit;
+    color: var(--pencil);
+    line-height: 1.4;
+    word-break: break-word;
+}
+
+.missing-dur-presets {
+    display: flex;
+    gap: 3px;
+    flex-wrap: wrap;
+}
+
+.missing-dur-preset {
+    padding: 1px 6px;
+    border: 1px dashed var(--pencil-ghost);
+    background: transparent;
+    border-radius: var(--radius);
+    cursor: pointer;
+    font-size: 13px;
+    font-family: 'Caveat', cursive;
+    color: var(--pencil-faint);
+    transition: all var(--dur) var(--ease);
+    white-space: nowrap;
+}
+
+.missing-dur-preset:hover {
+    border-color: var(--blue-pen);
+    border-style: solid;
+    color: var(--blue-pen);
+}
 
 .action-goal-badge {
     display: flex;
@@ -1508,6 +1635,181 @@ body {
     opacity: 1;
 }
 
+/* ─── Move To Modal ─── */
+.move-to-modal-box {
+    min-width: 320px;
+    max-width: 380px;
+}
+
+.move-to-body {
+    padding: 0 !important;
+}
+
+.move-to-search {
+    padding: 8px 12px 0;
+}
+
+.move-to-search-input {
+    width: 100%;
+    padding: 6px 10px;
+    border: none;
+    border-bottom: 2px solid var(--pencil-ghost);
+    background: transparent;
+    font-size: 16px;
+    font-family: 'Patrick Hand', 'Caveat', cursive;
+    color: var(--pencil);
+    outline: none;
+    transition: border-color var(--dur) var(--ease);
+}
+
+.move-to-search-input:focus {
+    border-bottom-color: var(--blue-pen);
+}
+
+.move-to-search-input::placeholder {
+    color: var(--pencil-faint);
+}
+
+.move-to-search-highlight {
+    background: var(--highlight);
+    color: var(--blue-pen);
+    border-radius: 2px;
+    padding: 0 1px;
+}
+
+.move-to-tree {
+    max-height: 50vh;
+    overflow-y: auto;
+    padding: 8px 0;
+}
+
+.move-to-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    cursor: pointer;
+    transition: all var(--dur) var(--ease);
+    font-size: 16px;
+    font-family: 'Patrick Hand', 'Caveat', cursive;
+    color: var(--pencil);
+    border-radius: var(--radius);
+    margin: 0 6px;
+}
+
+.move-to-row:hover {
+    background: var(--highlight);
+    color: var(--pencil);
+}
+
+.move-to-toggle {
+    width: 16px;
+    flex-shrink: 0;
+    font-size: 12px;
+    color: var(--pencil-faint);
+    cursor: pointer;
+    text-align: center;
+    line-height: 1;
+    user-select: none;
+}
+
+.move-to-toggle:not(.leaf):hover {
+    color: var(--blue-pen);
+}
+
+.move-to-toggle.leaf {
+    cursor: default;
+    opacity: 0.4;
+}
+
+.move-to-inbox-icon {
+    font-size: 14px;
+    flex-shrink: 0;
+}
+
+.move-to-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.move-to-marker {
+    height: 10px;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity var(--dur) var(--ease);
+}
+
+.move-to-marker:hover {
+    opacity: 1;
+}
+
+.move-to-marker-line {
+    flex: 1;
+    height: 1px;
+    border-top: 1px dashed var(--pencil-ghost);
+    margin: 0 12px;
+    transition: all var(--dur) var(--ease);
+}
+
+.move-to-marker:hover .move-to-marker-line {
+    border-top-color: var(--blue-pen);
+    border-top-style: solid;
+    border-top-width: 2px;
+}
+
+.move-to-root-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 8px 12px;
+    margin: 4px 12px 8px;
+    font-size: 15px;
+    font-family: 'Patrick Hand', 'Caveat', cursive;
+    color: var(--pencil-soft);
+    background: transparent;
+    border: 1px dashed var(--pencil-ghost);
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: all var(--dur) var(--ease);
+}
+
+.move-to-root-btn:hover {
+    border-color: var(--blue-pen);
+    border-style: solid;
+    color: var(--blue-pen);
+    background: var(--blue-dim);
+}
+
+.move-to-actions {
+    justify-content: space-between;
+}
+
+.move-to-scroll-option {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 14px;
+    font-family: 'Patrick Hand', 'Caveat', cursive;
+    color: var(--pencil-soft);
+    cursor: pointer;
+    user-select: none;
+}
+
+.move-to-scroll-option:hover {
+    color: var(--pencil);
+}
+
+.move-to-scroll-checkbox {
+    accent-color: var(--blue-pen);
+    cursor: pointer;
+}
+
 /* ─── Goal Modal ─── */
 .goal-modal-box {
     min-width: 280px;
@@ -1602,6 +1904,7 @@ body {
     border-radius: 0;
     position: relative;
     z-index: 2;
+    flex-wrap: wrap;
 }
 
 .action-input-row:focus-within {
@@ -1618,6 +1921,7 @@ body {
     font-family: inherit;
     outline: none;
     color: var(--pencil);
+    min-width: 0;
 }
 
 .action-input::placeholder {
@@ -1654,6 +1958,116 @@ body {
     border-color: var(--pencil);
     color: var(--pencil);
 }
+
+/* ─── @ Autocomplete Dropdown ─── */
+.action-input-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    margin-top: 4px;
+    background: var(--paper);
+    border: 1px dashed var(--pencil-ghost);
+    border-radius: var(--radius);
+    box-shadow: 2px 3px 0 var(--pencil-ghost);
+    max-height: 220px;
+    overflow-y: auto;
+    z-index: 100;
+    padding: 4px 0;
+}
+
+.action-input-dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 10px;
+    cursor: pointer;
+    font-size: 16px;
+    font-family: 'Patrick Hand', 'Caveat', cursive;
+    color: var(--pencil);
+    border-radius: var(--radius);
+    margin: 0 4px;
+    transition: background var(--dur) var(--ease);
+}
+
+.action-input-dropdown-item:hover,
+.action-input-dropdown-item.highlighted {
+    background: var(--highlight);
+}
+
+.action-input-dropdown-name {
+    flex-shrink: 0;
+    font-weight: 600;
+}
+
+.action-input-dropdown-path {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 13px;
+    font-family: 'Caveat', cursive;
+    color: var(--pencil-faint);
+    text-align: right;
+}
+
+/* ─── @ Override Chip ─── */
+.action-input-at-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    background: var(--highlight);
+    border-radius: var(--radius);
+    font-size: 14px;
+    font-family: 'Caveat', cursive;
+    font-weight: 600;
+    color: var(--blue-pen);
+    white-space: nowrap;
+    width: 100%;
+    margin-top: 2px;
+}
+
+.action-input-hash-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    background: rgba(200, 140, 40, 0.1);
+    border-radius: var(--radius);
+    font-size: 14px;
+    font-family: 'Caveat', cursive;
+    font-weight: 600;
+    color: #a06820;
+    white-space: nowrap;
+    width: 100%;
+    margin-top: 2px;
+}
+
+.at-chip-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.at-chip-remove {
+    border: none;
+    background: none;
+    color: var(--pencil-soft);
+    cursor: pointer;
+    font-size: 14px;
+    line-height: 1;
+    padding: 0 2px;
+    opacity: 0.5;
+    transition: opacity var(--dur) var(--ease);
+    margin-left: auto;
+}
+
+.at-chip-remove:hover {
+    opacity: 1;
+    color: var(--red-pen);
+}
+
 
 /* ─── Knowledge ─── */
 .knowledge-item {
@@ -2160,15 +2574,14 @@ body {
 .live-session-indicator {
     display: inline-flex;
     align-items: center;
-    align-self: center;
     gap: 5px;
     padding: 3px 10px;
     border: 1px dashed var(--pencil-ghost);
     border-radius: 16px;
     background: transparent;
     transition: all var(--dur) var(--ease);
-    margin: 0 12px 6px;
     font-size: 11px;
+    cursor: pointer;
 }
 
 .live-session-indicator:hover {
@@ -2182,6 +2595,51 @@ body {
 
 .live-session-indicator-break {
     border-left: 2px solid var(--blue-pen);
+}
+
+.live-session-indicator-idle {
+    border-left: 2px solid var(--pencil-faint);
+}
+
+.live-session-indicator-sleep {
+    border-left: 2px solid #7c6ca8;
+    background: rgba(124, 108, 168, 0.05);
+}
+
+.live-session-indicator-sleep:hover {
+    border-style: solid;
+    border-color: #7c6ca8;
+}
+
+.sleep-close-day-btn {
+    margin-left: 4px;
+    padding: 1px 8px;
+    border: 1px dashed #7c6ca8;
+    background: transparent;
+    color: #7c6ca8;
+    font-size: 13px;
+    font-family: 'Caveat', cursive;
+    font-weight: 600;
+    cursor: pointer;
+    border-radius: var(--radius);
+    transition: all var(--dur) var(--ease);
+    white-space: nowrap;
+}
+
+.sleep-close-day-btn:hover {
+    border-style: solid;
+    background: rgba(124, 108, 168, 0.08);
+}
+
+.modal-field-toggle {
+    flex-wrap: wrap;
+}
+
+.modal-toggle {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--pencil);
+    cursor: pointer;
 }
 
 .live-session-indicator-icon {
@@ -2213,6 +2671,12 @@ body {
 
 .live-session-indicator-overtime {
     color: var(--red-pen);
+}
+
+.live-session-indicator-drag-over {
+    border-style: solid !important;
+    border-color: var(--blue-pen) !important;
+    background: rgba(43, 87, 154, 0.06) !important;
 }
 
 @keyframes live-pulse {
@@ -2456,6 +2920,44 @@ body {
     gap: 6px;
 }
 
+.schedule-mode-toggle {
+    display: flex;
+    gap: 0;
+    border: 1.5px solid var(--pencil-light);
+    border-radius: 6px;
+    overflow: hidden;
+    margin-bottom: 4px;
+}
+
+.schedule-mode-btn {
+    flex: 1;
+    padding: 4px 0;
+    font-size: 14px;
+    font-weight: 600;
+    font-family: 'Caveat', cursive;
+    border: none;
+    background: var(--pencil-paper);
+    color: var(--pencil-faint);
+    cursor: pointer;
+    transition: all var(--dur) var(--ease);
+    text-align: center;
+}
+
+.schedule-mode-btn:hover {
+    color: var(--pencil);
+    background: rgba(0, 0, 0, 0.03);
+}
+
+.schedule-mode-btn-active {
+    background: var(--pencil);
+    color: var(--pencil-paper);
+    font-weight: 700;
+}
+
+.schedule-mode-btn-active:hover {
+    opacity: 0.85;
+}
+
 .schedule-section {
     border: 1.5px solid var(--pencil-light);
     border-radius: 6px;
@@ -2483,6 +2985,43 @@ body {
 
 .schedule-section-header:hover {
     background: rgba(0, 0, 0, 0.03);
+}
+
+.schedule-section-badge {
+    margin-left: auto;
+    font-size: 12px;
+    font-weight: 600;
+    font-family: 'Caveat', cursive;
+    min-width: 18px;
+    height: 18px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9px;
+    background: rgba(43, 87, 154, 0.1);
+    color: var(--blue-pen);
+}
+
+.schedule-section[open] .schedule-section-badge {
+    opacity: 0.6;
+}
+
+.schedule-section-content-wrapper {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 250ms ease-out;
+}
+
+.schedule-section[open] .schedule-section-content-wrapper {
+    grid-template-rows: 1fr;
+}
+
+.schedule-section.schedule-section-closing .schedule-section-content-wrapper {
+    grid-template-rows: 0fr;
+}
+
+.schedule-section-content-wrapper>.schedule-section-content {
+    overflow: hidden;
 }
 
 .schedule-section-content {
@@ -2745,6 +3284,230 @@ body {
     opacity: 0.25;
     cursor: default;
     pointer-events: none;
+}
+
+/* ── Schedule Deadline UI ── */
+
+.schedule-cal-day {
+    position: relative;
+}
+
+.schedule-cal-deadline-btn {
+    display: none;
+    position: absolute;
+    top: 1px;
+    right: 1px;
+    width: 16px;
+    height: 16px;
+    border: none;
+    background: transparent;
+    font-size: 9px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0;
+    border-radius: 50%;
+    opacity: 0.5;
+    transition: opacity var(--dur) var(--ease);
+    z-index: 1;
+}
+
+.schedule-cal-day:hover .schedule-cal-deadline-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.schedule-cal-deadline-btn:hover {
+    opacity: 1;
+}
+
+.schedule-cal-day-deadline .schedule-cal-deadline-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.9;
+}
+
+.schedule-cal-day-deadline {
+    background: rgba(180, 60, 60, 0.1);
+    color: var(--red-pen);
+    font-weight: 700;
+    box-shadow: inset 0 0 0 1px var(--red-pen);
+}
+
+.schedule-cal-day-deadline:hover {
+    background: rgba(180, 60, 60, 0.18);
+    color: var(--red-pen);
+}
+
+.schedule-cal-day-deadline.schedule-cal-day-assigned {
+    background: var(--blue-pen);
+    color: var(--paper);
+    border-color: var(--blue-pen);
+    border-style: solid;
+}
+
+.schedule-cal-day-deadline.schedule-cal-day-today {
+    border: 1.5px solid var(--red-pen);
+}
+
+/* Inline deadline bar */
+.schedule-deadline-bar-wrapper {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 250ms ease;
+}
+
+.schedule-deadline-bar-wrapper.has-deadline {
+    grid-template-rows: 1fr;
+}
+
+.schedule-deadline-bar {
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 6px 8px;
+    margin-top: 8px;
+    border: 1px dashed var(--pencil-ghost);
+    border-radius: var(--radius);
+    background: var(--pencil-paper);
+}
+
+.schedule-deadline-bar-row1 {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.schedule-deadline-bar-row2 {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.schedule-deadline-bar-row3 {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 6px;
+}
+
+.schedule-deadline-bar-label {
+    font-size: 15px;
+    font-weight: 600;
+    font-family: 'Caveat', cursive;
+    color: var(--red-pen);
+    white-space: nowrap;
+}
+
+.schedule-deadline-bar-text {
+    font-size: 14px;
+    font-family: 'Caveat', cursive;
+    color: var(--pencil-soft);
+    white-space: nowrap;
+}
+
+.schedule-deadline-remove {
+    width: 20px;
+    height: 20px;
+    border: 1px dashed var(--pencil-ghost);
+    border-radius: var(--radius);
+    background: transparent;
+    color: var(--pencil-faint);
+    cursor: pointer;
+    font-size: 14px;
+    font-family: inherit;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    line-height: 1;
+    transition: all var(--dur) var(--ease);
+}
+
+.schedule-deadline-remove:hover {
+    border-color: var(--red-pen);
+    color: var(--red-pen);
+    border-style: solid;
+}
+
+.schedule-deadline-preset {
+    padding: 2px 8px;
+    font-size: 14px;
+    font-family: 'Caveat', cursive;
+    font-weight: 600;
+    border: 1px dashed var(--pencil-ghost);
+    border-radius: var(--radius);
+    background: transparent;
+    color: var(--pencil-soft);
+    cursor: pointer;
+    transition: all var(--dur) var(--ease);
+}
+
+.schedule-deadline-preset:hover {
+    border-style: solid;
+    border-color: var(--blue-pen);
+    color: var(--blue-pen);
+}
+
+.schedule-deadline-preset.active {
+    background: var(--blue-pen);
+    color: var(--paper);
+    border-color: var(--blue-pen);
+    border-style: solid;
+    font-weight: 700;
+}
+
+.schedule-deadline-preset.active:hover {
+    opacity: 0.85;
+}
+
+.schedule-deadline-custom-input {
+    width: 36px;
+    padding: 2px 4px;
+    font-size: 14px;
+    font-family: 'Caveat', cursive;
+    border: 1px dashed var(--pencil-ghost);
+    border-radius: var(--radius);
+    background: transparent;
+    color: var(--pencil-text);
+    text-align: center;
+}
+
+.schedule-deadline-custom-unit {
+    padding: 2px 4px;
+    font-size: 14px;
+    font-family: 'Caveat', cursive;
+    border: 1px dashed var(--pencil-ghost);
+    border-radius: var(--radius);
+    background: transparent;
+    color: var(--pencil-text);
+}
+
+.schedule-deadline-custom-set {
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    font-size: 14px;
+    font-family: 'Caveat', cursive;
+    font-weight: 600;
+    border: 1px dashed var(--pencil-ghost);
+    border-radius: var(--radius);
+    background: transparent;
+    color: var(--pencil-soft);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--dur) var(--ease);
+}
+
+.schedule-deadline-custom-set:hover {
+    border-style: solid;
+    border-color: var(--blue-pen);
+    color: var(--blue-pen);
 }
 
 /* ── Schedule Lead Time Inline UI ── */
@@ -3139,12 +3902,22 @@ select.schedule-leadtime-input {
 .segment-capacity-bar {
     width: 100%;
     height: 3px;
+    background: transparent;
+    border-radius: 0;
+    margin: 4px 0 0 26px;
+    max-width: calc(100% - 30px);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.segment-capacity-track {
+    flex: 1;
+    min-width: 0;
+    height: 100%;
     background: var(--pencil-ghost);
     border-radius: 2px;
-    margin: 4px 0 0 26px;
     position: relative;
-    overflow: hidden;
-    max-width: calc(100% - 30px);
 }
 
 .segment-capacity-fill {
@@ -3159,12 +3932,21 @@ select.schedule-leadtime-input {
 }
 
 .segment-capacity-label {
-    position: absolute;
-    right: 0;
-    top: 5px;
     font-size: 12px;
     font-family: 'Caveat', cursive;
     color: var(--pencil-faint);
+    white-space: nowrap;
+    max-width: 0;
+    overflow: hidden;
+    transition: max-width 0.25s ease, opacity 0.15s ease;
+    opacity: 0;
+    pointer-events: none;
+    flex-shrink: 0;
+}
+
+.segment-capacity-bar:hover .segment-capacity-label {
+    opacity: 1;
+    max-width: 100px;
 }
 
 .actions-drag-over {
@@ -5204,4 +5986,69 @@ select.schedule-leadtime-input {
 .duration-picker-start:hover {
     background: #5eab5e;
     color: white;
+}
+
+/* ── Nav slide transitions ── */
+@keyframes nav-slide-out-left {
+    from {
+        transform: translateX(0);
+        opacity: 1;
+    }
+
+    to {
+        transform: translateX(-30px);
+        opacity: 0;
+    }
+}
+
+@keyframes nav-slide-out-right {
+    from {
+        transform: translateX(0);
+        opacity: 1;
+    }
+
+    to {
+        transform: translateX(30px);
+        opacity: 0;
+    }
+}
+
+@keyframes nav-slide-in-left {
+    from {
+        transform: translateX(30px);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes nav-slide-in-right {
+    from {
+        transform: translateX(-30px);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+.nav-slide-out-left {
+    animation: nav-slide-out-left 150ms ease-out forwards;
+}
+
+.nav-slide-out-right {
+    animation: nav-slide-out-right 150ms ease-out forwards;
+}
+
+.nav-slide-in-left {
+    animation: nav-slide-in-left 150ms ease-out forwards;
+}
+
+.nav-slide-in-right {
+    animation: nav-slide-in-right 150ms ease-out forwards;
 }

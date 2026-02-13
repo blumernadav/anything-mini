@@ -134,11 +134,21 @@ async function loadAll() {
     if (Array.isArray(prefs.focusStack) && prefs.focusStack.length > 0) {
         state.focusStack = prefs.focusStack;
     }
+    // Restore project tree scroll position
+    if (typeof prefs.projectTreeScrollTop === 'number') {
+        state._pendingProjectTreeScroll = prefs.projectTreeScrollTop;
+    }
 
     // Auto-clean past schedules (fire-and-forget, don't block render)
     cleanPastSchedules();
     migrateEmptyTimeContexts();
     renderAll();
+    // Apply saved project tree scroll position after initial render
+    if (state._pendingProjectTreeScroll != null) {
+        const pt = document.getElementById('project-tree');
+        if (pt) pt.scrollTop = state._pendingProjectTreeScroll;
+        delete state._pendingProjectTreeScroll;
+    }
     syncSettingsUI();
     syncToggleUI();
     // Render streak widget with loaded settings
@@ -727,6 +737,21 @@ function contextMatchesDate(ctx, dateKey) {
     return ctx === dateKey || ctx.startsWith(dateKey + '@');
 }
 
+// Check if an overnight segment is still live (end time hasn't passed yet).
+// Returns true if the segment crosses midnight and its real end time is in the future.
+function _isOvernightSegmentLive(parsed, now) {
+    if (!parsed || !parsed.segment) return false;
+    const { start, end } = parsed.segment;
+    // Not an overnight segment if end >= start
+    if (end >= start) return false;
+    // Build actual end timestamp: date + 1 day at end time
+    const [sY, sM, sD] = parsed.date.split('-').map(Number);
+    const [endH, endM] = end.split(':').map(Number);
+    const endDate = new Date(sY, sM - 1, sD, endH, endM, 0, 0);
+    endDate.setDate(endDate.getDate() + 1); // overnight → next calendar day
+    return now < endDate;
+}
+
 // Check if an item has any segment-level context (with @) for a given date
 function hasSegmentContext(item, dateKey) {
     if (!item || !item.timeContexts) return false;
@@ -748,18 +773,24 @@ function getLiveContext(type) {
     return `${dateKey}@${type}`;
 }
 
-// Add a segment context to an item, removing the plain date context if present.
-// seedDuration: if provided, always use this value for the new context's duration
-// (used when migrating duration from another context via drag).
-async function addSegmentContext(itemId, segmentContextStr, seedDuration) {
+// Add a segment context to an item.
+// move (default true): clear all existing timeContexts/contextDurations first (D&D = move).
+// seedDuration: if provided, always use this value for the new context's duration.
+async function addSegmentContext(itemId, segmentContextStr, seedDuration, { move = true } = {}) {
     itemId = Number(itemId);
     const item = findItemById(itemId);
     if (!item) return;
     if (!item.timeContexts) item.timeContexts = [];
     const parsed = parseTimeContext(segmentContextStr);
     if (!parsed) return;
-    // Remove plain date context if present (segment subsumes it)
-    item.timeContexts = item.timeContexts.filter(tc => tc !== parsed.date);
+    if (move) {
+        // Move mode: strip all existing contexts and durations
+        item.timeContexts = [];
+        item.contextDurations = {};
+    } else {
+        // Additive mode: only remove plain date context (segment subsumes it)
+        item.timeContexts = item.timeContexts.filter(tc => tc !== parsed.date);
+    }
     // Add segment context if not already present
     if (!item.timeContexts.includes(segmentContextStr)) {
         item.timeContexts.push(segmentContextStr);
@@ -884,12 +915,20 @@ function itemMatchesTimeContext(action, dateKey) {
     const ownContexts = (item && item.timeContexts) || [];
     // Item has its own contexts — only check those, don't inherit from ancestors
     if (ownContexts.length > 0) {
+        // Check date matches first — items can have BOTH epoch ("someday") and day contexts
+        if (ownContexts.some(tc => contextMatchesDate(tc, dateKey))) return true;
         if (ownContexts.some(tc => isEpochContext(tc))) {
             // Even epoch items can appear via deadline shadow
             if (item && _deadlineShadowMatchesDate(item, dateKey)) return true;
             return false;
         }
         if (ownContexts.some(tc => contextMatchesDate(tc, dateKey))) return true;
+        // Overnight segments: check if any segment from a prior date is still live
+        const now = new Date();
+        if (ownContexts.some(tc => {
+            const p = parseTimeContext(tc);
+            return p && p.segment && p.date < dateKey && _isOvernightSegmentLive(p, now);
+        })) return true;
         // Backward projection: check if a deadline shadow covers this date
         if (item && _deadlineShadowMatchesDate(item, dateKey)) return true;
         return false;
@@ -1287,6 +1326,8 @@ async function cleanPastSchedules() {
                     if (isWeekContext(tc)) return true;
                     // Keep deadline contexts (anti-degradation) — they persist as overdue
                     if (isDeadlineContext(item, tc)) return true;
+                    // Keep overnight segments that are still live
+                    if (parsed.date < todayKey && parsed.segment && _isOvernightSegmentLive(parsed, today)) return true;
                     return parsed.date >= todayKey;
                 });
                 // If we removed date contexts and nothing date-level remains, degrade to week
@@ -1333,9 +1374,12 @@ async function cleanPastSessions(now) {
                     const parsed = parseTimeContext(tc);
                     if (!parsed || !parsed.segment) continue;
 
-                    // Past-date segments are automatically expired
+                    // Past-date segments are automatically expired —
+                    // UNLESS they cross midnight and their real end is still in the future
                     if (parsed.date < todayKey) {
-                        contextsToRemove.push(tc);
+                        if (!_isOvernightSegmentLive(parsed, now)) {
+                            contextsToRemove.push(tc);
+                        }
                         continue;
                     }
 
@@ -1453,7 +1497,6 @@ function moveItem(draggedId, dropTarget) {
         if (!target) { source.array.splice(source.index, 0, removed); return false; }
         target.children = target.children || [];
         target.children.push(removed);
-        target.expanded = true;
     } else {
         // Drop before/after a sibling
         const targetLoc = findParentArray(dropTarget.id);
@@ -1549,6 +1592,37 @@ function showProjectContextMenu(e, item) {
     });
     menu.appendChild(renameOpt);
 
+    // Done / Undo option
+    const doneOpt = document.createElement('div');
+    doneOpt.className = 'project-context-menu-item';
+    doneOpt.textContent = item.done ? 'Undo' : 'Done';
+    doneOpt.addEventListener('click', async (ev) => {
+        ev.stopPropagation();
+        dismissProjectContextMenu();
+        const newDone = !item.done;
+        await api.patch(`/items/${item.id}`, { done: newDone });
+        item.done = newDone;
+        if (newDone) {
+            const ancestorPath = getAncestorPath(item.id);
+            const ancestors = ancestorPath
+                ? ancestorPath.map(a => a.name).join(' › ')
+                : '';
+            await api.post('/timeline', {
+                text: `Done: ${item.name}`,
+                projectName: ancestors || null,
+                type: 'completion'
+            });
+            state.timeline = await api.get('/timeline');
+            // Deselect if hiding done items
+            if (!state.showDone && state.selectedItemId === item.id) {
+                state.selectedItemId = null;
+                savePref('selectedItemId', '');
+            }
+        }
+        renderAll();
+    });
+    menu.appendChild(doneOpt);
+
     // Work option (Start / Stop Working)
     if (!item.done) {
         const isWorking = state.workingOn && state.workingOn.itemId === item.id;
@@ -1619,6 +1693,16 @@ function showProjectContextMenu(e, item) {
     });
     menu.appendChild(goalOpt);
 
+    // Move to... option
+    const moveToOpt = document.createElement('div');
+    moveToOpt.className = 'project-context-menu-item';
+    moveToOpt.textContent = 'Move to...';
+    moveToOpt.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        dismissProjectContextMenu();
+        openMoveToModal(item.id, item.name);
+    });
+    menu.appendChild(moveToOpt);
 
     // Delete option
     const deleteOpt = document.createElement('div');
@@ -1838,6 +1922,18 @@ function showActionContextMenu(e, action) {
         menu.appendChild(goalOpt);
     }
 
+    // Move to... option (single only)
+    if (!isBulk) {
+        const moveToOpt = document.createElement('div');
+        moveToOpt.className = 'project-context-menu-item';
+        moveToOpt.textContent = 'Move to...';
+        moveToOpt.addEventListener('click', (ev) => {
+            ev.stopPropagation();
+            dismissProjectContextMenu();
+            openMoveToModal(action.id, action.name);
+        });
+        menu.appendChild(moveToOpt);
+    }
 
     // Decline option (danger)
     const declineOpt = document.createElement('div');
@@ -2593,6 +2689,25 @@ function renderActions() {
     // ── Ground indicator (live session) — always visible at top of Actions ──
     _renderLiveSessionIndicator();
 
+    // ── Sleep mode: show "Good Night" instead of actions ──
+    if (isInSleepRange() && !state.workingOn && !state.onBreak) {
+        container.querySelectorAll('.action-item, .action-group-header').forEach(el => el.remove());
+        empty.style.display = '';
+        empty.innerHTML = '';
+        const icon = document.createElement('span');
+        icon.className = 'empty-icon';
+        icon.textContent = '🌙';
+        empty.appendChild(icon);
+        const msg = document.createElement('span');
+        msg.textContent = 'Good Night';
+        empty.appendChild(msg);
+        const hint = document.createElement('span');
+        hint.className = 'empty-hint';
+        hint.textContent = 'time to rest — you earned it';
+        empty.appendChild(hint);
+        return;
+    }
+
     // Remove existing items but not the empty state and bulk bar
     container.querySelectorAll('.action-item, .action-group-header').forEach(el => el.remove());
 
@@ -2681,6 +2796,7 @@ function renderActions() {
         state.selectedActionIds.clear();
         state.selectionAnchor = null;
         updateBulkActionBar();
+        updateCapacitySummary([]);
         return;
     }
     empty.style.display = 'none';
@@ -2945,10 +3061,20 @@ function getFilteredActions() {
         return sessionLeaves;
     }
 
-    // Exclude items with segment-level contexts — they belong to the timeline, not Actions
+    // Exclude items with segment-level contexts — they belong to the timeline, not Actions.
+    // Exception: overnight segments that are still live (their start is "past" but end
+    // hasn't arrived yet) — keep them visible in Actions so they don't vanish entirely.
+    const nowForSegCheck = new Date();
     allLeaves = allLeaves.filter(a => {
         const item = findItemById(a.id);
-        return !hasSegmentContext(item, currentDateKey);
+        if (!hasSegmentContext(item, currentDateKey)) return true;
+        // Check if ALL segment contexts for this date are overnight-and-still-live
+        // If so, keep the item in Actions
+        const segContexts = (item.timeContexts || []).filter(tc => tc.startsWith(currentDateKey + '@'));
+        return segContexts.every(tc => {
+            const p = parseTimeContext(tc);
+            return p && p.segment && _isOvernightSegmentLive(p, nowForSegCheck);
+        });
     });
 
     if (!state.selectedItemId) return allLeaves;
@@ -3632,6 +3758,19 @@ function setupActionInput() {
     const btn = document.getElementById('action-input-btn');
     if (!input) return;
 
+    // ── Override State ──
+    let _atOverrideId = null;
+    let _atOverrideName = null;
+    let _hashOverrideContexts = null;   // time context override from #shortcut
+    let _hashOverrideName = null;       // display label for time chip
+
+    // ── Generic Dropdown State ──
+    let _dropdown = null;
+    let _highlightIdx = -1;
+    let _dropdownItems = [];
+    let _activeTrigger = null;  // which trigger char is active: '@' or '#'
+    let _activeTriggerInfo = null; // { atIdx, query } for the active trigger
+
     const updateBtnVisibility = () => {
         if (!btn) return;
         if (input.value.trim()) {
@@ -3641,25 +3780,368 @@ function setupActionInput() {
         }
     };
 
+    // ── Dropdown helpers (generic) ──
+    const _closeDropdown = () => {
+        if (_dropdown) { _dropdown.remove(); _dropdown = null; }
+        _highlightIdx = -1;
+        _dropdownItems = [];
+        _activeTrigger = null;
+        _activeTriggerInfo = null;
+    };
+
+    const _getTriggerQuery = (triggerChar) => {
+        const val = input.value;
+        const cursor = input.selectionStart;
+        const textBeforeCursor = val.slice(0, cursor);
+        const idx = textBeforeCursor.lastIndexOf(triggerChar);
+        if (idx === -1) return null;
+        if (idx > 0 && val[idx - 1] !== ' ') return null;
+        const query = textBeforeCursor.slice(idx + 1);
+        if (query.includes(' ')) return null;
+        return { atIdx: idx, query };
+    };
+
+    const _fuzzyMatch = (name, query) => {
+        return name.toLowerCase().includes(query.toLowerCase());
+    };
+
+    // ── @ Project helpers ──
+    const _buildBreadcrumb = (item) => {
+        if (!item._path || item._path.length <= 1) return '';
+        return item._path.slice(0, -1).map(p => p.name).join(' › ');
+    };
+
+    const _getProjectItems = (query) => {
+        const allItems = collectAllItems(state.items.items);
+        const filtered = query ? allItems.filter(i => _fuzzyMatch(i.name, query)) : allItems;
+        return filtered.slice(0, 8).map(item => ({
+            id: item.id,
+            name: item.name,
+            description: _buildBreadcrumb(item),
+            _raw: item
+        }));
+    };
+
+    // ── # Time helpers ──
+    const _DAY_NAMES = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    const _DAY_ABBREV = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+
+    const _getNextDayDate = (targetDow) => {
+        const today = getLogicalToday();
+        const todayDow = today.getDay();
+        let diff = (targetDow - todayDow + 7) % 7;
+        if (diff === 0) diff = 7; // next occurrence, not today
+        const d = new Date(today);
+        d.setDate(d.getDate() + diff);
+        return d;
+    };
+
+    const _addDays = (n) => {
+        const d = new Date(getLogicalToday());
+        d.setDate(d.getDate() + n);
+        return d;
+    };
+
+    const _buildTimeOptions = () => {
+        const today = getLogicalToday();
+        const tomorrow = _addDays(1);
+
+        const _fmtDay = (d) => {
+            const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            return `${days[d.getDay()]}, ${months[d.getMonth()]} ${d.getDate()}`;
+        };
+
+        const options = [
+            { label: 'today', aliases: ['today'], description: _fmtDay(today), contexts: [getDateKey(today)] },
+            { label: 'tomorrow', aliases: ['tomorrow', 'tmr'], description: _fmtDay(tomorrow), contexts: [getDateKey(tomorrow)] },
+            { label: 'someday', aliases: ['someday'], description: 'Backlog', contexts: ['someday'] },
+            { label: 'this week', aliases: ['week', 'thisweek'], description: 'Current week', contexts: [getWeekKey(today)] },
+            { label: 'next week', aliases: ['nextweek'], description: 'Next week', contexts: [getWeekKey(_addDays(7))] },
+        ];
+
+        // Day names
+        for (let dow = 0; dow < 7; dow++) {
+            const d = _getNextDayDate(dow);
+            options.push({
+                label: _DAY_NAMES[dow],
+                aliases: [_DAY_NAMES[dow], _DAY_ABBREV[dow]],
+                description: _fmtDay(d),
+                contexts: [getDateKey(d)]
+            });
+        }
+
+        // +N days (up to +7)
+        for (let n = 2; n <= 7; n++) {
+            const d = _addDays(n);
+            options.push({
+                label: `+${n} days`,
+                aliases: [`+${n}`],
+                description: _fmtDay(d),
+                contexts: [getDateKey(d)]
+            });
+        }
+
+        return options;
+    };
+
+    const _getTimeItems = (query) => {
+        const options = _buildTimeOptions();
+        if (!query) return options.slice(0, 8).map(o => ({ name: o.label, description: o.description, _timeContexts: o.contexts }));
+        const q = query.toLowerCase();
+        // Match against all aliases
+        const filtered = options.filter(o => o.aliases.some(a => a.includes(q)) || o.label.includes(q));
+        return filtered.slice(0, 8).map(o => ({ name: o.label, description: o.description, _timeContexts: o.contexts }));
+    };
+
+    // ── Generic dropdown rendering ──
+    const _renderDropdown = (items, triggerChar, triggerInfo) => {
+        _closeDropdown();
+        if (items.length === 0) return;
+
+        _dropdownItems = items;
+        _highlightIdx = 0;
+        _activeTrigger = triggerChar;
+        _activeTriggerInfo = triggerInfo;
+
+        const row = document.getElementById('action-input-row');
+        _dropdown = document.createElement('div');
+        _dropdown.className = 'action-input-dropdown';
+
+        items.forEach((item, idx) => {
+            const opt = document.createElement('div');
+            opt.className = 'action-input-dropdown-item' + (idx === 0 ? ' highlighted' : '');
+            opt.dataset.idx = idx;
+
+            const icon = document.createElement('span');
+            icon.className = 'action-input-dropdown-icon';
+            icon.textContent = triggerChar === '#' ? '📅' : '';
+            if (triggerChar === '#') opt.appendChild(icon);
+
+            const nameEl = document.createElement('span');
+            nameEl.className = 'action-input-dropdown-name';
+            nameEl.textContent = item.name;
+            opt.appendChild(nameEl);
+
+            if (item.description) {
+                const descEl = document.createElement('span');
+                descEl.className = 'action-input-dropdown-path';
+                descEl.textContent = item.description;
+                opt.appendChild(descEl);
+            }
+
+            opt.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                _selectItem(idx);
+            });
+            opt.addEventListener('mouseenter', () => {
+                _highlightIdx = idx;
+                _updateHighlight();
+            });
+
+            _dropdown.appendChild(opt);
+        });
+
+        row.appendChild(_dropdown);
+    };
+
+    const _updateHighlight = () => {
+        if (!_dropdown) return;
+        const items = _dropdown.querySelectorAll('.action-input-dropdown-item');
+        items.forEach((el, i) => {
+            el.classList.toggle('highlighted', i === _highlightIdx);
+            if (i === _highlightIdx) el.scrollIntoView({ block: 'nearest' });
+        });
+    };
+
+    const _selectItem = (idx) => {
+        const item = _dropdownItems[idx];
+        if (!item || !_activeTrigger || !_activeTriggerInfo) return;
+
+        const triggerChar = _activeTrigger;
+        const triggerInfo = _activeTriggerInfo;
+
+        // Replace trigger+query with trigger+selectedName in the input
+        const val = input.value;
+        const before = val.slice(0, triggerInfo.atIdx);
+        const after = val.slice(triggerInfo.atIdx + 1 + triggerInfo.query.length);
+        input.value = before + triggerChar + item.name + after;
+
+        if (triggerChar === '@') {
+            _atOverrideId = item.id;
+            _atOverrideName = item.name;
+        } else if (triggerChar === '#') {
+            _hashOverrideContexts = item._timeContexts;
+            _hashOverrideName = item.name;
+        }
+
+        _closeDropdown();
+        updateBtnVisibility();
+        _renderChips();
+        input.focus();
+    };
+
+    // ── Chips (both @ and # combined) ──
+    const _renderChips = () => {
+        const row = document.getElementById('action-input-row');
+        row.querySelector('.action-input-at-chip')?.remove();
+        row.querySelector('.action-input-hash-chip')?.remove();
+
+        if (_atOverrideId) {
+            const chip = document.createElement('span');
+            chip.className = 'action-input-at-chip';
+            chip.innerHTML = `<span class="at-chip-label">→ ${_atOverrideName}</span><button class="at-chip-remove" title="Remove">×</button>`;
+            chip.querySelector('.at-chip-remove').addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                const atMatch = input.value.match(/@\S+/);
+                if (atMatch) {
+                    input.value = input.value.replace(atMatch[0], '').replace(/\s{2,}/g, ' ').trim();
+                }
+                _atOverrideId = null;
+                _atOverrideName = null;
+                chip.remove();
+                updateBtnVisibility();
+                input.focus();
+            });
+            row.appendChild(chip);
+        }
+
+        if (_hashOverrideContexts) {
+            const chip = document.createElement('span');
+            chip.className = 'action-input-hash-chip';
+            chip.innerHTML = `<span class="at-chip-label">📅 ${_hashOverrideName}</span><button class="at-chip-remove" title="Remove">×</button>`;
+            chip.querySelector('.at-chip-remove').addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                const hashMatch = input.value.match(/#\S+/);
+                if (hashMatch) {
+                    input.value = input.value.replace(hashMatch[0], '').replace(/\s{2,}/g, ' ').trim();
+                }
+                _hashOverrideContexts = null;
+                _hashOverrideName = null;
+                chip.remove();
+                updateBtnVisibility();
+                input.focus();
+            });
+            row.appendChild(chip);
+        }
+    };
+
+    // ── Input handler ──
+    const _onInput = () => {
+        updateBtnVisibility();
+
+        // Validate existing overrides still match input text
+        if (_atOverrideId && _atOverrideName) {
+            if (!input.value.includes('@' + _atOverrideName)) {
+                _atOverrideId = null;
+                _atOverrideName = null;
+                document.getElementById('action-input-row')?.querySelector('.action-input-at-chip')?.remove();
+            }
+        }
+        if (_hashOverrideContexts && _hashOverrideName) {
+            if (!input.value.includes('#' + _hashOverrideName)) {
+                _hashOverrideContexts = null;
+                _hashOverrideName = null;
+                document.getElementById('action-input-row')?.querySelector('.action-input-hash-chip')?.remove();
+            }
+        }
+
+        // Try # trigger first (if no override selected yet)
+        if (!_hashOverrideContexts) {
+            const hashInfo = _getTriggerQuery('#');
+            if (hashInfo) {
+                const items = _getTimeItems(hashInfo.query);
+                _renderDropdown(items, '#', hashInfo);
+                return;
+            }
+        }
+
+        // Try @ trigger (if no override selected yet)
+        if (!_atOverrideId) {
+            const atInfo = _getTriggerQuery('@');
+            if (atInfo) {
+                const items = _getProjectItems(atInfo.query);
+                _renderDropdown(items, '@', atInfo);
+                return;
+            }
+        }
+
+        _closeDropdown();
+    };
+
+    // ── Submit ──
     const submitAction = async () => {
-        if (!input.value.trim()) return;
-        // Add as child of selected project, or under Inbox by default
+        let name = input.value.trim();
+        if (!name) return;
+
+        // Strip @mention and #time from name
+        if (_atOverrideId && _atOverrideName) {
+            name = name.replace('@' + _atOverrideName, '').replace(/\s{2,}/g, ' ').trim();
+        }
+        if (_hashOverrideContexts && _hashOverrideName) {
+            name = name.replace('#' + _hashOverrideName, '').replace(/\s{2,}/g, ' ').trim();
+        }
+        if (!name) return;
+
+        // Determine parentId: @override > selected project > inbox
         const inbox = state.items.items.find(i => i.isInbox);
-        const parentId = state.selectedItemId || (inbox ? inbox.id : null);
+        const parentId = _atOverrideId || state.selectedItemId || (inbox ? inbox.id : null);
+
+        // Determine timeContexts: #override > current view defaults
+        const timeContexts = _hashOverrideContexts || getCurrentTimeContexts();
+
         await api.post('/items', {
-            name: input.value.trim(),
+            name,
             parentId,
-            timeContexts: getCurrentTimeContexts()
+            timeContexts
         });
         await reloadItems();
         input.value = '';
+        _atOverrideId = null;
+        _atOverrideName = null;
+        _hashOverrideContexts = null;
+        _hashOverrideName = null;
+        _closeDropdown();
+        const row = document.getElementById('action-input-row');
+        row?.querySelector('.action-input-at-chip')?.remove();
+        row?.querySelector('.action-input-hash-chip')?.remove();
         updateBtnVisibility();
     };
 
-    input.addEventListener('input', updateBtnVisibility);
+    input.addEventListener('input', _onInput);
 
     input.addEventListener('keydown', async (e) => {
+        // Dropdown navigation
+        if (_dropdown && _dropdownItems.length > 0) {
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                _highlightIdx = (_highlightIdx + 1) % _dropdownItems.length;
+                _updateHighlight();
+                return;
+            }
+            if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                _highlightIdx = (_highlightIdx - 1 + _dropdownItems.length) % _dropdownItems.length;
+                _updateHighlight();
+                return;
+            }
+            if (e.key === 'Enter' || e.key === 'Tab') {
+                e.preventDefault();
+                _selectItem(_highlightIdx);
+                return;
+            }
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                _closeDropdown();
+                return;
+            }
+        }
+
         if (e.key === 'Enter') await submitAction();
+    });
+
+    input.addEventListener('blur', () => {
+        setTimeout(_closeDropdown, 150);
     });
 
     if (btn) {
@@ -3734,6 +4216,15 @@ function getLogicalToday() {
     if (isCurrentDay(yesterday)) return yesterday;
     // Fallback: use current calendar date
     return now;
+}
+
+// Check if the current moment is in the "tonight" range (outside day boundaries).
+// Returns true when now is after today's day-end or before today's day-start.
+function isInSleepRange() {
+    const logicalToday = getLogicalToday();
+    const { dayStart, dayEnd } = getDayBoundaries(logicalToday);
+    const now = new Date();
+    return now < dayStart || now >= dayEnd;
 }
 
 // ─── Horizon Layer Stack ───
@@ -3906,19 +4397,170 @@ function renderTimeContext() {
 
 }
 
+// ── Live Indicator DnD Helper ──
+// Attaches dragover/dragleave/drop listeners to a live-indicator element.
+// liveType: 'work' | 'break' | 'idle'
+function _attachLiveIndicatorDnD(indicator, liveType) {
+    indicator.addEventListener('dragover', (e) => {
+        if (!window._draggedAction && !e.dataTransfer.types.includes('application/x-segment-item-id')) return;
+        e.preventDefault();
+        e.stopPropagation();
+        e.dataTransfer.dropEffect = 'move';
+        indicator.classList.add('live-session-indicator-drag-over');
+    });
+    indicator.addEventListener('dragleave', (e) => {
+        e.stopPropagation();
+        indicator.classList.remove('live-session-indicator-drag-over');
+    });
+    indicator.addEventListener('drop', async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        indicator.classList.remove('live-session-indicator-drag-over');
+
+        // Clean up parent actions-section drag highlight (stopPropagation prevents its own drop handler)
+        const actionsSection = document.getElementById('section-actions');
+        if (actionsSection) actionsSection.classList.remove('actions-drag-over');
+
+        const todayKey = getDateKey(getLogicalToday());
+
+        // Resolve item ID from either drag source
+        let itemId;
+        let segCtx;
+        if (e.dataTransfer.types.includes('application/x-segment-item-id')) {
+            itemId = e.dataTransfer.getData('application/x-segment-item-id');
+            segCtx = e.dataTransfer.getData('application/x-segment-context');
+            if (!itemId) return;
+            // Strip old segment context before re-assigning
+            if (segCtx) {
+                const item = findItemById(Number(itemId));
+                if (item) {
+                    if (item.timeContexts) item.timeContexts = item.timeContexts.filter(tc => tc !== segCtx);
+                    if (item.contextDurations) delete item.contextDurations[segCtx];
+                }
+            }
+        } else {
+            itemId = e.dataTransfer.getData('application/x-action-id');
+        }
+        if (!itemId) return;
+        itemId = parseInt(itemId, 10);
+
+        if (liveType === 'idle') {
+            await rescheduleToDate(itemId, todayKey);
+        } else {
+            // work or break — add to the session's segment context
+            await addSegmentContext(itemId, `${todayKey}@${liveType}`);
+
+            // Move item under the active project when dropping onto work indicator
+            if (liveType === 'work' && state.workingOn && state.workingOn.itemId) {
+                const ancestors = getAncestorPath(state.workingOn.itemId);
+                const projectId = (ancestors && ancestors.length > 0) ? ancestors[0].id : state.workingOn.itemId;
+                // Only move if the item isn't already under this project
+                const itemAncestors = getAncestorPath(itemId);
+                const itemProjectId = (itemAncestors && itemAncestors.length > 0) ? itemAncestors[0].id : null;
+                if (itemProjectId !== projectId) {
+                    moveItem(itemId, { id: projectId, position: 'inside' });
+                    await api.put('/items', state.items);
+                }
+            }
+        }
+    });
+}
+
 // ── Live Session Indicator ("Ground") ──
 // Shows a compact clickable bar at the top of the Actions area when a
 // work/break session is running. Clicking it navigates to the session
 // AND focuses the related project.
 function _renderLiveSessionIndicator() {
-    const section = document.getElementById('section-actions');
-    if (!section) return;
+    const liveSlot = document.getElementById('header-live-slot');
+    if (!liveSlot) return;
 
-    // Remove any existing indicator
-    section.querySelectorAll('.live-session-indicator').forEach(el => el.remove());
+    // Clear the live slot
+    liveSlot.innerHTML = '';
 
     const liveSession = state.workingOn || state.onBreak;
-    if (!liveSession) return;
+
+    // ── Idle indicator: show when no work/break is active and currently within today's day ──
+    if (!liveSession) {
+        const logicalToday = getLogicalToday();
+        const { dayStart, dayEnd } = getDayBoundaries(logicalToday);
+        const nowMs = Date.now();
+        if (nowMs < dayStart.getTime() || nowMs >= dayEnd.getTime()) {
+            // Tonight range — show sleep indicator instead of idle
+            _renderSleepIndicator(liveSlot, dayEnd);
+            return;
+        }
+
+        // Find idle start: last block end before now, or day start
+        let idleStartMs = dayStart.getTime();
+        const entries = (state.timeline && state.timeline.entries) || [];
+        for (const entry of entries) {
+            if (entry.endTime && entry.timestamp <= nowMs && (entry.type === 'work' || entry.type === 'break' || entry.type === 'planned')) {
+                if (entry.endTime > idleStartMs && entry.endTime <= nowMs) {
+                    idleStartMs = entry.endTime;
+                }
+            }
+        }
+
+        const top = state.focusStack.length > 0 ? state.focusStack[state.focusStack.length - 1] : null;
+        // Hide when already focused on an idle/free block
+        if (top && (top.type === 'free')) return;
+
+        const elapsed = Math.max(0, nowMs - idleStartMs);
+        const _fmtDur = (ms) => {
+            const h = Math.floor(ms / 3600000);
+            const m = Math.floor((ms % 3600000) / 60000);
+            const s = Math.floor((ms % 60000) / 1000);
+            if (h > 0) return `${h}h ${m}m ${s}s`;
+            if (m > 0) return `${m}m ${s}s`;
+            return `${s}s`;
+        };
+
+        const indicator = document.createElement('div');
+        indicator.className = 'live-session-indicator live-session-indicator-idle';
+        indicator.style.cursor = 'pointer';
+        indicator.title = 'Click to view current idle time';
+
+        const icon = document.createElement('span');
+        icon.className = 'live-session-indicator-icon';
+        icon.textContent = '💤';
+
+        const label = document.createElement('span');
+        label.className = 'live-session-indicator-label';
+        label.textContent = 'Idle';
+
+        const timer = document.createElement('span');
+        timer.className = 'live-session-indicator-timer';
+        timer.dataset.sessionStart = idleStartMs;
+        timer.textContent = _fmtDur(elapsed);
+
+        indicator.appendChild(icon);
+        indicator.appendChild(label);
+        indicator.appendChild(timer);
+
+        // Click: navigate to today + focus the free/idle block in the timeline
+        indicator.addEventListener('click', () => {
+            state.timelineViewDate = getLogicalToday();
+            savePref('timelineViewDate', state.timelineViewDate.toISOString());
+            state.viewHorizon = 'day';
+            savePref('viewHorizon', 'day');
+            state.focusStack = [{
+                startMs: idleStartMs,
+                endMs: nowMs,
+                label: 'Free Time',
+                type: 'free',
+                icon: '✨',
+                tier: 'session',
+            }];
+            saveFocusStack();
+            renderAll();
+        });
+
+        // DnD: drop onto idle → schedule to today
+        _attachLiveIndicatorDnD(indicator, 'idle');
+
+        liveSlot.appendChild(indicator);
+        return;
+    }
 
     const isWork = !!state.workingOn;
     const top = state.focusStack.length > 0 ? state.focusStack[state.focusStack.length - 1] : null;
@@ -4022,13 +4664,81 @@ function _renderLiveSessionIndicator() {
         scrollToSelectedItem();
     });
 
-    // Insert after the section header, before actions-breadcrumbs
-    const breadcrumbs = section.querySelector('.actions-breadcrumbs');
-    if (breadcrumbs) {
-        section.insertBefore(indicator, breadcrumbs);
-    } else {
-        section.appendChild(indicator);
+    // DnD: drop onto work/break indicator → add to session context
+    _attachLiveIndicatorDnD(indicator, isWork ? 'work' : 'break');
+
+    // Insert into the header live slot
+    liveSlot.appendChild(indicator);
+}
+
+// ── Sleep Indicator ──
+// Renders a calming sleep indicator during the "tonight" range (outside day boundaries).
+// Shows time since day-end and a "Close Day" button for streak integration.
+function _renderSleepIndicator(liveSlot, dayEnd) {
+    const nowMs = Date.now();
+
+    // Find the nearest upcoming day-start
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    let { dayStart: nextDayStart } = getDayBoundaries(today);
+    if (nextDayStart.getTime() <= nowMs) {
+        // Today's start already passed — use tomorrow's
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        ({ dayStart: nextDayStart } = getDayBoundaries(tomorrow));
     }
+    const targetMs = nextDayStart.getTime();
+
+    const remaining = Math.max(0, targetMs - nowMs);
+    const _fmtDur = (ms) => {
+        const h = Math.floor(ms / 3600000);
+        const m = Math.floor((ms % 3600000) / 60000);
+        const s = Math.floor((ms % 60000) / 1000);
+        if (h > 0) return `${h}h ${m}m ${s}s`;
+        if (m > 0) return `${m}m ${s}s`;
+        return `${s}s`;
+    };
+
+    const indicator = document.createElement('div');
+    indicator.className = 'live-session-indicator live-session-indicator-sleep';
+    indicator.title = 'Sleep mode — time to rest';
+
+    const icon = document.createElement('span');
+    icon.className = 'live-session-indicator-icon';
+    icon.textContent = '🌙';
+
+    const label = document.createElement('span');
+    label.className = 'live-session-indicator-label';
+    label.textContent = 'Good Night';
+
+    const timer = document.createElement('span');
+    timer.className = 'live-session-indicator-timer';
+    timer.dataset.sessionStart = String(nowMs);
+    timer.dataset.targetEnd = String(targetMs);
+    timer.textContent = _fmtDur(remaining) + ' left';
+
+    indicator.appendChild(icon);
+    indicator.appendChild(label);
+    indicator.appendChild(timer);
+
+    // "Close Day" button — only if not already closed today
+    const streak = getStreakData();
+    if (!hasCheckedInToday(streak)) {
+        const closeBtn = document.createElement('button');
+        closeBtn.className = 'sleep-close-day-btn';
+        closeBtn.textContent = '🌙 Close Day';
+        closeBtn.title = 'Close your day and keep the streak going';
+        closeBtn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            await performCheckIn();
+        });
+        indicator.appendChild(closeBtn);
+    }
+
+    // DnD: drop onto sleep → schedule to today
+    _attachLiveIndicatorDnD(indicator, 'idle');
+
+    liveSlot.appendChild(indicator);
 }
 
 // ── Timer Adjustment Helper ──
@@ -4953,8 +5663,8 @@ function renderWeekView(container) {
                 ? `${Math.floor(dayCapacityMins / 60)}h`
                 : `${dayCapacityMins}m`;
             capBar.innerHTML = `
-                <div class="segment-capacity-fill${isOver ? ' over-capacity' : ''}" style="width:${fillPct}%"></div>
                 <span class="segment-capacity-label">${hrsLabel} / ${availLabel}</span>
+                <div class="segment-capacity-track"><div class="segment-capacity-fill${isOver ? ' over-capacity' : ''}" style="width:${fillPct}%"></div></div>
             `;
             content.appendChild(capBar);
         }
@@ -4984,8 +5694,8 @@ function renderWeekView(container) {
                 ? `${Math.floor(dayCapacityMins / 60)}h`
                 : `${dayCapacityMins}m`;
             collapsedBar.innerHTML = `
-                <div class="segment-capacity-fill${isOver ? ' over-capacity' : ''}" style="width:${fillPct}%"></div>
                 <span class="segment-capacity-label">${hrsLabel} / ${availLabel}</span>
+                <div class="segment-capacity-track"><div class="segment-capacity-fill${isOver ? ' over-capacity' : ''}" style="width:${fillPct}%"></div></div>
             `;
             row.appendChild(collapsedBar);
         }
@@ -5241,7 +5951,7 @@ function renderTimeline() {
     const allMomentEntries = allDayEntries.filter(e => !isBlockEntry(e));
 
     // When "hide past entries" is on and viewing today, remove entries before now
-    const hidePast = state.hidePastEntries && viewingToday;
+    const hidePast = state.hidePastEntries;
     const dayBlockEntries = hidePast
         ? allBlockEntries.filter(e => (e.endTime || e.timestamp) >= nowMs)
         : allBlockEntries;
@@ -5252,7 +5962,7 @@ function renderTimeline() {
     const fragment = document.createDocumentFragment();
 
     // ── Night indicator BEFORE Day Start (previous day's end → this day's start) ──
-    if (!hidePast) {
+    if (!hidePast || !viewingToday) {
         const prevDay = new Date(viewDate);
         prevDay.setDate(prevDay.getDate() - 1);
         const prevTimes = getEffectiveDayTimes(prevDay);
@@ -5273,7 +5983,7 @@ function renderTimeline() {
 
     // ── Build interleaved block entries + free time blocks ──
     // Track cursor through the day to find gaps — only block entries advance the cursor
-    let cursor = hidePast ? nowMs : dayStart.getTime();
+    let cursor = hidePast ? Math.max(nowMs, dayStart.getTime()) : dayStart.getTime();
 
     // Find the last BLOCK entry that starts at or before "now", tracking its effective end time
     // Use allBlockEntries so we find the anchor even when past entries are hidden
@@ -5990,8 +6700,8 @@ function createFreeTimeBlock(startMs, endMs) {
             const fillPct = Math.min(100, (totalEstMins / availMins) * 100);
             const isOver = totalEstMins > availMins;
             capBar.innerHTML = `
-                <div class="segment-capacity-fill${isOver ? ' over-capacity' : ''}" style="width:${fillPct}%"></div>
                 <span class="segment-capacity-label">${totalEstMins}m / ${availMins}m</span>
+                <div class="segment-capacity-track"><div class="segment-capacity-fill${isOver ? ' over-capacity' : ''}" style="width:${fillPct}%"></div></div>
             `;
             el.appendChild(capBar);
         }
@@ -6856,8 +7566,8 @@ function _attachEntryDropAndQueue(el, contextStr, deadlineMs) {
             const fillPct = Math.min(100, (totalEstMins / availMins) * 100);
             const isOver = totalEstMins > availMins;
             capBar.innerHTML = `
-                <div class="segment-capacity-fill${isOver ? ' over-capacity' : ''}" style="width:${fillPct}%"></div>
                 <span class="segment-capacity-label">${totalEstMins}m / ${availMins}m</span>
+                <div class="segment-capacity-track"><div class="segment-capacity-fill${isOver ? ' over-capacity' : ''}" style="width:${fillPct}%"></div></div>
             `;
             el.appendChild(capBar);
         }
@@ -7998,8 +8708,8 @@ function createPlannedTimeBlock(entry, isGhost = false, isPhantom = false) {
             const fillPct = Math.min(100, (totalEstMins / availMins) * 100);
             const isOver = totalEstMins > availMins;
             capBar.innerHTML = `
-                <div class="segment-capacity-fill${isOver ? ' over-capacity' : ''}" style="width:${fillPct}%"></div>
                 <span class="segment-capacity-label">${totalEstMins}m / ${availMins}m</span>
+                <div class="segment-capacity-track"><div class="segment-capacity-fill${isOver ? ' over-capacity' : ''}" style="width:${fillPct}%"></div></div>
             `;
             el.appendChild(capBar);
         }
@@ -8466,14 +9176,13 @@ function updateDateNav() {
 
 // ─── Context Labels ───
 function updateContextLabels() {
-    const container = document.getElementById('actions-breadcrumbs');
-    if (!container) return;
-    container.innerHTML = '';
+    const whatContainer = document.getElementById('header-breadcrumb-what');
+    const whenContainer = document.getElementById('header-breadcrumb-when');
+    if (!whatContainer || !whenContainer) return;
+    whatContainer.innerHTML = '';
+    whenContainer.innerHTML = '';
 
     // ── What axis (left): project tree position ──
-    const whatRow = document.createElement('div');
-    whatRow.className = 'breadcrumb-row breadcrumb-what';
-
     if (state.selectedItemId) {
         const ancestors = getAncestorPath(state.selectedItemId);
         const selectedItem = findItemById(state.selectedItemId);
@@ -8488,7 +9197,7 @@ function updateContextLabels() {
                 savePref('selectedItemId', '');
                 renderAll();
             });
-            whatRow.appendChild(allSeg);
+            whatContainer.appendChild(allSeg);
 
             // Ancestor segments
             if (ancestors) {
@@ -8497,19 +9206,19 @@ function updateContextLabels() {
                     const sep = document.createElement('span');
                     sep.className = 'breadcrumb-sep';
                     sep.textContent = '›';
-                    whatRow.appendChild(sep);
+                    whatContainer.appendChild(sep);
 
                     const seg = document.createElement('span');
                     seg.className = 'breadcrumb-segment breadcrumb-link';
                     seg.textContent = ancestor.name;
-                    seg.title = `Focus on "${ancestor.name}"`;
+                    seg.title = ancestor.name;
                     seg.addEventListener('click', () => {
                         state.selectedItemId = ancestor.id;
                         savePref('selectedItemId', ancestor.id);
                         renderAll();
                         requestAnimationFrame(() => scrollToSelectedItem());
                     });
-                    whatRow.appendChild(seg);
+                    whatContainer.appendChild(seg);
                 }
             }
 
@@ -8517,27 +9226,23 @@ function updateContextLabels() {
             const sep = document.createElement('span');
             sep.className = 'breadcrumb-sep';
             sep.textContent = '›';
-            whatRow.appendChild(sep);
+            whatContainer.appendChild(sep);
 
             const current = document.createElement('span');
             current.className = 'breadcrumb-segment breadcrumb-current';
             current.textContent = selectedItem.name;
-            whatRow.appendChild(current);
+            current.title = selectedItem.name;
+            whatContainer.appendChild(current);
         }
     } else {
         // Root level — show "All"
         const allSeg = document.createElement('span');
         allSeg.className = 'breadcrumb-segment breadcrumb-current';
         allSeg.textContent = '📁 All';
-        whatRow.appendChild(allSeg);
+        whatContainer.appendChild(allSeg);
     }
 
-    container.appendChild(whatRow);
-
     // ── When axis (right): time context focus ──
-    const whenRow = document.createElement('div');
-    whenRow.className = 'breadcrumb-row breadcrumb-when';
-
     const viewDate = state.timelineViewDate;
     const todayKey = getDateKey(getLogicalToday());
     const viewKey = getDateKey(viewDate);
@@ -8561,26 +9266,26 @@ function updateContextLabels() {
             clearFocusStack();
             renderAll();
         });
-        whenRow.appendChild(dateSeg);
+        whenContainer.appendChild(dateSeg);
 
         // Session segment
         const sep = document.createElement('span');
         sep.className = 'breadcrumb-sep';
         sep.textContent = '›';
-        whenRow.appendChild(sep);
+        whenContainer.appendChild(sep);
 
         const sessionSeg = document.createElement('span');
         sessionSeg.className = 'breadcrumb-segment breadcrumb-current';
         const timeRange = `${formatTime(focusedSession.startMs)}–${formatTime(focusedSession.endMs)}`;
         const typeLabel = focusedSession.label || focusedSession.type || '';
         sessionSeg.textContent = `${timeRange} ${typeLabel}`.trim();
-        whenRow.appendChild(sessionSeg);
+        whenContainer.appendChild(sessionSeg);
     } else if (state.viewHorizon === 'someday') {
         // Someday backlog view
         const somedaySeg = document.createElement('span');
         somedaySeg.className = 'breadcrumb-segment breadcrumb-current';
         somedaySeg.textContent = '📦 Someday';
-        whenRow.appendChild(somedaySeg);
+        whenContainer.appendChild(somedaySeg);
     } else if (state.viewHorizon === 'week') {
         // Week view
         const weekKey = getWeekKey(state.timelineViewDate);
@@ -8590,7 +9295,7 @@ function updateContextLabels() {
         const weekSeg = document.createElement('span');
         weekSeg.className = 'breadcrumb-segment breadcrumb-current';
         weekSeg.textContent = label;
-        whenRow.appendChild(weekSeg);
+        whenContainer.appendChild(weekSeg);
     } else {
         // No session focused — just show the date
         const dateSeg = document.createElement('span');
@@ -8602,10 +9307,8 @@ function updateContextLabels() {
             const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
             dateSeg.textContent = `📅 ${days[viewDate.getDay()]}, ${months[viewDate.getMonth()]} ${viewDate.getDate()}`;
         }
-        whenRow.appendChild(dateSeg);
+        whenContainer.appendChild(dateSeg);
     }
-
-    container.appendChild(whenRow);
 }
 
 // ─── Duration Picker Popover ───
@@ -9067,10 +9770,30 @@ function updateCapacitySummary(sortedActions) {
     const focusedSession = state.focusStack.length > 0 ? state.focusStack[state.focusStack.length - 1] : null;
 
     let demandMins = 0;
+    const missingDurItems = [];
     for (const action of undone) {
         const item = findItemById(action.id);
         const ctxDur = getContextDuration(item);
-        if (ctxDur) demandMins += ctxDur;
+        if (ctxDur) {
+            demandMins += ctxDur;
+        } else {
+            missingDurItems.push({ id: action.id, name: action.name || item?.name || '?' });
+        }
+    }
+
+    // ── Missing-duration indicator ──
+    const missingEl = document.getElementById('pressure-bar-missing');
+    if (missingEl) {
+        if (missingDurItems.length > 0) {
+            missingEl.textContent = `⏱ ${missingDurItems.length}`;
+            missingEl.title = `${missingDurItems.length} item${missingDurItems.length !== 1 ? 's' : ''} without durations`;
+            missingEl.classList.add('visible');
+            missingEl._missingItems = missingDurItems;
+            missingEl.onclick = () => showMissingDurationPopover(missingEl);
+        } else {
+            missingEl.classList.remove('visible');
+            missingEl.onclick = null;
+        }
     }
 
     // ── Someday: text-only, no bar ──
@@ -9102,11 +9825,13 @@ function updateCapacitySummary(sortedActions) {
         availMins = calculateTotalFreeTime();
 
         // Subtract durations of fuzzy session items — items whose timeContexts
-        // include a segment for today. Their contextDurations[segmentKey] tells
-        // us how much free time they'll consume.
+        // include a segment for today (or an overnight segment from yesterday
+        // that's still live). Their contextDurations[segmentKey] tells us how
+        // much free time they'll consume.
         const currentDateKey = getDateKey(state.timelineViewDate);
         const viewingToday = isCurrentDay(state.timelineViewDate);
         const nowMs = Date.now();
+        const nowDate = new Date(nowMs);
         const allItems = collectAllItems(state.items.items);
         let fuzzySubtracted = 0;
         for (const item of allItems) {
@@ -9114,11 +9839,15 @@ function updateCapacitySummary(sortedActions) {
             const contexts = item.timeContexts || [];
             const durations = item.contextDurations;
             if (!durations) continue;
-            // Find segment contexts for today
+            // Find segment contexts for today (including overnight from yesterday)
             for (const tc of contexts) {
                 const parsed = parseTimeContext(tc);
-                if (!parsed || parsed.date !== currentDateKey) continue;
-                if (!parsed.segment) continue;
+                if (!parsed || !parsed.segment) continue;
+                // Match segments whose date is today, OR overnight segments
+                // from yesterday that are still live
+                const isToday = parsed.date === currentDateKey;
+                const isLiveOvernight = !isToday && _isOvernightSegmentLive(parsed, nowDate);
+                if (!isToday && !isLiveOvernight) continue;
                 // Skip past segments when hidePastEntries is on
                 if (state.hidePastEntries && viewingToday && parsed.segment) {
                     const [, endStr] = [parsed.segment.start, parsed.segment.end];
@@ -9147,7 +9876,7 @@ function updateCapacitySummary(sortedActions) {
         // No available time — show full bar as over-capacity if there's demand
         fill.style.width = demandMins > 0 ? '100%' : '0%';
         fill.classList.toggle('over-capacity', demandMins > 0);
-        label.textContent = demandMins > 0 ? `${_formatDuration(demandMins)} / 0m` : '';
+        label.textContent = demandMins > 0 ? `${_formatDuration(demandMins)} / 0m` : '0m / 0m';
     } else {
         const fillPct = Math.min(100, (demandMins / availMins) * 100);
         fill.style.width = `${fillPct}%`;
@@ -9155,6 +9884,77 @@ function updateCapacitySummary(sortedActions) {
         label.textContent = `${_formatDuration(demandMins)} / ${_formatDuration(availMins)}`;
     }
 
+}
+
+function showMissingDurationPopover(anchorEl) {
+    dismissDurationPicker();
+    const items = anchorEl._missingItems;
+    if (!items || items.length === 0) return;
+
+    const overlay = document.createElement('div');
+    overlay.className = 'duration-picker-overlay';
+    overlay.addEventListener('click', dismissDurationPicker);
+
+    const popover = document.createElement('div');
+    popover.className = 'duration-picker missing-dur-popover';
+    popover.addEventListener('click', (e) => e.stopPropagation());
+
+    // Position relative to anchor
+    const rect = anchorEl.getBoundingClientRect();
+    const popW = 260;
+    const popH = Math.min(items.length * 36 + 32, 320);
+    let top = rect.bottom + 6;
+    let left = rect.right - popW;
+    if (left < 8) left = 8;
+    if (top + popH > window.innerHeight - 8) top = rect.top - popH - 6;
+    popover.style.position = 'fixed';
+    popover.style.top = `${top}px`;
+    popover.style.left = `${left}px`;
+    popover.style.zIndex = '10001';
+    popover.style.maxHeight = '320px';
+    popover.style.overflowY = 'auto';
+    popover.style.width = `${popW}px`;
+
+    const title = document.createElement('div');
+    title.className = 'duration-picker-title';
+    title.textContent = 'Set durations';
+    popover.appendChild(title);
+
+    const presetValues = [5, 10, 15, 30, 60, 120];
+    const presetLabels = ['5m', '10m', '15m', '30m', '1h', '2h'];
+
+    for (const item of items) {
+        const row = document.createElement('div');
+        row.className = 'missing-dur-row';
+
+        const nameEl = document.createElement('span');
+        nameEl.className = 'missing-dur-name';
+        nameEl.textContent = item.name;
+        row.appendChild(nameEl);
+
+        const btns = document.createElement('div');
+        btns.className = 'missing-dur-presets';
+        for (let i = 0; i < presetValues.length; i++) {
+            const btn = document.createElement('button');
+            btn.className = 'missing-dur-preset';
+            btn.textContent = presetLabels[i];
+            btn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                await setEstimate(item.id, presetValues[i]);
+                row.remove();
+                // Auto-close when all done
+                if (popover.querySelectorAll('.missing-dur-row').length === 0) {
+                    dismissDurationPicker();
+                }
+            });
+            btns.appendChild(btn);
+        }
+        row.appendChild(btns);
+        popover.appendChild(row);
+    }
+
+    overlay.appendChild(popover);
+    document.body.appendChild(overlay);
 }
 
 function calculateTotalFreeTime() {
@@ -9165,7 +9965,8 @@ function calculateTotalFreeTime() {
     const viewingToday = isCurrentDay(state.timelineViewDate);
 
     // Use nowMs as effective start when viewing today (only future free time matters)
-    const effectiveStart = viewingToday ? Math.max(nowMs, dayStartMs) : dayStartMs;
+    // Or if hiding past entries, ensure we don't count past time as free
+    const effectiveStart = (viewingToday || state.hidePastEntries) ? Math.max(nowMs, dayStartMs) : dayStartMs;
 
     if (effectiveStart >= dayEndMs) return 0;
 
@@ -9374,6 +10175,10 @@ function handleQuickLog() {
 // ─── Working On Timer ───
 
 async function startWorking(itemId, itemName, projectName, targetEndTime) {
+    // Sleep guard: confirm before starting work during sleep
+    if (isInSleepRange() && state.settings.sleepGuard !== false) {
+        if (!confirm('You\'re in sleep mode. Start working anyway?')) return;
+    }
     // If already working on something else, stop it first
     if (state.workingOn) {
         await stopWorking();
@@ -9588,9 +10393,9 @@ function renderStreak() {
     if (checkedInToday) {
         widget.title = `🔥 ${streak.count}-day streak! (Best: ${streak.longestStreak || streak.count})`;
     } else if (alive) {
-        widget.title = `Check in to continue your ${streak.count}-day streak!`;
+        widget.title = `Close your day to continue your ${streak.count}-day streak!`;
     } else {
-        widget.title = 'Start a streak by checking in!';
+        widget.title = 'Close your day to start a streak!';
     }
 
     // Celebration animation for milestones
@@ -9601,41 +10406,93 @@ function renderStreak() {
 }
 
 // ─── Skin Switching ───
-const SKINS = {
-    modern: 'skins/modern.css',
-    win95: 'skins/win95.css',
-    duolingo: 'skins/duolingo.css',
-    pencil: 'skins/pencil.css',
+const SKIN_FAMILIES = {
+    duolingo: { light: 'skins/duolingo.css', dark: 'skins/duolingo-dark.css' },
+    modern: { light: 'skins/modern.css', dark: 'skins/modern.css' },
+    win95: { light: 'skins/win95.css', dark: 'skins/win95.css' },
+    pencil: { light: 'skins/pencil.css', dark: 'skins/pencil.css' },
 };
 
-function applySkin(skinId) {
-    const link = document.getElementById('skin-stylesheet');
-    if (link && SKINS[skinId]) {
-        link.href = SKINS[skinId];
-        savePref('skin', skinId);
+// Current skin state (populated in initSkin)
+let _skinFamily = 'duolingo';
+let _darkMode = 'auto'; // 'auto' | 'light' | 'dark'
 
-        // Update the select dropdown
-        const select = document.getElementById('skin-select');
-        if (select) select.value = skinId;
+function _getEffectiveMode() {
+    if (_darkMode === 'auto') {
+        return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
     }
+    return _darkMode;
+}
+
+function _resolveSkin() {
+    const link = document.getElementById('skin-stylesheet');
+    if (!link) return;
+    const family = SKIN_FAMILIES[_skinFamily] || SKIN_FAMILIES.duolingo;
+    const mode = _getEffectiveMode();
+    link.href = family[mode] || family.light;
+    _updateDarkModeToggleIcon();
+}
+
+function _updateDarkModeToggleIcon() {
+    const btn = document.getElementById('dark-mode-toggle');
+    if (!btn) return;
+    const mode = _getEffectiveMode();
+    btn.textContent = mode === 'dark' ? '☀️' : '🌙';
+    btn.title = _darkMode === 'auto'
+        ? `Auto (${mode}) — click to override`
+        : `${mode === 'dark' ? 'Dark' : 'Light'} mode — click to toggle`;
+}
+
+function applySkinFamily(familyId) {
+    if (!SKIN_FAMILIES[familyId]) return;
+    _skinFamily = familyId;
+    savePref('skinFamily', _skinFamily);
+    _resolveSkin();
+}
+
+function toggleDarkMode() {
+    // Simple flip: always toggle the visible appearance
+    const current = _getEffectiveMode();
+    _darkMode = current === 'dark' ? 'light' : 'dark';
+    savePref('darkMode', _darkMode);
+    _resolveSkin();
 }
 
 async function initSkin() {
-    // Load skin preference from backend (fast path: apply default first, then override)
-    let saved = 'modern';
+    // Load preferences from backend
+    let savedFamily = 'duolingo';
+    let savedDarkMode = 'auto';
     try {
         const prefs = await api.get('/preferences');
-        if (prefs.skin) saved = prefs.skin;
-    } catch { /* use default */ }
-    applySkin(saved);
+        // Migration: old 'skin' pref → new family system
+        if (prefs.skinFamily) {
+            savedFamily = prefs.skinFamily;
+        } else if (prefs.skin) {
+            // Map old skin ids to families
+            if (prefs.skin === 'duolingo-dark') {
+                savedFamily = 'duolingo';
+                savedDarkMode = 'dark';
+            } else if (SKIN_FAMILIES[prefs.skin]) {
+                savedFamily = prefs.skin;
+            }
+        }
+        if (prefs.darkMode) savedDarkMode = prefs.darkMode;
+    } catch { /* use defaults */ }
 
-    const select = document.getElementById('skin-select');
-    if (select) {
-        select.value = saved;
-        select.addEventListener('change', (e) => {
-            applySkin(e.target.value);
-        });
+    _skinFamily = savedFamily;
+    _darkMode = savedDarkMode;
+    _resolveSkin();
+
+    // Dark mode toggle button
+    const toggleBtn = document.getElementById('dark-mode-toggle');
+    if (toggleBtn) {
+        toggleBtn.addEventListener('click', () => toggleDarkMode());
     }
+
+    // OS-level preference listener
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+        if (_darkMode === 'auto') _resolveSkin();
+    });
 }
 
 // ─── Panel Resize (Draggable Dividers) ───
@@ -9750,6 +10607,9 @@ function openScheduleModal(itemIdOrIds, itemName) {
 
     let assignedContexts = getAssignedContexts();
 
+    // Schedule mode: 'one-time' (replace) vs 'multi' (additive)
+    let scheduleMode = 'one-time';
+
     // Calendar state
     const calNow = new Date(state.timelineViewDate);
     let viewYear = calNow.getFullYear();
@@ -9858,8 +10718,12 @@ function openScheduleModal(itemIdOrIds, itemName) {
                     await api.patch(`/items/${id}`, { timeContexts: itm.timeContexts });
                 }
             }
+        } else if (scheduleMode === 'one-time') {
+            // One-time: replace all contexts with just this week
+            await setContexts([wk]);
+            return;
         } else {
-            // Add week context, remove someday
+            // Multi: add week context, remove someday
             for (const id of itemIds) {
                 const itm = findItemById(id);
                 if (itm) {
@@ -9883,8 +10747,12 @@ function openScheduleModal(itemIdOrIds, itemName) {
                     await api.patch(`/items/${id}`, { timeContexts: itm.timeContexts });
                 }
             }
+        } else if (scheduleMode === 'one-time') {
+            // One-time: replace all contexts with just this date
+            await setContexts([dateKey]);
+            return;
         } else {
-            // Add date, remove someday
+            // Multi: add date, remove someday
             for (const id of itemIds) {
                 const itm = findItemById(id);
                 if (itm) {
@@ -9895,6 +10763,33 @@ function openScheduleModal(itemIdOrIds, itemName) {
             }
         }
         assignedContexts = getAssignedContexts();
+        buildContent();
+    }
+
+    async function toggleDeadline(dateKey) {
+        const sampleItem = findItemById(itemIds[0]);
+        const isDeadline = sampleItem?.contextLeadTimes?.[dateKey] != null;
+        if (isDeadline) {
+            // Animate deadline bar out before removing
+            const dlWrapper = modal.querySelector('.schedule-deadline-bar-wrapper');
+            if (dlWrapper) {
+                dlWrapper.classList.remove('has-deadline');
+                await new Promise(r => { dlWrapper.addEventListener('transitionend', r, { once: true }); setTimeout(r, 300); });
+            }
+            for (const id of itemIds) await setLeadTime(id, dateKey, null);
+        } else {
+            // Enforce single deadline: remove any existing deadline first
+            if (sampleItem?.contextLeadTimes) {
+                // Animate out existing bar before switching deadlines
+                const dlWrapper = modal.querySelector('.schedule-deadline-bar-wrapper');
+                if (dlWrapper) dlWrapper.classList.remove('has-deadline');
+                await new Promise(r => setTimeout(r, 260));
+                for (const existingCtx of Object.keys(sampleItem.contextLeadTimes)) {
+                    for (const id of itemIds) await setLeadTime(id, existingCtx, null);
+                }
+            }
+            for (const id of itemIds) await setLeadTime(id, dateKey, 0);
+        }
         buildContent();
     }
 
@@ -9910,8 +10805,12 @@ function openScheduleModal(itemIdOrIds, itemName) {
                     await api.patch(`/items/${id}`, { timeContexts: itm.timeContexts });
                 }
             }
+        } else if (scheduleMode === 'one-time') {
+            // One-time: replace all contexts with just this session + its date
+            await setContexts([dateKey, segKey]);
+            return;
         } else {
-            // Add segment + date, remove someday
+            // Multi: add segment + date, remove someday
             for (const id of itemIds) {
                 const itm = findItemById(id);
                 if (itm) {
@@ -9951,9 +10850,9 @@ function openScheduleModal(itemIdOrIds, itemName) {
         const detailsSections = modal.querySelectorAll('details.schedule-section');
         const prevOpenState = {};
         let hasSnapshot = detailsSections.length > 0;
-        detailsSections.forEach((det, i) => {
-            const label = det.querySelector('summary')?.textContent?.trim() || `section-${i}`;
-            prevOpenState[label] = det.open;
+        detailsSections.forEach(det => {
+            const key = det.dataset.tier || '';
+            prevOpenState[key] = det.open;
         });
 
         // Determine which tiers already have assignments (used for first render only)
@@ -9961,6 +10860,15 @@ function openScheduleModal(itemIdOrIds, itemName) {
         const hasWeek = [...assignedContexts].some(tc => isWeekContext(tc));
         const hasDate = [...assignedContexts].some(tc => /^\d{4}-\d{2}-\d{2}$/.test(tc));
         const hasSession = [...assignedContexts].some(tc => tc.includes('@'));
+
+        // Count assigned contexts per tier (for badges on collapsed headers)
+        const countSomeday = hasSomeday ? 1 : 0;
+        const countWeek = [...assignedContexts].filter(tc => isWeekContext(tc)).length;
+        const countDay = [...assignedContexts].filter(tc => /^\d{4}-\d{2}-\d{2}$/.test(tc)).length;
+        const countSession = [...assignedContexts].filter(tc => tc.includes('@')).length;
+        function badgeHtml(count) {
+            return count > 0 ? `<span class="schedule-section-badge">${count}</span>` : '';
+        }
 
         // Week section data
         const scheduleWk = getScheduleWeekKey();
@@ -9972,10 +10880,13 @@ function openScheduleModal(itemIdOrIds, itemName) {
         // Compute lead-time prep windows for calendar highlighting
         const sampleItem = findItemById(itemIds[0]);
         const leadTimeWindows = new Map(); // dateKey -> true (prep day)
+        const deadlineContexts = new Set(); // dateKeys that are deadlines
         if (sampleItem?.contextLeadTimes) {
             for (const [ctx, leadSec] of Object.entries(sampleItem.contextLeadTimes)) {
                 const deadlineDate = parseDateFromContext(ctx);
-                if (!deadlineDate || leadSec <= 0) continue;
+                if (!deadlineDate) continue;
+                deadlineContexts.add(ctx);
+                if (leadSec <= 0) continue;
                 const startDate = new Date(deadlineDate.getTime() - leadSec * 1000);
                 const iter = new Date(startDate);
                 iter.setHours(0, 0, 0, 0);
@@ -9991,29 +10902,33 @@ function openScheduleModal(itemIdOrIds, itemName) {
         const weekLeadTimeSec = sampleItem ? getContextLeadTime(sampleItem, scheduleWk) : null;
         const weekLTLabel = weekLeadTimeSec != null ? `⏱ ${_formatLeadTimeBrief(weekLeadTimeSec)}` : null;
 
-        function sectionOpen(label, fallback) {
-            return hasSnapshot ? (prevOpenState[label] ?? fallback) : fallback;
+        function sectionOpen(tier, fallback) {
+            return hasSnapshot ? (prevOpenState[tier] ?? fallback) : fallback;
         }
 
         // ── Someday section ──
         let html = `
             <div class="modal-header">Schedule: ${itemName}</div>
             <div class="modal-body schedule-modal-body">
-                <details class="schedule-section"${sectionOpen('📦 Someday', hasSomeday) ? ' open' : ''}>
-                    <summary class="schedule-section-header">📦 Someday</summary>
-                    <div class="schedule-section-content">
+                <div class="schedule-mode-toggle">
+                    <button class="schedule-mode-btn${scheduleMode === 'one-time' ? ' schedule-mode-btn-active' : ''}" data-mode="one-time">One-time</button>
+                    <button class="schedule-mode-btn${scheduleMode === 'multi' ? ' schedule-mode-btn-active' : ''}" data-mode="multi">Multi</button>
+                </div>
+                <details class="schedule-section" data-tier="someday"${sectionOpen('someday', hasSomeday) ? ' open' : ''}>
+                    <summary class="schedule-section-header">📦 Someday${badgeHtml(countSomeday)}</summary>
+                    <div class="schedule-section-content-wrapper"><div class="schedule-section-content">
                         <div class="schedule-someday-toggle ${hasSomeday ? 'schedule-someday-active' : ''}" id="schedule-someday-btn">
                             ${hasSomeday ? '✓ Assigned to Someday' : 'Move to Someday'}
                         </div>
-                    </div>
+                    </div></div>
                 </details>
         `;
 
         // ── Week section ──
         html += `
-                <details class="schedule-section"${sectionOpen('📆 Week', hasWeek) ? ' open' : ''}>
-                    <summary class="schedule-section-header">📆 Week</summary>
-                    <div class="schedule-section-content">
+                <details class="schedule-section" data-tier="week"${sectionOpen('week', hasWeek) ? ' open' : ''}>
+                    <summary class="schedule-section-header">📆 Week${badgeHtml(countWeek)}</summary>
+                    <div class="schedule-section-content-wrapper"><div class="schedule-section-content">
                         <div class="schedule-week-nav">
                             <button class="schedule-cal-nav-btn${canWeekPrev ? '' : ' schedule-cal-nav-btn-disabled'}" id="schedule-week-prev"${canWeekPrev ? '' : ' disabled'}>‹</button>
                             <span class="schedule-week-label">${weekRangeLabel}</span>
@@ -10021,18 +10936,16 @@ function openScheduleModal(itemIdOrIds, itemName) {
                         </div>
                         <div class="schedule-week-toggle ${isWeekAssigned ? 'schedule-week-active' : ''}" id="schedule-week-btn">
                             ${isWeekAssigned ? '✓ Assigned to this Week' : 'Assign to this Week'}
-                            ${isWeekAssigned && weekLTLabel ? `<span class="schedule-leadtime-chip">${weekLTLabel}</span>` : ''}
                         </div>
-                        <div id="schedule-week-lt-slot"></div>
-                    </div>
+                    </div></div>
                 </details>
         `;
 
         // ── Day section ──
         html += `
-                <details class="schedule-section"${sectionOpen('📅 Day', hasDate) ? ' open' : ''}>
-                    <summary class="schedule-section-header">📅 Day</summary>
-                    <div class="schedule-section-content">
+                <details class="schedule-section" data-tier="day"${sectionOpen('day', hasDate) ? ' open' : ''}>
+                    <summary class="schedule-section-header">📅 Day${badgeHtml(countDay)}</summary>
+                    <div class="schedule-section-content-wrapper"><div class="schedule-section-content">
                         <div class="schedule-cal-nav">
                             <button class="schedule-cal-nav-btn${canGoPrev ? '' : ' schedule-cal-nav-btn-disabled'}" id="schedule-prev-month"${canGoPrev ? '' : ' disabled'}>‹</button>
                             <span class="schedule-cal-month">${monthNames[viewMonth]} ${viewYear}</span>
@@ -10050,33 +10963,79 @@ function openScheduleModal(itemIdOrIds, itemName) {
         for (let d = 1; d <= daysInMonth; d++) {
             const dateKey = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
             const isAssigned = assignedContexts.has(dateKey);
+            const isDeadline = deadlineContexts.has(dateKey);
             const isToday = dateKey === todayKey;
             const isPast = dateKey < todayKey;
-            const isLeadTimePrep = !isAssigned && leadTimeWindows.has(dateKey);
+            const isLeadTimePrep = !isAssigned && !isDeadline && leadTimeWindows.has(dateKey);
             let cls = 'schedule-cal-day';
             if (isPast) cls += ' schedule-cal-day-disabled';
             if (isAssigned) cls += ' schedule-cal-day-assigned';
+            if (isDeadline) cls += ' schedule-cal-day-deadline';
             if (isLeadTimePrep) cls += ' schedule-cal-day-leadtime';
             if (isToday) cls += ' schedule-cal-day-today';
-            // Show lead time chip on assigned days
-            const dayLT = isAssigned ? getContextLeadTime(sampleItem, dateKey) : null;
-            const dayLTChip = dayLT != null ? ` <span class="schedule-leadtime-chip-mini">⏱${_formatLeadTimeBrief(dayLT)}</span>` : '';
-            html += `<div class="${cls}" data-date="${dateKey}">${d}${dayLTChip}</div>`;
+            // 🎯 button appears on hover for non-past days
+            const deadlineBtn = !isPast ? `<button class="schedule-cal-deadline-btn" data-deadline-date="${dateKey}" title="${isDeadline ? 'Remove deadline' : 'Set as deadline'}">🎯</button>` : '';
+            html += `<div class="${cls}" data-date="${dateKey}">${d}${deadlineBtn}</div>`;
+        }
+        // Pad only to complete the last row (no fixed 6-row height)
+        const totalCells = firstDay + daysInMonth;
+        const padCells = (7 - (totalCells % 7)) % 7;
+        for (let i = 0; i < padCells; i++) {
+            html += `<div class="schedule-cal-empty"></div>`;
         }
 
-        // Assigned day lead-time slot (populated by JS below)
         html += `
                         </div>
-                        <div id="schedule-day-lt-slot"></div>
-                    </div>
+                    </div></div>
                 </details>
         `;
 
+        // ── Inline deadline bar (single deadline) ──
+        const deadlineCtx = [...deadlineContexts].find(dk => /^\d{4}-\d{2}-\d{2}$/.test(dk));
+        let dlBarInner = '';
+        if (deadlineCtx) {
+            const dlDate = new Date(deadlineCtx + 'T00:00:00');
+            const monthNames2 = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            const dlLabel = `${monthNames2[dlDate.getMonth()]} ${dlDate.getDate()}`;
+            const existingLT = getContextLeadTime(sampleItem, deadlineCtx);
+            let ltDisplayVal = '';
+            let ltUnitSec = 86400;
+            if (existingLT && existingLT > 0) {
+                if (existingLT % 604800 === 0) {
+                    ltDisplayVal = existingLT / 604800;
+                    ltUnitSec = 604800;
+                } else {
+                    ltDisplayVal = Math.round(existingLT / 86400);
+                    ltUnitSec = 86400;
+                }
+            }
+            dlBarInner = `
+                <div class="schedule-deadline-bar">
+                    <div class="schedule-deadline-bar-row1">
+                        <span class="schedule-deadline-bar-label">🎯 ${dlLabel}</span>
+                    </div>
+                    <div class="schedule-deadline-bar-row2">
+                        <span class="schedule-deadline-bar-text">start preparing</span>
+                        <input type="number" class="schedule-deadline-custom-input" id="schedule-dl-custom-val" value="${ltDisplayVal}" placeholder="0" min="0" max="999">
+                        <select class="schedule-deadline-custom-unit" id="schedule-dl-custom-unit">
+                            <option value="86400"${ltUnitSec === 86400 ? ' selected' : ''}>days</option>
+                            <option value="604800"${ltUnitSec === 604800 ? ' selected' : ''}>weeks</option>
+                        </select>
+                        <span class="schedule-deadline-bar-text">before</span>
+                    </div>
+                    <div class="schedule-deadline-bar-row3">
+                        <button class="schedule-deadline-custom-set" id="schedule-dl-custom-set">✓</button>
+                        <button class="schedule-deadline-remove" data-deadline-rm="${deadlineCtx}" title="Remove deadline">×</button>
+                    </div>
+                </div>`;
+        }
+        html += `<div class="schedule-deadline-bar-wrapper">${dlBarInner}</div>`;
+
         // ── Session section ──
         html += `
-                <details class="schedule-section"${sectionOpen('⏱️ Session', hasSession) ? ' open' : ''}>
-                    <summary class="schedule-section-header">⏱️ Session</summary>
-                    <div class="schedule-section-content">
+                <details class="schedule-section" data-tier="session"${sectionOpen('session', hasSession) ? ' open' : ''}>
+                    <summary class="schedule-section-header">⏱️ Session${badgeHtml(countSession)}</summary>
+                    <div class="schedule-section-content-wrapper"><div class="schedule-section-content">
                         <div class="schedule-session-nav">
                             <button class="schedule-cal-nav-btn${canSessionPrev ? '' : ' schedule-cal-nav-btn-disabled'}" id="schedule-session-prev"${canSessionPrev ? '' : ' disabled'}>‹</button>
                             <span class="schedule-session-date">${sessionDateStr}</span>
@@ -10093,21 +11052,17 @@ function openScheduleModal(itemIdOrIds, itemName) {
                 const isAssigned = assignedContexts.has(segKey);
                 const label = block.text || 'Planned';
                 const timeRange = `${formatTime(block.timestamp)} – ${formatTime(block.endTime)}`;
-                const sessLT = isAssigned ? getContextLeadTime(sampleItem, segKey) : null;
-                const sessLTChip = isAssigned && sessLT != null ? `<span class="schedule-leadtime-chip">⏱ ${_formatLeadTimeBrief(sessLT)}</span>` : '';
                 html += `<div class="schedule-session-item${isAssigned ? ' schedule-session-item-assigned' : ''}" data-seg-key="${segKey}" data-block-ts="${block.timestamp}">
                     <span class="schedule-session-icon">📌</span>
                     <span class="schedule-session-label">${label}</span>
                     <span class="schedule-session-time">${timeRange}</span>
-                    ${sessLTChip}
-                </div>
-                <div class="schedule-session-lt-slot" data-lt-seg="${segKey}"></div>`;
+                </div>`;
             }
         }
 
         html += `
                         </div>
-                    </div>
+                    </div></div>
                 </details>
             </div>
             <div class="modal-actions">
@@ -10117,7 +11072,21 @@ function openScheduleModal(itemIdOrIds, itemName) {
 
         modal.innerHTML = html;
 
+        // Animate deadline bar entrance via rAF
+        requestAnimationFrame(() => {
+            const dlWrapper = modal.querySelector('.schedule-deadline-bar-wrapper');
+            if (dlWrapper && dlWrapper.children.length > 0) dlWrapper.classList.add('has-deadline');
+        });
+
         // ── Wire up events ──
+
+        // Mode toggle
+        modal.querySelectorAll('.schedule-mode-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                scheduleMode = btn.dataset.mode;
+                buildContent();
+            });
+        });
 
         // Someday toggle
         modal.querySelector('#schedule-someday-btn')?.addEventListener('click', toggleSomeday);
@@ -10140,23 +11109,108 @@ function openScheduleModal(itemIdOrIds, itemName) {
         });
 
         // Calendar month nav
+        function buildContentAnimateCal() {
+            const oldGrid = modal.querySelector('.schedule-cal-grid');
+            const oldH = oldGrid ? oldGrid.offsetHeight : null;
+            buildContent();
+            if (oldH != null) {
+                const newGrid = modal.querySelector('.schedule-cal-grid');
+                if (newGrid) {
+                    const newH = newGrid.offsetHeight;
+                    if (oldH !== newH) {
+                        newGrid.style.height = oldH + 'px';
+                        newGrid.style.overflow = 'hidden';
+                        newGrid.style.transition = 'height 200ms ease';
+                        requestAnimationFrame(() => requestAnimationFrame(() => {
+                            newGrid.style.height = newH + 'px';
+                            newGrid.addEventListener('transitionend', () => {
+                                newGrid.style.height = '';
+                                newGrid.style.overflow = '';
+                                newGrid.style.transition = '';
+                            }, { once: true });
+                        }));
+                    }
+                }
+            }
+        }
         if (canGoPrev) {
             modal.querySelector('#schedule-prev-month').addEventListener('click', () => {
                 viewMonth--;
                 if (viewMonth < 0) { viewMonth = 11; viewYear--; }
-                buildContent();
+                buildContentAnimateCal();
             });
         }
         modal.querySelector('#schedule-next-month').addEventListener('click', () => {
             viewMonth++;
             if (viewMonth > 11) { viewMonth = 0; viewYear++; }
-            buildContent();
+            buildContentAnimateCal();
         });
 
-        // Day clicks
+        // Day clicks — click the day number to toggle work assignment
         modal.querySelectorAll('.schedule-cal-day:not(.schedule-cal-day-disabled)').forEach(cell => {
-            cell.addEventListener('click', () => toggleDate(cell.dataset.date));
+            cell.addEventListener('click', (e) => {
+                // Don't toggle work day if the deadline button was clicked
+                if (e.target.classList.contains('schedule-cal-deadline-btn')) return;
+                toggleDate(cell.dataset.date);
+            });
         });
+
+        // 🎯 Deadline buttons on calendar days
+        modal.querySelectorAll('.schedule-cal-deadline-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                toggleDeadline(btn.dataset.deadlineDate);
+            });
+        });
+
+        // Deadline section — preset buttons
+        modal.querySelectorAll('.schedule-deadline-preset').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                const ctx = btn.dataset.dlCtx;
+                const sec = parseInt(btn.dataset.dlSec, 10);
+                const currentLT = getContextLeadTime(sampleItem, ctx);
+                // Toggle: if already set to this value, remove it
+                const newSec = currentLT === sec ? 0 : sec;
+                for (const id of itemIds) await setLeadTime(id, ctx, newSec || 0);
+                buildContent();
+            });
+        });
+
+        // Deadline section — remove buttons
+        modal.querySelectorAll('.schedule-deadline-remove').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                const ctx = btn.dataset.deadlineRm;
+                // Animate out, then remove and rebuild
+                const dlWrapper = modal.querySelector('.schedule-deadline-bar-wrapper');
+                if (dlWrapper) {
+                    dlWrapper.classList.remove('has-deadline');
+                    await new Promise(r => { dlWrapper.addEventListener('transitionend', r, { once: true }); setTimeout(r, 300); });
+                }
+                for (const id of itemIds) await setLeadTime(id, ctx, null);
+                buildContent();
+            });
+        });
+
+        // Deadline bar — custom input
+        const dlCustomSet = modal.querySelector('#schedule-dl-custom-set');
+        if (dlCustomSet) {
+            const apply = async () => {
+                const val = parseInt(modal.querySelector('#schedule-dl-custom-val')?.value, 10);
+                if (!val || val <= 0) return;
+                const unit = parseInt(modal.querySelector('#schedule-dl-custom-unit')?.value, 10);
+                const sec = val * unit;
+                const ctx = [...deadlineContexts].find(dk => /^\d{4}-\d{2}-\d{2}$/.test(dk));
+                if (!ctx) return;
+                for (const id of itemIds) await setLeadTime(id, ctx, sec);
+                buildContent();
+            };
+            dlCustomSet.addEventListener('click', (e) => { e.stopPropagation(); apply(); });
+            modal.querySelector('#schedule-dl-custom-val')?.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') { e.stopPropagation(); apply(); }
+            });
+        }
 
         // Session date nav
         if (canSessionPrev) {
@@ -10181,56 +11235,53 @@ function openScheduleModal(itemIdOrIds, itemName) {
             });
         });
 
-        // Accordion behavior — opening one section closes the others
+        // Animated accordion — click summary to toggle with smooth animation
         modal.querySelectorAll('details.schedule-section').forEach(det => {
-            det.addEventListener('toggle', () => {
+            const summary = det.querySelector('summary');
+            summary.addEventListener('click', (e) => {
+                e.preventDefault();
+                const wrapper = det.querySelector('.schedule-section-content-wrapper');
                 if (det.open) {
+                    // Collapse: animate grid-template-rows 1fr → 0fr, then remove open
+                    det.classList.add('schedule-section-closing');
+                    let done = false;
+                    const finish = () => {
+                        if (done) return;
+                        done = true;
+                        det.open = false;
+                        det.classList.remove('schedule-section-closing');
+                    };
+                    wrapper.addEventListener('transitionend', finish, { once: true });
+                    setTimeout(finish, 300);
+                } else {
+                    // Close others first (accordion)
                     modal.querySelectorAll('details.schedule-section').forEach(other => {
-                        if (other !== det) other.open = false;
+                        if (other !== det && other.open) {
+                            other.classList.add('schedule-section-closing');
+                            const ow = other.querySelector('.schedule-section-content-wrapper');
+                            let oDone = false;
+                            const oFinish = () => {
+                                if (oDone) return;
+                                oDone = true;
+                                other.open = false;
+                                other.classList.remove('schedule-section-closing');
+                            };
+                            ow.addEventListener('transitionend', oFinish, { once: true });
+                            setTimeout(oFinish, 300);
+                        }
                     });
+                    // Open this one — force wrapper to 0fr first, then let CSS transition to 1fr
+                    wrapper.style.gridTemplateRows = '0fr';
+                    det.open = true;
+                    // Force reflow so browser registers the 0fr starting point
+                    wrapper.offsetHeight;
+                    // Remove inline style to let the CSS [open] rule (1fr) take over and animate
+                    wrapper.style.gridTemplateRows = '';
                 }
             });
         });
 
-        // ── Inline lead-time rows ──
-
-        // Week lead time row
-        if (isWeekAssigned) {
-            const weekSlot = modal.querySelector('#schedule-week-lt-slot');
-            if (weekSlot) {
-                weekSlot.appendChild(_buildLeadTimeRow(itemIds, scheduleWk, 'week', buildContent));
-            }
-        }
-
-        // Day lead time rows — show row for the first assigned date in the visible month
-        const assignedDaysInView = [];
-        for (let d = 1; d <= daysInMonth; d++) {
-            const dk = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-            if (assignedContexts.has(dk)) assignedDaysInView.push(dk);
-        }
-        if (assignedDaysInView.length > 0) {
-            const daySlot = modal.querySelector('#schedule-day-lt-slot');
-            if (daySlot) {
-                for (const dk of assignedDaysInView) {
-                    const dayLTContainer = document.createElement('div');
-                    dayLTContainer.className = 'schedule-day-lt-group';
-                    const dayLabel = document.createElement('div');
-                    dayLabel.className = 'schedule-day-lt-label';
-                    dayLabel.textContent = dk;
-                    dayLTContainer.appendChild(dayLabel);
-                    dayLTContainer.appendChild(_buildLeadTimeRow(itemIds, dk, 'day', buildContent));
-                    daySlot.appendChild(dayLTContainer);
-                }
-            }
-        }
-
-        // Session lead time rows
-        modal.querySelectorAll('.schedule-session-lt-slot').forEach(slot => {
-            const segKey = slot.dataset.ltSeg;
-            if (segKey && assignedContexts.has(segKey)) {
-                slot.appendChild(_buildLeadTimeRow(itemIds, segKey, 'session', buildContent));
-            }
-        });
+        // (Old inline lead-time rows removed — replaced by Deadlines section above)
 
         // Close
         modal.querySelector('#schedule-close').addEventListener('click', () => {
@@ -10249,6 +11300,279 @@ function openScheduleModal(itemIdOrIds, itemName) {
             overlay.remove();
             renderAll();
         }
+    });
+}
+
+// ─── Move To Modal ───
+function openMoveToModal(itemId, itemName) {
+    const existing = document.getElementById('move-to-modal-overlay');
+    if (existing) existing.remove();
+
+    const movingItem = findItemById(itemId);
+    if (!movingItem) return;
+
+    // Collect IDs of the item and all descendants (can't move into yourself)
+    const excludedIds = new Set(collectDescendantIds(movingItem));
+
+    // Local expand state — never touches item objects, so nothing leaks to JSON
+    const expandedMap = new Map();
+    function initExpandState(items) {
+        for (const it of items) {
+            expandedMap.set(it.id, !!it.expanded);
+            if (it.children && it.children.length > 0) initExpandState(it.children);
+        }
+    }
+    initExpandState(state.items.items);
+
+    // Search state
+    let searchQuery = '';
+
+    // Check if an item or any descendant matches the search query
+    function itemMatchesSearch(item, query) {
+        if (!query) return true;
+        const q = query.toLowerCase();
+        if (item.name && item.name.toLowerCase().includes(q)) return true;
+        if (item.children) {
+            for (const child of item.children) {
+                if (!excludedIds.has(child.id) && itemMatchesSearch(child, query)) return true;
+            }
+        }
+        return false;
+    }
+
+    const overlay = document.createElement('div');
+    overlay.id = 'move-to-modal-overlay';
+    overlay.className = 'modal-overlay';
+
+    const modal = document.createElement('div');
+    modal.className = 'modal-box move-to-modal-box';
+
+    // ── Header ──
+    const header = document.createElement('div');
+    header.className = 'modal-header';
+    header.textContent = `Move: ${itemName}`;
+    modal.appendChild(header);
+
+    // ── Search Input ──
+    const searchWrap = document.createElement('div');
+    searchWrap.className = 'move-to-search';
+    const searchInput = document.createElement('input');
+    searchInput.className = 'move-to-search-input';
+    searchInput.type = 'text';
+    searchInput.placeholder = 'Search...';
+    searchInput.addEventListener('input', () => {
+        searchQuery = searchInput.value.trim();
+        rebuildTree();
+    });
+    searchWrap.appendChild(searchInput);
+    modal.appendChild(searchWrap);
+
+    // ── Body — scrollable tree ──
+    const body = document.createElement('div');
+    body.className = 'modal-body move-to-body';
+
+    const tree = document.createElement('div');
+    tree.className = 'move-to-tree';
+
+    function performMove(targetId, position) {
+        const success = moveItem(itemId, { id: targetId, position });
+        if (success) {
+            saveItems();
+            renderAll();
+            // Optionally select + scroll to the moved item
+            if (scrollCheckbox && scrollCheckbox.checked) {
+                state.selectedItemId = itemId;
+                savePref('selectedItemId', itemId);
+                scrollToSelectedItem();
+            }
+        }
+        overlay.remove();
+    }
+
+    // ── Create a marker line ──
+    function createMoveMarker(siblingArray, insertIdx, depth) {
+        const marker = document.createElement('div');
+        marker.className = 'move-to-marker';
+        marker.style.paddingLeft = `${10 + depth * 18}px`;
+
+        const line = document.createElement('div');
+        line.className = 'move-to-marker-line';
+        marker.appendChild(line);
+
+        marker.addEventListener('click', (e) => {
+            e.stopPropagation();
+            // Determine the drop target based on the insert index
+            if (insertIdx < siblingArray.length) {
+                // Insert before the item at insertIdx
+                performMove(siblingArray[insertIdx].id, 'before');
+            } else if (siblingArray.length > 0) {
+                // Insert after the last item
+                performMove(siblingArray[siblingArray.length - 1].id, 'after');
+            }
+        });
+
+        return marker;
+    }
+
+    // ── Render a level of the tree ──
+    function renderMoveLevel(items, container, depth) {
+        const isSearching = !!searchQuery;
+
+        for (let i = 0; i < items.length; i++) {
+            const it = items[i];
+            const isExcluded = excludedIds.has(it.id);
+            const isInbox = !!it.isInbox;
+
+            // Skip items that don't match search
+            if (isSearching && !isExcluded && !itemMatchesSearch(it, searchQuery)) continue;
+
+            // Insert marker before each non-Inbox item (hide during search)
+            if (!isSearching && !isInbox && !isExcluded) {
+                // Only show marker if the previous item isn't excluded
+                // (avoid dangling markers between excluded blocks)
+                const prevItem = i > 0 ? items[i - 1] : null;
+                if (!prevItem || !excludedIds.has(prevItem.id)) {
+                    container.appendChild(createMoveMarker(items, i, depth));
+                }
+            }
+
+            // Skip excluded items entirely
+            if (isExcluded) continue;
+
+            const row = document.createElement('div');
+            row.className = 'move-to-row';
+            row.style.paddingLeft = `${10 + depth * 18}px`;
+            row.dataset.itemId = it.id;
+
+            const hasChildren = it.children && it.children.length > 0;
+            // Check if it has non-excluded children
+            const hasVisibleChildren = hasChildren && it.children.some(c => !excludedIds.has(c.id));
+
+            // Toggle — auto-expand when searching
+            const isExp = isSearching ? true : expandedMap.get(it.id);
+            const toggle = document.createElement('span');
+            toggle.className = 'move-to-toggle' + (hasVisibleChildren ? '' : ' leaf');
+            toggle.textContent = hasVisibleChildren ? (isExp ? '▾' : '▸') : '·';
+            if (hasVisibleChildren && !isSearching) {
+                toggle.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    expandedMap.set(it.id, !expandedMap.get(it.id));
+                    rebuildTree();
+                });
+            }
+            row.appendChild(toggle);
+
+            // Icon for inbox
+            if (isInbox) {
+                const icon = document.createElement('span');
+                icon.className = 'move-to-inbox-icon';
+                icon.textContent = '📥';
+                row.appendChild(icon);
+            }
+
+            // Name — highlight matching text during search
+            const nameEl = document.createElement('span');
+            nameEl.className = 'move-to-name';
+            if (isSearching && it.name) {
+                const lowerName = it.name.toLowerCase();
+                const lowerQ = searchQuery.toLowerCase();
+                const matchIdx = lowerName.indexOf(lowerQ);
+                if (matchIdx >= 0) {
+                    const before = it.name.slice(0, matchIdx);
+                    const match = it.name.slice(matchIdx, matchIdx + searchQuery.length);
+                    const after = it.name.slice(matchIdx + searchQuery.length);
+                    nameEl.textContent = before;
+                    const mark = document.createElement('mark');
+                    mark.className = 'move-to-search-highlight';
+                    mark.textContent = match;
+                    nameEl.appendChild(mark);
+                    nameEl.appendChild(document.createTextNode(after));
+                } else {
+                    nameEl.textContent = it.name;
+                }
+            } else {
+                nameEl.textContent = it.name;
+            }
+            row.appendChild(nameEl);
+
+            // Click row = move inside this item (as last child)
+            row.addEventListener('click', () => {
+                performMove(it.id, 'inside');
+            });
+
+            container.appendChild(row);
+
+            // Expanded children
+            if (hasVisibleChildren && isExp) {
+                renderMoveLevel(it.children, container, depth + 1);
+            }
+        }
+
+        // Insert marker after the last visible item (hide during search)
+        if (!isSearching) {
+            const visibleItems = items.filter(it => !excludedIds.has(it.id));
+            if (visibleItems.length > 0) {
+                const lastVisible = visibleItems[visibleItems.length - 1];
+                const lastIdx = items.indexOf(lastVisible);
+                // Only add trailing marker if we have visible items and it's not just Inbox
+                const nonInboxVisible = visibleItems.filter(it => !it.isInbox);
+                if (nonInboxVisible.length > 0 || depth > 0) {
+                    container.appendChild(createMoveMarker(items, lastIdx + 1, depth));
+                }
+            }
+        }
+    }
+
+    function rebuildTree() {
+        tree.innerHTML = '';
+        renderMoveLevel(state.items.items, tree, 0);
+
+        // Root-level option (hide during search)
+        if (!searchQuery) {
+            const rootBtn = document.createElement('div');
+            rootBtn.className = 'move-to-root-btn';
+            rootBtn.textContent = '⬆ Move to root level';
+            rootBtn.addEventListener('click', () => {
+                performMove('_root', 'inside');
+            });
+            tree.appendChild(rootBtn);
+        }
+    }
+
+    rebuildTree();
+    body.appendChild(tree);
+
+    // ── Footer ──
+    const actions = document.createElement('div');
+    actions.className = 'modal-actions move-to-actions';
+
+    // Scroll-to checkbox (left side)
+    const scrollLabel = document.createElement('label');
+    scrollLabel.className = 'move-to-scroll-option';
+    const scrollCheckbox = document.createElement('input');
+    scrollCheckbox.type = 'checkbox';
+    scrollCheckbox.className = 'move-to-scroll-checkbox';
+    scrollLabel.appendChild(scrollCheckbox);
+    scrollLabel.appendChild(document.createTextNode(' Scroll to'));
+    actions.appendChild(scrollLabel);
+
+    const cancelBtn = document.createElement('button');
+    cancelBtn.className = 'modal-btn modal-btn-cancel';
+    cancelBtn.textContent = 'Cancel';
+    cancelBtn.addEventListener('click', () => overlay.remove());
+    actions.appendChild(cancelBtn);
+
+    modal.appendChild(body);
+    modal.appendChild(actions);
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+
+    // Auto-focus search
+    requestAnimationFrame(() => searchInput.focus());
+
+    // Click overlay backdrop to close
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) overlay.remove();
     });
 }
 
@@ -10400,6 +11724,22 @@ function openDefaultsModal() {
                     <option value="6">Saturday</option>
                 </select>
             </div>
+            <div class="modal-divider"></div>
+            <div class="modal-field modal-field-toggle">
+                <label class="modal-label" for="defaults-sleep-guard">🛡️ Sleep guard</label>
+                <input type="checkbox" id="defaults-sleep-guard" class="modal-toggle" />
+                <span class="modal-hint">Confirm before starting work during sleep</span>
+            </div>
+            <div class="modal-divider"></div>
+            <div class="modal-field">
+                <label class="modal-label" for="defaults-skin">🎨 Skin</label>
+                <select id="defaults-skin" class="modal-input">
+                    <option value="duolingo">Duolingo</option>
+                    <option value="modern">Modern</option>
+                    <option value="win95">Windows 95</option>
+                    <option value="pencil">Pencil & Paper</option>
+                </select>
+            </div>
 
         </div>
         <div class="modal-actions">
@@ -10416,6 +11756,8 @@ function openDefaultsModal() {
     document.getElementById('defaults-end-time').value =
         `${String(state.settings.dayEndHour).padStart(2, '0')}:${String(state.settings.dayEndMinute).padStart(2, '0')}`;
     document.getElementById('defaults-week-start').value = String(state.settings.weekStartDay ?? 0);
+    document.getElementById('defaults-sleep-guard').checked = state.settings.sleepGuard !== false;
+    document.getElementById('defaults-skin').value = _skinFamily;
 
 
     // Close on overlay click
@@ -10435,10 +11777,60 @@ function openDefaultsModal() {
         state.settings.dayEndHour = eh;
         state.settings.dayEndMinute = em;
         state.settings.weekStartDay = parseInt(document.getElementById('defaults-week-start').value, 10);
+        state.settings.sleepGuard = document.getElementById('defaults-sleep-guard').checked;
+        const selectedSkin = document.getElementById('defaults-skin').value;
+        if (selectedSkin !== _skinFamily) applySkinFamily(selectedSkin);
         await api.put('/settings', state.settings);
         overlay.remove();
         renderTimeline();
     });
+}
+
+// ─── Nav Slide Animation ───
+let _navAnimating = false;
+function animateNavTransition(direction, updateFn) {
+    // direction: 'left' = forward (next), 'right' = backward (prev)
+    const timeline = document.getElementById('timeline-list');
+    const actions = document.getElementById('actions-list');
+    // Don't animate actions when in sleep mode — "Good Night" is static
+    const sleepMode = isInSleepRange() && !state.workingOn && !state.onBreak;
+    const targets = [timeline, !sleepMode && actions].filter(Boolean);
+
+    // Cancel any in-flight animation
+    for (const el of targets) {
+        el.classList.remove('nav-slide-out-left', 'nav-slide-out-right', 'nav-slide-in-left', 'nav-slide-in-right');
+        el.getAnimations().forEach(a => a.cancel());
+    }
+
+    // Phase 1: slide old content out
+    const outClass = direction === 'left' ? 'nav-slide-out-left' : 'nav-slide-out-right';
+    for (const el of targets) el.classList.add(outClass);
+
+    const onSlideOutDone = () => {
+        for (const el of targets) el.classList.remove(outClass);
+
+        // Phase 2: update state + re-render
+        updateFn();
+
+        // Phase 3: slide new content in
+        const inClass = direction === 'left' ? 'nav-slide-in-left' : 'nav-slide-in-right';
+        for (const el of targets) el.classList.add(inClass);
+
+        const cleanup = () => {
+            for (const el of targets) el.classList.remove(inClass);
+            _navAnimating = false;
+        };
+        timeline.addEventListener('animationend', cleanup, { once: true });
+        // Safety fallback
+        setTimeout(cleanup, 200);
+    };
+
+    _navAnimating = true;
+    timeline.addEventListener('animationend', onSlideOutDone, { once: true });
+    // Safety fallback in case animationend doesn't fire
+    setTimeout(() => {
+        if (_navAnimating) onSlideOutDone();
+    }, 200);
 }
 
 // ─── Event Bindings ───
@@ -10497,18 +11889,18 @@ document.addEventListener('DOMContentLoaded', () => {
         const step = state.viewHorizon === 'week' ? 7 : 1;
         d.setDate(d.getDate() - step);
         state.timelineViewDate = d;
-        clearFocusStack(); // clear focus on day change
+        clearFocusStack();
         savePref('timelineViewDate', d.toISOString());
-        renderAll();
+        animateNavTransition('right', () => renderAll());
     });
     document.getElementById('date-nav-next').addEventListener('click', () => {
         const d = new Date(state.timelineViewDate);
         const step = state.viewHorizon === 'week' ? 7 : 1;
         d.setDate(d.getDate() + step);
         state.timelineViewDate = d;
-        clearFocusStack(); // clear focus on day change
+        clearFocusStack();
         savePref('timelineViewDate', d.toISOString());
-        renderAll();
+        animateNavTransition('left', () => renderAll());
     });
     // Click on date text to open native date picker
     const dateNavPicker = document.getElementById('date-nav-picker');
@@ -10537,27 +11929,95 @@ document.addEventListener('DOMContentLoaded', () => {
     function setupDayArrowDnD(btnId, dayOffset) {
         const btn = document.getElementById(btnId);
         btn.addEventListener('dragover', (e) => {
-            if (!window._draggedAction) return;
+            if (!window._draggedAction && !e.dataTransfer.types.includes('application/x-segment-item-id')) return;
             e.preventDefault();
+            e.stopPropagation();
             e.dataTransfer.dropEffect = 'move';
             btn.classList.add('date-nav-btn-drag-over');
         });
-        btn.addEventListener('dragleave', () => {
+        btn.addEventListener('dragleave', (e) => {
+            e.stopPropagation();
             btn.classList.remove('date-nav-btn-drag-over');
         });
         btn.addEventListener('drop', async (e) => {
             e.preventDefault();
+            e.stopPropagation();
             btn.classList.remove('date-nav-btn-drag-over');
-            const actionId = e.dataTransfer.getData('application/x-action-id');
-            if (!actionId) return;
             const d = new Date(state.timelineViewDate);
             d.setDate(d.getDate() + dayOffset);
             const targetDateKey = getDateKey(d);
+            // Segment queue item (intention) drag
+            if (e.dataTransfer.types.includes('application/x-segment-item-id')) {
+                const itemId = e.dataTransfer.getData('application/x-segment-item-id');
+                const segCtx = e.dataTransfer.getData('application/x-segment-context');
+                if (!itemId) return;
+                let segDur;
+                if (segCtx) {
+                    const item = findItemById(Number(itemId));
+                    if (item) {
+                        segDur = item.contextDurations?.[segCtx];
+                        if (item.timeContexts) item.timeContexts = item.timeContexts.filter(tc => tc !== segCtx);
+                        if (item.contextDurations) delete item.contextDurations[segCtx];
+                    }
+                }
+                await rescheduleToDate(parseInt(itemId, 10), targetDateKey);
+                return;
+            }
+            // Regular action/project drag
+            const actionId = e.dataTransfer.getData('application/x-action-id');
+            if (!actionId) return;
             await rescheduleToDate(parseInt(actionId, 10), targetDateKey);
         });
     }
     setupDayArrowDnD('date-nav-prev', -1);
     setupDayArrowDnD('date-nav-next', 1);
+
+    // Week arrow DnD targets — drop to reschedule to prev/next week
+    function setupWeekArrowDnD(btnId, weekOffset) {
+        const btn = document.getElementById(btnId);
+        btn.addEventListener('dragover', (e) => {
+            if (!window._draggedAction && !e.dataTransfer.types.includes('application/x-segment-item-id')) return;
+            e.preventDefault();
+            e.stopPropagation();
+            e.dataTransfer.dropEffect = 'move';
+            btn.classList.add('date-nav-btn-drag-over');
+        });
+        btn.addEventListener('dragleave', (e) => {
+            e.stopPropagation();
+            btn.classList.remove('date-nav-btn-drag-over');
+        });
+        btn.addEventListener('drop', async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            btn.classList.remove('date-nav-btn-drag-over');
+            const d = new Date(state.timelineViewDate);
+            d.setDate(d.getDate() + weekOffset * 7);
+            const targetWeekKey = getWeekKey(d);
+            // Segment queue item (intention) drag
+            if (e.dataTransfer.types.includes('application/x-segment-item-id')) {
+                const itemId = e.dataTransfer.getData('application/x-segment-item-id');
+                const segCtx = e.dataTransfer.getData('application/x-segment-context');
+                if (!itemId) return;
+                let segDur;
+                if (segCtx) {
+                    const item = findItemById(Number(itemId));
+                    if (item) {
+                        segDur = item.contextDurations?.[segCtx];
+                        if (item.timeContexts) item.timeContexts = item.timeContexts.filter(tc => tc !== segCtx);
+                        if (item.contextDurations) delete item.contextDurations[segCtx];
+                    }
+                }
+                await sendToWeek(parseInt(itemId, 10), targetWeekKey, segDur);
+                return;
+            }
+            // Regular action/project drag
+            const actionId = e.dataTransfer.getData('application/x-action-id');
+            if (!actionId) return;
+            await sendToWeek(parseInt(actionId, 10), targetWeekKey);
+        });
+    }
+    setupWeekArrowDnD('week-nav-prev', -1);
+    setupWeekArrowDnD('week-nav-next', 1);
 
     // ── Horizon layer click + DnD handlers ──
     // Someday layer: click to navigate, drag to send items to someday
@@ -10625,7 +12085,7 @@ document.addEventListener('DOMContentLoaded', () => {
         clearFocusStack();
         savePref('timelineViewDate', state.timelineViewDate.toISOString());
         _updateWeekNavLabel();
-        renderAll();
+        animateNavTransition('right', () => renderAll());
     });
     document.getElementById('week-nav-next').addEventListener('click', (e) => {
         e.stopPropagation();
@@ -10633,7 +12093,7 @@ document.addEventListener('DOMContentLoaded', () => {
         clearFocusStack();
         savePref('timelineViewDate', state.timelineViewDate.toISOString());
         _updateWeekNavLabel();
-        renderAll();
+        animateNavTransition('left', () => renderAll());
     });
     // Week label click -> open date picker
     const weekNavPicker = document.getElementById('week-nav-picker');
@@ -10838,13 +12298,19 @@ document.addEventListener('DOMContentLoaded', () => {
             closeProjectSearch();
         }
     });
-    // ─── Scroll-to-selected banner ───
+    // ─── Scroll-to-selected banner + persist scroll position ───
     const projectTree = document.getElementById('project-tree');
     const scrollBanner = document.getElementById('scroll-to-selected-banner');
+    let _projectTreeScrollSaveTimer = null;
     if (projectTree) {
         projectTree.addEventListener('scroll', () => {
             clearTimeout(_scrollBannerDebounce);
             _scrollBannerDebounce = setTimeout(() => updateScrollToSelectedBanner(), 80);
+            // Persist scroll position (debounced)
+            clearTimeout(_projectTreeScrollSaveTimer);
+            _projectTreeScrollSaveTimer = setTimeout(() => {
+                savePref('projectTreeScrollTop', projectTree.scrollTop);
+            }, 300);
         });
     }
     if (scrollBanner) {

@@ -1455,11 +1455,11 @@
       "text": "אופיר מרצה",
       "projectName": "משפחה",
       "type": "planned",
-      "startTime": 1771155000000,
-      "endTime": 1771156800000,
+      "startTime": 1771153200000,
+      "endTime": 1771155000000,
       "itemId": 305,
       "id": 207,
-      "timestamp": 1771155000000
+      "timestamp": 1771153200000
     },
     {
       "text": "סשן ירדן",
@@ -1908,7 +1908,293 @@
       "itemId": 188,
       "id": 256,
       "timestamp": 1770966000000
+    },
+    {
+      "text": "Worked on: see the capacity of current context vs. what's visible? (1h 8m)",
+      "projectName": "anything",
+      "type": "work",
+      "startTime": 1770928000700,
+      "endTime": 1770932127819,
+      "itemId": 351,
+      "id": 257,
+      "timestamp": 1770928000700
+    },
+    {
+      "text": "Worked on: להתקלח (16m)",
+      "projectName": "בית",
+      "type": "work",
+      "startTime": 1770932545618,
+      "endTime": 1770933510137,
+      "targetEndTime": 1770933745612,
+      "itemId": 234,
+      "id": 258,
+      "timestamp": 1770932545618
+    },
+    {
+      "text": "anything",
+      "projectName": null,
+      "type": "planned",
+      "startTime": 1770933510175,
+      "endTime": 1770935310175,
+      "itemId": 9,
+      "id": 259,
+      "timestamp": 1770933510175
+    },
+    {
+      "text": "Worked on: anything (16m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1770933593941,
+      "endTime": 1770934567710,
+      "targetEndTime": 1770935310175,
+      "itemId": 9,
+      "id": 260,
+      "timestamp": 1770933593941
+    },
+    {
+      "text": "Done: see the capacity of current context vs. what's visible?",
+      "projectName": "anything",
+      "type": "completion",
+      "id": 261,
+      "timestamp": 1770939108773
+    },
+    {
+      "text": "Done: maybe toggle \"one context or multiple\"",
+      "projectName": "anything",
+      "type": "completion",
+      "id": 262,
+      "timestamp": 1770939652299
+    },
+    {
+      "text": "Done: move",
+      "projectName": "anything › core",
+      "type": "completion",
+      "id": 263,
+      "timestamp": 1770941286547
+    },
+    {
+      "text": "Done: drag from projects to timeline",
+      "projectName": "anything",
+      "type": "completion",
+      "id": 264,
+      "timestamp": 1770941368300
+    },
+    {
+      "text": "Done: preparations",
+      "projectName": "anything",
+      "type": "completion",
+      "id": 265,
+      "timestamp": 1770941385925
+    },
+    {
+      "text": "Done: after entering a project item - stay scrolled",
+      "projectName": "anything",
+      "type": "completion",
+      "id": 266,
+      "timestamp": 1770941446865
+    },
+    {
+      "text": "Done: deadlines?",
+      "projectName": "anything",
+      "type": "completion",
+      "id": 267,
+      "timestamp": 1770941535870
+    },
+    {
+      "text": "Done: create from timeline edit",
+      "projectName": "anything",
+      "type": "completion",
+      "id": 268,
+      "timestamp": 1770942103883
+    },
+    {
+      "text": "Done: persistent running",
+      "projectName": "anything",
+      "type": "completion",
+      "id": 269,
+      "timestamp": 1770942110132
+    },
+    {
+      "text": "Done: persistent settings",
+      "projectName": "anything",
+      "type": "completion",
+      "id": 270,
+      "timestamp": 1770942111785
+    },
+    {
+      "text": "Done: drag and drop plans",
+      "projectName": "anything",
+      "type": "completion",
+      "id": 271,
+      "timestamp": 1770942135308
+    },
+    {
+      "text": "Done: estimated time",
+      "projectName": "anything",
+      "type": "completion",
+      "id": 272,
+      "timestamp": 1770942148443
+    },
+    {
+      "text": "Done: breaks",
+      "projectName": "anything",
+      "type": "completion",
+      "id": 273,
+      "timestamp": 1770942162860
+    },
+    {
+      "text": "Done: plans",
+      "projectName": "anything",
+      "type": "completion",
+      "id": 274,
+      "timestamp": 1770942166598
+    },
+    {
+      "text": "Done: idea - starting working on automatically focuses",
+      "projectName": "anything",
+      "type": "completion",
+      "id": 275,
+      "timestamp": 1770942178570
+    },
+    {
+      "text": "Done: creating an item should create it in the current time context",
+      "projectName": "anything",
+      "type": "completion",
+      "id": 276,
+      "timestamp": 1770942465825
+    },
+    {
+      "text": "Done: in free time - indicate remaining with a number",
+      "projectName": "anything",
+      "type": "completion",
+      "id": 277,
+      "timestamp": 1770942528092
+    },
+    {
+      "text": "Done: ident child item entry in project",
+      "projectName": "anything",
+      "type": "completion",
+      "id": 278,
+      "timestamp": 1770942568030
+    },
+    {
+      "text": "Worked on: anything (2h 7m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1770934936117,
+      "endTime": 1770942583747,
+      "targetEndTime": 1770936150175,
+      "itemId": 9,
+      "id": 279,
+      "timestamp": 1770934936117
+    },
+    {
+      "text": "Done: indicate current place in what in when in actions",
+      "projectName": "anything",
+      "type": "completion",
+      "id": 280,
+      "timestamp": 1770942730004
+    },
+    {
+      "text": "Done: better UI for the goal tracking, don't like current",
+      "projectName": "anything",
+      "type": "completion",
+      "id": 281,
+      "timestamp": 1770943084676
+    },
+    {
+      "text": "Done: countdown for in progress scheduled items",
+      "projectName": "anything",
+      "type": "completion",
+      "id": 282,
+      "timestamp": 1770943109442
+    },
+    {
+      "text": "Done: visible actions and projects are determined by time context",
+      "projectName": "anything",
+      "type": "completion",
+      "id": 283,
+      "timestamp": 1770943255685
+    },
+    {
+      "text": "Done: change dynamically working time block duration",
+      "projectName": "anything",
+      "type": "completion",
+      "id": 284,
+      "timestamp": 1770943288697
+    },
+    {
+      "text": "Done: fix running item time block height",
+      "projectName": "anything",
+      "type": "completion",
+      "id": 285,
+      "timestamp": 1770943305276
+    },
+    {
+      "text": "Worked on: anything (11m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1770942626497,
+      "endTime": 1770943337733,
+      "itemId": 9,
+      "id": 286,
+      "timestamp": 1770942626497
+    },
+    {
+      "text": "Worked on: anything (2m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1770948992799,
+      "endTime": 1770949163406,
+      "itemId": 9,
+      "id": 288,
+      "timestamp": 1770948992799
+    },
+    {
+      "text": "Worked on: anything (0m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1770949503126,
+      "endTime": 1770949527601,
+      "itemId": 9,
+      "id": 289,
+      "timestamp": 1770949503126
+    },
+    {
+      "text": "Done: dark mode",
+      "projectName": "anything › nice to have",
+      "type": "completion",
+      "id": 290,
+      "timestamp": 1770949745701
+    },
+    {
+      "text": "Done: @ for creating under x",
+      "projectName": "anything › nice to have",
+      "type": "completion",
+      "id": 291,
+      "timestamp": 1770949753156
+    },
+    {
+      "text": "Done: good night screen",
+      "projectName": "anything › nice to have",
+      "type": "completion",
+      "id": 292,
+      "timestamp": 1770949757474
+    },
+    {
+      "text": "Done: drag into the live activity bar",
+      "projectName": "anything › nice to have",
+      "type": "completion",
+      "id": 293,
+      "timestamp": 1770949783022
+    },
+    {
+      "text": "Done: in week/session - show x/y total on hover",
+      "projectName": "anything › nice to have",
+      "type": "completion",
+      "id": 294,
+      "timestamp": 1770950305299
     }
   ],
-  "nextId": 257
+  "nextId": 295
 }

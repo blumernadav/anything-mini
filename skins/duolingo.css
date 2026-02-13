@@ -957,8 +957,67 @@ body {
 .section-header {
     display: flex;
     align-items: center;
-    justify-content: flex-end;
-    padding: 8px 16px 4px;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 12px 16px 6px;
+    flex-shrink: 0;
+    min-height: 28px;
+    position: relative;
+}
+
+/* ── Consolidated toolbar sub-containers ── */
+.header-breadcrumb-what {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0;
+    font-size: 12px;
+    font-weight: 700;
+    min-width: 0;
+    flex-shrink: 1;
+    position: relative;
+    z-index: 1;
+}
+
+.header-live-slot {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    justify-content: center;
+    pointer-events: none;
+}
+
+.header-live-slot>* {
+    pointer-events: auto;
+}
+
+.header-right-cluster {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+    flex-shrink: 0;
+    margin-left: auto;
+    position: relative;
+    z-index: 1;
+}
+
+.header-status-cluster {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.header-breadcrumb-when {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    font-size: 12px;
+    font-weight: 700;
     flex-shrink: 0;
 }
 
@@ -993,17 +1052,9 @@ body {
     display: none;
 }
 
-/* ─── Actions Breadcrumbs ─── */
+/* ─── Actions Breadcrumbs (legacy – now rendered in header) ─── */
 .actions-breadcrumbs {
-    padding: 0 16px 2px;
-    flex-shrink: 0;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.breadcrumb-when {
-    margin-left: auto;
+    display: none;
 }
 
 .breadcrumb-row {
@@ -1035,6 +1086,7 @@ body {
     cursor: pointer;
     border-radius: 8px;
     padding: 1px 6px;
+    max-width: 15ch;
     transition: all var(--dur) var(--ease);
 }
 
@@ -1047,6 +1099,9 @@ body {
     color: var(--duo-text);
     font-weight: 800;
     padding: 1px 6px;
+    max-width: 20ch;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 /* ─── Actions ─── */
@@ -1457,7 +1512,6 @@ body {
     height: 8px;
     background: var(--duo-bg);
     border-radius: 20px;
-    margin-left: auto;
     flex-shrink: 0;
     border: 2px solid var(--duo-border);
 }
@@ -1493,10 +1547,10 @@ body {
 }
 
 .pressure-bar.pressure-bar-text-only {
-    background: none;
+    background: transparent;
     border: none;
     height: auto;
-    overflow: visible;
+    width: auto;
 }
 
 .pressure-bar.pressure-bar-text-only .pressure-bar-fill {
@@ -1505,11 +1559,97 @@ body {
 
 .pressure-bar.pressure-bar-text-only .pressure-bar-label {
     position: static;
-    font-size: 11px;
+    transform: none;
+    opacity: 1;
+    font-size: 10px;
     font-weight: 700;
-    color: var(--duo-text-faint);
 }
 
+
+/* ─── Missing Duration Indicator ─── */
+.pressure-bar-missing {
+    display: none;
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--duo-text-faint);
+    background: var(--duo-bg);
+    border: 2px solid var(--duo-border);
+    padding: 1px 8px;
+    border-radius: 20px;
+    cursor: pointer;
+    margin-left: 6px;
+    flex-shrink: 0;
+    white-space: nowrap;
+    transition: all var(--dur) var(--ease);
+}
+
+.pressure-bar-missing.visible {
+    display: inline-flex;
+    align-items: center;
+}
+
+.pressure-bar-missing:hover {
+    border-color: var(--duo-blue);
+    color: var(--duo-blue);
+    background: var(--duo-blue-dim);
+}
+
+.missing-dur-popover {
+    width: 260px;
+}
+
+.missing-dur-row {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 6px 0;
+    border-bottom: 2px solid var(--duo-bg);
+}
+
+.missing-dur-row:last-child {
+    border-bottom: none;
+}
+
+.missing-dur-name {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--duo-text);
+    line-height: 1.4;
+    word-break: break-word;
+}
+
+.missing-dur-presets {
+    display: flex;
+    gap: 3px;
+    flex-wrap: wrap;
+}
+
+.missing-dur-preset {
+    padding: 3px 7px;
+    border: 2px solid var(--duo-border);
+    background: var(--duo-white);
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 10px;
+    font-weight: 700;
+    font-family: inherit;
+    color: var(--duo-text-soft);
+    transition: all var(--dur) var(--ease);
+    white-space: nowrap;
+    box-shadow: 0 2px 0 var(--duo-border);
+}
+
+.missing-dur-preset:hover {
+    border-color: var(--duo-blue);
+    color: white;
+    background: var(--duo-blue);
+    box-shadow: 0 2px 0 #1a6fc4;
+}
+
+.missing-dur-preset:active {
+    transform: translateY(1px);
+    box-shadow: none;
+}
 
 .action-goal-badge {
     display: flex;
@@ -1643,6 +1783,183 @@ body {
     opacity: 1;
 }
 
+/* ─── Move To Modal ─── */
+.move-to-modal-box {
+    min-width: 320px;
+    max-width: 380px;
+}
+
+.move-to-body {
+    padding: 0 !important;
+}
+
+.move-to-search {
+    padding: 8px 12px 0;
+}
+
+.move-to-search-input {
+    width: 100%;
+    padding: 8px 12px;
+    border: 2px solid var(--duo-border);
+    border-radius: var(--duo-radius-sm);
+    background: var(--duo-white);
+    font-size: 13px;
+    font-weight: 700;
+    font-family: inherit;
+    color: var(--duo-text);
+    outline: none;
+    transition: border-color var(--dur) var(--ease);
+}
+
+.move-to-search-input:focus {
+    border-color: var(--duo-green);
+}
+
+.move-to-search-input::placeholder {
+    color: var(--duo-text-faint);
+}
+
+.move-to-search-highlight {
+    background: var(--duo-green-dim);
+    color: var(--duo-green);
+    border-radius: 4px;
+    padding: 0 2px;
+    font-weight: 800;
+}
+
+.move-to-tree {
+    max-height: 50vh;
+    overflow-y: auto;
+    padding: 8px 0;
+}
+
+.move-to-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    cursor: pointer;
+    transition: all var(--dur) var(--ease);
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--duo-text);
+    border-radius: var(--duo-radius-sm);
+    margin: 0 6px;
+}
+
+.move-to-row:hover {
+    background: var(--duo-green-dim);
+    color: var(--duo-green);
+}
+
+.move-to-toggle {
+    width: 16px;
+    flex-shrink: 0;
+    font-size: 12px;
+    color: var(--duo-text-faint);
+    cursor: pointer;
+    text-align: center;
+    line-height: 1;
+    user-select: none;
+}
+
+.move-to-toggle:not(.leaf):hover {
+    color: var(--duo-green);
+}
+
+.move-to-toggle.leaf {
+    cursor: default;
+    opacity: 0.4;
+}
+
+.move-to-inbox-icon {
+    font-size: 13px;
+    flex-shrink: 0;
+}
+
+.move-to-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.move-to-marker {
+    height: 12px;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity var(--dur) var(--ease);
+}
+
+.move-to-marker:hover {
+    opacity: 1;
+}
+
+.move-to-marker-line {
+    flex: 1;
+    height: 2px;
+    border-radius: 1px;
+    background: var(--duo-border);
+    margin: 0 12px;
+    transition: background var(--dur) var(--ease);
+}
+
+.move-to-marker:hover .move-to-marker-line {
+    background: var(--duo-green);
+    height: 3px;
+}
+
+.move-to-root-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 10px 12px;
+    margin: 4px 12px 8px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--duo-text-soft);
+    background: var(--duo-bg);
+    border: 2px dashed var(--duo-border);
+    border-radius: var(--duo-radius-sm);
+    cursor: pointer;
+    transition: all var(--dur) var(--ease);
+}
+
+.move-to-root-btn:hover {
+    border-color: var(--duo-green);
+    color: var(--duo-green);
+    background: var(--duo-green-dim);
+}
+
+
+.move-to-actions {
+    justify-content: space-between;
+}
+
+.move-to-scroll-option {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--duo-text-soft);
+    cursor: pointer;
+    user-select: none;
+}
+
+.move-to-scroll-option:hover {
+    color: var(--duo-text);
+}
+
+.move-to-scroll-checkbox {
+    accent-color: var(--duo-green);
+    cursor: pointer;
+}
+
 /* ─── Goal Modal ─── */
 .goal-modal-box {
     min-width: 300px;
@@ -1739,6 +2056,8 @@ body {
     border-radius: var(--duo-radius-sm);
     border: none;
     transition: all var(--dur) var(--ease);
+    position: relative;
+    flex-wrap: wrap;
 }
 
 .action-input-row:focus-within {
@@ -1757,6 +2076,7 @@ body {
     outline: none;
     color: var(--duo-text);
     transition: border-color var(--dur) var(--ease);
+    min-width: 0;
 }
 
 .action-input:focus {
@@ -1802,6 +2122,115 @@ body {
     transform: translateY(2px);
     box-shadow: none;
 }
+
+/* ─── @ Autocomplete Dropdown ─── */
+.action-input-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    margin-top: 4px;
+    background: var(--duo-white);
+    border: 2px solid var(--duo-border);
+    border-radius: var(--duo-radius-sm);
+    box-shadow: 0 6px 0 var(--duo-border);
+    max-height: 240px;
+    overflow-y: auto;
+    z-index: 100;
+    padding: 4px 0;
+}
+
+.action-input-dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--duo-text);
+    border-radius: var(--duo-radius-sm);
+    margin: 0 4px;
+    transition: background var(--dur) var(--ease);
+}
+
+.action-input-dropdown-item:hover,
+.action-input-dropdown-item.highlighted {
+    background: var(--duo-green-dim);
+    color: var(--duo-green);
+}
+
+.action-input-dropdown-name {
+    flex-shrink: 0;
+    font-weight: 800;
+}
+
+.action-input-dropdown-path {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--duo-text-faint);
+    text-align: right;
+}
+
+/* ─── @ Override Chip ─── */
+.action-input-at-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    background: var(--duo-green-dim);
+    font-size: 12px;
+    font-weight: 800;
+    color: var(--duo-green);
+    white-space: nowrap;
+    width: 100%;
+    margin-top: 4px;
+}
+
+.action-input-hash-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    background: var(--duo-yellow-dim, rgba(255, 200, 0, 0.15));
+    font-size: 12px;
+    font-weight: 800;
+    color: var(--duo-yellow, #e6a000);
+    white-space: nowrap;
+    width: 100%;
+    margin-top: 4px;
+}
+
+.at-chip-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.at-chip-remove {
+    border: none;
+    background: none;
+    color: var(--duo-green);
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 800;
+    line-height: 1;
+    padding: 0 2px;
+    opacity: 0.5;
+    transition: opacity var(--dur) var(--ease);
+    margin-left: auto;
+}
+
+.at-chip-remove:hover {
+    opacity: 1;
+}
+
 
 /* ─── Knowledge ─── */
 .knowledge-item {
@@ -2354,16 +2783,15 @@ body {
 .live-session-indicator {
     display: inline-flex;
     align-items: center;
-    align-self: center;
     gap: 6px;
     padding: 4px 10px;
     border-radius: 20px;
     background: var(--duo-bg);
     border: 2px solid var(--duo-border);
     transition: all var(--dur) var(--ease);
-    margin: 0 14px 6px;
     box-shadow: 0 2px 0 var(--duo-border);
     font-size: 11px;
+    cursor: pointer;
 }
 
 .live-session-indicator:hover {
@@ -2382,6 +2810,59 @@ body {
 
 .live-session-indicator-break {
     border-left: 4px solid var(--duo-blue);
+}
+
+.live-session-indicator-idle {
+    border-left: 4px solid var(--duo-text-faint);
+}
+
+.live-session-indicator-sleep {
+    border-left: 4px solid #a78bfa;
+    background: rgba(167, 139, 250, 0.08);
+}
+
+.live-session-indicator-sleep:hover {
+    border-color: #8b5cf6;
+    transform: translateY(-1px);
+}
+
+.sleep-close-day-btn {
+    margin-left: 4px;
+    padding: 3px 10px;
+    border: 2px solid #a78bfa;
+    border-radius: 10px;
+    background: rgba(167, 139, 250, 0.1);
+    color: #8b5cf6;
+    font-size: 10px;
+    font-weight: 800;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all var(--dur) var(--ease);
+    box-shadow: 0 2px 0 #a78bfa;
+    white-space: nowrap;
+    text-transform: uppercase;
+}
+
+.sleep-close-day-btn:hover {
+    background: #8b5cf6;
+    color: white;
+    transform: translateY(-1px);
+}
+
+.sleep-close-day-btn:active {
+    transform: translateY(1px);
+    box-shadow: none;
+}
+
+.modal-field-toggle {
+    flex-wrap: wrap;
+}
+
+.modal-toggle {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--duo-green);
+    cursor: pointer;
 }
 
 .live-session-indicator-icon {
@@ -2411,6 +2892,13 @@ body {
 
 .live-session-indicator-overtime {
     color: var(--duo-red);
+}
+
+.live-session-indicator-drag-over {
+    background: var(--duo-green-dim) !important;
+    border-color: var(--duo-green) !important;
+    outline: 1px dashed var(--duo-green);
+    outline-offset: -1px;
 }
 
 @keyframes live-pulse {
@@ -2666,6 +3154,46 @@ body {
     gap: 6px;
 }
 
+.schedule-mode-toggle {
+    display: flex;
+    gap: 0;
+    border: 2px solid var(--duo-border);
+    border-radius: var(--duo-radius);
+    overflow: hidden;
+    margin-bottom: 4px;
+    box-shadow: 0 2px 0 var(--duo-border);
+}
+
+.schedule-mode-btn {
+    flex: 1;
+    padding: 6px 0;
+    font-size: 12px;
+    font-weight: 700;
+    font-family: inherit;
+    border: none;
+    background: var(--duo-white);
+    color: var(--duo-text-faint);
+    cursor: pointer;
+    transition: all var(--dur) var(--ease);
+    text-align: center;
+    text-transform: uppercase;
+}
+
+.schedule-mode-btn:hover {
+    color: var(--duo-text);
+    background: var(--duo-hover);
+}
+
+.schedule-mode-btn-active {
+    background: var(--duo-green);
+    color: white;
+    font-weight: 800;
+}
+
+.schedule-mode-btn-active:hover {
+    opacity: 0.9;
+}
+
 .schedule-section {
     border: 2px solid var(--duo-border);
     border-radius: var(--duo-radius);
@@ -2692,6 +3220,42 @@ body {
 
 .schedule-section-header:hover {
     background: var(--duo-hover);
+}
+
+.schedule-section-badge {
+    margin-left: auto;
+    font-size: 10px;
+    font-weight: 800;
+    min-width: 20px;
+    height: 20px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    background: rgba(88, 204, 2, 0.12);
+    color: var(--duo-green);
+}
+
+.schedule-section[open] .schedule-section-badge {
+    opacity: 0.6;
+}
+
+.schedule-section-content-wrapper {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 250ms ease-out;
+}
+
+.schedule-section[open] .schedule-section-content-wrapper {
+    grid-template-rows: 1fr;
+}
+
+.schedule-section.schedule-section-closing .schedule-section-content-wrapper {
+    grid-template-rows: 0fr;
+}
+
+.schedule-section-content-wrapper>.schedule-section-content {
+    overflow: hidden;
 }
 
 .schedule-section-content {
@@ -2968,6 +3532,239 @@ body {
     cursor: default;
     pointer-events: none;
     box-shadow: none;
+}
+
+/* ── Schedule Deadline UI ── */
+
+.schedule-cal-day {
+    position: relative;
+}
+
+.schedule-cal-deadline-btn {
+    display: none;
+    position: absolute;
+    top: 1px;
+    right: 1px;
+    width: 18px;
+    height: 18px;
+    border: none;
+    background: transparent;
+    font-size: 9px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0;
+    border-radius: 50%;
+    opacity: 0.5;
+    transition: opacity var(--dur) var(--ease), transform var(--dur) var(--ease);
+    z-index: 1;
+}
+
+.schedule-cal-day:hover .schedule-cal-deadline-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.schedule-cal-deadline-btn:hover {
+    opacity: 1;
+    transform: scale(1.3);
+}
+
+.schedule-cal-day-deadline .schedule-cal-deadline-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.9;
+}
+
+.schedule-cal-day-deadline {
+    background: rgba(234, 43, 43, 0.12);
+    color: var(--duo-red);
+    font-weight: 800;
+    box-shadow: inset 0 0 0 2px rgba(234, 43, 43, 0.3);
+    border-radius: 10px;
+}
+
+.schedule-cal-day-deadline:hover {
+    background: rgba(234, 43, 43, 0.2);
+    color: var(--duo-red);
+    transform: translateY(-1px);
+}
+
+.schedule-cal-day-deadline.schedule-cal-day-assigned {
+    background: var(--duo-green);
+    color: white;
+    border-color: var(--duo-green);
+}
+
+.schedule-cal-day-deadline.schedule-cal-day-today {
+    box-shadow: inset 0 0 0 2px var(--duo-red);
+}
+
+/* Inline deadline bar */
+.schedule-deadline-bar-wrapper {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 250ms ease-out;
+}
+
+.schedule-deadline-bar-wrapper.has-deadline {
+    grid-template-rows: 1fr;
+}
+
+.schedule-deadline-bar {
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 8px 12px;
+    margin-top: 8px;
+    border: 2px solid var(--duo-border);
+    border-radius: var(--duo-radius);
+    background: var(--duo-white);
+    box-shadow: 0 2px 0 var(--duo-border);
+}
+
+.schedule-deadline-bar-row1 {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.schedule-deadline-bar-row2 {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.schedule-deadline-bar-row3 {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 6px;
+}
+
+.schedule-deadline-bar-label {
+    font-size: 13px;
+    font-weight: 800;
+    color: var(--duo-red);
+    white-space: nowrap;
+}
+
+.schedule-deadline-bar-text {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--duo-text-soft);
+    white-space: nowrap;
+}
+
+.schedule-deadline-remove {
+    width: 22px;
+    height: 22px;
+    border: 2px solid var(--duo-border);
+    border-radius: 8px;
+    background: transparent;
+    color: var(--duo-text-faint);
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    line-height: 1;
+    transition: all var(--dur) var(--ease);
+    box-shadow: 0 2px 0 var(--duo-border);
+}
+
+.schedule-deadline-remove:hover {
+    border-color: var(--duo-red);
+    color: var(--duo-red);
+    background: rgba(234, 43, 43, 0.08);
+    transform: translateY(-1px);
+}
+
+.schedule-deadline-preset {
+    padding: 3px 10px;
+    font-size: 11px;
+    font-weight: 700;
+    font-family: inherit;
+    border: 2px solid var(--duo-border);
+    border-radius: 10px;
+    background: var(--duo-white);
+    color: var(--duo-text-soft);
+    cursor: pointer;
+    transition: all var(--dur) var(--ease);
+    box-shadow: 0 2px 0 var(--duo-border);
+}
+
+.schedule-deadline-preset:hover {
+    border-color: #a35aeb;
+    color: #a35aeb;
+    background: rgba(163, 90, 235, 0.08);
+    transform: translateY(-1px);
+}
+
+.schedule-deadline-preset.active {
+    background: #a35aeb;
+    color: #fff;
+    border-color: #a35aeb;
+    font-weight: 800;
+    box-shadow: 0 2px 0 #8a3dd4;
+}
+
+.schedule-deadline-preset.active:hover {
+    opacity: 0.9;
+}
+
+.schedule-deadline-custom-input {
+    width: 36px;
+    padding: 3px 4px;
+    font-size: 11px;
+    font-weight: 700;
+    font-family: inherit;
+    border: 2px solid var(--duo-border);
+    border-radius: 8px;
+    background: var(--duo-white);
+    color: var(--duo-text);
+    text-align: center;
+}
+
+.schedule-deadline-custom-unit {
+    padding: 3px 4px;
+    font-size: 11px;
+    font-weight: 700;
+    font-family: inherit;
+    border: 2px solid var(--duo-border);
+    border-radius: 8px;
+    background: var(--duo-white);
+    color: var(--duo-text);
+}
+
+.schedule-deadline-custom-set {
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    font-size: 13px;
+    font-weight: 700;
+    font-family: inherit;
+    border: 2px solid var(--duo-border);
+    border-radius: 10px;
+    background: var(--duo-white);
+    color: var(--duo-text-soft);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--dur) var(--ease);
+    box-shadow: 0 2px 0 var(--duo-border);
+}
+
+.schedule-deadline-custom-set:hover {
+    border-color: #a35aeb;
+    color: #a35aeb;
+    transform: translateY(-1px);
 }
 
 /* ── Schedule Lead Time Inline UI ── */
@@ -3386,12 +4183,22 @@ select.schedule-leadtime-input {
 .segment-capacity-bar {
     width: 100%;
     height: 6px;
+    background: transparent;
+    border-radius: 0;
+    margin: 4px 0 0 32px;
+    max-width: calc(100% - 36px);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.segment-capacity-track {
+    flex: 1;
+    min-width: 0;
+    height: 100%;
     background: var(--duo-border);
     border-radius: 4px;
-    margin: 4px 0 0 32px;
     position: relative;
-    overflow: hidden;
-    max-width: calc(100% - 36px);
 }
 
 .segment-capacity-fill {
@@ -3406,12 +4213,21 @@ select.schedule-leadtime-input {
 }
 
 .segment-capacity-label {
-    position: absolute;
-    right: 0;
-    top: 8px;
     font-size: 10px;
     font-weight: 700;
     color: var(--duo-text-faint);
+    white-space: nowrap;
+    max-width: 0;
+    overflow: hidden;
+    transition: max-width 0.25s ease, opacity 0.15s ease;
+    opacity: 0;
+    pointer-events: none;
+    flex-shrink: 0;
+}
+
+.segment-capacity-bar:hover .segment-capacity-label {
+    opacity: 1;
+    max-width: 100px;
 }
 
 .actions-drag-over {
@@ -5631,4 +6447,69 @@ select.schedule-leadtime-input {
 .duration-picker-start:active {
     box-shadow: none;
     transform: translateY(2px);
+}
+
+/* ── Nav slide transitions ── */
+@keyframes nav-slide-out-left {
+    from {
+        transform: translateX(0);
+        opacity: 1;
+    }
+
+    to {
+        transform: translateX(-30px);
+        opacity: 0;
+    }
+}
+
+@keyframes nav-slide-out-right {
+    from {
+        transform: translateX(0);
+        opacity: 1;
+    }
+
+    to {
+        transform: translateX(30px);
+        opacity: 0;
+    }
+}
+
+@keyframes nav-slide-in-left {
+    from {
+        transform: translateX(30px);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes nav-slide-in-right {
+    from {
+        transform: translateX(-30px);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+.nav-slide-out-left {
+    animation: nav-slide-out-left 150ms ease-out forwards;
+}
+
+.nav-slide-out-right {
+    animation: nav-slide-out-right 150ms ease-out forwards;
+}
+
+.nav-slide-in-left {
+    animation: nav-slide-in-left 150ms ease-out forwards;
+}
+
+.nav-slide-in-right {
+    animation: nav-slide-in-right 150ms ease-out forwards;
 }

@@ -737,23 +737,105 @@ body {
     border-radius: 0;
 }
 
+/* Win95: section-header in actions becomes a stacked layout:
+   the blue title bar shrinks, and toolbar items sit in a gray bar below */
+.section-actions .section-header {
+    flex-wrap: wrap;
+    padding: 0;
+    gap: 0;
+    background: none;
+    position: relative;
+}
+
+/* Faux title bar row */
+.section-actions .section-header::before {
+    content: '';
+    display: block;
+    width: 100%;
+    height: 20px;
+    background: linear-gradient(90deg, var(--w-title), #1084d0);
+    flex-shrink: 0;
+}
+
+/* ── Consolidated toolbar sub-containers ── */
+.header-breadcrumb-what {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0;
+    font-size: 12px;
+    min-width: 0;
+    flex-shrink: 1;
+    background: var(--w-bg);
+    padding: 2px 0 2px 6px;
+    position: relative;
+    z-index: 1;
+}
+
+.header-live-slot {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    justify-content: center;
+    background: var(--w-bg);
+    padding: 2px 0;
+    pointer-events: none;
+}
+
+.header-live-slot>* {
+    pointer-events: auto;
+}
+
+.header-right-cluster {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 1px;
+    flex-shrink: 0;
+    background: var(--w-bg);
+    padding: 2px 6px 2px 0;
+    margin-left: auto;
+    position: relative;
+    z-index: 1;
+}
+
+.header-status-cluster {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.header-breadcrumb-when {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    font-size: 12px;
+    flex-shrink: 0;
+}
+
+/* Bottom border on the toolbar row */
+.section-actions .header-breadcrumb-what {
+    border-bottom: 1px solid var(--w-dark);
+}
+
+.section-actions .header-live-slot {
+    border-bottom: 1px solid var(--w-dark);
+}
+
+.section-actions .header-right-cluster {
+    border-bottom: 1px solid var(--w-dark);
+}
+
 .section-divider {
     display: none;
 }
 
-/* ─── Actions Breadcrumbs ─── */
+/* ─── Actions Breadcrumbs (legacy – now rendered in header) ─── */
 .actions-breadcrumbs {
-    padding: 2px 6px;
-    flex-shrink: 0;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    background: var(--w-bg);
-    border-bottom: 1px solid var(--w-dark);
-}
-
-.breadcrumb-when {
-    margin-left: auto;
+    display: none;
 }
 
 .breadcrumb-row {
@@ -783,6 +865,7 @@ body {
     color: var(--w-title);
     cursor: pointer;
     padding: 0 2px;
+    max-width: 15ch;
     text-decoration: underline;
 }
 
@@ -795,6 +878,9 @@ body {
     color: var(--w-text);
     font-weight: bold;
     padding: 0 2px;
+    max-width: 20ch;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .actions-list,
@@ -1137,7 +1223,6 @@ body {
     width: 80px;
     height: 12px;
     background: var(--w-field);
-    margin-left: auto;
     flex-shrink: 0;
     border: 2px solid;
     border-color: var(--w-dark) var(--w-white) var(--w-white) var(--w-dark);
@@ -1171,9 +1256,10 @@ body {
 }
 
 .pressure-bar.pressure-bar-text-only {
-    background: none;
+    background: transparent;
     border: none;
     height: auto;
+    width: auto;
 }
 
 .pressure-bar.pressure-bar-text-only .pressure-bar-fill {
@@ -1182,10 +1268,91 @@ body {
 
 .pressure-bar.pressure-bar-text-only .pressure-bar-label {
     position: static;
-    font-size: 10px;
-    color: var(--w-disabled);
+    transform: none;
+    opacity: 1;
+    font-size: 9px;
 }
 
+
+/* ─── Missing Duration Indicator ─── */
+.pressure-bar-missing {
+    display: none;
+    font-size: 10px;
+    color: var(--w-text);
+    background: var(--w-bg);
+    border: 2px solid;
+    border-color: var(--w-white) var(--w-darker) var(--w-darker) var(--w-white);
+    padding: 0px 6px;
+    cursor: pointer;
+    margin-left: 4px;
+    flex-shrink: 0;
+    white-space: nowrap;
+    font-family: inherit;
+    border-radius: 0;
+}
+
+.pressure-bar-missing.visible {
+    display: inline-flex;
+    align-items: center;
+}
+
+.pressure-bar-missing:hover {
+    color: var(--w-title);
+}
+
+.pressure-bar-missing:active {
+    border-color: var(--w-darker) var(--w-white) var(--w-white) var(--w-darker);
+}
+
+.missing-dur-popover {
+    width: 260px;
+}
+
+.missing-dur-row {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 3px 0;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.missing-dur-row:last-child {
+    border-bottom: none;
+}
+
+.missing-dur-name {
+    font-size: 12px;
+    color: var(--w-text);
+    line-height: 1.3;
+    word-break: break-word;
+}
+
+.missing-dur-presets {
+    display: flex;
+    gap: 2px;
+    flex-wrap: wrap;
+}
+
+.missing-dur-preset {
+    padding: 1px 5px;
+    border: 2px solid;
+    border-color: var(--w-white) var(--w-darker) var(--w-darker) var(--w-white);
+    background: var(--w-bg);
+    cursor: pointer;
+    font-size: 10px;
+    font-family: inherit;
+    color: var(--w-text);
+    white-space: nowrap;
+    border-radius: 0;
+}
+
+.missing-dur-preset:hover {
+    color: var(--w-title);
+}
+
+.missing-dur-preset:active {
+    border-color: var(--w-darker) var(--w-white) var(--w-white) var(--w-darker);
+}
 
 .action-goal-badge {
     display: flex;
@@ -1312,6 +1479,171 @@ body {
     font-weight: 700;
 }
 
+/* ─── Move To Modal ─── */
+.move-to-modal-box {
+    min-width: 320px;
+    max-width: 380px;
+}
+
+.move-to-body {
+    padding: 0 !important;
+}
+
+.move-to-search {
+    padding: 4px 4px 0;
+}
+
+.move-to-search-input {
+    width: 100%;
+    padding: 2px 4px;
+    border: 2px solid;
+    border-color: var(--w-dark) var(--w-white) var(--w-white) var(--w-dark);
+    background: var(--w-field);
+    font-size: 13px;
+    font-family: inherit;
+    color: var(--w-text);
+    outline: none;
+}
+
+.move-to-search-input::placeholder {
+    color: var(--w-disabled);
+}
+
+.move-to-search-highlight {
+    background: var(--w-title);
+    color: var(--w-white);
+}
+
+.move-to-tree {
+    max-height: 50vh;
+    overflow-y: auto;
+    padding: 4px;
+    background: var(--w-field);
+    margin: 4px;
+    border: 2px solid;
+    border-color: var(--w-dark) var(--w-white) var(--w-white) var(--w-dark);
+}
+
+.move-to-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 4px;
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--w-text);
+}
+
+.move-to-row:hover {
+    background: var(--w-title);
+    color: var(--w-white);
+}
+
+.move-to-toggle {
+    width: 12px;
+    flex-shrink: 0;
+    font-size: 10px;
+    color: var(--w-text);
+    cursor: pointer;
+    text-align: center;
+    line-height: 1;
+    user-select: none;
+    border: 1px solid var(--w-dark);
+    background: var(--w-field);
+}
+
+.move-to-toggle:not(.leaf):hover {
+    color: var(--w-title);
+}
+
+.move-to-toggle.leaf {
+    cursor: default;
+    opacity: 0.4;
+    border: none;
+    background: none;
+}
+
+.move-to-inbox-icon {
+    font-size: 12px;
+    flex-shrink: 0;
+}
+
+.move-to-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.move-to-marker {
+    height: 8px;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+
+.move-to-marker:hover {
+    opacity: 1;
+}
+
+.move-to-marker-line {
+    flex: 1;
+    height: 1px;
+    background: var(--w-title);
+    margin: 0 8px;
+}
+
+.move-to-marker:hover .move-to-marker-line {
+    height: 2px;
+}
+
+.move-to-root-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 4px 8px;
+    margin: 4px 6px 6px;
+    font-size: 12px;
+    font-weight: bold;
+    color: var(--w-text);
+    background: var(--w-bg);
+    border: 2px solid;
+    border-color: var(--w-white) var(--w-darker) var(--w-darker) var(--w-white);
+    cursor: pointer;
+    font-family: inherit;
+}
+
+.move-to-root-btn:hover {
+    background: var(--w-title);
+    color: var(--w-white);
+}
+
+.move-to-root-btn:active {
+    border-color: var(--w-darker) var(--w-white) var(--w-white) var(--w-darker);
+}
+
+.move-to-actions {
+    justify-content: space-between;
+}
+
+.move-to-scroll-option {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    color: var(--w-text);
+    cursor: pointer;
+    user-select: none;
+}
+
+.move-to-scroll-checkbox {
+    cursor: pointer;
+}
+
 /* ─── Goal Modal ─── */
 .goal-modal-box {
     min-width: 280px;
@@ -1393,6 +1725,8 @@ body {
     border-color: var(--w-dark) var(--w-white) var(--w-white) var(--w-dark);
     background: var(--w-field);
     border-radius: 0;
+    position: relative;
+    flex-wrap: wrap;
 }
 
 .action-input {
@@ -1404,6 +1738,7 @@ body {
     font-family: inherit;
     outline: none;
     color: var(--w-text);
+    min-width: 0;
 }
 
 .action-input::placeholder {
@@ -1439,6 +1774,114 @@ body {
 .action-input-btn:active {
     border-color: var(--w-darker) var(--w-white) var(--w-white) var(--w-darker);
 }
+
+/* ─── @ Autocomplete Dropdown ─── */
+.action-input-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    margin-top: 2px;
+    background: var(--w-field);
+    border: 2px solid;
+    border-color: var(--w-white) var(--w-darker) var(--w-darker) var(--w-white);
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 100;
+}
+
+.action-input-dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 6px;
+    cursor: pointer;
+    font-size: 13px;
+    font-family: inherit;
+    color: var(--w-text);
+}
+
+.action-input-dropdown-item:hover,
+.action-input-dropdown-item.highlighted {
+    background: var(--w-title);
+    color: var(--w-white);
+}
+
+.action-input-dropdown-name {
+    flex-shrink: 0;
+    font-weight: 700;
+}
+
+.action-input-dropdown-path {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 11px;
+    color: var(--w-disabled);
+    text-align: right;
+}
+
+.action-input-dropdown-item:hover .action-input-dropdown-path,
+.action-input-dropdown-item.highlighted .action-input-dropdown-path {
+    color: var(--w-white);
+}
+
+/* ─── @ Override Chip ─── */
+.action-input-at-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 1px 4px;
+    background: var(--w-bg);
+    border: 1px solid var(--w-dark);
+    font-size: 11px;
+    font-weight: 700;
+    font-family: inherit;
+    color: var(--w-title);
+    white-space: nowrap;
+    width: 100%;
+    margin-top: 2px;
+}
+
+.action-input-hash-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 1px 4px;
+    background: #fffde0;
+    border: 1px solid #c0a000;
+    font-size: 11px;
+    font-weight: 700;
+    font-family: inherit;
+    color: #806000;
+    white-space: nowrap;
+    width: 100%;
+    margin-top: 2px;
+}
+
+.at-chip-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.at-chip-remove {
+    border: none;
+    background: none;
+    color: var(--w-text);
+    cursor: pointer;
+    font-size: 12px;
+    font-family: inherit;
+    line-height: 1;
+    padding: 0 2px;
+    margin-left: auto;
+}
+
+.at-chip-remove:hover {
+    color: #cc0000;
+}
+
 
 /* ─── Knowledge ─── */
 .knowledge-item {
@@ -1889,13 +2332,11 @@ body {
 .live-session-indicator {
     display: inline-flex;
     align-items: center;
-    align-self: center;
     gap: 4px;
     padding: 2px 6px;
     background: var(--w-bg);
     border: 2px solid;
     border-color: var(--w-white) var(--w-darker) var(--w-darker) var(--w-white);
-    margin: 0 4px 4px;
     cursor: pointer;
     font-size: 10px;
 }
@@ -1910,6 +2351,44 @@ body {
 
 .live-session-indicator-break {
     border-left: 3px solid #008080;
+}
+
+.live-session-indicator-idle {
+    border-left: 3px solid var(--w-disabled);
+}
+
+.live-session-indicator-sleep {
+    border-left: 3px solid #000080;
+    background: #e0e0ff;
+}
+
+.sleep-close-day-btn {
+    margin-left: 4px;
+    padding: 0 6px;
+    border: 2px solid;
+    border-color: var(--w-white) var(--w-darker) var(--w-darker) var(--w-white);
+    background: var(--w-bg);
+    color: var(--w-text);
+    font-size: 10px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    border-radius: 0;
+    white-space: nowrap;
+}
+
+.sleep-close-day-btn:active {
+    border-color: var(--w-darker) var(--w-white) var(--w-white) var(--w-darker);
+}
+
+.modal-field-toggle {
+    flex-wrap: wrap;
+}
+
+.modal-toggle {
+    width: 14px;
+    height: 14px;
+    cursor: pointer;
 }
 
 .live-session-indicator-icon {
@@ -1941,6 +2420,12 @@ body {
 
 .live-session-indicator-overtime {
     color: #cc0000;
+}
+
+.live-session-indicator-drag-over {
+    background: #e8e8e8 !important;
+    outline: 2px dashed var(--w-title);
+    outline-offset: -2px;
 }
 
 @keyframes live-pulse {
@@ -2156,6 +2641,42 @@ body {
     gap: 4px;
 }
 
+.schedule-mode-toggle {
+    display: flex;
+    gap: 0;
+    border: 2px solid;
+    border-color: var(--w-dark) var(--w-white) var(--w-white) var(--w-dark);
+    margin-bottom: 2px;
+}
+
+.schedule-mode-btn {
+    flex: 1;
+    padding: 2px 0;
+    font-size: 11px;
+    font-weight: 700;
+    font-family: inherit;
+    border: none;
+    background: var(--w-bg);
+    color: var(--w-dark);
+    cursor: pointer;
+    text-align: center;
+    border-radius: 0;
+}
+
+.schedule-mode-btn:hover {
+    background: #e8e8e8;
+}
+
+.schedule-mode-btn-active {
+    background: var(--w-title);
+    color: var(--w-white);
+    font-weight: bold;
+}
+
+.schedule-mode-btn-active:hover {
+    opacity: 0.9;
+}
+
 .schedule-section {
     border: 2px solid var(--w-dark);
     background: var(--w-bg);
@@ -2176,6 +2697,42 @@ body {
 
 .schedule-section-header::-webkit-details-marker {
     display: none;
+}
+
+.schedule-section-badge {
+    margin-left: auto;
+    font-size: 10px;
+    font-weight: 700;
+    min-width: 16px;
+    height: 16px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--w-bg);
+    color: var(--w-title);
+    border: 1px solid var(--w-dark);
+}
+
+.schedule-section[open] .schedule-section-badge {
+    opacity: 0.6;
+}
+
+.schedule-section-content-wrapper {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 200ms ease-out;
+}
+
+.schedule-section[open] .schedule-section-content-wrapper {
+    grid-template-rows: 1fr;
+}
+
+.schedule-section.schedule-section-closing .schedule-section-content-wrapper {
+    grid-template-rows: 0fr;
+}
+
+.schedule-section-content-wrapper>.schedule-section-content {
+    overflow: hidden;
 }
 
 .schedule-section-content {
@@ -2420,6 +2977,226 @@ body {
     cursor: default;
     pointer-events: none;
 }
+
+/* ── Schedule Deadline UI ── */
+
+.schedule-cal-day {
+    position: relative;
+}
+
+.schedule-cal-deadline-btn {
+    display: none;
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 14px;
+    height: 14px;
+    border: none;
+    background: transparent;
+    font-size: 8px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0;
+    opacity: 0.5;
+    z-index: 1;
+}
+
+.schedule-cal-day:hover .schedule-cal-deadline-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.schedule-cal-deadline-btn:hover {
+    opacity: 1;
+}
+
+.schedule-cal-day-deadline .schedule-cal-deadline-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.9;
+}
+
+.schedule-cal-day-deadline {
+    background: #ffe0e0;
+    color: #cc0000;
+    font-weight: 700;
+    box-shadow: inset 0 0 0 1px #cc0000;
+}
+
+.schedule-cal-day-deadline:hover {
+    background: #ffd0d0;
+}
+
+.schedule-cal-day-deadline.schedule-cal-day-assigned {
+    background: var(--w-title);
+    color: var(--w-white);
+    border-color: var(--w-title);
+}
+
+.schedule-cal-day-deadline.schedule-cal-day-today {
+    border: 2px solid #cc0000;
+}
+
+
+/* Inline deadline bar */
+.schedule-deadline-bar-wrapper {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 200ms ease;
+}
+
+.schedule-deadline-bar-wrapper.has-deadline {
+    grid-template-rows: 1fr;
+}
+
+.schedule-deadline-bar {
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 4px 6px;
+    margin-top: 6px;
+    border: 2px solid;
+    border-color: var(--w-dark) var(--w-white) var(--w-white) var(--w-dark);
+    background: var(--w-bg);
+}
+
+.schedule-deadline-bar-row1 {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.schedule-deadline-bar-row2 {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+}
+
+.schedule-deadline-bar-row3 {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 4px;
+}
+
+.schedule-deadline-bar-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: #cc0000;
+    white-space: nowrap;
+}
+
+.schedule-deadline-bar-text {
+    font-size: 11px;
+    color: var(--w-dark);
+    white-space: nowrap;
+}
+
+.schedule-deadline-remove {
+    width: 18px;
+    height: 18px;
+    border: 2px solid;
+    border-color: var(--w-white) var(--w-darker) var(--w-darker) var(--w-white);
+    background: var(--w-bg);
+    color: var(--w-dark);
+    cursor: pointer;
+    font-size: 12px;
+    font-family: inherit;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    line-height: 1;
+}
+
+.schedule-deadline-remove:hover {
+    color: #cc0000;
+}
+
+.schedule-deadline-remove:active {
+    border-color: var(--w-darker) var(--w-white) var(--w-white) var(--w-darker);
+}
+
+.schedule-deadline-preset {
+    padding: 1px 6px;
+    font-size: 11px;
+    font-family: inherit;
+    border: 2px solid;
+    border-color: var(--w-white) var(--w-darker) var(--w-darker) var(--w-white);
+    border-radius: 0;
+    background: var(--w-bg);
+    color: var(--w-text);
+    cursor: pointer;
+}
+
+.schedule-deadline-preset:hover {
+    background: #e8e8e8;
+}
+
+.schedule-deadline-preset:active {
+    border-color: var(--w-darker) var(--w-white) var(--w-white) var(--w-darker);
+}
+
+.schedule-deadline-preset.active {
+    background: var(--w-title);
+    color: var(--w-white);
+    font-weight: 700;
+}
+
+.schedule-deadline-preset.active:hover {
+    opacity: 0.9;
+}
+
+.schedule-deadline-custom-input {
+    width: 32px;
+    padding: 1px 2px;
+    font-size: 11px;
+    font-family: inherit;
+    border: 2px solid;
+    border-color: var(--w-darker) var(--w-white) var(--w-white) var(--w-darker);
+    background: var(--w-field);
+    color: var(--w-text);
+    text-align: center;
+}
+
+.schedule-deadline-custom-unit {
+    padding: 1px 2px;
+    font-size: 11px;
+    font-family: inherit;
+    border: 2px solid;
+    border-color: var(--w-darker) var(--w-white) var(--w-white) var(--w-darker);
+    background: var(--w-field);
+    color: var(--w-text);
+}
+
+.schedule-deadline-custom-set {
+    width: 18px;
+    height: 18px;
+    padding: 0;
+    font-size: 11px;
+    font-family: inherit;
+    border: 2px solid;
+    border-color: var(--w-white) var(--w-darker) var(--w-darker) var(--w-white);
+    background: var(--w-bg);
+    color: var(--w-text);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.schedule-deadline-custom-set:hover {
+    background: #e8e8e8;
+}
+
+.schedule-deadline-custom-set:active {
+    border-color: var(--w-darker) var(--w-white) var(--w-white) var(--w-darker);
+}
+
 
 /* ── Schedule Lead Time Inline UI ── */
 .schedule-cal-day-leadtime {
@@ -2791,11 +3568,20 @@ select.schedule-leadtime-input {
 .segment-capacity-bar {
     width: 100%;
     height: 4px;
-    background: var(--w-dark);
+    background: transparent;
     margin: 2px 0 0 22px;
-    position: relative;
-    overflow: hidden;
     max-width: calc(100% - 26px);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.segment-capacity-track {
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+    background: var(--w-dark);
+    position: relative;
 }
 
 .segment-capacity-fill {
@@ -2808,12 +3594,21 @@ select.schedule-leadtime-input {
 }
 
 .segment-capacity-label {
-    position: absolute;
-    right: 0;
-    top: 6px;
     font-size: 10px;
     color: var(--w-dark);
     font-family: inherit;
+    white-space: nowrap;
+    max-width: 0;
+    overflow: hidden;
+    transition: max-width 0.25s ease, opacity 0.15s ease;
+    opacity: 0;
+    pointer-events: none;
+    flex-shrink: 0;
+}
+
+.segment-capacity-bar:hover .segment-capacity-label {
+    opacity: 1;
+    max-width: 100px;
 }
 
 .actions-drag-over {
@@ -4731,4 +5526,69 @@ select.schedule-leadtime-input {
 
 .duration-picker-start:active {
     border-color: var(--w-darker, #404040) var(--w-white, #fff) var(--w-white, #fff) var(--w-darker, #404040);
+}
+
+/* ── Nav slide transitions ── */
+@keyframes nav-slide-out-left {
+    from {
+        transform: translateX(0);
+        opacity: 1;
+    }
+
+    to {
+        transform: translateX(-30px);
+        opacity: 0;
+    }
+}
+
+@keyframes nav-slide-out-right {
+    from {
+        transform: translateX(0);
+        opacity: 1;
+    }
+
+    to {
+        transform: translateX(30px);
+        opacity: 0;
+    }
+}
+
+@keyframes nav-slide-in-left {
+    from {
+        transform: translateX(30px);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes nav-slide-in-right {
+    from {
+        transform: translateX(-30px);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+.nav-slide-out-left {
+    animation: nav-slide-out-left 150ms ease-out forwards;
+}
+
+.nav-slide-out-right {
+    animation: nav-slide-out-right 150ms ease-out forwards;
+}
+
+.nav-slide-in-left {
+    animation: nav-slide-in-left 150ms ease-out forwards;
+}
+
+.nav-slide-in-right {
+    animation: nav-slide-in-right 150ms ease-out forwards;
 }
