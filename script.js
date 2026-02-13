@@ -4426,48 +4426,38 @@ function renderHorizonTower() {
             if (weekPicker) weekPicker.style.display = 'none';
         }
     }
-    // Set week label eagerly so it updates instantly
-    if (weekActive) {
-        _updateWeekNavLabel();
-    } else {
-        const weekNavLabel = document.getElementById('week-nav-label');
-        if (weekNavLabel) weekNavLabel.textContent = 'Week';
-    }
+    // Set week label — always show specific date range (even when dimmed)
+    _updateWeekNavLabel();
 
-    // Day layer: hide entirely when in week mode (its info is now in the week layer)
-    dayLayer.style.display = currentLevel === 'week' ? 'none' : '';
-    // Day layer: active when viewHorizon is day, dim otherwise (session dims it too)
+    // Day layer: always visible, active when viewHorizon is day, dim otherwise
     dayLayer.classList.toggle('horizon-layer-active', currentLevel === 'day');
-    dayLayer.classList.toggle('horizon-layer-dim', currentLevel !== 'day' && currentLevel !== 'week');
+    dayLayer.classList.toggle('horizon-layer-dim', currentLevel !== 'day');
 
-    // Session layer: only visible when at session or day level
+    // Session layer: always visible
     if (sessionLayer) {
-        sessionLayer.style.display = (currentLevel === 'session' || currentLevel === 'day') ? '' : 'none';
+        sessionLayer.style.display = '';
         sessionLayer.classList.toggle('horizon-layer-active', currentLevel === 'session');
         sessionLayer.classList.toggle('horizon-layer-dim', currentLevel !== 'session');
 
+        // Always show the specific session icon/label (last-viewed segment)
+        const segments = buildPlanSegments();
+        const idx = Math.max(0, Math.min(segments.length - 1, state.sessionIndex));
+        const seg = segments[idx];
+        const sessionIcon = document.getElementById('session-layer-icon');
+        const sessionLabel = document.getElementById('session-nav-label');
+        if (seg) {
+            if (sessionIcon) sessionIcon.textContent = seg.icon;
+            if (sessionLabel) sessionLabel.textContent = seg.label;
+        }
+
         if (currentLevel === 'session') {
-            // Update session label and icon from active segment
-            const segments = buildPlanSegments();
-            const idx = Math.max(0, Math.min(segments.length - 1, state.sessionIndex));
-            const seg = segments[idx];
-            const sessionIcon = document.getElementById('session-layer-icon');
-            const sessionLabel = document.getElementById('session-nav-label');
-            if (seg) {
-                if (sessionIcon) sessionIcon.textContent = seg.icon;
-                if (sessionLabel) sessionLabel.textContent = seg.label;
-            }
             // Show nav buttons
             const prevBtn = document.getElementById('session-nav-prev');
             const nextBtn = document.getElementById('session-nav-next');
             if (prevBtn) prevBtn.style.display = '';
             if (nextBtn) nextBtn.style.display = '';
         } else {
-            // Dim mode: show compact label, hide nav buttons
-            const sessionIcon = document.getElementById('session-layer-icon');
-            const sessionLabel = document.getElementById('session-nav-label');
-            if (sessionIcon) sessionIcon.textContent = '⏱️';
-            if (sessionLabel) sessionLabel.textContent = 'Session';
+            // Dim mode: hide nav buttons
             const prevBtn = document.getElementById('session-nav-prev');
             const nextBtn = document.getElementById('session-nav-next');
             if (prevBtn) prevBtn.style.display = 'none';

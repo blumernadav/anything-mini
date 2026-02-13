@@ -2273,7 +2273,31 @@
       "itemId": 391,
       "id": 302,
       "timestamp": 1770976915819
+    },
+    {
+      "text": "Done: general titles or specific values? if specific - remember last and persist it?",
+      "projectName": "anything",
+      "type": "completion",
+      "id": 303,
+      "timestamp": 1770980492572
+    },
+    {
+      "text": "Worked on: change session to a real horizon (11m)",
+      "projectName": "anything › core",
+      "type": "work",
+      "startTime": 1770979795848,
+      "endTime": 1770980506248,
+      "itemId": 359,
+      "id": 304,
+      "timestamp": 1770979795848
+    },
+    {
+      "text": "Done: change session to a real horizon",
+      "projectName": "anything › core",
+      "type": "completion",
+      "id": 305,
+      "timestamp": 1770980507328
     }
   ],
-  "nextId": 303
+  "nextId": 306
 }

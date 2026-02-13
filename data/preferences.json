@@ -8,15 +8,15 @@
   },
   "hidePastEntries": true,
   "workingOn": {
-    "itemId": 359,
-    "itemName": "change session to a real horizon",
-    "projectName": "anything › core",
-    "startTime": 1770979795848,
+    "itemId": 395,
+    "itemName": "Someday becomes past / future",
+    "projectName": "anything",
+    "startTime": 1770980591102,
     "targetEndTime": null
   },
   "selectedItemId": 9,
   "onBreak": null,
-  "timelineViewDate": "2026-02-13T10:52:38.763Z",
+  "timelineViewDate": "2026-02-13T11:21:32.002Z",
   "scheduleFilter": "scheduled+unscheduled",
   "collapsedGroups": [
     86,
@@ -35,13 +35,13 @@
     164,
     122,
     17,
-    92,
     62,
-    137,
     145,
-    9
+    9,
+    248,
+    137
   ],
-  "viewHorizon": "day",
+  "viewHorizon": "session",
   "weekCollapsedDays": {
     "2026-02-08": true,
     "2026-02-09": true,
@@ -73,7 +73,19 @@
       300
     ]
   },
-  "focusStack": [],
+  "focusStack": [
+    {
+      "startMs": 1770974100000,
+      "endMs": 1770983081978,
+      "label": "anything",
+      "type": "planned",
+      "icon": "📋",
+      "tier": "session",
+      "segmentKey": "2026-02-13@entry:297",
+      "entryId": 297,
+      "itemId": 9
+    }
+  ],
   "projectTreeScrollTop": 0,
   "darkMode": "light",
   "skinFamily": "duolingo",

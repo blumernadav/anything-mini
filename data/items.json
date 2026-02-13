@@ -307,15 +307,38 @@
       "name": "anything",
       "children": [
         {
+          "id": 396,
+          "name": "fix date label (confused with week)",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770981704559,
+          "done": false,
+          "timeContexts": [
+            "2026-02-13",
+            "2026-02-13@entry:297"
+          ]
+        },
+        {
+          "id": 395,
+          "name": "Someday becomes past / future",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770980523320,
+          "done": false,
+          "timeContexts": [
+            "2026-02-13",
+            "2026-02-13@entry:297"
+          ]
+        },
+        {
           "id": 394,
           "name": "general titles or specific values? if specific - remember last and persist it?",
           "children": [],
           "expanded": false,
           "createdAt": 1770979982757,
-          "done": false,
+          "done": true,
           "timeContexts": [
-            "2026-02-13",
-            "2026-02-13@work"
+            "2026-02-13"
           ]
         },
         {
@@ -442,7 +465,7 @@
               "children": [],
               "expanded": false,
               "createdAt": 1770927503105,
-              "done": false,
+              "done": true,
               "timeContexts": [
                 "2026-02-13@entry:297"
               ],
@@ -3865,5 +3888,5 @@
       ]
     }
   ],
-  "nextId": 395
+  "nextId": 397
 }
