@@ -2194,7 +2194,54 @@
       "type": "completion",
       "id": 294,
       "timestamp": 1770950305299
+    },
+    {
+      "text": "Worked on: לבדוק זמינות אוטו בסופ״ש (0m)",
+      "projectName": "Inbox",
+      "type": "work",
+      "startTime": 1770971779467,
+      "endTime": 1770971835566,
+      "itemId": 335,
+      "id": 295,
+      "timestamp": 1770971779467
+    },
+    {
+      "text": "Worked on: לארגן אורי גלר (5m)",
+      "projectName": "חברים",
+      "type": "work",
+      "startTime": 1770971835585,
+      "endTime": 1770972149601,
+      "itemId": 339,
+      "id": 296,
+      "timestamp": 1770971835585
+    },
+    {
+      "text": "anything",
+      "projectName": null,
+      "type": "planned",
+      "startTime": 1770974100000,
+      "endTime": 1770983081978,
+      "itemId": 9,
+      "id": 297,
+      "timestamp": 1770974100000
+    },
+    {
+      "text": "Break (0m)",
+      "type": "break",
+      "startTime": 1770973207763,
+      "endTime": 1770973210429,
+      "id": 298,
+      "timestamp": 1770973207763
+    },
+    {
+      "text": "Break (19m)",
+      "type": "break",
+      "startTime": 1770973214871,
+      "endTime": 1770974391765,
+      "targetEndTime": 1770973814871,
+      "id": 299,
+      "timestamp": 1770973214871
     }
   ],
-  "nextId": 295
+  "nextId": 300
 }

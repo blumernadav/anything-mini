@@ -29,8 +29,7 @@
             "2026-02-13"
           ],
           "contextDurations": {
-            "2026-02-12": 5,
-            "2026-02-13": 10
+            "2026-02-13": 15
           }
         },
         {
@@ -59,22 +58,7 @@
         {
           "id": 45,
           "name": "test",
-          "children": [
-            {
-              "id": 378,
-              "name": "blabalala",
-              "children": [],
-              "expanded": false,
-              "createdAt": 1770949004455,
-              "done": false,
-              "timeContexts": [
-                "2026-02-13"
-              ],
-              "contextDurations": {
-                "2026-02-13": 0
-              }
-            }
-          ],
+          "children": [],
           "expanded": false,
           "createdAt": 1770598460620,
           "done": true,
@@ -98,7 +82,7 @@
           }
         }
       ],
-      "expanded": true,
+      "expanded": false,
       "createdAt": 1770593135805,
       "done": false,
       "isInbox": true,
@@ -109,7 +93,20 @@
     {
       "id": 293,
       "name": "למצוא חברה",
-      "children": [],
+      "children": [
+        {
+          "id": 383,
+          "name": "לענות לכולן באפליקציות",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770951370710,
+          "done": false,
+          "timeContexts": [
+            "week:2026-02-08"
+          ],
+          "contextLeadTimes": {}
+        }
+      ],
       "expanded": false,
       "createdAt": 1770811419755,
       "done": false,
@@ -263,10 +260,10 @@
           "createdAt": 1770609710103,
           "done": false,
           "timeContexts": [
-            "2026-02-13"
+            "2026-02-13@12:18-16:00"
           ],
           "contextDurations": {
-            "2026-02-13": 15
+            "2026-02-13@12:18-16:00": 5
           }
         },
         {
@@ -277,11 +274,10 @@
           "createdAt": 1770808570871,
           "done": false,
           "timeContexts": [
-            "2026-02-13"
+            "2026-02-13@12:18-16:00"
           ],
           "contextDurations": {
-            "2026-02-12": 5,
-            "2026-02-13": 5
+            "2026-02-13@12:18-16:00": 5
           }
         },
         {
@@ -310,6 +306,30 @@
       "id": 9,
       "name": "anything",
       "children": [
+        {
+          "id": 386,
+          "name": "differentiate focus sessions from appointments",
+          "children": [
+            {
+              "id": 388,
+              "name": "maybe focus sessions are sliding window (\"package\" intention)",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770973172517,
+              "done": false,
+              "timeContexts": [
+                "2026-02-13"
+              ]
+            }
+          ],
+          "expanded": false,
+          "createdAt": 1770972497996,
+          "done": false,
+          "timeContexts": [
+            "week:2026-02-08"
+          ],
+          "contextDurations": {}
+        },
         {
           "id": 374,
           "name": "prep time should be occupied time",
@@ -373,10 +393,10 @@
               "createdAt": 1770927503105,
               "done": false,
               "timeContexts": [
-                "someday"
+                "2026-02-13@entry:297"
               ],
               "contextDurations": {
-                "someday": 60
+                "2026-02-13@entry:297": 30
               }
             },
             {
@@ -399,10 +419,10 @@
               "createdAt": 1770926420908,
               "done": false,
               "timeContexts": [
-                "week:2026-02-08"
+                "2026-02-13@entry:297"
               ],
               "contextDurations": {
-                "week:2026-02-08": 30
+                "2026-02-13@entry:297": 15
               }
             },
             {
@@ -523,10 +543,10 @@
               "createdAt": 1770822520306,
               "done": false,
               "timeContexts": [
-                "week:2026-02-08"
+                "2026-02-13@entry:297"
               ],
               "contextDurations": {
-                "week:2026-02-08": 60
+                "2026-02-13@entry:297": 60
               }
             },
             {
@@ -836,7 +856,7 @@
               }
             }
           ],
-          "expanded": false,
+          "expanded": true,
           "createdAt": 1770939013487,
           "done": false,
           "timeContexts": [
@@ -2808,33 +2828,17 @@
           "timeContexts": [
             "someday"
           ]
-        },
-        {
-          "id": 380,
-          "name": "testy test",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770949491203,
-          "done": false,
-          "timeContexts": [
-            "2026-02-13"
-          ],
-          "contextDurations": {
-            "2026-02-13": 0
-          }
         }
       ],
       "expanded": true,
       "createdAt": 1770591468116,
       "done": false,
       "timeContexts": [
-        "someday"
+        "week:2026-02-08"
       ],
       "estimatedDuration": 60,
       "contextDurations": {
-        "someday": 0,
-        "2026-02-12": 30,
-        "2026-02-12@entry:259": 60
+        "week:2026-02-08": 60
       }
     },
     {
@@ -2890,8 +2894,7 @@
           "estimatedDuration": 90,
           "timeContexts": [
             "2026-02-13@entry:256",
-            "2026-02-13",
-            "2026-02-13@09:00-10:00"
+            "2026-02-13"
           ],
           "contextDurations": {
             "2026-02-13": 60,
@@ -3019,6 +3022,20 @@
             "someday"
           ],
           "contextDurations": {}
+        },
+        {
+          "id": 385,
+          "name": "לשתף את הדרייב",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770971728857,
+          "done": false,
+          "timeContexts": [
+            "2026-02-13@12:18-16:00"
+          ],
+          "contextDurations": {
+            "2026-02-13@12:18-16:00": 15
+          }
         }
       ],
       "expanded": false,
@@ -3412,10 +3429,10 @@
           "createdAt": 1770896669281,
           "done": false,
           "timeContexts": [
-            "2026-02-13"
+            "2026-02-13@12:18-16:00"
           ],
           "contextDurations": {
-            "2026-02-13": 10
+            "2026-02-13@12:18-16:00": 10
           }
         }
       ],
@@ -3557,7 +3574,7 @@
           "createdAt": 1770758160373,
           "done": false,
           "timeContexts": [
-            "someday"
+            "2026-02-14"
           ]
         }
       ],
@@ -3660,10 +3677,10 @@
           "createdAt": 1770808515559,
           "done": false,
           "timeContexts": [
-            "2026-02-13"
+            "2026-02-13@12:18-16:00"
           ],
           "contextDurations": {
-            "2026-02-13": 30
+            "2026-02-13@12:18-16:00": 30
           }
         },
         {
@@ -3674,11 +3691,10 @@
           "createdAt": 1770812039041,
           "done": false,
           "timeContexts": [
-            "2026-02-13"
+            "2026-02-13@13:18-16:00"
           ],
           "contextDurations": {
-            "2026-02-12": 45,
-            "2026-02-13": 60
+            "2026-02-13@13:18-16:00": 60
           }
         },
         {
@@ -3694,6 +3710,20 @@
           "contextDurations": {
             "2026-02-12": 10,
             "2026-02-13": 10
+          }
+        },
+        {
+          "id": 387,
+          "name": "מקלחת",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770972747119,
+          "done": false,
+          "timeContexts": [
+            "2026-02-13@12:18-16:00"
+          ],
+          "contextDurations": {
+            "2026-02-13@12:18-16:00": 10
           }
         }
       ],
@@ -3758,5 +3788,5 @@
       ]
     }
   ],
-  "nextId": 383
+  "nextId": 389
 }

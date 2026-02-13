@@ -5231,37 +5231,39 @@ function renderWeekView(container) {
         let dayCapacityMins = ((dayTimes.dayEndHour * 60 + dayTimes.dayEndMinute) - dayStartMins);
         if (dayCapacityMins <= 0) dayCapacityMins += 24 * 60; // cross-midnight
 
+        const isPast = dateKey < todayKey;
+        const shouldHidePast = isPast && state.hidePastEntries && !(isNightTime && dateKey === prevCalDayKey);
+
         // ── Sleep divider between days ──
+        let sleepDivEl = null;
         if (prevDayEndMins !== null) {
             let sleepMins = dayStartMins - prevDayEndMins;
             if (sleepMins < 0) sleepMins += 24 * 60; // cross-midnight gap
             if (sleepMins > 0) {
-                const sleepDiv = document.createElement('div');
-                sleepDiv.className = 'week-sleep-divider';
+                sleepDivEl = document.createElement('div');
+                sleepDivEl.className = 'week-sleep-divider';
                 const sleepH = Math.floor(sleepMins / 60);
                 const sleepM = sleepMins % 60;
                 const sleepLabel = sleepH > 0 ? (sleepM > 0 ? `${sleepH}h${sleepM}m` : `${sleepH}h`) : `${sleepM}m`;
                 // Highlight sleep divider as "you are here" during night time
                 if (isNightTime && dateKey === todayKey) {
-                    sleepDiv.classList.add('week-sleep-current');
+                    sleepDivEl.classList.add('week-sleep-current');
                     const remainMs = logicalDayStart.getTime() - Date.now();
                     const remainMins = Math.ceil(remainMs / 60000);
                     const rH = Math.floor(remainMins / 60);
                     const rM = remainMins % 60;
                     const remainLabel = rH > 0 ? (rM > 0 ? `${rH}h${rM}m` : `${rH}h`) : `${rM}m`;
-                    sleepDiv.textContent = `🌙 ${remainLabel} left`;
+                    sleepDivEl.textContent = `🌙 ${remainLabel} left`;
                 } else {
-                    sleepDiv.textContent = `🌙 ${sleepLabel}`;
+                    sleepDivEl.textContent = `🌙 ${sleepLabel}`;
                 }
-                weekEl.appendChild(sleepDiv);
+                if (!shouldHidePast) weekEl.appendChild(sleepDivEl);
             }
         }
 
-        const isPast = dateKey < todayKey;
-        // Skip past days entirely when "Hide past entries" is on
-        // But always keep the previous day visible during night (so the sleep-current divider has context)
-        if (isPast && state.hidePastEntries && !(isNightTime && dateKey === prevCalDayKey)) {
-            prevDayEndMins = null; // null so no sleep divider renders before the first visible day
+        // When hiding past: skip rendering but track prevDayEndMins
+        if (shouldHidePast) {
+            prevDayEndMins = null;
             continue;
         }
         const row = document.createElement('div');
@@ -11786,6 +11788,129 @@ function openDefaultsModal() {
     });
 }
 
+// ─── Hide-Past Accordion Animation ───
+function animateHidePastToggle(isHiding, renderFn) {
+    const timeline = document.getElementById('timeline-list');
+
+    if (state.viewHorizon === 'week') {
+        // Week view: animate individual past day rows
+        // 1) Collect existing past-day-row elements + their preceding sleep dividers
+        const oldRows = [];
+        if (!isHiding) {
+            // We're about to SHOW past days — snapshot what's there now (nothing)
+        } else {
+            // We're about to HIDE past days — snapshot the current rows
+            timeline.querySelectorAll('.week-day-row.week-day-past').forEach(row => {
+                const items = [row];
+                // Also grab the preceding sleep divider if any
+                const prev = row.previousElementSibling;
+                if (prev && prev.classList.contains('week-sleep-divider')) items.unshift(prev);
+                oldRows.push(items);
+            });
+        }
+
+        // Render with the new state — but we need the past rows in the DOM for animation
+        // Temporarily force hidePastEntries off so they render, then animate away
+        if (isHiding) {
+            state.hidePastEntries = false;
+            renderFn();
+            state.hidePastEntries = true;
+
+            // Now animate each past day row to collapse
+            const pastRows = timeline.querySelectorAll('.week-day-row.week-day-past');
+            const toAnimate = [];
+            pastRows.forEach(row => {
+                const items = [row];
+                const prev = row.previousElementSibling;
+                if (prev && prev.classList.contains('week-sleep-divider')) items.unshift(prev);
+                toAnimate.push(items);
+            });
+
+            toAnimate.forEach(group => {
+                group.forEach(el => {
+                    const h = el.offsetHeight;
+                    el.style.overflow = 'hidden';
+                    el.style.transition = 'none';
+                    el.style.maxHeight = h + 'px';
+                    el.style.opacity = '1';
+                    requestAnimationFrame(() => {
+                        el.style.transition = 'max-height 250ms ease-out, opacity 200ms ease-out';
+                        el.style.maxHeight = '0px';
+                        el.style.opacity = '0';
+                        const cleanup = () => el.remove();
+                        el.addEventListener('transitionend', cleanup, { once: true });
+                        setTimeout(cleanup, 300);
+                    });
+                });
+            });
+        } else {
+            // Showing past: render with past included, then animate them in
+            renderFn();
+
+            const pastRows = timeline.querySelectorAll('.week-day-row.week-day-past');
+            const toAnimate = [];
+            pastRows.forEach(row => {
+                const items = [row];
+                const prev = row.previousElementSibling;
+                if (prev && prev.classList.contains('week-sleep-divider')) items.unshift(prev);
+                toAnimate.push(items);
+            });
+
+            toAnimate.forEach(group => {
+                group.forEach(el => {
+                    const h = el.offsetHeight;
+                    el.style.overflow = 'hidden';
+                    el.style.transition = 'none';
+                    el.style.maxHeight = '0px';
+                    el.style.opacity = '0';
+                    // Force layout
+                    el.offsetHeight;
+                    requestAnimationFrame(() => {
+                        el.style.transition = 'max-height 250ms ease-out, opacity 200ms ease-out';
+                        el.style.maxHeight = h + 'px';
+                        el.style.opacity = '1';
+                        const cleanup = () => {
+                            el.style.overflow = '';
+                            el.style.transition = '';
+                            el.style.maxHeight = '';
+                            el.style.opacity = '';
+                        };
+                        el.addEventListener('transitionend', cleanup, { once: true });
+                        setTimeout(cleanup, 300);
+                    });
+                });
+            });
+        }
+        return;
+    }
+
+    // Day view: accordion wrapper approach
+    const oldH = timeline.scrollHeight;
+    renderFn();
+    const newH = timeline.scrollHeight;
+    const diff = newH - oldH;
+    if (Math.abs(diff) < 2) return;
+
+    const wrapper = document.createElement('div');
+    while (timeline.firstChild) wrapper.appendChild(timeline.firstChild);
+    timeline.appendChild(wrapper);
+
+    wrapper.style.transition = 'none';
+    wrapper.style.marginTop = `${-diff}px`;
+
+    requestAnimationFrame(() => {
+        wrapper.style.transition = 'margin-top 250ms ease-out';
+        wrapper.style.marginTop = '0px';
+
+        const cleanup = () => {
+            while (wrapper.firstChild) timeline.appendChild(wrapper.firstChild);
+            wrapper.remove();
+        };
+        wrapper.addEventListener('transitionend', cleanup, { once: true });
+        setTimeout(cleanup, 300);
+    });
+}
+
 // ─── Nav Slide Animation ───
 let _navAnimating = false;
 function animateNavTransition(direction, updateFn) {
@@ -12223,11 +12348,12 @@ document.addEventListener('DOMContentLoaded', () => {
     hidePastBtn.classList.toggle('active', !state.hidePastEntries);
     hidePastBtn.title = state.hidePastEntries ? 'Show past' : 'Hide past';
     hidePastBtn.addEventListener('click', () => {
-        state.hidePastEntries = !state.hidePastEntries;
-        savePref('hidePastEntries', state.hidePastEntries);
-        hidePastBtn.classList.toggle('active', !state.hidePastEntries);
-        hidePastBtn.title = state.hidePastEntries ? 'Show past' : 'Hide past';
-        renderAll();
+        const hiding = !state.hidePastEntries;
+        state.hidePastEntries = hiding;
+        savePref('hidePastEntries', hiding);
+        hidePastBtn.classList.toggle('active', !hiding);
+        hidePastBtn.title = hiding ? 'Show past' : 'Hide past';
+        animateHidePastToggle(hiding, () => renderAll());
     });
 
     // Streak check-in button

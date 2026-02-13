@@ -3,12 +3,18 @@
   "showDone": false,
   "showUnscheduled": true,
   "panels": {
-    "left": 343,
+    "left": 378,
     "right": 344
   },
   "hidePastEntries": true,
-  "workingOn": null,
-  "selectedItemId": 368,
+  "workingOn": {
+    "itemId": 359,
+    "itemName": "change session to a real horizon",
+    "projectName": "anything › core",
+    "startTime": 1770974407541,
+    "targetEndTime": 1770976207541
+  },
+  "selectedItemId": "",
   "onBreak": null,
   "timelineViewDate": "2026-02-12T22:00:00.000Z",
   "scheduleFilter": "scheduled+unscheduled",
@@ -25,17 +31,14 @@
     240,
     242,
     319,
-    9,
     293,
-    300,
     164,
+    122,
     17,
     92,
     62,
-    248,
-    145,
     137,
-    122
+    145
   ],
   "viewHorizon": "day",
   "weekCollapsedDays": {
@@ -53,7 +56,8 @@
     "2026-03-18": true,
     "2026-03-19": true,
     "2026-03-20": true,
-    "2026-03-21": true
+    "2026-03-21": true,
+    "2026-02-02": true
   },
   "showSleepTimes": true,
   "weekExpandedGroups": {
@@ -69,7 +73,7 @@
     ]
   },
   "focusStack": [],
-  "projectTreeScrollTop": 0,
-  "darkMode": "auto",
+  "projectTreeScrollTop": 28,
+  "darkMode": "dark",
   "skinFamily": "duolingo"
 }
