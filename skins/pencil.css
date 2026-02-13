@@ -1318,7 +1318,8 @@ body {
     white-space: nowrap;
 }
 
-.action-item:hover .action-locate-btn {
+.action-item:hover .action-locate-btn,
+.segment-queue-item:hover .action-locate-btn {
     max-width: 20px;
     opacity: 0.4;
     margin-right: 4px;
@@ -2714,9 +2715,14 @@ body {
 }
 
 .live-session-stop-btn {
-    display: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     width: 18px;
     height: 18px;
+    max-width: 0;
+    opacity: 0;
+    overflow: hidden;
     border: 1px dashed var(--red-pen);
     background: transparent;
     color: var(--red-pen);
@@ -2726,14 +2732,15 @@ body {
     line-height: 1;
     padding: 0;
     flex-shrink: 0;
-    transition: all var(--dur) var(--ease);
+    margin-left: 0;
     font-family: inherit;
-    align-items: center;
-    justify-content: center;
+    transition: max-width 0.25s var(--ease), opacity 0.2s var(--ease), margin 0.25s var(--ease), background 0.15s var(--ease), border-style 0.15s var(--ease);
 }
 
 .live-session-indicator:hover .live-session-stop-btn {
-    display: inline-flex;
+    max-width: 22px;
+    opacity: 1;
+    margin-left: 2px;
 }
 
 .live-session-stop-btn:hover {
