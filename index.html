@@ -100,9 +100,13 @@
             </div>
 
             <div class="time-context" id="time-context">
-                <div class="horizon-layer horizon-layer-someday" id="horizon-someday-layer">
-                    <span class="horizon-layer-icon">📦</span>
-                    <span class="horizon-layer-label">Someday</span>
+                <div class="horizon-layer horizon-layer-epoch" id="horizon-epoch-layer">
+                    <button class="date-nav-btn epoch-nav-btn" id="epoch-nav-prev" title="Previous epoch">‹</button>
+                    <div class="epoch-nav-display">
+                        <span class="horizon-layer-icon" id="epoch-nav-icon">📦</span>
+                        <span class="horizon-layer-label" id="epoch-nav-label">Ongoing</span>
+                    </div>
+                    <button class="date-nav-btn epoch-nav-btn" id="epoch-nav-next" title="Next epoch">›</button>
                 </div>
                 <div class="horizon-layer horizon-layer-week" id="horizon-week-layer">
                     <button class="date-nav-btn week-nav-btn" id="week-nav-prev" title="Previous week">‹</button>

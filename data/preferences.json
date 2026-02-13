@@ -8,15 +8,15 @@
   },
   "hidePastEntries": true,
   "workingOn": {
-    "itemId": 395,
-    "itemName": "Someday becomes past / future",
-    "projectName": "anything",
-    "startTime": 1770980591102,
+    "itemId": 9,
+    "itemName": "anything",
+    "projectName": null,
+    "startTime": 1770984787256,
     "targetEndTime": null
   },
   "selectedItemId": 9,
   "onBreak": null,
-  "timelineViewDate": "2026-02-13T11:21:32.002Z",
+  "timelineViewDate": "2026-02-13T12:18:54.772Z",
   "scheduleFilter": "scheduled+unscheduled",
   "collapsedGroups": [
     86,
@@ -33,15 +33,15 @@
     319,
     293,
     164,
-    122,
-    17,
     62,
     145,
     9,
     248,
-    137
+    137,
+    92,
+    122
   ],
-  "viewHorizon": "session",
+  "viewHorizon": "day",
   "weekCollapsedDays": {
     "2026-02-08": true,
     "2026-02-09": true,
@@ -73,21 +73,12 @@
       300
     ]
   },
-  "focusStack": [
-    {
-      "startMs": 1770974100000,
-      "endMs": 1770983081978,
-      "label": "anything",
-      "type": "planned",
-      "icon": "📋",
-      "tier": "session",
-      "segmentKey": "2026-02-13@entry:297",
-      "entryId": 297,
-      "itemId": 9
-    }
-  ],
+  "focusStack": [],
   "projectTreeScrollTop": 0,
   "darkMode": "light",
   "skinFamily": "duolingo",
-  "sessionIndex": 3
+  "sessionIndex": 4,
+  "epochFilter": "ongoing",
+  "ongoingPastWeeks": 0,
+  "ongoingFutureWeeks": 2
 }

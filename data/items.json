@@ -52,7 +52,7 @@
           "createdAt": 1770719232503,
           "done": false,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -63,7 +63,7 @@
           "createdAt": 1770598460620,
           "done": true,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -87,7 +87,7 @@
       "done": false,
       "isInbox": true,
       "timeContexts": [
-        "someday"
+        "ongoing"
       ]
     },
     {
@@ -111,7 +111,7 @@
       "createdAt": 1770811419755,
       "done": false,
       "timeContexts": [
-        "someday"
+        "ongoing"
       ]
     },
     {
@@ -141,7 +141,7 @@
           "createdAt": 1770825297769,
           "done": false,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ],
           "contextDurations": {}
         },
@@ -214,7 +214,7 @@
           "done": false,
           "estimatedDuration": 270,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -226,7 +226,7 @@
           "done": false,
           "estimatedDuration": 180,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -241,7 +241,7 @@
               "createdAt": 1770603919756,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ]
             }
           ],
@@ -249,7 +249,7 @@
           "createdAt": 1770603909137,
           "done": false,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -288,7 +288,7 @@
           "createdAt": 1770607255310,
           "done": false,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ],
           "contextDurations": {
             "2026-02-12": 25
@@ -299,7 +299,7 @@
       "createdAt": 1770609703744,
       "done": false,
       "timeContexts": [
-        "someday"
+        "ongoing"
       ]
     },
     {
@@ -307,15 +307,40 @@
       "name": "anything",
       "children": [
         {
+          "id": 398,
+          "name": "fix cleaning back to day scope from past planned sessions",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770983647893,
+          "done": true,
+          "timeContexts": [
+            "2026-02-13"
+          ],
+          "contextDurations": {
+            "2026-02-13": 30
+          }
+        },
+        {
+          "id": 397,
+          "name": "idea - see in actions \"how much out of how much is scheduled\" (esp. for week/month but also day)",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770981831207,
+          "done": false,
+          "timeContexts": [
+            "week:2026-02-08"
+          ],
+          "contextDurations": {}
+        },
+        {
           "id": 396,
           "name": "fix date label (confused with week)",
           "children": [],
           "expanded": false,
           "createdAt": 1770981704559,
-          "done": false,
+          "done": true,
           "timeContexts": [
-            "2026-02-13",
-            "2026-02-13@entry:297"
+            "2026-02-13"
           ]
         },
         {
@@ -324,10 +349,9 @@
           "children": [],
           "expanded": false,
           "createdAt": 1770980523320,
-          "done": false,
+          "done": true,
           "timeContexts": [
-            "2026-02-13",
-            "2026-02-13@entry:297"
+            "2026-02-13"
           ]
         },
         {
@@ -349,9 +373,9 @@
           "createdAt": 1770979784782,
           "done": false,
           "timeContexts": [
-            "2026-02-13",
-            "2026-02-13@entry:297"
-          ]
+            "week:2026-02-08"
+          ],
+          "contextDurations": {}
         },
         {
           "id": 392,
@@ -361,9 +385,11 @@
           "createdAt": 1770979755970,
           "done": false,
           "timeContexts": [
-            "2026-02-13",
-            "2026-02-13@entry:297"
-          ]
+            "2026-02-13"
+          ],
+          "contextDurations": {
+            "2026-02-13": 15
+          }
         },
         {
           "id": 390,
@@ -373,9 +399,11 @@
           "createdAt": 1770976741920,
           "done": false,
           "timeContexts": [
-            "2026-02-13",
-            "2026-02-13@11:15-13:44"
-          ]
+            "week:2026-02-08"
+          ],
+          "contextDurations": {
+            "week:2026-02-08": 30
+          }
         },
         {
           "id": 386,
@@ -389,10 +417,10 @@
               "createdAt": 1770973172517,
               "done": false,
               "timeContexts": [
-                "2026-02-13"
+                "week:2026-02-08"
               ],
               "contextDurations": {
-                "2026-02-13": 30
+                "week:2026-02-08": 30
               }
             }
           ],
@@ -402,7 +430,9 @@
           "timeContexts": [
             "week:2026-02-08"
           ],
-          "contextDurations": {}
+          "contextDurations": {
+            "week:2026-02-08": 60
+          }
         },
         {
           "id": 374,
@@ -414,7 +444,9 @@
           "timeContexts": [
             "week:2026-02-08"
           ],
-          "contextDurations": {}
+          "contextDurations": {
+            "week:2026-02-08": 30
+          }
         },
         {
           "id": 375,
@@ -424,8 +456,9 @@
           "createdAt": 1770944485303,
           "done": false,
           "timeContexts": [
-            "someday"
-          ]
+            "week:2026-02-08"
+          ],
+          "contextDurations": {}
         },
         {
           "id": 365,
@@ -453,10 +486,10 @@
               "createdAt": 1770938985086,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ],
               "contextDurations": {
-                "someday": 120
+                "ongoing": 120
               }
             },
             {
@@ -467,11 +500,9 @@
               "createdAt": 1770927503105,
               "done": true,
               "timeContexts": [
-                "2026-02-13@entry:297"
+                "2026-02-13"
               ],
-              "contextDurations": {
-                "2026-02-13@entry:297": 30
-              }
+              "contextDurations": {}
             },
             {
               "id": 354,
@@ -481,7 +512,7 @@
               "createdAt": 1770925458743,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ],
               "contextDurations": {}
             },
@@ -493,10 +524,10 @@
               "createdAt": 1770926420908,
               "done": false,
               "timeContexts": [
-                "2026-02-13@entry:297"
+                "2026-02-13"
               ],
               "contextDurations": {
-                "2026-02-13@entry:297": 15
+                "2026-02-13": 10
               }
             },
             {
@@ -507,7 +538,7 @@
               "createdAt": 1770720806010,
               "done": true,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ]
             },
             {
@@ -589,10 +620,10 @@
               "createdAt": 1770909682024,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ],
               "contextDurations": {
-                "someday": 30
+                "ongoing": 30
               }
             },
             {
@@ -617,10 +648,10 @@
               "createdAt": 1770822520306,
               "done": false,
               "timeContexts": [
-                "2026-02-13@entry:297"
+                "2026-02-13"
               ],
               "contextDurations": {
-                "2026-02-13@entry:297": 60
+                "2026-02-13": 60
               }
             },
             {
@@ -631,10 +662,10 @@
               "createdAt": 1770812152653,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ],
               "contextDurations": {
-                "someday": 5
+                "ongoing": 5
               }
             },
             {
@@ -645,10 +676,10 @@
               "createdAt": 1770812091726,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ],
               "contextDurations": {
-                "someday": 120
+                "ongoing": 120
               }
             },
             {
@@ -659,10 +690,10 @@
               "createdAt": 1770811888997,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ],
               "contextDurations": {
-                "someday": 60
+                "ongoing": 60
               }
             },
             {
@@ -673,10 +704,10 @@
               "createdAt": 1770811099646,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ],
               "contextDurations": {
-                "someday": 60
+                "ongoing": 60
               }
             },
             {
@@ -687,10 +718,10 @@
               "createdAt": 1770810064805,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ],
               "contextDurations": {
-                "someday": 60
+                "ongoing": 60
               }
             },
             {
@@ -701,10 +732,10 @@
               "createdAt": 1770802452301,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ],
               "contextDurations": {
-                "someday": 60
+                "ongoing": 60
               }
             },
             {
@@ -715,10 +746,10 @@
               "createdAt": 1770657322191,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ],
               "contextDurations": {
-                "someday": 60
+                "ongoing": 60
               }
             },
             {
@@ -729,7 +760,7 @@
               "createdAt": 1770809993629,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ]
             },
             {
@@ -740,7 +771,7 @@
               "createdAt": 1770809480418,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ]
             },
             {
@@ -751,7 +782,7 @@
               "createdAt": 1770767029355,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ]
             },
             {
@@ -766,7 +797,7 @@
                   "createdAt": 1770805755712,
                   "done": false,
                   "timeContexts": [
-                    "someday"
+                    "ongoing"
                   ]
                 }
               ],
@@ -774,7 +805,7 @@
               "createdAt": 1770805487565,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ]
             },
             {
@@ -785,7 +816,7 @@
               "createdAt": 1770773260252,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ]
             },
             {
@@ -796,7 +827,7 @@
               "createdAt": 1770636201379,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ],
               "contextDurations": {}
             },
@@ -822,7 +853,7 @@
               "createdAt": 1770721314816,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ]
             },
             {
@@ -833,7 +864,7 @@
               "createdAt": 1770642350190,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ]
             },
             {
@@ -844,7 +875,7 @@
               "createdAt": 1770604006283,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ]
             },
             {
@@ -855,7 +886,7 @@
               "createdAt": 1770654338173,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ]
             },
             {
@@ -866,7 +897,7 @@
               "createdAt": 1770632243615,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ]
             },
             {
@@ -881,7 +912,7 @@
                   "createdAt": 1770603549975,
                   "done": false,
                   "timeContexts": [
-                    "someday"
+                    "ongoing"
                   ]
                 }
               ],
@@ -889,7 +920,7 @@
               "createdAt": 1770603539447,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ]
             },
             {
@@ -904,7 +935,7 @@
                   "createdAt": 1770942971259,
                   "done": false,
                   "timeContexts": [
-                    "someday"
+                    "ongoing"
                   ]
                 }
               ],
@@ -912,7 +943,7 @@
               "createdAt": 1770807016332,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ]
             },
             {
@@ -934,24 +965,13 @@
           "createdAt": 1770939013487,
           "done": false,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
           "id": 367,
           "name": "future",
           "children": [
-            {
-              "id": 381,
-              "name": "share",
-              "children": [],
-              "expanded": false,
-              "createdAt": 1770949862364,
-              "done": false,
-              "timeContexts": [
-                "week:2026-02-08"
-              ]
-            },
             {
               "id": 347,
               "name": "connect to Ai agents",
@@ -960,7 +980,7 @@
               "createdAt": 1770912320550,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ]
             },
             {
@@ -971,7 +991,7 @@
               "createdAt": 1770912748944,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ]
             },
             {
@@ -982,7 +1002,7 @@
               "createdAt": 1770909284596,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ],
               "contextDurations": {}
             },
@@ -994,7 +1014,7 @@
               "createdAt": 1770854455978,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ]
             },
             {
@@ -1005,7 +1025,7 @@
               "createdAt": 1770811241187,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ]
             },
             {
@@ -1016,7 +1036,7 @@
               "createdAt": 1770809873991,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ]
             },
             {
@@ -1031,7 +1051,7 @@
                   "createdAt": 1770603566237,
                   "done": false,
                   "timeContexts": [
-                    "someday"
+                    "ongoing"
                   ]
                 }
               ],
@@ -1039,7 +1059,7 @@
               "createdAt": 1770805412771,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ]
             },
             {
@@ -1050,7 +1070,7 @@
               "createdAt": 1770646617509,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ]
             },
             {
@@ -1061,7 +1081,7 @@
               "createdAt": 1770654340606,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ]
             },
             {
@@ -1072,7 +1092,7 @@
               "createdAt": 1770811045397,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ]
             },
             {
@@ -1083,7 +1103,7 @@
               "createdAt": 1770810818397,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ]
             },
             {
@@ -1094,7 +1114,7 @@
               "createdAt": 1770806980696,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ]
             },
             {
@@ -1105,7 +1125,7 @@
               "createdAt": 1770805128980,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ]
             },
             {
@@ -1116,7 +1136,7 @@
               "createdAt": 1770772376881,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ],
               "contextDurations": {}
             },
@@ -1128,7 +1148,7 @@
               "createdAt": 1770731101261,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ]
             },
             {
@@ -1139,7 +1159,7 @@
               "createdAt": 1770854404239,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ]
             },
             {
@@ -1150,7 +1170,7 @@
               "createdAt": 1770607114515,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ]
             },
             {
@@ -1161,7 +1181,7 @@
               "createdAt": 1770594156678,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ]
             },
             {
@@ -1173,7 +1193,7 @@
               "done": false,
               "estimatedDuration": 15,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ],
               "contextDurations": {}
             },
@@ -1185,7 +1205,7 @@
               "createdAt": 1770675382995,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ],
               "contextDurations": {}
             },
@@ -1197,7 +1217,7 @@
               "createdAt": 1770663347809,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ]
             },
             {
@@ -1208,7 +1228,7 @@
               "createdAt": 1770633393671,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ]
             },
             {
@@ -1219,7 +1239,7 @@
               "createdAt": 1770594528651,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ]
             },
             {
@@ -1230,7 +1250,7 @@
               "createdAt": 1770661226767,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ]
             },
             {
@@ -1241,7 +1261,7 @@
               "createdAt": 1770950388960,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ]
             }
           ],
@@ -1249,7 +1269,7 @@
           "createdAt": 1770939127641,
           "done": false,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -1275,7 +1295,7 @@
               "createdAt": 1770942845212,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ]
             },
             {
@@ -1286,7 +1306,7 @@
               "createdAt": 1770933646937,
               "done": true,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ]
             },
             {
@@ -1297,7 +1317,7 @@
               "createdAt": 1770932288475,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ]
             },
             {
@@ -1308,7 +1328,7 @@
               "createdAt": 1770913857546,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ],
               "contextDurations": {}
             },
@@ -1320,7 +1340,7 @@
               "createdAt": 1770890607428,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ]
             },
             {
@@ -1331,7 +1351,7 @@
               "createdAt": 1770860404935,
               "done": true,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ]
             },
             {
@@ -1342,7 +1362,7 @@
               "createdAt": 1770827010963,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ]
             },
             {
@@ -1353,7 +1373,7 @@
               "createdAt": 1770811414790,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ]
             },
             {
@@ -1364,7 +1384,7 @@
               "createdAt": 1770809865316,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ]
             },
             {
@@ -1375,7 +1395,7 @@
               "createdAt": 1770939994723,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ],
               "contextDurations": {}
             },
@@ -1387,7 +1407,7 @@
               "createdAt": 1770602537587,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ]
             },
             {
@@ -1398,7 +1418,7 @@
               "createdAt": 1770772153727,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ]
             },
             {
@@ -1409,7 +1429,7 @@
               "createdAt": 1770738344929,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ],
               "contextDurations": {}
             },
@@ -1421,7 +1441,7 @@
               "createdAt": 1770736587170,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ]
             },
             {
@@ -1432,7 +1452,7 @@
               "createdAt": 1770733735758,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ]
             },
             {
@@ -1443,10 +1463,10 @@
               "createdAt": 1770654246975,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ],
               "contextDurations": {
-                "someday": 15
+                "ongoing": 15
               }
             },
             {
@@ -1457,7 +1477,7 @@
               "createdAt": 1770601206625,
               "done": true,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ]
             },
             {
@@ -1468,7 +1488,7 @@
               "createdAt": 1770609351497,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ]
             },
             {
@@ -1479,7 +1499,7 @@
               "createdAt": 1770593873975,
               "done": true,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ]
             },
             {
@@ -1490,7 +1510,7 @@
               "createdAt": 1770598587986,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ]
             },
             {
@@ -1501,7 +1521,7 @@
               "createdAt": 1770603583812,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ]
             },
             {
@@ -1512,7 +1532,7 @@
               "createdAt": 1770729610088,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ]
             },
             {
@@ -1523,7 +1543,7 @@
               "createdAt": 1770642442555,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ]
             },
             {
@@ -1534,7 +1554,7 @@
               "createdAt": 1770729825658,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ]
             },
             {
@@ -1545,7 +1565,7 @@
               "createdAt": 1770603250323,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ]
             },
             {
@@ -1556,7 +1576,7 @@
               "createdAt": 1770805468476,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ]
             },
             {
@@ -1567,7 +1587,7 @@
               "createdAt": 1770734580320,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ]
             },
             {
@@ -1578,7 +1598,7 @@
               "createdAt": 1770598966344,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ]
             },
             {
@@ -1589,7 +1609,7 @@
               "createdAt": 1770677117477,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ]
             },
             {
@@ -1600,7 +1620,7 @@
               "createdAt": 1770609487876,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ]
             }
           ],
@@ -1608,7 +1628,7 @@
           "createdAt": 1770939024902,
           "done": false,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -1623,9 +1643,11 @@
               "createdAt": 1770976616634,
               "done": false,
               "timeContexts": [
-                "2026-02-13",
-                "2026-02-13@11:15-13:44"
-              ]
+                "2026-02-13"
+              ],
+              "contextDurations": {
+                "2026-02-13": 15
+              }
             },
             {
               "id": 299,
@@ -1635,7 +1657,7 @@
               "createdAt": 1770812213025,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ]
             },
             {
@@ -1646,7 +1668,7 @@
               "createdAt": 1770811440975,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ]
             },
             {
@@ -1657,15 +1679,15 @@
               "createdAt": 1770729538351,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ]
             }
           ],
-          "expanded": true,
+          "expanded": false,
           "createdAt": 1770938999434,
           "done": false,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -1680,7 +1702,7 @@
               "createdAt": 1770733742947,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ]
             },
             {
@@ -1691,7 +1713,7 @@
               "createdAt": 1770733716283,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ]
             },
             {
@@ -1702,7 +1724,7 @@
               "createdAt": 1770663362060,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ]
             },
             {
@@ -1713,7 +1735,7 @@
               "createdAt": 1770650797164,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ]
             },
             {
@@ -1724,7 +1746,7 @@
               "createdAt": 1770729462418,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ]
             },
             {
@@ -1735,7 +1757,7 @@
               "createdAt": 1770647502173,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ]
             },
             {
@@ -1746,7 +1768,7 @@
               "createdAt": 1770736378840,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ]
             },
             {
@@ -1757,7 +1779,7 @@
               "createdAt": 1770734683068,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ]
             },
             {
@@ -1768,7 +1790,7 @@
               "createdAt": 1770719293133,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ]
             },
             {
@@ -1779,7 +1801,7 @@
               "createdAt": 1770650401980,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ]
             },
             {
@@ -1790,7 +1812,7 @@
               "createdAt": 1770640988461,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ]
             },
             {
@@ -1801,7 +1823,7 @@
               "createdAt": 1770661033696,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ]
             },
             {
@@ -1812,7 +1834,7 @@
               "createdAt": 1770722464348,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ]
             },
             {
@@ -1823,7 +1845,7 @@
               "createdAt": 1770721578013,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ]
             },
             {
@@ -1834,15 +1856,27 @@
               "createdAt": 1770654320969,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ]
+            },
+            {
+              "id": 381,
+              "name": "share",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770949862364,
+              "done": false,
+              "timeContexts": [
+                "ongoing"
+              ],
+              "contextDurations": {}
             }
           ],
           "expanded": false,
           "createdAt": 1770941149764,
           "done": false,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -1853,7 +1887,7 @@
           "createdAt": 1770922479749,
           "done": true,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ],
           "contextDurations": {
             "2026-02-12": 10
@@ -1879,7 +1913,7 @@
           "createdAt": 1770860785215,
           "done": true,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -1964,7 +1998,7 @@
               "createdAt": 1770603872718,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ]
             },
             {
@@ -1975,7 +2009,7 @@
               "createdAt": 1770607883577,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ]
             },
             {
@@ -1986,7 +2020,7 @@
               "createdAt": 1770603882380,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ]
             }
           ],
@@ -1994,7 +2028,7 @@
           "createdAt": 1770941480044,
           "done": false,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -2019,7 +2053,7 @@
           "createdAt": 1770802101929,
           "done": true,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -2030,7 +2064,7 @@
           "createdAt": 1770736529679,
           "done": false,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -2041,7 +2075,7 @@
           "createdAt": 1770734318979,
           "done": true,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -2052,7 +2086,7 @@
           "createdAt": 1770734292438,
           "done": true,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -2063,7 +2097,7 @@
           "createdAt": 1770729856625,
           "done": true,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -2074,7 +2108,7 @@
           "createdAt": 1770729688687,
           "done": true,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -2085,7 +2119,7 @@
           "createdAt": 1770728351008,
           "done": false,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ],
           "contextDurations": {}
         },
@@ -2097,7 +2131,7 @@
           "createdAt": 1770722585028,
           "done": false,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -2108,7 +2142,7 @@
           "createdAt": 1770721366776,
           "done": true,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ],
           "contextDurations": {
             "2026-02-10@entry:171": 10
@@ -2122,7 +2156,7 @@
           "createdAt": 1770719584735,
           "done": true,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -2133,7 +2167,7 @@
           "createdAt": 1770673385345,
           "done": true,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -2144,7 +2178,7 @@
           "createdAt": 1770672848256,
           "done": true,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -2169,7 +2203,7 @@
           "createdAt": 1770663352183,
           "done": true,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -2180,7 +2214,7 @@
           "createdAt": 1770660682341,
           "done": false,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -2191,7 +2225,7 @@
           "createdAt": 1770654331259,
           "done": true,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -2202,7 +2236,7 @@
           "createdAt": 1770651277312,
           "done": false,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -2213,7 +2247,7 @@
           "createdAt": 1770651219396,
           "done": true,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -2224,7 +2258,7 @@
           "createdAt": 1770639083358,
           "done": true,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -2235,7 +2269,7 @@
           "createdAt": 1770648589300,
           "done": true,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -2246,7 +2280,7 @@
           "createdAt": 1770649381016,
           "done": true,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -2257,7 +2291,7 @@
           "createdAt": 1770639633947,
           "done": true,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -2268,7 +2302,7 @@
           "createdAt": 1770648273022,
           "done": true,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -2279,7 +2313,7 @@
           "createdAt": 1770638799102,
           "done": false,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -2290,7 +2324,7 @@
           "createdAt": 1770649485251,
           "done": true,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -2301,7 +2335,7 @@
           "createdAt": 1770636797106,
           "done": true,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -2312,7 +2346,7 @@
           "createdAt": 1770594230641,
           "done": true,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -2323,7 +2357,7 @@
           "createdAt": 1770598013894,
           "done": true,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -2334,7 +2368,7 @@
           "createdAt": 1770597742767,
           "done": true,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -2345,7 +2379,7 @@
           "createdAt": 1770599069456,
           "done": true,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -2356,7 +2390,7 @@
           "createdAt": 1770636887876,
           "done": true,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -2367,7 +2401,7 @@
           "createdAt": 1770638399369,
           "done": true,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -2378,7 +2412,7 @@
           "createdAt": 1770594336717,
           "done": true,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -2389,7 +2423,7 @@
           "createdAt": 1770636809678,
           "done": true,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -2400,7 +2434,7 @@
           "createdAt": 1770593674165,
           "done": true,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -2411,7 +2445,7 @@
           "createdAt": 1770641550203,
           "done": true,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -2422,7 +2456,7 @@
           "createdAt": 1770649500390,
           "done": false,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -2433,7 +2467,7 @@
           "createdAt": 1770642454591,
           "done": false,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -2444,7 +2478,7 @@
           "createdAt": 1770592266991,
           "done": true,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -2455,7 +2489,7 @@
           "createdAt": 1770593702003,
           "done": true,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -2466,7 +2500,7 @@
           "createdAt": 1770639461658,
           "done": false,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -2477,7 +2511,7 @@
           "createdAt": 1770639376901,
           "done": false,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -2488,7 +2522,7 @@
           "createdAt": 1770637594249,
           "done": true,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -2499,7 +2533,7 @@
           "createdAt": 1770594332274,
           "done": true,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -2510,7 +2544,7 @@
           "createdAt": 1770595377744,
           "done": true,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -2521,7 +2555,7 @@
           "createdAt": 1770596914963,
           "done": true,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -2532,7 +2566,7 @@
           "createdAt": 1770596925004,
           "done": true,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -2543,7 +2577,7 @@
           "createdAt": 1770596928820,
           "done": true,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -2554,7 +2588,7 @@
           "createdAt": 1770598766767,
           "done": true,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -2565,7 +2599,7 @@
           "createdAt": 1770600939148,
           "done": true,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -2576,7 +2610,7 @@
           "createdAt": 1770601200574,
           "done": true,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -2587,7 +2621,7 @@
           "createdAt": 1770601328428,
           "done": true,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -2598,7 +2632,7 @@
           "createdAt": 1770601350383,
           "done": true,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -2609,7 +2643,7 @@
           "createdAt": 1770601683433,
           "done": true,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -2620,7 +2654,7 @@
           "createdAt": 1770601745251,
           "done": true,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -2631,7 +2665,7 @@
           "createdAt": 1770603232310,
           "done": true,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -2642,7 +2676,7 @@
           "createdAt": 1770603381643,
           "done": true,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -2653,7 +2687,7 @@
           "createdAt": 1770603478006,
           "done": true,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -2664,7 +2698,7 @@
           "createdAt": 1770603597255,
           "done": true,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -2675,7 +2709,7 @@
           "createdAt": 1770603737814,
           "done": false,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -2686,7 +2720,7 @@
           "createdAt": 1770604091437,
           "done": true,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -2697,7 +2731,7 @@
           "createdAt": 1770604186763,
           "done": false,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -2708,7 +2742,7 @@
           "createdAt": 1770604210042,
           "done": false,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -2719,7 +2753,7 @@
           "createdAt": 1770608099307,
           "done": false,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -2730,7 +2764,7 @@
           "createdAt": 1770609763871,
           "done": false,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -2741,7 +2775,7 @@
           "createdAt": 1770810985430,
           "done": true,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -2752,7 +2786,7 @@
           "createdAt": 1770633208089,
           "done": true,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -2763,7 +2797,7 @@
           "createdAt": 1770634606964,
           "done": true,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -2774,7 +2808,7 @@
           "createdAt": 1770634623472,
           "done": true,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -2785,7 +2819,7 @@
           "createdAt": 1770636133253,
           "done": false,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -2796,7 +2830,7 @@
           "createdAt": 1770636174542,
           "done": false,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -2807,7 +2841,7 @@
           "createdAt": 1770637132153,
           "done": true,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -2818,7 +2852,7 @@
           "createdAt": 1770637142266,
           "done": true,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -2829,7 +2863,7 @@
           "createdAt": 1770637938839,
           "done": false,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -2840,7 +2874,7 @@
           "createdAt": 1770638241418,
           "done": true,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -2851,7 +2885,7 @@
           "createdAt": 1770646843257,
           "done": true,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -2862,7 +2896,7 @@
           "createdAt": 1770641297342,
           "done": true,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -2873,7 +2907,7 @@
           "createdAt": 1770765312656,
           "done": true,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -2912,11 +2946,11 @@
           "createdAt": 1770808198138,
           "done": false,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         }
       ],
-      "expanded": false,
+      "expanded": true,
       "createdAt": 1770591468116,
       "done": false,
       "timeContexts": [
@@ -2935,7 +2969,7 @@
       "createdAt": 1770673365184,
       "done": false,
       "timeContexts": [
-        "someday"
+        "ongoing"
       ]
     },
     {
@@ -2970,7 +3004,7 @@
               "done": false,
               "estimatedDuration": 13,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ]
             }
           ],
@@ -2979,12 +3013,10 @@
           "done": false,
           "estimatedDuration": 90,
           "timeContexts": [
-            "2026-02-13@entry:256",
             "2026-02-13"
           ],
           "contextDurations": {
-            "2026-02-13": 60,
-            "2026-02-13@entry:256": 90
+            "2026-02-13": 60
           },
           "contextLeadTimes": {
             "2026-02-13@09:00-10:00": 900
@@ -2998,7 +3030,7 @@
           "createdAt": 1770646686091,
           "done": false,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -3009,7 +3041,7 @@
           "createdAt": 1770594437194,
           "done": false,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         }
       ],
@@ -3017,7 +3049,7 @@
       "createdAt": 1770594369815,
       "done": false,
       "timeContexts": [
-        "someday"
+        "ongoing"
       ]
     },
     {
@@ -3032,7 +3064,7 @@
           "createdAt": 1770924354958,
           "done": false,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -3105,7 +3137,7 @@
           "createdAt": 1770812580145,
           "done": false,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ],
           "contextDurations": {}
         },
@@ -3128,7 +3160,7 @@
       "createdAt": 1770812573309,
       "done": false,
       "timeContexts": [
-        "someday"
+        "ongoing"
       ]
     },
     {
@@ -3187,7 +3219,7 @@
           "createdAt": 1770810670931,
           "done": false,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ],
           "contextDurations": {}
         },
@@ -3215,7 +3247,7 @@
           "createdAt": 1770810667740,
           "done": false,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ],
           "contextDurations": {}
         },
@@ -3227,7 +3259,7 @@
           "createdAt": 1770719303641,
           "done": true,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -3238,7 +3270,7 @@
           "createdAt": 1770603385841,
           "done": true,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -3249,7 +3281,7 @@
           "createdAt": 1770603392488,
           "done": true,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -3264,7 +3296,7 @@
               "createdAt": 1770728565043,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ],
               "contextDurations": {}
             },
@@ -3280,10 +3312,10 @@
                   "createdAt": 1770766015372,
                   "done": false,
                   "timeContexts": [
-                    "someday"
+                    "ongoing"
                   ],
                   "contextDurations": {
-                    "someday": 0
+                    "ongoing": 0
                   }
                 }
               ],
@@ -3291,7 +3323,7 @@
               "createdAt": 1770728558328,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ],
               "contextDurations": {
                 "2026-02-10@01:20-02:30": 20
@@ -3305,7 +3337,7 @@
               "createdAt": 1770673100488,
               "done": true,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ]
             }
           ],
@@ -3314,7 +3346,7 @@
           "done": false,
           "goal": null,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -3325,7 +3357,7 @@
           "createdAt": 1770635302987,
           "done": true,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -3340,7 +3372,7 @@
               "createdAt": 1770673174336,
               "done": false,
               "timeContexts": [
-                "someday"
+                "ongoing"
               ]
             }
           ],
@@ -3348,7 +3380,7 @@
           "createdAt": 1770635308948,
           "done": false,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         }
       ],
@@ -3356,7 +3388,7 @@
       "createdAt": 1770603206837,
       "done": false,
       "timeContexts": [
-        "someday"
+        "ongoing"
       ]
     },
     {
@@ -3371,7 +3403,7 @@
           "createdAt": 1770650992614,
           "done": false,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -3382,7 +3414,7 @@
           "createdAt": 1770646799343,
           "done": false,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         }
       ],
@@ -3390,7 +3422,7 @@
       "createdAt": 1770594430997,
       "done": false,
       "timeContexts": [
-        "someday"
+        "ongoing"
       ]
     },
     {
@@ -3483,9 +3515,9 @@
             "2026-02-13"
           ],
           "contextDurations": {
-            "someday": 360,
             "2026-02-13": 5,
-            "week:2026-02-08": 5
+            "week:2026-02-08": 5,
+            "ongoing": 360
           },
           "contextLeadTimes": {
             "2026-02-13@entry:206": 7200,
@@ -3526,7 +3558,7 @@
       "createdAt": 1770646819822,
       "done": false,
       "timeContexts": [
-        "someday"
+        "ongoing"
       ]
     },
     {
@@ -3553,7 +3585,7 @@
           "done": true,
           "goal": null,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         }
       ],
@@ -3586,7 +3618,7 @@
       "createdAt": 1770654014475,
       "done": false,
       "timeContexts": [
-        "someday"
+        "ongoing"
       ]
     },
     {
@@ -3597,7 +3629,7 @@
       "createdAt": 1770663926628,
       "done": true,
       "timeContexts": [
-        "someday"
+        "ongoing"
       ]
     },
     {
@@ -3612,7 +3644,7 @@
           "createdAt": 1770654447576,
           "done": false,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         },
         {
@@ -3623,7 +3655,7 @@
           "createdAt": 1770654428723,
           "done": false,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         }
       ],
@@ -3631,10 +3663,10 @@
       "createdAt": 1770654424971,
       "done": false,
       "timeContexts": [
-        "someday"
+        "ongoing"
       ],
       "contextDurations": {
-        "someday": 10
+        "ongoing": 10
       }
     },
     {
@@ -3645,7 +3677,7 @@
       "createdAt": 1770681442391,
       "done": false,
       "timeContexts": [
-        "someday"
+        "ongoing"
       ]
     },
     {
@@ -3668,7 +3700,7 @@
       "createdAt": 1770656654513,
       "done": false,
       "timeContexts": [
-        "someday"
+        "ongoing"
       ]
     },
     {
@@ -3683,7 +3715,7 @@
           "createdAt": 1770719791622,
           "done": false,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ]
         }
       ],
@@ -3708,7 +3740,7 @@
       "createdAt": 1770767610338,
       "done": false,
       "timeContexts": [
-        "someday"
+        "ongoing"
       ]
     },
     {
@@ -3719,7 +3751,7 @@
       "createdAt": 1770768520962,
       "done": false,
       "timeContexts": [
-        "someday"
+        "ongoing"
       ]
     },
     {
@@ -3734,7 +3766,7 @@
           "createdAt": 1770736677309,
           "done": false,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ],
           "contextDurations": {
             "2026-02-12": 15
@@ -3748,7 +3780,7 @@
           "createdAt": 1770729434541,
           "done": false,
           "timeContexts": [
-            "someday"
+            "ongoing"
           ],
           "contextDurations": {
             "2026-02-10@15:21-18:00": 60,
@@ -3831,7 +3863,7 @@
       "createdAt": 1770773753107,
       "done": false,
       "timeContexts": [
-        "someday"
+        "ongoing"
       ]
     },
     {
@@ -3842,7 +3874,7 @@
       "createdAt": 1770822558666,
       "done": false,
       "timeContexts": [
-        "someday"
+        "ongoing"
       ]
     },
     {
@@ -3884,9 +3916,9 @@
       "createdAt": 1770847791956,
       "done": false,
       "timeContexts": [
-        "someday"
+        "ongoing"
       ]
     }
   ],
-  "nextId": 397
+  "nextId": 400
 }

@@ -2297,7 +2297,38 @@
       "type": "completion",
       "id": 305,
       "timestamp": 1770980507328
+    },
+    {
+      "text": "Worked on: Someday becomes past / future (1h 2m)",
+      "projectName": "anything",
+      "type": "work",
+      "startTime": 1770980591102,
+      "endTime": 1770984351474,
+      "itemId": 395,
+      "id": 306,
+      "timestamp": 1770980591102
+    },
+    {
+      "text": "Done: Someday becomes past / future",
+      "projectName": "anything",
+      "type": "completion",
+      "id": 307,
+      "timestamp": 1770984361616
+    },
+    {
+      "text": "Done: fix date label (confused with week)",
+      "projectName": "anything",
+      "type": "completion",
+      "id": 308,
+      "timestamp": 1770984366073
+    },
+    {
+      "text": "Done: fix cleaning back to day scope from past planned sessions",
+      "projectName": "anything",
+      "type": "completion",
+      "id": 309,
+      "timestamp": 1770985790712
     }
   ],
-  "nextId": 306
+  "nextId": 310
 }

@@ -69,7 +69,7 @@ app.post('/api/items', (req, res) => {
         expanded: false,
         createdAt: Date.now(),
         done: false,
-        timeContexts: (timeContexts && timeContexts.length > 0) ? timeContexts : ['someday']
+        timeContexts: (timeContexts && timeContexts.length > 0) ? timeContexts : ['ongoing']
     };
 
     if (parentId) {

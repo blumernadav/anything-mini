@@ -1140,6 +1140,42 @@ body {
     text-decoration: line-through;
 }
 
+.action-name-row {
+    display: flex;
+    align-items: center;
+    gap: 0;
+}
+
+.action-locate-btn {
+    display: inline-block;
+    max-width: 0;
+    opacity: 0;
+    overflow: hidden;
+    cursor: pointer;
+    font-size: 10px;
+    flex-shrink: 0;
+    transition: max-width 0.15s ease, opacity 0.15s ease, margin 0.15s ease;
+    padding: 0;
+    margin-right: 0;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.action-item:hover .action-locate-btn {
+    max-width: 18px;
+    opacity: 0.5;
+    margin-right: 3px;
+}
+
+.action-locate-btn:hover {
+    opacity: 1 !important;
+    color: var(--w-title);
+}
+
+.action-item.selected .action-locate-btn {
+    color: var(--w-white);
+}
+
 .action-project-tag {
     font-size: 11px;
     color: var(--w-dark);
@@ -1174,7 +1210,7 @@ body {
     font-weight: 700;
 }
 
-.action-time-tag-someday {
+.action-time-tag-ongoing {
     color: #008080;
     border-color: #008080;
 }
@@ -2429,6 +2465,34 @@ body {
     outline-offset: -2px;
 }
 
+.live-session-stop-btn {
+    display: none;
+    width: 16px;
+    height: 16px;
+    border: 2px solid;
+    border-color: var(--w-white) var(--w-darker) var(--w-darker) var(--w-white);
+    background: var(--w-bg);
+    color: #cc0000;
+    cursor: pointer;
+    font-size: 9px;
+    line-height: 1;
+    padding: 0;
+    flex-shrink: 0;
+    font-family: inherit;
+    font-weight: 700;
+    border-radius: 0;
+    align-items: center;
+    justify-content: center;
+}
+
+.live-session-indicator:hover .live-session-stop-btn {
+    display: inline-flex;
+}
+
+.live-session-stop-btn:active {
+    border-color: var(--w-darker) var(--w-white) var(--w-white) var(--w-darker);
+}
+
 @keyframes live-pulse {
 
     0%,
@@ -2740,7 +2804,7 @@ body {
     padding: 6px;
 }
 
-.schedule-someday-toggle {
+.schedule-epoch-toggle {
     padding: 4px 8px;
     text-align: center;
     font-size: 11px;
@@ -2750,19 +2814,19 @@ body {
     cursor: pointer;
 }
 
-.schedule-someday-toggle:hover {
+.schedule-epoch-toggle:hover {
     background: var(--w-title);
     color: var(--w-white);
 }
 
-.schedule-someday-active {
+.schedule-epoch-active {
     background: var(--w-title);
     color: var(--w-white);
     border-style: solid;
     font-weight: bold;
 }
 
-.schedule-someday-active:hover {
+.schedule-epoch-active:hover {
     opacity: 0.85;
 }
 
@@ -3965,8 +4029,8 @@ select.schedule-leadtime-input {
     border-color: var(--w-dark) var(--w-white) var(--w-white) var(--w-dark);
 }
 
-/* ── Someday Placeholder ── */
-.someday-placeholder {
+/* ── Ongoing Placeholder ── */
+.epoch-placeholder {
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -3976,23 +4040,23 @@ select.schedule-leadtime-input {
     text-align: center;
 }
 
-.someday-placeholder-icon {
+.epoch-placeholder-icon {
     font-size: 28px;
 }
 
-.someday-placeholder-text {
+.epoch-placeholder-text {
     font-size: 12px;
     color: var(--w-dark);
 }
 
-.someday-placeholder-link {
+.epoch-placeholder-link {
     font-size: 11px;
     color: var(--w-title);
     cursor: pointer;
     text-decoration: underline;
 }
 
-.someday-placeholder-link:hover {
+.epoch-placeholder-link:hover {
     background: var(--w-title);
     color: var(--w-white);
 }
@@ -5777,4 +5841,194 @@ select.schedule-leadtime-input {
 
 .nav-slide-in-right {
     animation: nav-slide-in-right 150ms ease-out forwards;
+}
+
+/* ── Epoch Tab Styles ── */
+.epoch-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 3px 8px;
+    border-radius: 10px;
+    font-size: 10px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    opacity: 0.5;
+    user-select: none;
+}
+
+.epoch-tab:hover {
+    opacity: 0.8;
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.epoch-tab-active {
+    opacity: 1;
+    font-weight: 600;
+}
+
+.horizon-layer-active .epoch-tab-active {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.epoch-tab-drag-over {
+    background: var(--accent-dim) !important;
+    outline: 1px dashed var(--accent);
+    outline-offset: -1px;
+    opacity: 1 !important;
+}
+
+/* Schedule modal epoch toggles */
+.schedule-epoch-toggle {
+    padding: 8px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    border: 1px solid var(--border);
+    transition: all 0.15s ease;
+    margin-bottom: 4px;
+}
+
+.schedule-epoch-toggle:hover {
+    border-color: var(--accent);
+    background: var(--accent-dim);
+}
+
+.schedule-epoch-active {
+    border-color: var(--accent);
+    background: var(--accent-dim);
+    color: var(--accent);
+    font-weight: 600;
+}
+
+.schedule-epoch-active:hover {
+    background: rgba(96, 165, 250, 0.15);
+}
+
+.schedule-epoch-past {
+    opacity: 0.5;
+    cursor: default;
+    pointer-events: none;
+    font-style: italic;
+}
+
+
+.action-time-tag-past {
+    color: #94a3b8;
+    background: rgba(148, 163, 184, 0.1);
+    border-color: rgba(148, 163, 184, 0.3);
+}
+
+.action-time-tag-future {
+    color: #c084fc;
+    background: rgba(192, 132, 252, 0.1);
+    border-color: rgba(192, 132, 252, 0.3);
+}
+
+
+/* Epoch navigation display (matches week-nav-display pattern) */
+.epoch-nav-display {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+}
+
+
+/* ── Epoch Week Overview ── */
+.epoch-week-overview {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 8px;
+}
+
+.epoch-overview-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    margin-bottom: 4px;
+}
+
+.epoch-overview-icon {
+    font-size: 18px;
+}
+
+.epoch-overview-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.epoch-overview-count {
+    font-size: 11px;
+    color: var(--text-faint);
+    margin-left: auto;
+}
+
+.epoch-week-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: background 0.15s ease;
+    border: 1px solid transparent;
+}
+
+.epoch-week-row:hover {
+    background: var(--bg-hover);
+}
+
+.epoch-week-current {
+    border-color: var(--accent);
+    background: rgba(96, 165, 250, 0.04);
+}
+
+.epoch-week-label {
+    font-size: 12px;
+    color: var(--text);
+    font-weight: 500;
+}
+
+.epoch-week-now {
+    font-size: 10px;
+    color: var(--accent);
+    font-weight: 600;
+    margin-left: 6px;
+}
+
+.epoch-boundary-adjust {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 4px 0;
+}
+
+.epoch-boundary-btn {
+    border: 1px dashed var(--border);
+    background: none;
+    color: var(--text-faint);
+    font-size: 11px;
+    padding: 4px 12px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.epoch-boundary-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--accent-dim);
+}
+
+.epoch-boundary-btn-shrink {
+    opacity: 0.6;
+}
+
+.epoch-boundary-btn-shrink:hover {
+    opacity: 1;
 }

@@ -16,7 +16,10 @@ const state = {
     hidePastEntries: false, // toggle to hide past entries across all horizons
     showDone: false, // when true, done items are visible in actions and project tree
     scheduleFilter: 'scheduled+unscheduled', // 'scheduled' | 'scheduled+unscheduled' | 'all'
-    viewHorizon: 'day', // 'day' | 'week' | 'someday' | 'session' — horizon level for timeline navigation
+    viewHorizon: 'day', // 'day' | 'week' | 'epoch' | 'session' — horizon level for timeline navigation
+    epochFilter: 'ongoing', // 'past' | 'ongoing' | 'future' — which sub-epoch is active at epoch horizon
+    ongoingPastWeeks: 1, // how many weeks back from current week Ongoing extends
+    ongoingFutureWeeks: 4, // how many weeks forward from current week Ongoing extends
     sessionIndex: 0, // index into buildPlanSegments() — which session is active at session horizon
     projectSearchQuery: '', // current search term for the project tree
     workingOn: null, // { itemId, itemName, projectName, startTime } — active work timer
@@ -123,8 +126,12 @@ async function loadAll() {
     state.showDone = prefs.showDone === true;
     const validFilters = ['scheduled', 'scheduled+unscheduled', 'all'];
     state.scheduleFilter = validFilters.includes(prefs.scheduleFilter) ? prefs.scheduleFilter : 'scheduled+unscheduled';
-    const validHorizons = ['day', 'week', 'someday', 'session'];
+    const validHorizons = ['day', 'week', 'epoch', 'session'];
     state.viewHorizon = validHorizons.includes(prefs.viewHorizon) ? prefs.viewHorizon : 'day';
+    const validEpochs = ['past', 'ongoing', 'future'];
+    state.epochFilter = validEpochs.includes(prefs.epochFilter) ? prefs.epochFilter : 'ongoing';
+    if (typeof prefs.ongoingPastWeeks === 'number' && prefs.ongoingPastWeeks >= 0) state.ongoingPastWeeks = prefs.ongoingPastWeeks;
+    if (typeof prefs.ongoingFutureWeeks === 'number' && prefs.ongoingFutureWeeks >= 0) state.ongoingFutureWeeks = prefs.ongoingFutureWeeks;
     if (typeof prefs.sessionIndex === 'number') state.sessionIndex = prefs.sessionIndex;
     state.collapsedGroups = new Set(prefs.collapsedGroups || []);
     state.weekCollapsedDays = prefs.weekCollapsedDays || {};
@@ -144,6 +151,7 @@ async function loadAll() {
     // Auto-clean past schedules (fire-and-forget, don't block render)
     cleanPastSchedules();
     migrateEmptyTimeContexts();
+    migrateSomedayToOngoing();
     renderAll();
     // Apply saved project tree scroll position after initial render
     if (state._pendingProjectTreeScroll != null) {
@@ -648,7 +656,7 @@ function hasActiveGoal(action) {
 // ─── Time Context Utilities ───
 
 // Epoch-level contexts — coarser-than-day temporal horizons
-const EPOCH_CONTEXTS = ['someday'];
+const EPOCH_CONTEXTS = ['past', 'ongoing', 'future'];
 function isEpochContext(ctx) { return EPOCH_CONTEXTS.includes(ctx) || isWeekContext(ctx); }
 
 // Week-level context: "week:2026-W07"
@@ -698,6 +706,49 @@ function dateInWeek(dateKey, weekKey) {
     return dateKey >= startKey && dateKey <= endKey;
 }
 
+// Offset a week key by N weeks: offsetWeekKey('week:2026-02-10', 2) → key 2 weeks later
+function offsetWeekKey(weekKey, weeks) {
+    const range = getWeekDateRange(weekKey);
+    if (!range) return weekKey;
+    const d = new Date(range.start);
+    d.setDate(d.getDate() + weeks * 7);
+    return getWeekKey(d);
+}
+
+// Get the week range for an epoch based on Ongoing relative offsets.
+// Returns { startWeek, endWeek } — null means unbounded in that direction.
+function getEpochWeekRange(epochName) {
+    const currentWeek = getWeekKey(getLogicalToday());
+    const startWeek = offsetWeekKey(currentWeek, -state.ongoingPastWeeks);
+    const endWeek = offsetWeekKey(currentWeek, state.ongoingFutureWeeks);
+    if (epochName === 'ongoing') return { startWeek, endWeek };
+    if (epochName === 'past') return { startWeek: null, endWeek: offsetWeekKey(startWeek, -1) };
+    if (epochName === 'future') return { startWeek: offsetWeekKey(endWeek, 1), endWeek: null };
+    return { startWeek: null, endWeek: null };
+}
+
+// Check if a week key falls within an epoch's range
+function isWeekInEpoch(weekKey, epochName) {
+    const { startWeek, endWeek } = getEpochWeekRange(epochName);
+    if (startWeek && weekKey < startWeek) return false;
+    if (endWeek && weekKey > endWeek) return false;
+    return true;
+}
+
+// When navigating weeks, auto-switch epochFilter if we cross a boundary
+function _syncEpochForCurrentWeek() {
+    const wk = getWeekKey(state.timelineViewDate);
+    for (const ep of EPOCH_CONTEXTS) {
+        if (isWeekInEpoch(wk, ep)) {
+            if (state.epochFilter !== ep) {
+                state.epochFilter = ep;
+                savePref('epochFilter', ep);
+            }
+            return;
+        }
+    }
+}
+
 // Check if an item belongs to a given week (has week context OR a date within the week)
 function isItemInWeek(item, weekKey) {
     if (!item) return false;
@@ -710,14 +761,14 @@ function isItemInWeek(item, weekKey) {
 }
 
 // Parse a context string into components
-// "someday" → { epoch: "someday" }
+// "ongoing" → { epoch: "ongoing" }
 // "week:2026-W07" → { week: "2026-W07" }
 // "2026-02-10" → { date: "2026-02-10" }
 // "2026-02-10@10:00-12:00" → { date: "2026-02-10", segment: { start: "10:00", end: "12:00" } }
 // "2026-02-10@entry:abc123" → { date: "2026-02-10", entryId: "abc123" }
 function parseTimeContext(ctx) {
     if (!ctx || typeof ctx !== 'string') return null;
-    if (ctx === 'someday') return { epoch: ctx };
+    if (EPOCH_CONTEXTS.includes(ctx)) return { epoch: ctx };
     if (isWeekContext(ctx)) return { week: ctx.substring(5) }; // strip "week:" prefix
     const atIdx = ctx.indexOf('@');
     if (atIdx === -1) return { date: ctx };
@@ -1042,7 +1093,7 @@ function getEffectiveTimeContexts(itemId) {
 
 // Check if an item should appear for the given date key.
 // Rules:
-//   1. If the item or any ancestor has epoch contexts (e.g. "someday") → hide from day views
+//   1. If the item or any ancestor has epoch contexts (e.g. "ongoing") → hide from day views
 //   2. If the item or any ancestor has timeContexts including dateKey → show
 //   3. If NO item in the ancestry chain has any timeContexts at all → show ("anytime")
 //   4. If some level has timeContexts but none match dateKey → hide
@@ -1051,7 +1102,7 @@ function itemMatchesTimeContext(action, dateKey) {
     const ownContexts = (item && item.timeContexts) || [];
     // Item has its own contexts — only check those, don't inherit from ancestors
     if (ownContexts.length > 0) {
-        // Check date matches first — items can have BOTH epoch ("someday") and day contexts
+        // Check date matches first — items can have BOTH epoch ("ongoing") and day contexts
         if (ownContexts.some(tc => contextMatchesDate(tc, dateKey))) return true;
         if (ownContexts.some(tc => isEpochContext(tc))) {
             // Even epoch items can appear via deadline shadow
@@ -1120,7 +1171,7 @@ function getCurrentTimeContexts() {
         else if (focused.entryId) ctx.push(`${dateKey}@entry:${focused.entryId}`);
         return ctx;
     }
-    if (state.viewHorizon === 'someday') return ['someday'];
+    if (state.viewHorizon === 'epoch') return [state.epochFilter];
     if (state.viewHorizon === 'week') return [getWeekKey(state.timelineViewDate)];
     return [getDateKey(state.timelineViewDate)];
 }
@@ -1132,7 +1183,7 @@ function getCurrentViewContext() {
     if (focused && focused.segmentKey) return focused.segmentKey;
     if (focused && focused.liveType) return `${getDateKey(state.timelineViewDate)}@${focused.liveType}`;
     if (focused && focused.entryId) return `${getDateKey(state.timelineViewDate)}@entry:${focused.entryId}`;
-    if (state.viewHorizon === 'someday') return 'someday';
+    if (state.viewHorizon === 'epoch') return state.epochFilter;
     if (state.viewHorizon === 'week') return getWeekKey(state.timelineViewDate);
     return getDateKey(state.timelineViewDate);
 }
@@ -1290,11 +1341,11 @@ function _deadlineShadowMatchesWeek(item, weekKey) {
     return null;
 }
 
-// Check if an item has an epoch context (e.g. "someday") on itself or any ancestor.
+// Check if an item has an epoch context (e.g. "ongoing") on itself or any ancestor.
 // If the item has its own explicit timeContexts, those take priority — ancestor
-// epochs don't bleed through (e.g. a child with a date should NOT show in someday
-// just because its parent is someday).
-// Every item should have explicit timeContexts (someday is the default).
+// epochs don't bleed through (e.g. a child with a date should NOT show in ongoing
+// just because its parent is ongoing).
+// Every item should have explicit timeContexts (ongoing is the default).
 // Items with NO timeContexts at any level are a data anomaly — return false.
 function isItemInEpoch(itemOrAction, epochName) {
     const item = findItemById(itemOrAction.id);
@@ -1322,8 +1373,8 @@ async function toggleTimeContext(itemId, dateKey) {
     const idx = item.timeContexts.indexOf(dateKey);
     if (idx >= 0) {
         item.timeContexts.splice(idx, 1);
-        // Never leave an item with no time context — fall back to someday
-        if (item.timeContexts.length === 0) item.timeContexts.push('someday');
+        // Never leave an item with no time context — fall back to ongoing
+        if (item.timeContexts.length === 0) item.timeContexts.push('ongoing');
     } else {
         item.timeContexts.push(dateKey);
     }
@@ -1343,23 +1394,25 @@ async function addTimeContext(itemId, dateKey) {
     }
 }
 
-// Send an item to the someday backlog — strips all date/segment contexts and adds "someday".
-// sourceDuration: if provided, seed it as the someday-level duration.
-async function sendToSomeday(itemId, sourceDuration) {
+// Send an item to an epoch (ongoing/future/past) — strips all date/segment contexts and adds the epoch.
+// sourceDuration: if provided, seed it as the epoch-level duration.
+async function sendToEpoch(itemId, epochName, sourceDuration) {
     itemId = Number(itemId);
     const item = findItemById(itemId);
     if (!item) return;
-    // Strip all date/segment/entry/week contexts, keep only 'someday'
-    item.timeContexts = ['someday'];
+    // Strip all date/segment/entry/week contexts, keep only the target epoch
+    item.timeContexts = [epochName];
     // Clean segment durations since we removed segment contexts,
-    // but seed the someday duration from the source if provided
+    // but seed the epoch duration from the source if provided
     if (!item.contextDurations) item.contextDurations = {};
     const dur = sourceDuration != null ? sourceDuration : (item.contextDurations[Object.keys(item.contextDurations)[0]] ?? undefined);
     item.contextDurations = {};
-    if (dur != null) item.contextDurations['someday'] = dur;
+    if (dur != null) item.contextDurations[epochName] = dur;
     await api.patch(`/items/${itemId}`, { timeContexts: item.timeContexts, contextDurations: item.contextDurations });
     renderAll();
 }
+// Convenience wrapper
+async function sendToOngoing(itemId, sourceDuration) { return sendToEpoch(itemId, 'ongoing', sourceDuration); }
 
 // Send an item to the week backlog — strips day/segment contexts, adds week context.
 async function sendToWeek(itemId, weekKey, sourceDuration) {
@@ -1387,40 +1440,53 @@ async function promoteFromWeek(itemId, dateKey, sourceDuration) {
     const weekDur = sourceDuration != null ? sourceDuration : (weekCtx ? item.contextDurations?.[weekCtx] : undefined);
     // Strip week contexts
     item.timeContexts = item.timeContexts.filter(tc => !isWeekContext(tc));
-    // Also strip someday if present
-    item.timeContexts = item.timeContexts.filter(tc => tc !== 'someday');
+    // Also strip epoch contexts if present
+    item.timeContexts = item.timeContexts.filter(tc => !EPOCH_CONTEXTS.includes(tc));
     if (!item.timeContexts.includes(dateKey)) {
         item.timeContexts.push(dateKey);
     }
     // Migrate duration to the new date
     if (!item.contextDurations) item.contextDurations = {};
     if (weekCtx) delete item.contextDurations[weekCtx];
-    delete item.contextDurations['someday'];
+    for (const ep of EPOCH_CONTEXTS) delete item.contextDurations[ep];
     if (weekDur != null) item.contextDurations[dateKey] = weekDur;
     await api.patch(`/items/${itemId}`, { timeContexts: item.timeContexts, contextDurations: item.contextDurations });
     renderAll();
 }
 
-// Promote an item from someday — removes "someday", adds the target date.
-// Migrates the someday-level duration to the new date context.
-async function promoteFromSomeday(itemId, dateKey, sourceDuration) {
+// Promote an item from any epoch — removes all epoch contexts, adds the target date.
+// Migrates the source epoch's duration to the new date context.
+async function promoteFromEpoch(itemId, dateKey, sourceDuration) {
     itemId = Number(itemId);
     const item = findItemById(itemId);
     if (!item) return;
     if (!item.timeContexts) item.timeContexts = [];
-    // Capture someday duration before removing
-    const somedayDur = sourceDuration != null ? sourceDuration : item.contextDurations?.['someday'];
-    item.timeContexts = item.timeContexts.filter(tc => tc !== 'someday');
+    // Find and capture the epoch duration before removing
+    const epochCtx = item.timeContexts.find(tc => EPOCH_CONTEXTS.includes(tc));
+    const epochDur = sourceDuration != null ? sourceDuration : (epochCtx ? item.contextDurations?.[epochCtx] : undefined);
+    item.timeContexts = item.timeContexts.filter(tc => {
+        if (EPOCH_CONTEXTS.includes(tc)) return false;
+        // Also strip entry/session/segment sub-contexts for the target date
+        // (e.g. "2026-02-13@entry:297") so we degrade cleanly to day scope
+        if (tc.startsWith(dateKey + '@')) return false;
+        return true;
+    });
     if (!item.timeContexts.includes(dateKey)) {
         item.timeContexts.push(dateKey);
     }
     // Migrate duration to the new date key
     if (!item.contextDurations) item.contextDurations = {};
-    delete item.contextDurations['someday'];
-    if (somedayDur != null) item.contextDurations[dateKey] = somedayDur;
+    for (const ep of EPOCH_CONTEXTS) delete item.contextDurations[ep];
+    // Also clean up durations for removed sub-contexts
+    for (const key of Object.keys(item.contextDurations)) {
+        if (key.startsWith(dateKey + '@')) delete item.contextDurations[key];
+    }
+    if (epochDur != null) item.contextDurations[dateKey] = epochDur;
     await api.patch(`/items/${itemId}`, { timeContexts: item.timeContexts, contextDurations: item.contextDurations });
     renderAll();
 }
+// Convenience alias
+async function promoteFromOngoing(itemId, dateKey, sourceDuration) { return promoteFromEpoch(itemId, dateKey, sourceDuration); }
 
 // Reschedule an item to a specific date (used by DnD on day arrows).
 // Preserves the source context's duration into the new date context.
@@ -1433,8 +1499,12 @@ async function rescheduleToDate(itemId, dateKey) {
     const srcCtx = getCurrentViewContext();
     const srcDur = item.contextDurations?.[srcCtx] ?? getContextDuration(item, srcCtx);
     // Remove all date/segment/week/epoch contexts, add the target date
-    item.timeContexts = item.timeContexts.filter(tc => !isEpochContext(tc) && !isWeekContext(tc) && !tc.match(/^\d{4}-\d{2}-\d{2}/));
-    item.timeContexts = item.timeContexts.filter(tc => tc !== 'someday');
+    item.timeContexts = item.timeContexts.filter(tc => {
+        if (EPOCH_CONTEXTS.includes(tc)) return false;
+        if (isWeekContext(tc)) return false;
+        if (/^\d{4}-\d{2}-\d{2}/.test(tc)) return false;
+        return true;
+    });
     if (!item.timeContexts.includes(dateKey)) {
         item.timeContexts.push(dateKey);
     }
@@ -1482,8 +1552,8 @@ async function cleanPastSchedules() {
                         return p && p.date;
                     });
                     const hasWeek = item.timeContexts.some(tc => isWeekContext(tc));
-                    if (hadDateContexts && !hasRemainingDates && !hasWeek && !item.timeContexts.includes('someday')) {
-                        // Degrade to the current week context instead of someday
+                    if (hadDateContexts && !hasRemainingDates && !hasWeek && !item.timeContexts.some(tc => EPOCH_CONTEXTS.includes(tc))) {
+                        // Degrade to the current week context instead of epoch
                         const weekKey = getWeekKey(today);
                         item.timeContexts.push(weekKey);
                     }
@@ -1502,9 +1572,9 @@ async function cleanPastSchedules() {
 }
 
 // ─── Auto-clean past sessions (intra-day) ───
-// Silently degrade segment contexts (e.g. "2026-02-11@10:00-12:00") whose end
-// time has already passed back to their parent date context.
-// Also handles segments from past dates — those are automatically expired.
+// Silently degrade segment/entry contexts whose end time has already passed
+// back to their parent date context.
+// Also handles segments/entries from past dates — those are automatically expired.
 async function cleanPastSessions(now) {
     now = now || new Date();
     const todayKey = getDateKey(getLogicalToday());
@@ -1516,8 +1586,32 @@ async function cleanPastSessions(now) {
                 const contextsToRemove = [];
                 for (const tc of item.timeContexts) {
                     const parsed = parseTimeContext(tc);
-                    if (!parsed || !parsed.segment) continue;
+                    if (!parsed || (!parsed.segment && !parsed.entryId)) continue;
 
+                    // ── Entry contexts (e.g. "2026-02-13@entry:297") ──
+                    if (parsed.entryId) {
+                        // Past-date entries are automatically expired
+                        if (parsed.date < todayKey) {
+                            contextsToRemove.push(tc);
+                            continue;
+                        }
+                        // Only check end-time for today's entries
+                        if (parsed.date !== todayKey) continue;
+                        // Look up the entry to find its end time
+                        const entry = state.timeline?.entries?.find(
+                            e => String(e.id) === String(parsed.entryId)
+                        );
+                        if (entry) {
+                            const entryStart = new Date(entry.startTime).getTime();
+                            const entryEnd = entryStart + (entry.duration || 0) * 60000;
+                            if (now.getTime() >= entryEnd) {
+                                contextsToRemove.push(tc);
+                            }
+                        }
+                        continue;
+                    }
+
+                    // ── Segment contexts (e.g. "2026-02-13@10:00-12:00") ──
                     // Past-date segments are automatically expired —
                     // UNLESS they cross midnight and their real end is still in the future
                     if (parsed.date < todayKey) {
@@ -1575,13 +1669,37 @@ async function cleanPastSessions(now) {
     }
 }
 
-// ─── One-time migration: assign 'someday' to items with no timeContexts ───
+// ─── One-time migration: assign 'ongoing' to items with no timeContexts ───
 async function migrateEmptyTimeContexts() {
     let dirty = false;
     function walkItems(items) {
         for (const item of items) {
             if (!item.timeContexts || item.timeContexts.length === 0) {
-                item.timeContexts = ['someday'];
+                item.timeContexts = ['ongoing'];
+                dirty = true;
+            }
+            if (item.children && item.children.length > 0) walkItems(item.children);
+        }
+    }
+    walkItems(state.items.items);
+    if (dirty) await saveItems();
+}
+
+// ─── One-time migration: rename 'someday' → 'ongoing' in existing items ───
+async function migrateSomedayToOngoing() {
+    let dirty = false;
+    function walkItems(items) {
+        for (const item of items) {
+            if (item.timeContexts) {
+                const idx = item.timeContexts.indexOf('someday');
+                if (idx !== -1) {
+                    item.timeContexts[idx] = 'ongoing';
+                    dirty = true;
+                }
+            }
+            if (item.contextDurations && item.contextDurations['someday'] != null) {
+                item.contextDurations['ongoing'] = item.contextDurations['someday'];
+                delete item.contextDurations['someday'];
                 dirty = true;
             }
             if (item.children && item.children.length > 0) walkItems(item.children);
@@ -1815,16 +1933,20 @@ function showProjectContextMenu(e, item) {
     });
     menu.appendChild(projSchedOpt);
 
-    // → Someday option for projects
-    const projSomedayOpt = document.createElement('div');
-    projSomedayOpt.className = 'project-context-menu-item';
-    projSomedayOpt.textContent = '→ Someday';
-    projSomedayOpt.addEventListener('click', async (ev) => {
-        ev.stopPropagation();
-        dismissProjectContextMenu();
-        await sendToSomeday(item.id);
-    });
-    menu.appendChild(projSomedayOpt);
+    // → Ongoing / Future options for projects
+    for (const epoch of ['ongoing', 'future']) {
+        const epochIcons = { ongoing: '📦', future: '🔮' };
+        const epochLabels = { ongoing: 'Ongoing', future: 'Future' };
+        const projEpochOpt = document.createElement('div');
+        projEpochOpt.className = 'project-context-menu-item';
+        projEpochOpt.textContent = `→ ${epochIcons[epoch]} ${epochLabels[epoch]}`;
+        projEpochOpt.addEventListener('click', async (ev) => {
+            ev.stopPropagation();
+            dismissProjectContextMenu();
+            await sendToEpoch(item.id, epoch);
+        });
+        menu.appendChild(projEpochOpt);
+    }
 
     // Goal option
     const goalOpt = document.createElement('div');
@@ -2034,22 +2156,26 @@ function showActionContextMenu(e, action) {
         });
         menu.appendChild(schedOpt);
 
-        // → Someday option
-        const somedayOpt = document.createElement('div');
-        somedayOpt.className = 'project-context-menu-item';
-        somedayOpt.textContent = `→ Someday${bulkSuffix}`;
-        somedayOpt.addEventListener('click', async (ev) => {
-            ev.stopPropagation();
-            dismissProjectContextMenu();
-            if (isBulk) {
-                for (const id of state.selectedActionIds) {
-                    await sendToSomeday(parseInt(id, 10));
+        // → Ongoing / Future options
+        for (const epoch of ['ongoing', 'future']) {
+            const epochIcons = { ongoing: '📦', future: '🔮' };
+            const epochLabels = { ongoing: 'Ongoing', future: 'Future' };
+            const epochOpt = document.createElement('div');
+            epochOpt.className = 'project-context-menu-item';
+            epochOpt.textContent = `→ ${epochIcons[epoch]} ${epochLabels[epoch]}${bulkSuffix}`;
+            epochOpt.addEventListener('click', async (ev) => {
+                ev.stopPropagation();
+                dismissProjectContextMenu();
+                if (isBulk) {
+                    for (const id of state.selectedActionIds) {
+                        await sendToEpoch(parseInt(id, 10), epoch);
+                    }
+                } else {
+                    await sendToEpoch(action.id, epoch);
                 }
-            } else {
-                await sendToSomeday(action.id);
-            }
-        });
-        menu.appendChild(somedayOpt);
+            });
+            menu.appendChild(epochOpt);
+        }
     }
 
     // Goal option (single only)
@@ -2194,9 +2320,9 @@ function collectTimeContextMatches(items, dateKey, visibleIds) {
     let anyVisible = false;
     for (const item of items) {
         let selfMatch;
-        if (state.viewHorizon === 'someday') {
-            // In someday horizon, show items with someday context (self or ancestor)
-            selfMatch = isItemInEpoch(item, 'someday');
+        if (state.viewHorizon === 'epoch') {
+            // In epoch horizon, show items with the active epoch context (self or ancestor)
+            selfMatch = isItemInEpoch(item, state.epochFilter);
         } else if (state.viewHorizon === 'week') {
             const weekKey = getWeekKey(state.timelineViewDate);
             selfMatch = isItemInWeek(item, weekKey);
@@ -2865,7 +2991,7 @@ function renderActions() {
         const focusedSession = state.focusStack.length > 0 ? state.focusStack[state.focusStack.length - 1] : null;
         const viewKey = getDateKey(state.timelineViewDate);
         const todayKey = getDateKey(getLogicalToday());
-        const timeIsFiltered = !!focusedSession || state.viewHorizon === 'someday' || viewKey !== todayKey;
+        const timeIsFiltered = !!focusedSession || state.viewHorizon === 'epoch' || viewKey !== todayKey;
 
         if (projectIsFiltered || timeIsFiltered) {
             // Replace default empty state content with filter-aware message
@@ -2905,8 +3031,9 @@ function renderActions() {
                 let timeLabel = '📅';
                 if (focusedSession) {
                     timeLabel += ` ${formatTime(focusedSession.startMs)}–${formatTime(focusedSession.endMs)}`;
-                } else if (state.viewHorizon === 'someday') {
-                    timeLabel += ' Someday';
+                } else if (state.viewHorizon === 'epoch') {
+                    const epochLabels = { past: 'Past', ongoing: 'Ongoing', future: 'Future' };
+                    timeLabel += ` ${epochLabels[state.epochFilter] || 'Ongoing'}`;
                 } else {
                     const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
                     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -2964,21 +3091,36 @@ function renderActions() {
         if (!visibleSet.has(id)) state.selectedActionIds.delete(id);
     }
 
-    // ── Grouping by root ancestor ──
-    const shouldGroup = !state.selectedItemId;
+    // ── Grouping by ancestor ──
+    // When no project context: group by root ancestor (_path[0])
+    // When project context is active: group by the first child below the selected project
     let rootGroups = null;
     let distinctRoots = 0;
+    // Track which _path index is used for the grouping ancestor (for breadcrumb stripping)
+    let groupAncestorPathIdx = 0;
 
-    if (shouldGroup) {
-        // Build ordered groups keyed by root ancestor ID
-        rootGroups = new Map(); // rootId → { root: {id,name}, actions: [] }
+    {
+        rootGroups = new Map(); // groupId → { root: {id,name}, actions: [] }
         for (const action of sorted) {
-            const rootAncestor = action._path && action._path.length > 0 ? action._path[0] : null;
-            const rootId = rootAncestor ? rootAncestor.id : 0;
-            if (!rootGroups.has(rootId)) {
-                rootGroups.set(rootId, { root: rootAncestor, actions: [] });
+            let groupAncestor = null;
+            if (state.selectedItemId && action._path) {
+                // Find the selected project's position in the path
+                const selIdx = action._path.findIndex(p => p.id === state.selectedItemId);
+                if (selIdx >= 0 && selIdx + 1 < action._path.length - 1) {
+                    // Group by the first child below the selected project
+                    groupAncestor = action._path[selIdx + 1];
+                    groupAncestorPathIdx = selIdx + 1;
+                }
+                // else: item is a direct child of selected → no sub-group
+            } else if (action._path && action._path.length > 0) {
+                groupAncestor = action._path[0];
+                groupAncestorPathIdx = 0;
             }
-            rootGroups.get(rootId).actions.push(action);
+            const groupId = groupAncestor ? groupAncestor.id : 0;
+            if (!rootGroups.has(groupId)) {
+                rootGroups.set(groupId, { root: groupAncestor, actions: [] });
+            }
+            rootGroups.get(groupId).actions.push(action);
         }
         distinctRoots = rootGroups.size;
     }
@@ -2987,7 +3129,7 @@ function renderActions() {
     // Track actually-rendered action IDs (excluding collapsed)
     const renderedIds = [];
 
-    if (shouldGroup && distinctRoots >= 2) {
+    if (distinctRoots >= 2) {
         // Render with group headers
         state._actionGroupingActive = true;
         for (const [rootId, group] of rootGroups) {
@@ -3075,9 +3217,9 @@ function getFilteredActions() {
 
     // ── Horizon + Schedule filter ──
     const currentDateKey = getDateKey(state.timelineViewDate);
-    if (state.viewHorizon === 'someday') {
-        // Show only items in the someday epoch
-        allLeaves = allLeaves.filter(a => isItemInEpoch(a, 'someday'));
+    if (state.viewHorizon === 'epoch') {
+        // Show only items in the active epoch
+        allLeaves = allLeaves.filter(a => isItemInEpoch(a, state.epochFilter));
     } else if (state.viewHorizon === 'week') {
         // Show only items with the current week context (no specific day)
         const weekKey = getWeekKey(state.timelineViewDate);
@@ -3407,6 +3549,27 @@ document.addEventListener('DOMContentLoaded', () => {
                     window._draggedAction = null;
                     const ctxs = getCurrentTimeContexts();
                     (async () => {
+                        // Strip existing entry/session/segment contexts that are subsumed
+                        // by the plain-date contexts being assigned (fixes dragging an item
+                        // with an entry context to day — the entry context must be removed).
+                        if (item.timeContexts) {
+                            const plainDates = ctxs.filter(c => /^\d{4}-\d{2}-\d{2}$/.test(c));
+                            if (plainDates.length > 0) {
+                                const before = item.timeContexts.length;
+                                item.timeContexts = item.timeContexts.filter(tc => {
+                                    // Keep if it's not a sub-context of any plain date being added
+                                    return !plainDates.some(d => tc.startsWith(d + '@'));
+                                });
+                                // Clean up contextDurations for removed contexts
+                                if (item.contextDurations && item.timeContexts.length < before) {
+                                    for (const key of Object.keys(item.contextDurations)) {
+                                        if (plainDates.some(d => key.startsWith(d + '@'))) {
+                                            delete item.contextDurations[key];
+                                        }
+                                    }
+                                }
+                            }
+                        }
                         // Assign current time context
                         for (const ctx of ctxs) { await addTimeContext(itemId, ctx); }
                         // Reparent under selected project if applicable
@@ -3544,10 +3707,29 @@ function createActionElement(action) {
     const content = document.createElement('div');
     content.className = 'action-content';
 
+    const nameRow = document.createElement('div');
+    nameRow.className = 'action-name-row';
+
     const name = document.createElement('div');
     name.className = 'action-name';
     name.textContent = action.name;
-    content.appendChild(name);
+    nameRow.appendChild(name);
+
+    // Locate-in-sidebar icon (hover-reveal, before name)
+    const locateBtn = document.createElement('span');
+    locateBtn.className = 'action-locate-btn';
+    locateBtn.textContent = '◉';
+    locateBtn.title = 'Locate in projects';
+    locateBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        state.selectedItemId = action.id;
+        savePref('selectedItemId', action.id);
+        renderAll();
+        requestAnimationFrame(() => scrollToSelectedItem());
+    });
+    nameRow.insertBefore(locateBtn, name);
+
+    content.appendChild(nameRow);
 
     // Click to rename
     if (!action.done) {
@@ -3561,11 +3743,21 @@ function createActionElement(action) {
     const badgesRow = document.createElement('div');
     badgesRow.className = 'action-badges';
 
-    // Show ancestor path as breadcrumb tag (if not filtering by a project)
-    // When grouping is active, strip the root ancestor from the breadcrumb (already shown in header)
-    if (!state.selectedItemId && action._path && action._path.length > 1) {
-        const skipRoot = state._actionGroupingActive && action._path.length > 1;
-        const ancestors = skipRoot ? action._path.slice(1, -1) : action._path.slice(0, -1);
+    // Show ancestor path as breadcrumb tag
+    // When grouping is active, strip the group ancestor from the breadcrumb (already shown in header)
+    // When a project context is active, strip the selected project and its ancestors too
+    if (action._path && action._path.length > 1) {
+        let startIdx = 0;
+        if (state.selectedItemId) {
+            // Find selected project in path, start breadcrumb AFTER it
+            const selIdx = action._path.findIndex(p => p.id === state.selectedItemId);
+            if (selIdx >= 0) startIdx = selIdx + 1;
+        }
+        if (state._actionGroupingActive) {
+            // Also skip the group header ancestor
+            startIdx = Math.max(startIdx, (state.selectedItemId ? startIdx : 0) + 1);
+        }
+        const ancestors = action._path.slice(startIdx, -1); // -1 to exclude the item itself
         if (ancestors.length === 0) { /* no breadcrumb needed, root is already the header */ }
         else {
             const tag = document.createElement('span');
@@ -3999,7 +4191,8 @@ function setupActionInput() {
         const options = [
             { label: 'today', aliases: ['today'], description: _fmtDay(today), contexts: [getDateKey(today)] },
             { label: 'tomorrow', aliases: ['tomorrow', 'tmr'], description: _fmtDay(tomorrow), contexts: [getDateKey(tomorrow)] },
-            { label: 'someday', aliases: ['someday'], description: 'Backlog', contexts: ['someday'] },
+            { label: 'ongoing', aliases: ['ongoing', 'someday'], description: 'Backlog', contexts: ['ongoing'] },
+            { label: 'future', aliases: ['future', 'someday2'], description: 'Aspirations', contexts: ['future'] },
             { label: 'this week', aliases: ['week', 'thisweek'], description: 'Current week', contexts: [getWeekKey(today)] },
             { label: 'next week', aliases: ['nextweek'], description: 'Next week', contexts: [getWeekKey(_addDays(7))] },
         ];
@@ -4372,7 +4565,7 @@ function isInSleepRange() {
 }
 
 // ─── Horizon Layer Stack ───
-// Syncs active/dim state on the inline someday + day header layers
+// Syncs active/dim state on the inline ongoing + day header layers
 
 function _updateWeekNavLabel() {
     const weekNavLabel = document.getElementById('week-nav-label');
@@ -4396,17 +4589,42 @@ function _updateWeekNavLabel() {
 }
 
 function renderHorizonTower() {
-    const somedayLayer = document.getElementById('horizon-someday-layer');
+    const epochLayer = document.getElementById('horizon-epoch-layer');
     const weekLayer = document.getElementById('horizon-week-layer');
     const dayLayer = document.getElementById('horizon-day-layer');
     const sessionLayer = document.getElementById('horizon-session-layer');
-    if (!somedayLayer || !weekLayer || !dayLayer) return;
+    if (!epochLayer || !weekLayer || !dayLayer) return;
 
     const currentLevel = state.viewHorizon;
 
-    // Someday layer: active when viewHorizon is someday, dim otherwise
-    somedayLayer.classList.toggle('horizon-layer-active', currentLevel === 'someday');
-    somedayLayer.classList.toggle('horizon-layer-dim', currentLevel !== 'someday');
+    // Auto-sync epochFilter when timelineViewDate crosses epoch boundaries
+    _syncEpochForCurrentWeek();
+
+    // Epoch layer: active when viewHorizon is epoch, dim otherwise
+    epochLayer.classList.toggle('horizon-layer-active', currentLevel === 'epoch');
+    epochLayer.classList.toggle('horizon-layer-dim', currentLevel !== 'epoch');
+    // Update icon and label to reflect current epochFilter
+    const epochIcons = { past: '📜', ongoing: '📦', future: '🔮' };
+    const epochLabels = { past: 'Past', ongoing: 'Ongoing', future: 'Future' };
+    const epochIcon = document.getElementById('epoch-nav-icon');
+    const epochLabel = document.getElementById('epoch-nav-label');
+    if (epochIcon) epochIcon.textContent = epochIcons[state.epochFilter] || '📦';
+    if (epochLabel) epochLabel.textContent = epochLabels[state.epochFilter] || 'Ongoing';
+    // Show/hide navigation arrows based on active state + disable at boundaries
+    const epochActive = currentLevel === 'epoch';
+    const epochIdx = EPOCH_CONTEXTS.indexOf(state.epochFilter);
+    const prevBtn = document.getElementById('epoch-nav-prev');
+    const nextBtn = document.getElementById('epoch-nav-next');
+    if (prevBtn) {
+        prevBtn.style.display = epochActive ? '' : 'none';
+        prevBtn.disabled = epochIdx <= 0;
+        prevBtn.style.opacity = epochIdx <= 0 ? '0.25' : '';
+    }
+    if (nextBtn) {
+        nextBtn.style.display = epochActive ? '' : 'none';
+        nextBtn.disabled = epochIdx >= EPOCH_CONTEXTS.length - 1;
+        nextBtn.style.opacity = epochIdx >= EPOCH_CONTEXTS.length - 1 ? '0.25' : '';
+    }
 
     // Week layer: active when viewHorizon is week, dim otherwise
     weekLayer.classList.toggle('horizon-layer-active', currentLevel === 'week');
@@ -4521,7 +4739,7 @@ function renderTimeContext() {
         const nextBtn = document.getElementById('date-nav-next');
         const todayBtn = document.getElementById('date-nav-today-btn');
 
-        if (state.viewHorizon === 'someday') {
+        if (state.viewHorizon === 'epoch') {
             if (prevBtn) prevBtn.style.display = 'none';
             if (nextBtn) nextBtn.style.display = 'none';
             if (todayBtn) todayBtn.style.display = 'none';
@@ -4812,6 +5030,19 @@ function _renderLiveSessionIndicator() {
     indicator.appendChild(label);
     indicator.appendChild(timer);
     if (liveSession.targetEndTime) indicator.appendChild(_createAdjustBtns());
+
+    // Stop button — visible on hover
+    const stopBtn = document.createElement('button');
+    stopBtn.className = 'live-session-stop-btn';
+    stopBtn.textContent = '⏹';
+    stopBtn.title = isWork ? 'Stop working' : 'Stop break';
+    stopBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        clearFocusStack();
+        if (isWork) await stopWorking();
+        else await stopBreak();
+    });
+    indicator.appendChild(stopBtn);
 
     // Click: navigate back to today + focus the running session + select project
     indicator.addEventListener('click', () => {
@@ -6011,26 +6242,140 @@ function renderTimeline() {
     const quickLog = document.querySelector('.quick-log');
 
     // Clear all rendered blocks (including breadcrumb)
-    container.querySelectorAll('.time-block, .timeline-entry, .someday-placeholder, .week-view, .session-panel, .timeline-overlap-group, .week-sleep-divider').forEach(el => el.remove());
+    container.querySelectorAll('.time-block, .timeline-entry, .epoch-placeholder, .epoch-week-overview, .week-view, .session-panel, .timeline-overlap-group, .week-sleep-divider').forEach(el => el.remove());
 
-    // ── Someday horizon: replace timeline with placeholder ──
-    if (state.viewHorizon === 'someday') {
+    // ── Epoch horizon: show week overview for the epoch's range ──
+    if (state.viewHorizon === 'epoch') {
         empty.style.display = 'none';
         if (quickLog) quickLog.style.display = 'none';
-        const placeholder = document.createElement('div');
-        placeholder.className = 'someday-placeholder';
-        placeholder.innerHTML = `
-            <span class="someday-placeholder-icon">📦</span>
-            <span class="someday-placeholder-text">Items without a specific date</span>
-            <a class="someday-placeholder-link" href="#">Back to today →</a>
+
+        const { startWeek, endWeek } = getEpochWeekRange(state.epochFilter);
+        const epochIcons = { past: '📜', ongoing: '📦', future: '🔮' };
+        const epochLabels = { past: 'Past', ongoing: 'Ongoing', future: 'Future' };
+        const ms = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+        // Build list of week keys for this epoch
+        const weekKeys = [];
+        const currentWeek = getWeekKey(getLogicalToday());
+
+        if (startWeek && endWeek) {
+            // Bounded (ongoing): enumerate from startWeek to endWeek
+            let wk = startWeek;
+            for (let i = 0; i < 200; i++) { // safety cap
+                weekKeys.push(wk);
+                if (wk >= endWeek) break;
+                wk = offsetWeekKey(wk, 1);
+            }
+        } else if (!startWeek && endWeek) {
+            // Past: show last 8 weeks before ongoing
+            for (let i = 7; i >= 0; i--) {
+                const wk = offsetWeekKey(endWeek, -i);
+                weekKeys.push(wk);
+            }
+        } else if (startWeek && !endWeek) {
+            // Future: show next 8 weeks after ongoing
+            for (let i = 0; i < 8; i++) {
+                weekKeys.push(offsetWeekKey(startWeek, i));
+            }
+        }
+
+        // Format a week range as "Feb 10–16" or "Feb 10–Mar 2"
+        function fmtWeekRange(weekKey) {
+            const rng = getWeekDateRange(weekKey);
+            if (!rng) return weekKey;
+            const sm = ms[rng.start.getMonth()];
+            const em = ms[rng.end.getMonth()];
+            const s = `${sm} ${rng.start.getDate()}`;
+            const e = sm === em ? `${rng.end.getDate()}` : `${em} ${rng.end.getDate()}`;
+            return `${s}–${e}`;
+        }
+
+        // Count items explicitly assigned to this epoch
+        const allItems = (window.items || []);
+        const epochItemCount = allItems.filter(it =>
+            !it.deleted && (it.timeContexts || []).includes(state.epochFilter)
+        ).length;
+
+        const panel = document.createElement('div');
+        panel.className = 'epoch-week-overview';
+
+        // Header
+        const header = document.createElement('div');
+        header.className = 'epoch-overview-header';
+        header.innerHTML = `
+            <span class="epoch-overview-icon">${epochIcons[state.epochFilter] || '📦'}</span>
+            <span class="epoch-overview-title">${epochLabels[state.epochFilter] || 'Epoch'}</span>
+            <span class="epoch-overview-count">${epochItemCount} item${epochItemCount !== 1 ? 's' : ''}</span>
         `;
-        placeholder.querySelector('.someday-placeholder-link').addEventListener('click', (e) => {
-            e.preventDefault();
-            state.viewHorizon = 'day';
-            savePref('viewHorizon', 'day');
-            renderAll();
+        panel.appendChild(header);
+
+        // Boundary adjust for ongoing — top (past direction)
+        if (state.epochFilter === 'ongoing') {
+            const topAdjust = document.createElement('div');
+            topAdjust.className = 'epoch-boundary-adjust';
+            topAdjust.innerHTML = `
+                <button class="epoch-boundary-btn" data-dir="past" data-action="expand" title="Show 1 more past week">+ Earlier</button>
+                ${state.ongoingPastWeeks > 0 ? `<button class="epoch-boundary-btn epoch-boundary-btn-shrink" data-dir="past" data-action="shrink" title="Show 1 less past week">− Shrink</button>` : ''}
+            `;
+            panel.appendChild(topAdjust);
+        }
+
+        // Week rows
+        weekKeys.forEach(wk => {
+            const row = document.createElement('div');
+            row.className = 'epoch-week-row';
+            if (wk === currentWeek) row.classList.add('epoch-week-current');
+
+            const label = fmtWeekRange(wk);
+            const isCurrentStr = wk === currentWeek ? ' <span class="epoch-week-now">This Week</span>' : '';
+
+            row.innerHTML = `
+                <span class="epoch-week-label">${label}${isCurrentStr}</span>
+            `;
+
+            row.addEventListener('click', () => {
+                // Drill down to week view for this week
+                const range = getWeekDateRange(wk);
+                if (range) state.timelineViewDate = range.start;
+                clearFocusStack();
+                state.viewHorizon = 'week';
+                savePref('viewHorizon', 'week');
+                renderAll();
+            });
+
+            panel.appendChild(row);
         });
-        container.appendChild(placeholder);
+
+        // Boundary adjust for ongoing — bottom (future direction)
+        if (state.epochFilter === 'ongoing') {
+            const bottomAdjust = document.createElement('div');
+            bottomAdjust.className = 'epoch-boundary-adjust';
+            bottomAdjust.innerHTML = `
+                <button class="epoch-boundary-btn" data-dir="future" data-action="expand" title="Show 1 more future week">+ Later</button>
+                ${state.ongoingFutureWeeks > 0 ? `<button class="epoch-boundary-btn epoch-boundary-btn-shrink" data-dir="future" data-action="shrink" title="Show 1 less future week">− Shrink</button>` : ''}
+            `;
+            panel.appendChild(bottomAdjust);
+        }
+
+        // Wire boundary buttons
+        panel.querySelectorAll('.epoch-boundary-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const dir = btn.dataset.dir; // 'past' or 'future'
+                const action = btn.dataset.action; // 'expand' or 'shrink'
+                if (dir === 'past') {
+                    state.ongoingPastWeeks = Math.max(0, state.ongoingPastWeeks + (action === 'expand' ? 1 : -1));
+                    savePref('ongoingPastWeeks', state.ongoingPastWeeks);
+                } else {
+                    state.ongoingFutureWeeks = Math.max(0, state.ongoingFutureWeeks + (action === 'expand' ? 1 : -1));
+                    savePref('ongoingFutureWeeks', state.ongoingFutureWeeks);
+                }
+                renderAll();
+            });
+        });
+
+        container.appendChild(panel);
+        updateDateNav();
         return;
     }
 
@@ -6193,7 +6538,7 @@ function renderTimeline() {
         return;
     }
 
-    // Restore quick-log visibility when not in someday
+    // Restore quick-log visibility when not in ongoing
     if (quickLog) quickLog.style.display = '';
 
     // Always hide empty — we always show at least Day Start/End
@@ -7022,7 +7367,21 @@ function createFreeTimeBlock(startMs, endMs) {
                 await startWorking(action.id, action.name, ancestors || null, targetEnd);
             });
 
+            // Locate-in-sidebar icon
+            const locateBtn = document.createElement('span');
+            locateBtn.className = 'action-locate-btn';
+            locateBtn.textContent = '◉';
+            locateBtn.title = 'Locate in projects';
+            locateBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                state.selectedItemId = action.id;
+                savePref('selectedItemId', action.id);
+                renderAll();
+                requestAnimationFrame(() => scrollToSelectedItem());
+            });
+
             row.appendChild(bullet);
+            row.appendChild(locateBtn);
             row.appendChild(nameSpan);
             row.appendChild(est);
             row.appendChild(startBtn);
@@ -7884,7 +8243,21 @@ function _attachEntryDropAndQueue(el, contextStr, deadlineMs) {
                 await startWorking(action.id, action.name, ancestors || null, targetEnd);
             });
 
+            // Locate-in-sidebar icon
+            const locateBtn2 = document.createElement('span');
+            locateBtn2.className = 'action-locate-btn';
+            locateBtn2.textContent = '◉';
+            locateBtn2.title = 'Locate in projects';
+            locateBtn2.addEventListener('click', (e) => {
+                e.stopPropagation();
+                state.selectedItemId = action.id;
+                savePref('selectedItemId', action.id);
+                renderAll();
+                requestAnimationFrame(() => scrollToSelectedItem());
+            });
+
             row.appendChild(bullet);
+            row.appendChild(locateBtn2);
             row.appendChild(nameSpan);
             row.appendChild(est);
             row.appendChild(startBtn2);
@@ -9030,7 +9403,21 @@ function createPlannedTimeBlock(entry, isGhost = false, isPhantom = false) {
                 await startWorking(action.id, action.name, ancestors || null, targetEnd);
             });
 
+            // Locate-in-sidebar icon
+            const locateBtn3 = document.createElement('span');
+            locateBtn3.className = 'action-locate-btn';
+            locateBtn3.textContent = '◉';
+            locateBtn3.title = 'Locate in projects';
+            locateBtn3.addEventListener('click', (e) => {
+                e.stopPropagation();
+                state.selectedItemId = action.id;
+                savePref('selectedItemId', action.id);
+                renderAll();
+                requestAnimationFrame(() => scrollToSelectedItem());
+            });
+
             row.appendChild(bullet);
+            row.appendChild(locateBtn3);
             row.appendChild(nameSpan);
             row.appendChild(est);
             row.appendChild(startBtn2);
@@ -9395,8 +9782,8 @@ function openEntryEditor(entry, blockEl) {
                     if (!item.timeContexts.includes(newEntryCtx)) {
                         item.timeContexts.push(newEntryCtx);
                     }
-                    // Remove 'someday' if present — we're scheduling to a specific date
-                    item.timeContexts = item.timeContexts.filter(tc => tc !== 'someday');
+                    // Remove epoch contexts if present — we're scheduling to a specific date
+                    item.timeContexts = item.timeContexts.filter(tc => !EPOCH_CONTEXTS.includes(tc));
                     // Migrate contextDurations keys from old date to new date
                     if (item.contextDurations) {
                         const newDurations = {};
@@ -9619,12 +10006,14 @@ function updateContextLabels() {
         const typeLabel = focusedSession.label || focusedSession.type || '';
         sessionSeg.textContent = `${timeRange} ${typeLabel}`.trim();
         whenContainer.appendChild(sessionSeg);
-    } else if (state.viewHorizon === 'someday') {
-        // Someday backlog view
-        const somedaySeg = document.createElement('span');
-        somedaySeg.className = 'breadcrumb-segment breadcrumb-current';
-        somedaySeg.textContent = '📦 Someday';
-        whenContainer.appendChild(somedaySeg);
+    } else if (state.viewHorizon === 'epoch') {
+        // Epoch view
+        const epochIcons = { past: '📜', ongoing: '📦', future: '🔮' };
+        const epochLabels = { past: 'Past', ongoing: 'Ongoing', future: 'Future' };
+        const epochSeg = document.createElement('span');
+        epochSeg.className = 'breadcrumb-segment breadcrumb-current';
+        epochSeg.textContent = `${epochIcons[state.epochFilter] || '📦'} ${epochLabels[state.epochFilter] || 'Ongoing'}`;
+        whenContainer.appendChild(epochSeg);
     } else if (state.viewHorizon === 'week') {
         // Week view
         const weekKey = getWeekKey(state.timelineViewDate);
@@ -10135,12 +10524,13 @@ function updateCapacitySummary(sortedActions) {
         }
     }
 
-    // ── Someday: text-only, no bar ──
-    if (state.viewHorizon === 'someday') {
+    // ── Epoch horizons: text-only, no bar ──
+    if (state.viewHorizon === 'epoch') {
         bar.classList.add('pressure-bar-text-only');
         fill.style.width = '0%';
         fill.classList.remove('over-capacity');
-        label.textContent = demandMins > 0 ? `~${_formatDuration(demandMins)} backlog` : `${undone.length} item${undone.length !== 1 ? 's' : ''}`;
+        const epochLabels = { past: 'past', ongoing: 'backlog', future: 'aspirations' };
+        label.textContent = demandMins > 0 ? `~${_formatDuration(demandMins)} ${epochLabels[state.epochFilter] || 'backlog'}` : `${undone.length} item${undone.length !== 1 ? 's' : ''}`;
 
         return;
     }
@@ -10969,8 +11359,11 @@ function openScheduleModal(itemIdOrIds, itemName) {
 
     // ── Helpers ──
 
-    function isSomedayAssigned() {
-        return assignedContexts.has('someday');
+    function isEpochAssigned(ep) {
+        return assignedContexts.has(ep);
+    }
+    function isOngoingAssigned() {
+        return isEpochAssigned('ongoing');
     }
 
     function getSessionDateKey() {
@@ -11015,24 +11408,26 @@ function openScheduleModal(itemIdOrIds, itemName) {
         buildContent();
     }
 
-    async function toggleSomeday() {
-        if (isSomedayAssigned()) {
-            // Remove someday
+    async function toggleEpoch(epochName) {
+        if (isEpochAssigned(epochName)) {
+            // Remove this epoch
             for (const id of itemIds) {
                 const itm = findItemById(id);
                 if (itm) {
-                    itm.timeContexts = (itm.timeContexts || []).filter(tc => tc !== 'someday');
+                    itm.timeContexts = (itm.timeContexts || []).filter(tc => tc !== epochName);
                     await api.patch(`/items/${id}`, { timeContexts: itm.timeContexts });
                 }
             }
         } else {
-            // Set to someday — remove all date/segment contexts
-            await setContexts(['someday']);
+            // Set to this epoch — remove all date/segment contexts
+            await setContexts([epochName]);
             return;
         }
         assignedContexts = getAssignedContexts();
         buildContent();
     }
+
+    async function toggleOngoing() { return toggleEpoch('ongoing'); }
 
     function getScheduleWeekKey() {
         return getWeekKey(weekViewDate);
@@ -11062,11 +11457,11 @@ function openScheduleModal(itemIdOrIds, itemName) {
             await setContexts([wk]);
             return;
         } else {
-            // Multi: add week context, remove someday
+            // Multi: add week context, remove ongoing
             for (const id of itemIds) {
                 const itm = findItemById(id);
                 if (itm) {
-                    itm.timeContexts = (itm.timeContexts || []).filter(tc => tc !== 'someday');
+                    itm.timeContexts = (itm.timeContexts || []).filter(tc => !EPOCH_CONTEXTS.includes(tc));
                     if (!itm.timeContexts.includes(wk)) itm.timeContexts.push(wk);
                     await api.patch(`/items/${id}`, { timeContexts: itm.timeContexts });
                 }
@@ -11091,11 +11486,11 @@ function openScheduleModal(itemIdOrIds, itemName) {
             await setContexts([dateKey]);
             return;
         } else {
-            // Multi: add date, remove someday
+            // Multi: add date, remove ongoing
             for (const id of itemIds) {
                 const itm = findItemById(id);
                 if (itm) {
-                    itm.timeContexts = (itm.timeContexts || []).filter(tc => tc !== 'someday');
+                    itm.timeContexts = (itm.timeContexts || []).filter(tc => !EPOCH_CONTEXTS.includes(tc));
                     if (!itm.timeContexts.includes(dateKey)) itm.timeContexts.push(dateKey);
                     await api.patch(`/items/${id}`, { timeContexts: itm.timeContexts });
                 }
@@ -11149,11 +11544,11 @@ function openScheduleModal(itemIdOrIds, itemName) {
             await setContexts([dateKey, segKey]);
             return;
         } else {
-            // Multi: add segment + date, remove someday
+            // Multi: add segment + date, remove ongoing
             for (const id of itemIds) {
                 const itm = findItemById(id);
                 if (itm) {
-                    itm.timeContexts = (itm.timeContexts || []).filter(tc => tc !== 'someday');
+                    itm.timeContexts = (itm.timeContexts || []).filter(tc => !EPOCH_CONTEXTS.includes(tc));
                     if (!itm.timeContexts.includes(dateKey)) itm.timeContexts.push(dateKey);
                     if (!itm.timeContexts.includes(segKey)) itm.timeContexts.push(segKey);
                     await api.patch(`/items/${id}`, { timeContexts: itm.timeContexts });
@@ -11195,13 +11590,16 @@ function openScheduleModal(itemIdOrIds, itemName) {
         });
 
         // Determine which tiers already have assignments (used for first render only)
-        const hasSomeday = isSomedayAssigned();
+        const hasOngoing = isEpochAssigned('ongoing');
+        const hasFuture = isEpochAssigned('future');
+        const hasPast = isEpochAssigned('past');
+        const hasAnyEpoch = hasOngoing || hasFuture || hasPast;
         const hasWeek = [...assignedContexts].some(tc => isWeekContext(tc));
         const hasDate = [...assignedContexts].some(tc => /^\d{4}-\d{2}-\d{2}$/.test(tc));
         const hasSession = [...assignedContexts].some(tc => tc.includes('@'));
 
         // Count assigned contexts per tier (for badges on collapsed headers)
-        const countSomeday = hasSomeday ? 1 : 0;
+        const countEpoch = (hasOngoing ? 1 : 0) + (hasFuture ? 1 : 0) + (hasPast ? 1 : 0);
         const countWeek = [...assignedContexts].filter(tc => isWeekContext(tc)).length;
         const countDay = [...assignedContexts].filter(tc => /^\d{4}-\d{2}-\d{2}$/.test(tc)).length;
         const countSession = [...assignedContexts].filter(tc => tc.includes('@')).length;
@@ -11245,7 +11643,7 @@ function openScheduleModal(itemIdOrIds, itemName) {
             return hasSnapshot ? (prevOpenState[tier] ?? fallback) : fallback;
         }
 
-        // ── Someday section ──
+        // ── Ongoing section ──
         let html = `
             <div class="modal-header">Schedule: ${itemName}</div>
             <div class="modal-body schedule-modal-body">
@@ -11253,11 +11651,17 @@ function openScheduleModal(itemIdOrIds, itemName) {
                     <button class="schedule-mode-btn${scheduleMode === 'one-time' ? ' schedule-mode-btn-active' : ''}" data-mode="one-time">One-time</button>
                     <button class="schedule-mode-btn${scheduleMode === 'multi' ? ' schedule-mode-btn-active' : ''}" data-mode="multi">Multi</button>
                 </div>
-                <details class="schedule-section" data-tier="someday"${sectionOpen('someday', hasSomeday) ? ' open' : ''}>
-                    <summary class="schedule-section-header">📦 Someday${badgeHtml(countSomeday)}</summary>
+                <details class="schedule-section" data-tier="epoch"${sectionOpen('epoch', hasAnyEpoch) ? ' open' : ''}>
+                    <summary class="schedule-section-header">🌐 Epoch${badgeHtml(countEpoch)}</summary>
                     <div class="schedule-section-content-wrapper"><div class="schedule-section-content">
-                        <div class="schedule-someday-toggle ${hasSomeday ? 'schedule-someday-active' : ''}" id="schedule-someday-btn">
-                            ${hasSomeday ? '✓ Assigned to Someday' : 'Move to Someday'}
+                        ${hasPast ? `<div class="schedule-epoch-toggle schedule-epoch-past schedule-epoch-active" data-epoch="past">
+                            📜 Past (auto-assigned)
+                        </div>` : ''}
+                        <div class="schedule-epoch-toggle ${hasOngoing ? 'schedule-epoch-active' : ''}" data-epoch="ongoing" id="schedule-epoch-ongoing-btn">
+                            📦 ${hasOngoing ? '✓ Ongoing' : 'Move to Ongoing'}
+                        </div>
+                        <div class="schedule-epoch-toggle ${hasFuture ? 'schedule-epoch-active' : ''}" data-epoch="future" id="schedule-epoch-future-btn">
+                            🔮 ${hasFuture ? '✓ Future' : 'Move to Future'}
                         </div>
                     </div></div>
                 </details>
@@ -11427,8 +11831,9 @@ function openScheduleModal(itemIdOrIds, itemName) {
             });
         });
 
-        // Someday toggle
-        modal.querySelector('#schedule-someday-btn')?.addEventListener('click', toggleSomeday);
+        // Epoch toggles (ongoing + future only — past is auto)
+        modal.querySelector('#schedule-epoch-ongoing-btn')?.addEventListener('click', () => toggleEpoch('ongoing'));
+        modal.querySelector('#schedule-epoch-future-btn')?.addEventListener('click', () => toggleEpoch('future'));
 
         // Week toggle
         modal.querySelector('#schedule-week-btn')?.addEventListener('click', toggleWeek);
@@ -12482,50 +12887,95 @@ document.addEventListener('DOMContentLoaded', () => {
     setupWeekArrowDnD('week-nav-next', 1);
 
     // ── Horizon layer click + DnD handlers ──
-    // Someday layer: click to navigate, drag to send items to someday
-    const somedayLayer = document.getElementById('horizon-someday-layer');
-    somedayLayer.addEventListener('click', () => {
+    // Epoch layer: arrow-based navigation between Past/Ongoing/Future
+    const epochLayer = document.getElementById('horizon-epoch-layer');
+    const epochOrder = EPOCH_CONTEXTS; // ['past', 'ongoing', 'future']
+
+    function cycleEpoch(dir) {
+        const idx = epochOrder.indexOf(state.epochFilter);
+        const next = idx + dir;
+        if (next < 0 || next >= epochOrder.length) return;
+        state.epochFilter = epochOrder[next];
+        savePref('epochFilter', state.epochFilter);
+        // Sync timelineViewDate into the new epoch's range
+        const { startWeek, endWeek } = getEpochWeekRange(state.epochFilter);
+        const currentWk = getWeekKey(state.timelineViewDate);
+        const needsSync = (startWeek && currentWk < startWeek) || (endWeek && currentWk > endWeek);
+        if (needsSync) {
+            // Snap to the boundary closest to where we came from
+            const targetWk = dir > 0 ? (startWeek || endWeek) : (endWeek || startWeek);
+            if (targetWk) {
+                const range = getWeekDateRange(targetWk);
+                if (range) state.timelineViewDate = range.start;
+            }
+        }
+        // If not already at epoch level, switch to it
+        if (state.viewHorizon !== 'epoch') {
+            clearFocusStack();
+            state.viewHorizon = 'epoch';
+            savePref('viewHorizon', 'epoch');
+        }
+        savePref('timelineViewDate', state.timelineViewDate.toISOString());
+        renderAll();
+    }
+
+    document.getElementById('epoch-nav-prev').addEventListener('click', (e) => {
+        e.stopPropagation();
+        cycleEpoch(-1);
+    });
+    document.getElementById('epoch-nav-next').addEventListener('click', (e) => {
+        e.stopPropagation();
+        cycleEpoch(1);
+    });
+
+    // Click the epoch display to navigate to epoch view (when dim)
+    epochLayer.addEventListener('click', (e) => {
+        if (e.target.closest('.epoch-nav-btn')) return;
+        if (state.viewHorizon === 'epoch') return;
         clearFocusStack();
-        state.viewHorizon = 'someday';
-        savePref('viewHorizon', 'someday');
+        state.viewHorizon = 'epoch';
+        savePref('viewHorizon', 'epoch');
         renderAll();
     });
-    somedayLayer.addEventListener('dragover', (e) => {
+
+    // DnD on the epoch layer — sends to whatever epoch is currently displayed
+    // (blocked when showing Past since you can't schedule to Past)
+    epochLayer.addEventListener('dragover', (e) => {
+        if (state.epochFilter === 'past') return; // can't drop on past
         if (!window._draggedAction && !e.dataTransfer.types.includes('application/x-segment-item-id')) return;
         e.preventDefault();
         e.dataTransfer.dropEffect = 'move';
-        somedayLayer.classList.add('horizon-layer-drag-over');
+        epochLayer.classList.add('horizon-layer-drag-over');
     });
-    somedayLayer.addEventListener('dragleave', () => {
-        somedayLayer.classList.remove('horizon-layer-drag-over');
+    epochLayer.addEventListener('dragleave', () => {
+        epochLayer.classList.remove('horizon-layer-drag-over');
     });
-    somedayLayer.addEventListener('drop', async (e) => {
+    epochLayer.addEventListener('drop', async (e) => {
         e.preventDefault();
-        somedayLayer.classList.remove('horizon-layer-drag-over');
+        epochLayer.classList.remove('horizon-layer-drag-over');
+        const targetEpoch = state.epochFilter;
+        if (targetEpoch === 'past') return;
         // Segment queue item (intention) drag
         if (e.dataTransfer.types.includes('application/x-segment-item-id')) {
             const itemId = e.dataTransfer.getData('application/x-segment-item-id');
             const segCtx = e.dataTransfer.getData('application/x-segment-context');
             if (!itemId) return;
-            // Capture segment duration before removing, then migrate to someday
             let segDur;
             if (segCtx) {
                 const item = findItemById(Number(itemId));
                 if (item) {
                     segDur = item.contextDurations?.[segCtx];
-                    if (item.timeContexts) {
-                        item.timeContexts = item.timeContexts.filter(tc => tc !== segCtx);
-                    }
+                    if (item.timeContexts) item.timeContexts = item.timeContexts.filter(tc => tc !== segCtx);
                     if (item.contextDurations) delete item.contextDurations[segCtx];
                 }
             }
-            await sendToSomeday(parseInt(itemId, 10), segDur);
+            await sendToEpoch(parseInt(itemId, 10), targetEpoch, segDur);
             return;
         }
         // Regular action/project drag
         const actionId = e.dataTransfer.getData('application/x-action-id');
         if (!actionId) return;
-        await sendToSomeday(parseInt(actionId, 10));
+        await sendToEpoch(parseInt(actionId, 10), targetEpoch);
     });
 
     // Week layer: click to navigate to week view, drag to degrade to week scope
@@ -12620,10 +13070,10 @@ document.addEventListener('DOMContentLoaded', () => {
         await sendToWeek(parseInt(actionId, 10), weekKey);
     });
 
-    // Day layer: click to navigate back to day, drag to promote from someday
+    // Day layer: click to navigate back to day, drag to promote from ongoing
     const dayLayer = document.getElementById('horizon-day-layer');
     dayLayer.addEventListener('click', (e) => {
-        // Navigate: from session → back to day, or from someday/week → day
+        // Navigate: from session → back to day, or from ongoing/week → day
         if (e.target.closest('.date-nav-btn')) return;
         // Only ignore date-display clicks when already in day view
         if (state.viewHorizon === 'day' && e.target.closest('.date-nav-display')) return;
@@ -12671,14 +13121,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
             const dateKey = getDateKey(state.timelineViewDate);
-            await promoteFromSomeday(parseInt(itemId, 10), dateKey, segDur);
+            await promoteFromOngoing(parseInt(itemId, 10), dateKey, segDur);
             return;
         }
         // Regular action/project drag
         const actionId = e.dataTransfer.getData('application/x-action-id');
         if (!actionId) return;
         const dateKey = getDateKey(state.timelineViewDate);
-        await promoteFromSomeday(parseInt(actionId, 10), dateKey);
+        await promoteFromOngoing(parseInt(actionId, 10), dateKey);
     });
 
     // ── Session layer: click to enter session horizon, prev/next to navigate, DnD to schedule ──
