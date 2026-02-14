@@ -4,13 +4,19 @@
   "showUnscheduled": true,
   "panels": {
     "left": 395,
-    "right": 394
+    "right": 435
   },
   "hidePastEntries": true,
-  "workingOn": null,
-  "selectedItemId": "",
+  "workingOn": {
+    "itemId": 349,
+    "itemName": "month horizon",
+    "projectName": "anything › core",
+    "startTime": 1771078879533,
+    "targetEndTime": 1771082479527
+  },
+  "selectedItemId": 9,
   "onBreak": null,
-  "timelineViewDate": "2026-02-14T12:51:07.293Z",
+  "timelineViewDate": "2026-02-14T14:59:37.417Z",
   "scheduleFilter": "scheduled+unscheduled",
   "collapsedGroups": [
     86,
@@ -36,9 +42,10 @@
     28,
     137,
     167,
-    303
+    303,
+    248
   ],
-  "viewHorizon": "session",
+  "viewHorizon": "day",
   "weekCollapsedDays": {
     "2026-02-08": true,
     "2026-02-09": true,
@@ -73,15 +80,16 @@
   },
   "focusStack": [
     {
-      "startMs": 1771063200000,
-      "endMs": 1771108200000,
-      "label": "Free Time",
-      "type": "free",
-      "icon": "✨",
-      "tier": "session",
-      "segmentKey": "2026-02-14@12:00-00:30",
-      "entryId": null,
-      "itemId": null
+      "startMs": 1771078879533,
+      "endMs": 1771082479527,
+      "label": "month horizon",
+      "type": "working",
+      "icon": "🔥",
+      "projectName": "anything › core",
+      "itemId": 349,
+      "targetEndTime": 1771082479527,
+      "liveType": "work",
+      "tier": "session"
     }
   ],
   "projectTreeScrollTop": 0,

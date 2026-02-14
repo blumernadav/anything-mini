@@ -2988,7 +2988,71 @@
       "id": 373,
       "timestamp": 1771073320254,
       "manual": true
+    },
+    {
+      "text": "Worked on: anything (1m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1771073468301,
+      "endTime": 1771073578512,
+      "itemId": 9,
+      "id": 374,
+      "timestamp": 1771073468301,
+      "manual": true
+    },
+    {
+      "text": "Done: לסדר טיפה את הבית",
+      "projectName": "בית",
+      "type": "completion",
+      "id": 375,
+      "timestamp": 1771073629922
+    },
+    {
+      "text": "Worked on: anything (34m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1771073610894,
+      "endTime": 1771075696608,
+      "itemId": 9,
+      "id": 376,
+      "timestamp": 1771073610894,
+      "manual": true
+    },
+    {
+      "text": "Worked on: anything (3m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1771075847329,
+      "endTime": 1771076032115,
+      "itemId": 9,
+      "id": 377,
+      "timestamp": 1771075847329,
+      "manual": true
+    },
+    {
+      "text": "Worked on: month horizon (4m)",
+      "projectName": "anything › core",
+      "type": "work",
+      "startTime": 1771076742742,
+      "endTime": 1771077013938,
+      "targetEndTime": 1771080342742,
+      "itemId": 349,
+      "id": 378,
+      "timestamp": 1771076742742,
+      "manual": true
+    },
+    {
+      "text": "Worked on: month horizon (0m)",
+      "projectName": "anything › core",
+      "type": "work",
+      "startTime": 1771078839663,
+      "endTime": 1771078849143,
+      "targetEndTime": 1771082439653,
+      "itemId": 349,
+      "id": 379,
+      "timestamp": 1771078839663,
+      "manual": true
     }
   ],
-  "nextId": 374
+  "nextId": 380
 }

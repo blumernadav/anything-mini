@@ -5758,11 +5758,17 @@ select.schedule-leadtime-input {
 
 /* ── Plan Editor ── */
 .plan-editor {
+    position: relative;
+    z-index: 5;
     border: 1px dashed var(--pencil-ghost);
     border-left: 2px solid var(--blue-pen);
     background: rgba(43, 87, 154, 0.03);
     align-items: flex-start;
     gap: 8px;
+}
+
+.plan-editor:hover {
+    transform: none;
 }
 
 .plan-editor-content {

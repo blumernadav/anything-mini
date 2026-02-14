@@ -5219,12 +5219,18 @@ select.schedule-leadtime-input {
 
 /* ── Plan Editor ── */
 .plan-editor {
+    position: relative;
+    z-index: 5;
     border: 2px solid;
     border-color: var(--w-white) var(--w-darker) var(--w-darker) var(--w-white);
     border-left: 3px solid #0066cc;
     background: #f0f4ff;
     align-items: flex-start;
     gap: 6px;
+}
+
+.plan-editor:hover {
+    transform: none;
 }
 
 .plan-editor-content {

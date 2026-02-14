@@ -17,7 +17,7 @@ const state = {
     pastCardStyle: 'compact', // 'compact' | 'full' — card style for past entries (configured in Settings)
     showDone: false, // when true, done items are visible in actions and project tree
     scheduleFilter: 'scheduled+unscheduled', // 'scheduled' | 'scheduled+unscheduled' | 'all'
-    viewHorizon: 'day', // 'day' | 'week' | 'epoch' | 'session' — horizon level for timeline navigation
+    viewHorizon: 'day', // 'day' | 'month' | 'week' | 'epoch' | 'session' — horizon level for timeline navigation
     epochFilter: 'ongoing', // 'past' | 'ongoing' | 'future' — which sub-epoch is active at epoch horizon
     ongoingPastWeeks: 1, // how many weeks back from current week Ongoing extends
     ongoingFutureWeeks: 4, // how many weeks forward from current week Ongoing extends
@@ -143,7 +143,7 @@ async function loadAll() {
     state.showDone = prefs.showDone === true;
     const validFilters = ['scheduled', 'scheduled+unscheduled', 'all'];
     state.scheduleFilter = validFilters.includes(prefs.scheduleFilter) ? prefs.scheduleFilter : 'scheduled+unscheduled';
-    const validHorizons = ['day', 'week', 'epoch', 'session'];
+    const validHorizons = ['day', 'month', 'week', 'epoch', 'session'];
     state.viewHorizon = validHorizons.includes(prefs.viewHorizon) ? prefs.viewHorizon : 'day';
     const validEpochs = ['past', 'ongoing', 'future'];
     state.epochFilter = validEpochs.includes(prefs.epochFilter) ? prefs.epochFilter : 'ongoing';
@@ -748,7 +748,90 @@ function hasActiveGoal(action) {
 
 // Epoch-level contexts — coarser-than-day temporal horizons
 const EPOCH_CONTEXTS = ['past', 'ongoing', 'future'];
-function isEpochContext(ctx) { return EPOCH_CONTEXTS.includes(ctx) || isWeekContext(ctx); }
+function isEpochContext(ctx) { return EPOCH_CONTEXTS.includes(ctx) || isMonthContext(ctx) || isWeekContext(ctx); }
+
+// Month-level context: "month:2026-02"
+function isMonthContext(ctx) { return typeof ctx === 'string' && /^month:\d{4}-\d{2}$/.test(ctx); }
+
+// Get month key from a Date: "month:2026-02"
+function getMonthKey(date) {
+    return `month:${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+}
+
+// Get logical month date range — snaps to complete weeks using weekStartDay.
+// A week belongs to the month where 4+ of its days fall.
+function getMonthDateRange(monthKey) {
+    const m = monthKey.match(/^month:(\d{4})-(\d{2})$/);
+    if (!m) return null;
+    const year = parseInt(m[1], 10);
+    const month = parseInt(m[2], 10) - 1; // 0-indexed
+    const calStart = new Date(year, month, 1);
+    const calEnd = new Date(year, month + 1, 0); // last day of month
+
+    const wsd = state.settings.weekStartDay ?? 0; // 0=Sun default
+
+    // Snap start: roll back calStart to the nearest weekStartDay
+    const startDiff = (calStart.getDay() - wsd + 7) % 7;
+    const logicalStart = new Date(calStart);
+    logicalStart.setDate(calStart.getDate() - startDiff);
+    // But only include this week if 4+ days fall in the calendar month
+    const daysInMonth = startDiff > 0 ? 7 - startDiff : 7;
+    if (daysInMonth < 4 && startDiff > 0) {
+        // This partial first week belongs to prev month — start at next week
+        logicalStart.setDate(logicalStart.getDate() + 7);
+    }
+
+    // Snap end: roll forward calEnd to complete the week
+    const endDiff = (wsd + 6 - calEnd.getDay() + 7) % 7;
+    const logicalEnd = new Date(calEnd);
+    logicalEnd.setDate(calEnd.getDate() + endDiff);
+    // But only include this week if 4+ days fall in the calendar month
+    const daysInMonthEnd = endDiff > 0 ? 7 - endDiff : 7;
+    if (daysInMonthEnd < 4 && endDiff > 0) {
+        // This partial last week belongs to next month — end at prev week
+        logicalEnd.setDate(logicalEnd.getDate() - 7);
+    }
+
+    return { start: logicalStart, end: logicalEnd };
+}
+
+// Check if a week key falls within a month's logical range
+function isWeekInMonth(weekKey, monthKey) {
+    const monthRange = getMonthDateRange(monthKey);
+    const weekRange = getWeekDateRange(weekKey);
+    if (!monthRange || !weekRange) return false;
+    const weekStartKey = getDateKey(weekRange.start);
+    const monthStartKey = getDateKey(monthRange.start);
+    const monthEndKey = getDateKey(monthRange.end);
+    return weekStartKey >= monthStartKey && weekStartKey <= monthEndKey;
+}
+
+// Check if an item belongs to a given month
+// (has explicit month context OR a week context within that month)
+function isItemInMonth(item, monthKey) {
+    if (!item) return false;
+    const tcs = item.timeContexts || [];
+    if (tcs.includes(monthKey)) return true;
+    // Check if any week context falls within this month
+    for (const tc of tcs) {
+        if (isWeekContext(tc) && isWeekInMonth(tc, monthKey)) return true;
+    }
+    return false;
+}
+
+// Send an item to a month backlog — strips other temporal contexts, adds month context.
+async function sendToMonth(itemId, monthKey, sourceDuration) {
+    itemId = Number(itemId);
+    const item = findItemById(itemId);
+    if (!item) return;
+    item.timeContexts = [monthKey];
+    if (!item.contextDurations) item.contextDurations = {};
+    const dur = sourceDuration != null ? sourceDuration : (item.contextDurations[Object.keys(item.contextDurations)[0]] ?? undefined);
+    item.contextDurations = {};
+    if (dur != null) item.contextDurations[monthKey] = dur;
+    await api.patch(`/items/${itemId}`, { timeContexts: item.timeContexts, contextDurations: item.contextDurations });
+    renderAll();
+}
 
 // Week-level context: "week:2026-W07"
 function isWeekContext(ctx) { return typeof ctx === 'string' && /^week:\d{4}-(?:W\d{2}|\d{2}-\d{2})$/.test(ctx); }
@@ -860,6 +943,7 @@ function isItemInWeek(item, weekKey) {
 function parseTimeContext(ctx) {
     if (!ctx || typeof ctx !== 'string') return null;
     if (EPOCH_CONTEXTS.includes(ctx)) return { epoch: ctx };
+    if (isMonthContext(ctx)) return { month: ctx.substring(6) }; // strip "month:" prefix
     if (isWeekContext(ctx)) return { week: ctx.substring(5) }; // strip "week:" prefix
     const atIdx = ctx.indexOf('@');
     if (atIdx === -1) return { date: ctx };
@@ -1324,6 +1408,14 @@ async function resolveDivergenceAcceptUnplanned(workEntryId) {
     renderAll();
 }
 
+// Reject unplanned work — delete the log entry (nothing was planned, dismiss it)
+async function resolveDivergenceRejectUnplanned(workEntryId) {
+    await api.delete(`/timeline/${workEntryId}`);
+
+    state.timeline = await api.get('/timeline');
+    renderAll();
+}
+
 // Accept Plan for idle segment — create retroactive manual work entry for the gap
 async function _resolveSegmentAcceptPlan_Idle(planEntry, seg) {
     const planName = planEntry.text || 'Planned session';
@@ -1751,10 +1843,10 @@ function _createUnplannedWorkPrompt(divergence) {
     const planBtn = document.createElement('button');
     planBtn.className = 'divergence-btn divergence-btn-plan';
     planBtn.textContent = 'Plan';
-    planBtn.title = 'Accept plan — nothing was planned, dismiss this';
+    planBtn.title = 'Accept plan — nothing was planned, delete this log';
     planBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        resolveDivergenceAcceptUnplanned(workEntry.id);
+        resolveDivergenceRejectUnplanned(workEntry.id);
     });
 
     // Log = accept log (acknowledge the unplanned work)
@@ -1861,10 +1953,10 @@ function createDivergenceBanner(divergences) {
             const planBtn = document.createElement('button');
             planBtn.className = 'divergence-btn divergence-btn-plan divergence-btn-compact';
             planBtn.textContent = 'Plan';
-            planBtn.title = 'Accept plan — nothing was planned, dismiss';
+            planBtn.title = 'Accept plan — nothing was planned, delete this log';
             planBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
-                resolveDivergenceAcceptUnplanned(div.workEntry.id);
+                resolveDivergenceRejectUnplanned(div.workEntry.id);
             });
 
             const logBtn = document.createElement('button');
@@ -2228,6 +2320,7 @@ function getCurrentTimeContexts() {
         return ctx;
     }
     if (state.viewHorizon === 'epoch') return [state.epochFilter];
+    if (state.viewHorizon === 'month') return [getMonthKey(state.timelineViewDate)];
     if (state.viewHorizon === 'week') return [getWeekKey(state.timelineViewDate)];
     return [getDateKey(state.timelineViewDate)];
 }
@@ -2240,6 +2333,7 @@ function getCurrentViewContext() {
     if (focused && focused.liveType) return `${getDateKey(state.timelineViewDate)}@${focused.liveType}`;
     if (focused && focused.entryId) return `${getDateKey(state.timelineViewDate)}@entry:${focused.entryId}`;
     if (state.viewHorizon === 'epoch') return state.epochFilter;
+    if (state.viewHorizon === 'month') return getMonthKey(state.timelineViewDate);
     if (state.viewHorizon === 'week') return getWeekKey(state.timelineViewDate);
     return getDateKey(state.timelineViewDate);
 }
@@ -3379,6 +3473,9 @@ function collectTimeContextMatches(items, dateKey, visibleIds) {
         if (state.viewHorizon === 'epoch') {
             // In epoch horizon, show items with the active epoch context (self or ancestor)
             selfMatch = isItemInEpoch(item, state.epochFilter);
+        } else if (state.viewHorizon === 'month') {
+            const monthKey = getMonthKey(state.timelineViewDate);
+            selfMatch = isItemInMonth(item, monthKey);
         } else if (state.viewHorizon === 'week') {
             const weekKey = getWeekKey(state.timelineViewDate);
             selfMatch = isItemInWeek(item, weekKey);
@@ -3578,7 +3675,8 @@ function handleDrop() {
 
 function renderProjectLevel(items, parent, depth, query = '', matchingIds = new Set()) {
     const isSearching = !!query;
-    let isFirstRenderedAtLevel = true; // tracks whether 'before' zone is needed
+    let isFirstRenderedAtLevel = true;
+    let prevHasVisibleChildren = false; // tracks whether prev sibling had expanded children
     for (let idx = 0; idx < items.length; idx++) {
         const item = items[idx];
         const leaf = isLeaf(item);
@@ -3591,9 +3689,13 @@ function renderProjectLevel(items, parent, depth, query = '', matchingIds = new 
         if (isSearching && !matchingIds.has(item.id)) continue;
 
 
-        // Capture whether this is the first rendered non-Inbox item (for drag zones)
-        const isFirstAtLevel = isFirstRenderedAtLevel && !isInbox;
+        // 'before' zone is needed when this is the first item, or when the previous
+        // sibling has visible children (so 'after prev' would appear inside its subtree)
+        const needsBeforeZone = !isInbox && (isFirstRenderedAtLevel || prevHasVisibleChildren);
         if (!isInbox) isFirstRenderedAtLevel = false;
+        const _hasKids = item.children && item.children.length > 0;
+        const willShowChildren = isSearching ? _hasKids : item.expanded && _hasKids;
+        prevHasVisibleChildren = willShowChildren;
 
         // ─── Insert marker BEFORE this item (skip before Inbox) ───
         if (!isInbox) {
@@ -3672,7 +3774,7 @@ function renderProjectLevel(items, parent, depth, query = '', matchingIds = new 
 
                 // First item at this level gets a 'before' zone; subsequent items only get 'inside' + 'after'
                 // (prevents duplicate indicators — 'after A' already covers the gap between A and B)
-                const allowBefore = isFirstAtLevel && !isInbox;
+                const allowBefore = needsBeforeZone;
                 if (allowBefore && zone < 0.25) {
                     // Drop before (first item only)
                     const indicator = document.createElement('div');
@@ -4329,6 +4431,10 @@ function getFilteredActions() {
     if (state.viewHorizon === 'epoch') {
         // Show only items in the active epoch
         allLeaves = allLeaves.filter(a => isItemInEpoch(a, state.epochFilter));
+    } else if (state.viewHorizon === 'month') {
+        // Show only items with the current month context
+        const monthKey = getMonthKey(state.timelineViewDate);
+        allLeaves = allLeaves.filter(a => isItemInMonth(a, monthKey));
     } else if (state.viewHorizon === 'week') {
         // Show only items with the current week context (no specific day)
         const weekKey = getWeekKey(state.timelineViewDate);
@@ -5329,6 +5435,8 @@ function setupActionInput() {
             { label: 'future', aliases: ['future', 'someday2'], description: 'Aspirations', contexts: ['future'] },
             { label: 'this week', aliases: ['week', 'thisweek'], description: 'Current week', contexts: [getWeekKey(today)] },
             { label: 'next week', aliases: ['nextweek'], description: 'Next week', contexts: [getWeekKey(_addDays(7))] },
+            { label: 'this month', aliases: ['month', 'thismonth'], description: 'Current month', contexts: [getMonthKey(today)] },
+            { label: 'next month', aliases: ['nextmonth'], description: 'Next month', contexts: [getMonthKey(new Date(today.getFullYear(), today.getMonth() + 1, 1))] },
         ];
 
         // Day names
@@ -5724,21 +5832,22 @@ function _updateWeekNavLabel() {
 
 function renderHorizonTower() {
     const epochLayer = document.getElementById('horizon-epoch-layer');
+    const monthLayer = document.getElementById('horizon-month-layer');
     const weekLayer = document.getElementById('horizon-week-layer');
     const dayLayer = document.getElementById('horizon-day-layer');
     const sessionLayer = document.getElementById('horizon-session-layer');
-    if (!epochLayer || !weekLayer || !dayLayer) return;
+    if (!epochLayer || !monthLayer || !weekLayer || !dayLayer) return;
 
     const currentLevel = state.viewHorizon;
 
     // ── Visibility: show max 3 layers around the active one ──
     // Bottom → 2 above; Top → 2 below; Middle → 1 above + 1 below
-    const _layers = ['epoch', 'week', 'day', 'session'];
+    const _layers = ['epoch', 'month', 'week', 'day', 'session'];
     const _activeIdx = Math.max(0, _layers.indexOf(currentLevel));
     const _minVis = Math.max(0, Math.min(_activeIdx - 1, _layers.length - 3));
     const _maxVis = _minVis + 2;
     // Skip hiding layers that are mid-drag-animation
-    const _allLayers = [epochLayer, weekLayer, dayLayer, sessionLayer].filter(Boolean);
+    const _allLayers = [epochLayer, monthLayer, weekLayer, dayLayer, sessionLayer].filter(Boolean);
     _allLayers.forEach((layer, i) => {
         const isDragAnimating = layer.classList.contains('horizon-drag-reveal') || layer.classList.contains('horizon-drag-hide');
         if (!isDragAnimating) {
@@ -5773,6 +5882,33 @@ function renderHorizonTower() {
         nextBtn.style.display = epochActive ? '' : 'none';
         nextBtn.disabled = epochIdx >= EPOCH_CONTEXTS.length - 1;
         nextBtn.style.opacity = epochIdx >= EPOCH_CONTEXTS.length - 1 ? '0.25' : '';
+    }
+
+    // Month layer: active when viewHorizon is month, dim otherwise
+    monthLayer.classList.toggle('horizon-layer-active', currentLevel === 'month');
+    monthLayer.classList.toggle('horizon-layer-dim', currentLevel !== 'month');
+    // Show/hide month nav buttons based on active state
+    const monthActive = currentLevel === 'month';
+    monthLayer.querySelectorAll('.month-nav-btn').forEach(btn => {
+        btn.style.display = monthActive ? '' : 'none';
+    });
+    // Update month label
+    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    const monthLabel = document.getElementById('month-nav-label');
+    if (monthLabel) {
+        const viewDate = state.timelineViewDate;
+        monthLabel.textContent = `${monthNames[viewDate.getMonth()]} ${viewDate.getFullYear()}`;
+    }
+    // Show "This Month" button when not viewing current month
+    const monthThisBtn = document.getElementById('month-nav-this-btn');
+    if (monthThisBtn) {
+        if (!monthActive) {
+            monthThisBtn.style.display = 'none';
+        } else {
+            const now = getLogicalToday();
+            const isCurrent = now.getMonth() === state.timelineViewDate.getMonth() && now.getFullYear() === state.timelineViewDate.getFullYear();
+            monthThisBtn.style.display = isCurrent ? 'none' : '';
+        }
     }
 
     // Week layer: active when viewHorizon is week, dim otherwise
@@ -5856,6 +5992,7 @@ function _showAllHorizonLayers() {
 
     const layers = [
         document.getElementById('horizon-epoch-layer'),
+        document.getElementById('horizon-month-layer'),
         document.getElementById('horizon-week-layer'),
         document.getElementById('horizon-day-layer'),
         document.getElementById('horizon-session-layer'),
@@ -5881,6 +6018,7 @@ function _restoreHorizonLayers() {
 
     const layers = [
         document.getElementById('horizon-epoch-layer'),
+        document.getElementById('horizon-month-layer'),
         document.getElementById('horizon-week-layer'),
         document.getElementById('horizon-day-layer'),
         document.getElementById('horizon-session-layer'),
@@ -5888,7 +6026,7 @@ function _restoreHorizonLayers() {
 
     // Determine which layers should be hidden per normal 3-layer window
     const currentLevel = state.viewHorizon;
-    const _layerKeys = ['epoch', 'week', 'day', 'session'];
+    const _layerKeys = ['epoch', 'month', 'week', 'day', 'session'];
     const _activeIdx = Math.max(0, _layerKeys.indexOf(currentLevel));
     const _minVis = Math.max(0, Math.min(_activeIdx - 1, _layerKeys.length - 3));
     const _maxVis = _minVis + 2;
@@ -7499,7 +7637,16 @@ function renderTimeline() {
     const quickLog = document.querySelector('.quick-log');
 
     // Clear all rendered blocks (including breadcrumb)
-    container.querySelectorAll('.time-block, .timeline-entry, .epoch-placeholder, .epoch-week-overview, .week-view, .session-panel, .week-sleep-divider, .divergence-prompt, .divergence-banner, .compact-past-entry, .compact-project-wrapper').forEach(el => el.remove());
+    container.querySelectorAll('.time-block, .timeline-entry, .epoch-placeholder, .epoch-week-overview, .month-view, .week-view, .session-panel, .week-sleep-divider, .divergence-prompt, .divergence-banner, .compact-past-entry, .compact-project-wrapper').forEach(el => el.remove());
+
+    // ── Month horizon: show month view with week cards + day pips ──
+    if (state.viewHorizon === 'month') {
+        empty.style.display = 'none';
+        if (quickLog) quickLog.style.display = 'none';
+        container.querySelectorAll('.month-view').forEach(el => el.remove());
+        renderMonthView(container);
+        return;
+    }
 
     // ── Epoch horizon: show week overview for the epoch's range ──
     if (state.viewHorizon === 'epoch') {
@@ -14416,6 +14563,7 @@ document.addEventListener('DOMContentLoaded', () => {
         state.scheduleFilter = cycle[(idx + 1) % cycle.length];
         savePref('scheduleFilter', state.scheduleFilter);
         syncScheduleFilterBtn(showUnschedBtn);
+        state._animateActions = true;
         renderAll();
     });
 
@@ -14450,6 +14598,7 @@ document.addEventListener('DOMContentLoaded', () => {
             state.timelineViewDate = new Date(parts[0], parts[1] - 1, parts[2]);
             clearFocusStack();
             savePref('timelineViewDate', state.timelineViewDate.toISOString());
+            state._animateActions = true;
             renderAll();
         }
     });
@@ -14458,6 +14607,7 @@ document.addEventListener('DOMContentLoaded', () => {
         state.timelineViewDate = getLogicalToday();
         clearFocusStack();
         savePref('timelineViewDate', state.timelineViewDate.toISOString());
+        state._animateActions = true;
         renderAll();
     });
 
@@ -14704,6 +14854,7 @@ document.addEventListener('DOMContentLoaded', () => {
         clearFocusStack();
         savePref('timelineViewDate', state.timelineViewDate.toISOString());
         _updateWeekNavLabel();
+        state._animateActions = true;
         renderAll();
     });
     weekLayer.addEventListener('dragover', (e) => {

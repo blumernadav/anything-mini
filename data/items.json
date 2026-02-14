@@ -120,31 +120,30 @@
           "contextDurations": {}
         },
         {
-          "id": 213,
-          "name": "לסדר את הבית",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770729434541,
-          "done": false,
-          "timeContexts": [
-            "ongoing"
-          ],
-          "contextDurations": {
-            "2026-02-10@15:21-18:00": 60,
-            "2026-02-10@15:24-18:00": 60
-          }
-        },
-        {
           "id": 234,
           "name": "להתקלח",
-          "children": [],
-          "expanded": false,
+          "children": [
+            {
+              "id": 213,
+              "name": "לסדר את הבית",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770729434541,
+              "done": false,
+              "timeContexts": [
+                "ongoing"
+              ],
+              "contextDurations": {
+                "2026-02-10@15:21-18:00": 60,
+                "2026-02-10@15:24-18:00": 60
+              }
+            }
+          ],
+          "expanded": true,
           "createdAt": 1770736677309,
           "done": false,
           "timeContexts": [
-            "ongoing",
-            "2026-02-14",
-            "2026-02-14@12:00-00:30"
+            "2026-02-14"
           ],
           "contextDurations": {
             "2026-02-12": 15
@@ -156,7 +155,7 @@
           "children": [],
           "expanded": false,
           "createdAt": 1770812039041,
-          "done": false,
+          "done": true,
           "timeContexts": [
             "2026-02-14",
             "2026-02-14@12:00-00:30"
@@ -169,14 +168,14 @@
           "id": 272,
           "name": "להתקין את הסודה סטרים",
           "children": [],
-          "expanded": false,
+          "expanded": true,
           "createdAt": 1770808515559,
           "done": false,
           "timeContexts": [
-            "2026-02-14@14:09-00:30"
+            "2026-02-14"
           ],
           "contextDurations": {
-            "2026-02-14@14:09-00:30": 30
+            "2026-02-14": 30
           }
         },
         {
@@ -434,6 +433,38 @@
       "id": 9,
       "name": "anything",
       "children": [
+        {
+          "id": 442,
+          "name": "sometimes we DO want to see everything under a time range with banners and not only explicit",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771080528439,
+          "done": false
+        },
+        {
+          "id": 441,
+          "name": "edit/remove past logs",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771076084973,
+          "done": false,
+          "timeContexts": [
+            "week:2026-02-08"
+          ],
+          "contextDurations": {}
+        },
+        {
+          "id": 440,
+          "name": "upon hover show in past logs free time / idle and be able to fill it automatically",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771076074101,
+          "done": false,
+          "timeContexts": [
+            "week:2026-02-08"
+          ],
+          "contextDurations": {}
+        },
         {
           "id": 432,
           "name": "top bar time context overlap with live indicator",
@@ -762,8 +793,7 @@
               "createdAt": 1770913093639,
               "done": false,
               "timeContexts": [
-                "2026-02-14",
-                "2026-02-14@12:00-00:30"
+                "ongoing"
               ],
               "contextDurations": {}
             },
@@ -3390,6 +3420,20 @@
       "name": "health",
       "children": [
         {
+          "id": 439,
+          "name": "חייב לעשות ספורט כלשהו",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771076002684,
+          "done": false,
+          "timeContexts": [
+            "2026-02-15"
+          ],
+          "contextDurations": {
+            "2026-02-15": 60
+          }
+        },
+        {
           "id": 230,
           "name": "שיננית",
           "children": [],
@@ -3485,6 +3529,17 @@
           "name": "יומולדת לאבא",
           "children": [
             {
+              "id": 443,
+              "name": "להזמין טיסה (לאיזה תאריכים?)",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1771080551498,
+              "done": false,
+              "timeContexts": [
+                "week:2026-02-15"
+              ]
+            },
+            {
               "id": 422,
               "name": "מתנה?",
               "children": [],
@@ -3533,7 +3588,7 @@
               "contextDurations": {}
             }
           ],
-          "expanded": false,
+          "expanded": true,
           "createdAt": 1770922605406,
           "done": false,
           "timeContexts": [
@@ -3618,7 +3673,7 @@
           }
         }
       ],
-      "expanded": false,
+      "expanded": true,
       "createdAt": 1770812573309,
       "done": false,
       "timeContexts": [
@@ -4297,5 +4352,5 @@
       ]
     }
   ],
-  "nextId": 439
+  "nextId": 444
 }
