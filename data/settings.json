@@ -43,6 +43,12 @@
     "2026-02-14": {
       "dayStartHour": 12,
       "dayStartMinute": 0,
+      "dayEndHour": 1,
+      "dayEndMinute": 30
+    },
+    "2026-02-15": {
+      "dayStartHour": 8,
+      "dayStartMinute": 30,
       "dayEndHour": 0,
       "dayEndMinute": 30
     }

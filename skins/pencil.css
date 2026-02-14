@@ -3980,6 +3980,27 @@ select.schedule-leadtime-input {
     font-weight: 700;
 }
 
+/* ─── Drag-to-schedule: free time drop target (hover) ─── */
+.time-block-free.time-block-drag-over {
+    opacity: 1;
+    border-color: #5eab5e;
+    border-left-color: #5eab5e;
+    border-style: solid;
+    background: rgba(94, 171, 94, 0.12);
+    box-shadow: 2px 3px 8px rgba(94, 171, 94, 0.15);
+    animation: none;
+    transition: all 0.15s ease;
+}
+
+.time-block-free.time-block-drag-over .plan-next-btn {
+    opacity: 1;
+}
+
+.time-block-free.time-block-drag-over .time-block-label {
+    color: #5eab5e;
+    font-weight: 700;
+}
+
 @keyframes drop-ready-pulse-pencil {
 
     0%,

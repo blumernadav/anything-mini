@@ -3156,17 +3156,6 @@
       "manual": true
     },
     {
-      "text": "Worked on: עופר (0m)",
-      "projectName": null,
-      "type": "work",
-      "startTime": 1771091578496,
-      "endTime": 1771091609529,
-      "targetEndTime": 1771095178496,
-      "itemId": 145,
-      "id": 390,
-      "timestamp": 1771091578496
-    },
-    {
       "text": "Worked on: לשתף את הדרייב (13m)",
       "projectName": "משפחה",
       "type": "work",
@@ -3177,7 +3166,145 @@
       "id": 391,
       "timestamp": 1771091609536,
       "manual": true
+    },
+    {
+      "text": "Worked on: להתקלח (14m)",
+      "projectName": "בית",
+      "type": "work",
+      "startTime": 1771092606718,
+      "endTime": 1771093456093,
+      "targetEndTime": 1771093506712,
+      "itemId": 234,
+      "id": 392,
+      "timestamp": 1771092606718,
+      "manual": true
+    },
+    {
+      "text": "Worked on: להעביר ליונתן כסף חתונה (2m)",
+      "projectName": "חברים",
+      "type": "work",
+      "startTime": 1771093588661,
+      "endTime": 1771093726922,
+      "targetEndTime": 1771093708661,
+      "itemId": 465,
+      "id": 393,
+      "timestamp": 1771093588661,
+      "manual": true
+    },
+    {
+      "text": "Worked on: א. ערב (43m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1771093771082,
+      "endTime": 1771096404309,
+      "itemId": 157,
+      "id": 394,
+      "timestamp": 1771093771082,
+      "manual": true
+    },
+    {
+      "text": "Worked on: לשתף את הדרייב (56m)",
+      "projectName": "משפחה",
+      "type": "work",
+      "startTime": 1771096425425,
+      "endTime": 1771099804951,
+      "targetEndTime": 1771097325420,
+      "itemId": 385,
+      "id": 395,
+      "timestamp": 1771096425425,
+      "manual": true
+    },
+    {
+      "text": "Worked on: לבדוק מה עם שני (0m)",
+      "projectName": "חברים",
+      "type": "work",
+      "startTime": 1771099904929,
+      "endTime": 1771099916789,
+      "targetEndTime": 1771100204916,
+      "itemId": 464,
+      "id": 396,
+      "timestamp": 1771099904929,
+      "manual": true
+    },
+    {
+      "text": "Worked on: fix burn captions (34m)",
+      "projectName": "kolwrite",
+      "type": "work",
+      "startTime": 1771099979964,
+      "endTime": 1771102044292,
+      "targetEndTime": 1771101779957,
+      "itemId": 346,
+      "id": 397,
+      "timestamp": 1771099979964,
+      "manual": true
+    },
+    {
+      "text": "Worked on: deploy and restart (1m)",
+      "projectName": "kolwrite › fix burn captions",
+      "type": "work",
+      "startTime": 1771102188226,
+      "endTime": 1771102302145,
+      "itemId": 471,
+      "id": 398,
+      "timestamp": 1771102188226,
+      "manual": true
+    },
+    {
+      "text": "Done: להעביר ליונתן כסף חתונה",
+      "projectName": "חברים",
+      "type": "completion",
+      "id": 399,
+      "timestamp": 1771102816830
+    },
+    {
+      "text": "Worked on: real cancel for burn captions (9m)",
+      "projectName": "kolwrite",
+      "type": "work",
+      "startTime": 1771102302158,
+      "endTime": 1771102880042,
+      "targetEndTime": 1771102902144,
+      "itemId": 345,
+      "id": 400,
+      "timestamp": 1771102302158,
+      "manual": true
+    },
+    {
+      "text": "Worked on: לדגום את יובדו (1m)",
+      "projectName": "חברים",
+      "type": "work",
+      "startTime": 1771102880051,
+      "endTime": 1771102980441,
+      "targetEndTime": 1771103180042,
+      "itemId": 445,
+      "id": 401,
+      "timestamp": 1771102880051,
+      "manual": true
+    },
+    {
+      "text": "Break (10m)",
+      "type": "break",
+      "startTime": 1771103468137,
+      "endTime": 1771104094174,
+      "targetEndTime": 1771104068136,
+      "id": 403,
+      "timestamp": 1771103468137
+    },
+    {
+      "text": "Done: real cancel for burn captions",
+      "projectName": "kolwrite",
+      "type": "completion",
+      "id": 404,
+      "timestamp": 1771104178227
+    },
+    {
+      "text": "Break (8m)",
+      "type": "break",
+      "startTime": 1771104452230,
+      "endTime": 1771104945063,
+      "targetEndTime": 1771105352229,
+      "id": 405,
+      "timestamp": 1771104452230
     }
   ],
-  "nextId": 392
+  "nextId": 406
 }

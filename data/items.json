@@ -5,6 +5,17 @@
       "name": "Inbox",
       "children": [
         {
+          "id": 472,
+          "name": "לכתוב ליוסי על הדירה",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771102657815,
+          "done": false,
+          "timeContexts": [
+            "2026-02-15"
+          ]
+        },
+        {
           "id": 457,
           "name": "steer the future towards a better one as a self aware agent",
           "children": [],
@@ -173,11 +184,9 @@
           "createdAt": 1770736677309,
           "done": false,
           "timeContexts": [
-            "2026-02-14"
+            "ongoing"
           ],
-          "contextDurations": {
-            "2026-02-12": 15
-          }
+          "contextDurations": {}
         },
         {
           "id": 296,
@@ -202,10 +211,10 @@
           "createdAt": 1770808515559,
           "done": false,
           "timeContexts": [
-            "2026-02-14"
+            "2026-02-15@21:00-00:30"
           ],
           "contextDurations": {
-            "2026-02-14": 30
+            "2026-02-15@21:00-00:30": 30
           }
         },
         {
@@ -279,7 +288,7 @@
               }
             }
           ],
-          "expanded": false,
+          "expanded": true,
           "createdAt": 1770825297769,
           "done": false,
           "timeContexts": [
@@ -358,12 +367,8 @@
               "expanded": false,
               "createdAt": 1771067299908,
               "done": false,
-              "timeContexts": [
-                "2026-02-14"
-              ],
-              "contextDurations": {
-                "2026-02-14": 10
-              }
+              "timeContexts": [],
+              "contextDurations": {}
             }
           ],
           "expanded": false,
@@ -480,6 +485,36 @@
       "name": "עופר",
       "children": [
         {
+          "id": 467,
+          "name": "ש\"ב לעופר - סביב מה לתכנן את השיעור",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771092520191,
+          "done": false,
+          "timeContexts": [
+            "2026-02-14",
+            "2026-02-14@12:00-00:30"
+          ],
+          "contextDurations": {
+            "2026-02-14@12:00-00:30": 60
+          }
+        },
+        {
+          "id": 466,
+          "name": "לראות ש-azure GOAT עובד",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771092514309,
+          "done": false,
+          "timeContexts": [
+            "2026-02-14",
+            "2026-02-14@12:00-00:30"
+          ],
+          "contextDurations": {
+            "2026-02-14@12:00-00:30": 60
+          }
+        },
+        {
           "id": 146,
           "name": "דברים מגניבים למערך 14",
           "children": [],
@@ -492,7 +527,7 @@
           ]
         }
       ],
-      "expanded": false,
+      "expanded": true,
       "createdAt": 1770648790566,
       "done": false,
       "timeContexts": [
@@ -671,6 +706,30 @@
               "name": "live logging",
               "children": [
                 {
+                  "id": 468,
+                  "name": "live queue (for brilly style)",
+                  "children": [
+                    {
+                      "id": 469,
+                      "name": "can start from a \"start all\", or session/free session",
+                      "children": [],
+                      "expanded": false,
+                      "createdAt": 1771093546266,
+                      "done": false,
+                      "timeContexts": [
+                        "ongoing"
+                      ],
+                      "contextDurations": {}
+                    }
+                  ],
+                  "expanded": true,
+                  "createdAt": 1771093506896,
+                  "done": false,
+                  "timeContexts": [
+                    "ongoing"
+                  ]
+                },
+                {
                   "id": 418,
                   "name": "maybe live logging for good night",
                   "children": [],
@@ -734,7 +793,7 @@
                   }
                 }
               ],
-              "expanded": false,
+              "expanded": true,
               "createdAt": 1771026926358,
               "done": false,
               "timeContexts": [
@@ -824,10 +883,10 @@
                   "createdAt": 1771089270215,
                   "done": false,
                   "timeContexts": [
-                    "2026-02-14@19:26-00:30"
+                    "ongoing"
                   ],
                   "contextDurations": {
-                    "2026-02-14@19:26-00:30": 25
+                    "ongoing": 25
                   }
                 },
                 {
@@ -845,7 +904,7 @@
                   }
                 }
               ],
-              "expanded": false,
+              "expanded": true,
               "createdAt": 1771089143334,
               "done": false,
               "timeContexts": [
@@ -1483,7 +1542,7 @@
                   ]
                 }
               ],
-              "expanded": false,
+              "expanded": true,
               "createdAt": 1770805412771,
               "done": false,
               "timeContexts": [
@@ -3664,6 +3723,20 @@
       "name": "משפחה",
       "children": [
         {
+          "id": 470,
+          "name": "להמשיך לשתף אלבומים",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771100068649,
+          "done": false,
+          "timeContexts": [
+            "2026-02-15"
+          ],
+          "contextDurations": {
+            "2026-02-15": 60
+          }
+        },
+        {
           "id": 353,
           "name": "לדבר עם ההורים",
           "children": [],
@@ -3816,11 +3889,9 @@
           "createdAt": 1770971728857,
           "done": false,
           "timeContexts": [
-            "2026-02-14@19:07-00:30"
+            "ongoing"
           ],
-          "contextDurations": {
-            "2026-02-14@19:07-00:30": 15
-          }
+          "contextDurations": {}
         }
       ],
       "expanded": true,
@@ -3834,6 +3905,21 @@
       "id": 62,
       "name": "kolwrite",
       "children": [
+        {
+          "id": 473,
+          "name": "test burn captions fixes including cancel",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771104193941,
+          "done": false,
+          "timeContexts": [
+            "2026-02-14",
+            "2026-02-14@12:00-01:30"
+          ],
+          "contextDurations": {
+            "2026-02-14@12:00-01:30": 5
+          }
+        },
         {
           "id": 451,
           "name": "temporal infrastructure",
@@ -3870,16 +3956,30 @@
         {
           "id": 346,
           "name": "fix burn captions",
-          "children": [],
-          "expanded": false,
+          "children": [
+            {
+              "id": 471,
+              "name": "deploy and restart",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1771100462557,
+              "done": false,
+              "timeContexts": [
+                "2026-02-14",
+                "2026-02-14@12:00-00:30"
+              ],
+              "contextDurations": {
+                "2026-02-14@12:00-00:30": 5
+              }
+            }
+          ],
+          "expanded": true,
           "createdAt": 1770912310256,
           "done": false,
           "timeContexts": [
-            "2026-02-14@19:08-00:30"
+            "ongoing"
           ],
-          "contextDurations": {
-            "2026-02-14@19:08-00:30": 30
-          }
+          "contextDurations": {}
         },
         {
           "id": 345,
@@ -3887,7 +3987,7 @@
           "children": [],
           "expanded": false,
           "createdAt": 1770912286750,
-          "done": false,
+          "done": true,
           "timeContexts": [
             "2026-02-14"
           ],
@@ -4081,7 +4181,7 @@
           ]
         }
       ],
-      "expanded": false,
+      "expanded": true,
       "createdAt": 1770603206837,
       "done": false,
       "timeContexts": [
@@ -4146,7 +4246,7 @@
           "children": [],
           "expanded": false,
           "createdAt": 1771091337506,
-          "done": false,
+          "done": true,
           "timeContexts": [
             "2026-02-14@19:49-00:30"
           ],
@@ -4162,12 +4262,9 @@
           "createdAt": 1771090042198,
           "done": false,
           "timeContexts": [
-            "2026-02-14",
-            "2026-02-14@12:00-00:30"
+            "2026-02-15"
           ],
-          "contextDurations": {
-            "2026-02-14@12:00-00:30": 5
-          }
+          "contextDurations": {}
         },
         {
           "id": 445,
@@ -4177,10 +4274,10 @@
           "createdAt": 1771081449310,
           "done": false,
           "timeContexts": [
-            "2026-02-14"
+            "2026-02-15"
           ],
           "contextDurations": {
-            "2026-02-14": 5
+            "2026-02-15": 5
           }
         },
         {
@@ -4346,20 +4443,20 @@
           "createdAt": 1771090030916,
           "done": false,
           "timeContexts": [
-            "2026-02-14",
-            "2026-02-14@12:00-00:30"
+            "2026-02-15@08:00-13:00"
           ],
           "contextDurations": {
-            "2026-02-14@12:00-00:30": 5
+            "2026-02-15@08:00-13:00": 5
           }
         }
       ],
-      "expanded": false,
+      "expanded": true,
       "createdAt": 1770651242811,
       "done": false,
       "timeContexts": [
-        "2026-02-14"
-      ]
+        "ongoing"
+      ],
+      "contextDurations": {}
     },
     {
       "id": 157,
@@ -4432,8 +4529,9 @@
           "createdAt": 1771081501653,
           "done": false,
           "timeContexts": [
-            "2026-02-14"
-          ]
+            "ongoing"
+          ],
+          "contextDurations": {}
         }
       ],
       "expanded": false,
@@ -4455,10 +4553,10 @@
           "createdAt": 1770758160373,
           "done": false,
           "timeContexts": [
-            "2026-02-14"
+            "2026-02-15"
           ],
           "contextDurations": {
-            "2026-02-14": 20
+            "2026-02-15": 20
           }
         }
       ],
@@ -4546,10 +4644,10 @@
           "createdAt": 1770854980211,
           "done": false,
           "timeContexts": [
-            "2026-02-14"
+            "2026-02-15"
           ],
           "contextDurations": {
-            "2026-02-14": 10
+            "2026-02-15": 10
           }
         },
         {
@@ -4560,14 +4658,14 @@
           "createdAt": 1770847807010,
           "done": false,
           "timeContexts": [
-            "2026-02-14"
+            "2026-02-15@08:00-13:00"
           ],
           "contextDurations": {
-            "2026-02-14": 10
+            "2026-02-15@08:00-13:00": 10
           }
         }
       ],
-      "expanded": false,
+      "expanded": true,
       "createdAt": 1770847791956,
       "done": false,
       "timeContexts": [
@@ -4575,5 +4673,5 @@
       ]
     }
   ],
-  "nextId": 466
+  "nextId": 474
 }

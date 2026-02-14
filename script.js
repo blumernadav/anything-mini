@@ -1416,7 +1416,7 @@ async function resolveDivergenceAcceptUnplanned(workEntryId) {
 
 // Reject unplanned work — delete the log entry (nothing was planned, dismiss it)
 async function resolveDivergenceRejectUnplanned(workEntryId) {
-    await api.delete(`/timeline/${workEntryId}`);
+    await api.del(`/timeline/${workEntryId}`);
 
     state.timeline = await api.get('/timeline');
     renderAll();
@@ -1634,7 +1634,7 @@ async function resolveOutOfHoursTrimLog(div) {
         // Work extends past day end — trim endTime to gapStart (day end)
         if (entry.timestamp >= div.gapStart) {
             // Entire entry is in the gap — delete it
-            await api.delete(`/timeline/${entry.id}`);
+            await api.del(`/timeline/${entry.id}`);
         } else {
             await api.patch(`/timeline/${entry.id}`, { endTime: div.gapStart });
         }
@@ -1642,7 +1642,7 @@ async function resolveOutOfHoursTrimLog(div) {
         // Work starts before day start — trim timestamp to gapEnd (day start)
         if (entry.endTime <= div.gapEnd) {
             // Entire entry is in the gap — delete it
-            await api.delete(`/timeline/${entry.id}`);
+            await api.del(`/timeline/${entry.id}`);
         } else {
             await api.patch(`/timeline/${entry.id}`, { timestamp: div.gapEnd });
         }

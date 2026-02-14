@@ -3572,6 +3572,24 @@ select.schedule-leadtime-input {
     font-weight: 700;
 }
 
+/* ─── Drag-to-schedule: free time drop target (hover) ─── */
+.time-block-free.time-block-drag-over {
+    opacity: 1;
+    border-color: #00aa00;
+    border-style: solid;
+    background: #e0ffe0;
+    animation: none;
+}
+
+.time-block-free.time-block-drag-over .plan-next-btn {
+    opacity: 1;
+}
+
+.time-block-free.time-block-drag-over .time-block-label {
+    color: #00aa00;
+    font-weight: 700;
+}
+
 @keyframes drop-ready-pulse-w95 {
 
     0%,
