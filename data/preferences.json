@@ -8,15 +8,15 @@
   },
   "hidePastEntries": true,
   "workingOn": {
-    "itemId": 428,
-    "itemName": "actions change items animation",
-    "projectName": "anything › nice to have",
-    "startTime": 1771068101585,
-    "targetEndTime": 1771069901585
+    "itemId": 294,
+    "itemName": "fix the 2 insert markers - one works one not",
+    "projectName": "anything › bugs",
+    "startTime": 1771070376925,
+    "targetEndTime": 1771070976902
   },
-  "selectedItemId": 9,
+  "selectedItemId": "",
   "onBreak": null,
-  "timelineViewDate": "2026-02-14T11:21:44.893Z",
+  "timelineViewDate": "2026-02-14T11:39:48.970Z",
   "scheduleFilter": "scheduled+unscheduled",
   "collapsedGroups": [
     86,
@@ -25,7 +25,6 @@
     29,
     157,
     191,
-    167,
     199,
     240,
     242,
@@ -34,16 +33,15 @@
     144,
     145,
     155,
-    248,
     319,
-    17,
     62,
-    293,
     300,
+    167,
     423,
+    293,
     92
   ],
-  "viewHorizon": "session",
+  "viewHorizon": "day",
   "weekCollapsedDays": {
     "2026-02-08": true,
     "2026-02-09": true,
@@ -76,20 +74,8 @@
     ],
     "weekGroups_2026-02-14": []
   },
-  "focusStack": [
-    {
-      "startMs": 1771063200000,
-      "endMs": 1771108200000,
-      "label": "Free Time",
-      "type": "free",
-      "icon": "✨",
-      "tier": "session",
-      "segmentKey": "2026-02-14@12:00-00:30",
-      "entryId": null,
-      "itemId": null
-    }
-  ],
-  "projectTreeScrollTop": 0,
+  "focusStack": [],
+  "projectTreeScrollTop": 606.6666870117188,
   "darkMode": "light",
   "skinFamily": "duolingo",
   "sessionIndex": 0,

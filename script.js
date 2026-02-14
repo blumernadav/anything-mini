@@ -2152,12 +2152,7 @@ function itemMatchesTimeContext(action, dateKey) {
         }
         // Segment/entry contexts (e.g. "2026-02-14@13:08-00:30") do NOT match the bare
         // date view — they only appear when their specific segment is focused (handled
-        // by the session focus filter). But check overnight segments from prior dates.
-        const now = new Date();
-        if (ownContexts.some(tc => {
-            const p = parseTimeContext(tc);
-            return p && p.segment && p.date < dateKey && _isOvernightSegmentLive(p, now);
-        })) return true;
+        // by the session focus filter).
         // Backward projection: check if a deadline shadow covers this date
         if (item && _deadlineShadowMatchesDate(item, dateKey)) return true;
         return false;
@@ -3619,6 +3614,7 @@ function renderProjectLevel(items, parent, depth, query = '', matchingIds = new 
                 row.classList.add('dragging');
                 document.getElementById('project-tree').classList.add('dragging-active');
                 document.body.classList.add('dragging-to-timeline');
+                _showAllHorizonLayers();
                 requestAnimationFrame(() => row.classList.add('dragging'));
             });
             row.addEventListener('dragend', () => {
@@ -3633,6 +3629,7 @@ function renderProjectLevel(items, parent, depth, query = '', matchingIds = new 
                 document.querySelectorAll('.time-block-drag-over').forEach(el => el.classList.remove('time-block-drag-over'));
                 document.querySelectorAll('.horizon-layer-drag-over').forEach(el => el.classList.remove('horizon-layer-drag-over'));
                 document.querySelectorAll('.date-nav-btn-drag-over').forEach(el => el.classList.remove('date-nav-btn-drag-over'));
+                _restoreHorizonLayers();
             });
         }
 
@@ -4008,7 +4005,7 @@ function showItemInput(parentId = null, childDepth = 0) {
 }
 
 // ─── Actions Rendering (leaf nodes from the tree) ───
-function renderActions() {
+function renderActions(opts) {
     const container = document.getElementById('actions-list');
     const savedScrollTop = container.scrollTop;
     const empty = document.getElementById('actions-empty');
@@ -4225,20 +4222,23 @@ function renderActions() {
             }
 
             header.addEventListener('click', () => {
-                if (state.collapsedGroups.has(rootId)) {
+                const wasCollapsed = state.collapsedGroups.has(rootId);
+                if (wasCollapsed) {
                     state.collapsedGroups.delete(rootId);
                 } else {
                     state.collapsedGroups.add(rootId);
                 }
                 savePref('collapsedGroups', [...state.collapsedGroups]);
-                renderActions();
+                renderActions(wasCollapsed ? { expandedGroupId: rootId } : { collapseOnly: true });
             });
 
             fragment.appendChild(header);
 
             if (!isCollapsed) {
                 for (const action of group.actions) {
-                    fragment.appendChild(createActionElement(action));
+                    const el = createActionElement(action);
+                    el.dataset.rootId = rootId;
+                    fragment.appendChild(el);
                     renderedIds.push(String(action.id));
                 }
             }
@@ -4256,6 +4256,30 @@ function renderActions() {
     state._visibleActionIds = renderedIds;
 
     container.appendChild(fragment);
+
+    // ── Staggered fade-in animation ──
+    if (!opts || !opts.collapseOnly) {
+        const expandedGroup = opts && opts.expandedGroupId;
+        let animTargets;
+        if (expandedGroup) {
+            // Only animate items within the expanded group
+            animTargets = container.querySelectorAll(
+                `.action-item[data-root-id="${expandedGroup}"]`
+            );
+        } else {
+            animTargets = container.querySelectorAll('.action-item, .action-group-header');
+        }
+        const staggerMs = Math.min(30, animTargets.length > 0 ? 500 / animTargets.length : 30);
+        animTargets.forEach((el, i) => {
+            el.classList.add('action-enter');
+            el.style.animationDelay = `${i * staggerMs}ms`;
+            const cleanup = () => {
+                el.classList.remove('action-enter');
+                el.style.animationDelay = '';
+            };
+            el.addEventListener('animationend', cleanup, { once: true });
+        });
+    }
 
     // Restore scroll position after rebuild
     container.scrollTop = savedScrollTop;
@@ -4405,19 +4429,10 @@ function getFilteredActions() {
     }
 
     // Exclude items with segment-level contexts — they belong to the timeline, not Actions.
-    // Exception: overnight segments that are still live (their start is "past" but end
-    // hasn't arrived yet) — keep them visible in Actions so they don't vanish entirely.
-    const nowForSegCheck = new Date();
+    // They only appear when their specific session is focused (handled above).
     allLeaves = allLeaves.filter(a => {
         const item = findItemById(a.id);
-        if (!hasSegmentContext(item, currentDateKey)) return true;
-        // Check if ALL segment contexts for this date are overnight-and-still-live
-        // If so, keep the item in Actions
-        const segContexts = (item.timeContexts || []).filter(tc => tc.startsWith(currentDateKey + '@'));
-        return segContexts.every(tc => {
-            const p = parseTimeContext(tc);
-            return p && p.segment && _isOvernightSegmentLive(p, nowForSegCheck);
-        });
+        return !hasSegmentContext(item, currentDateKey);
     });
 
     if (!state.selectedItemId) return allLeaves;
@@ -4759,6 +4774,7 @@ function createActionElement(action) {
             dragState.draggedId = action.id;
             document.getElementById('project-tree').classList.add('dragging-active');
             document.body.classList.add('dragging-to-timeline');
+            _showAllHorizonLayers();
         });
         item.addEventListener('dragend', () => {
             // Remove dragging class from all (handles both single and multi)
@@ -4775,6 +4791,7 @@ function createActionElement(action) {
             document.querySelectorAll('.time-block-drag-over').forEach(el => el.classList.remove('time-block-drag-over'));
             document.querySelectorAll('.horizon-layer-drag-over').forEach(el => el.classList.remove('horizon-layer-drag-over'));
             document.querySelectorAll('.date-nav-btn-drag-over').forEach(el => el.classList.remove('date-nav-btn-drag-over'));
+            _restoreHorizonLayers();
         });
     }
 
@@ -5691,10 +5708,14 @@ function renderHorizonTower() {
     const _activeIdx = Math.max(0, _layers.indexOf(currentLevel));
     const _minVis = Math.max(0, Math.min(_activeIdx - 1, _layers.length - 3));
     const _maxVis = _minVis + 2;
-    epochLayer.style.display = (0 >= _minVis && 0 <= _maxVis) ? '' : 'none';
-    weekLayer.style.display = (1 >= _minVis && 1 <= _maxVis) ? '' : 'none';
-    dayLayer.style.display = (2 >= _minVis && 2 <= _maxVis) ? '' : 'none';
-    if (sessionLayer) sessionLayer.style.display = (3 >= _minVis && 3 <= _maxVis) ? '' : 'none';
+    // Skip hiding layers that are mid-drag-animation
+    const _allLayers = [epochLayer, weekLayer, dayLayer, sessionLayer].filter(Boolean);
+    _allLayers.forEach((layer, i) => {
+        const isDragAnimating = layer.classList.contains('horizon-drag-reveal') || layer.classList.contains('horizon-drag-hide');
+        if (!isDragAnimating) {
+            layer.style.display = (i >= _minVis && i <= _maxVis) ? '' : 'none';
+        }
+    });
 
     // Auto-sync epochFilter when timelineViewDate crosses epoch boundaries
     _syncEpochForCurrentWeek();
@@ -5778,6 +5799,81 @@ function renderHorizonTower() {
             const nextBtn = document.getElementById('session-nav-next');
             if (prevBtn) prevBtn.style.display = 'none';
             if (nextBtn) nextBtn.style.display = 'none';
+        }
+    }
+}
+
+// ─── Drag-Reveal: show all horizon layers during drag ───
+
+// Track which layers were revealed during drag so we can animate them back
+const _horizonDragRevealedLayers = new Set();
+let _horizonDragGeneration = 0;
+
+function _showAllHorizonLayers() {
+    // Bump generation to invalidate any pending animationend handlers
+    _horizonDragGeneration++;
+
+    const layers = [
+        document.getElementById('horizon-epoch-layer'),
+        document.getElementById('horizon-week-layer'),
+        document.getElementById('horizon-day-layer'),
+        document.getElementById('horizon-session-layer'),
+    ].filter(Boolean);
+
+    for (const layer of layers) {
+        // Cancel any in-progress hide animation first
+        layer.classList.remove('horizon-drag-hide');
+        layer.classList.remove('horizon-drag-reveal');
+
+        if (layer.style.display === 'none') {
+            layer.style.display = '';
+            // Force reflow so the animation starts fresh
+            void layer.offsetHeight;
+            layer.classList.add('horizon-drag-reveal');
+            _horizonDragRevealedLayers.add(layer);
+        }
+    }
+}
+
+function _restoreHorizonLayers() {
+    const gen = _horizonDragGeneration;
+
+    const layers = [
+        document.getElementById('horizon-epoch-layer'),
+        document.getElementById('horizon-week-layer'),
+        document.getElementById('horizon-day-layer'),
+        document.getElementById('horizon-session-layer'),
+    ].filter(Boolean);
+
+    // Determine which layers should be hidden per normal 3-layer window
+    const currentLevel = state.viewHorizon;
+    const _layerKeys = ['epoch', 'week', 'day', 'session'];
+    const _activeIdx = Math.max(0, _layerKeys.indexOf(currentLevel));
+    const _minVis = Math.max(0, Math.min(_activeIdx - 1, _layerKeys.length - 3));
+    const _maxVis = _minVis + 2;
+
+    for (let i = 0; i < layers.length; i++) {
+        const layer = layers[i];
+        const shouldBeVisible = (i >= _minVis && i <= _maxVis);
+
+        // Clean up reveal class
+        layer.classList.remove('horizon-drag-reveal');
+
+        if (!shouldBeVisible && _horizonDragRevealedLayers.has(layer)) {
+            // Animate out, then hide
+            _horizonDragRevealedLayers.delete(layer);
+            layer.classList.add('horizon-drag-hide');
+            const onEnd = (e) => {
+                // Only act if this is OUR hide animation and generation is still current
+                if (e.animationName !== 'horizon-layer-hide') return;
+                if (_horizonDragGeneration !== gen) return;
+                layer.classList.remove('horizon-drag-hide');
+                layer.style.display = 'none';
+                layer.removeEventListener('animationend', onEnd);
+            };
+            layer.addEventListener('animationend', onEnd);
+        } else {
+            _horizonDragRevealedLayers.delete(layer);
         }
     }
 }
@@ -6004,9 +6100,7 @@ function _renderLiveSessionIndicator() {
             }
         }
 
-        const top = state.focusStack.length > 0 ? state.focusStack[state.focusStack.length - 1] : null;
-        // Hide when already focused on an idle/free block
-        if (top && (top.type === 'free')) return;
+
 
         const elapsed = Math.max(0, nowMs - idleStartMs);
         const _fmtDur = (ms) => {
@@ -6069,17 +6163,7 @@ function _renderLiveSessionIndicator() {
     }
 
     const isWork = !!state.workingOn;
-    const top = state.focusStack.length > 0 ? state.focusStack[state.focusStack.length - 1] : null;
 
-    // Hide when already grounded: session is focused AND related project is selected
-    const sessionFocused = top && (top.type === 'working' || (top.type === 'break' && state.onBreak));
-    const projectFocused = (() => {
-        if (!isWork || !state.workingOn.itemId) return !state.selectedItemId;
-        const ancestors = getAncestorPath(state.workingOn.itemId);
-        const projectId = (ancestors && ancestors.length > 0) ? ancestors[0].id : state.workingOn.itemId;
-        return state.selectedItemId === projectId;
-    })();
-    if (sessionFocused && projectFocused) return;
 
     const nowMs = Date.now();
     const startMs = liveSession.startTime;
@@ -6999,8 +7083,9 @@ function renderWeekView(container) {
                 e.dataTransfer.setData('application/x-week-source-date', dateKey);
                 e.dataTransfer.effectAllowed = 'move';
                 pin.classList.add('week-item-dragging');
+                _showAllHorizonLayers();
             });
-            pin.addEventListener('dragend', () => pin.classList.remove('week-item-dragging'));
+            pin.addEventListener('dragend', () => { pin.classList.remove('week-item-dragging'); _restoreHorizonLayers(); });
 
             colScheduled.appendChild(pin);
         }
@@ -7106,10 +7191,12 @@ function renderWeekView(container) {
                 e.dataTransfer.effectAllowed = 'move';
                 chip.classList.add('week-item-dragging');
                 window._draggedAction = true;
+                _showAllHorizonLayers();
             });
             chip.addEventListener('dragend', () => {
                 chip.classList.remove('week-item-dragging');
                 window._draggedAction = false;
+                _restoreHorizonLayers();
             });
             return chip;
         };
@@ -8277,11 +8364,13 @@ function createFreeTimeBlock(startMs, endMs) {
                 e.dataTransfer.effectAllowed = 'move';
                 row.classList.add('segment-item-dragging');
                 document.body.classList.add('dragging-to-timeline');
+                _showAllHorizonLayers();
             });
             row.addEventListener('dragend', () => {
                 console.log('[SEG-DRAG] dragend fired');
                 row.classList.remove('segment-item-dragging');
                 document.body.classList.remove('dragging-to-timeline');
+                _restoreHorizonLayers();
             });
 
             const bullet = document.createElement('span');
@@ -9187,9 +9276,11 @@ function _attachEntryDropAndQueue(el, contextStr, deadlineMs) {
                 e.dataTransfer.setData('application/x-segment-context', contextStr);
                 e.dataTransfer.effectAllowed = 'move';
                 row.classList.add('segment-item-dragging');
+                _showAllHorizonLayers();
             });
             row.addEventListener('dragend', () => {
                 row.classList.remove('segment-item-dragging');
+                _restoreHorizonLayers();
             });
 
             const bullet = document.createElement('span');
@@ -10814,9 +10905,11 @@ function createPlannedTimeBlock(entry, isPhantom = false) {
                 e.dataTransfer.setData('application/x-segment-context', entryCtx);
                 e.dataTransfer.effectAllowed = 'move';
                 row.classList.add('segment-item-dragging');
+                _showAllHorizonLayers();
             });
             row.addEventListener('dragend', () => {
                 row.classList.remove('segment-item-dragging');
+                _restoreHorizonLayers();
             });
 
             const bullet = document.createElement('span');
@@ -11465,34 +11558,12 @@ function updateContextLabels() {
     const focusedSession = state.focusStack.length > 0 ? state.focusStack[state.focusStack.length - 1] : null;
 
     if (focusedSession) {
-        // Date segment — clickable to clear focus
-        const dateSeg = document.createElement('span');
-        dateSeg.className = 'breadcrumb-segment breadcrumb-link';
-        if (isToday) {
-            dateSeg.textContent = '📅 Today';
-        } else {
-            const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-            dateSeg.textContent = `📅 ${days[viewDate.getDay()]}, ${months[viewDate.getMonth()]} ${viewDate.getDate()}`;
-        }
-        dateSeg.title = 'Back to full day';
-        dateSeg.addEventListener('click', () => {
-            clearFocusStack();
-            renderAll();
-        });
-        whenContainer.appendChild(dateSeg);
-
-        // Session segment
-        const sep = document.createElement('span');
-        sep.className = 'breadcrumb-sep';
-        sep.textContent = '›';
-        whenContainer.appendChild(sep);
-
+        // Session segment — shown directly like other horizons
         const sessionSeg = document.createElement('span');
         sessionSeg.className = 'breadcrumb-segment breadcrumb-current';
         const timeRange = `${formatTime(focusedSession.startMs)}–${formatTime(focusedSession.endMs)}`;
         const typeLabel = focusedSession.label || focusedSession.type || '';
-        sessionSeg.textContent = `${timeRange} ${typeLabel}`.trim();
+        sessionSeg.textContent = `📅 ${timeRange} ${typeLabel}`.trim();
         whenContainer.appendChild(sessionSeg);
     } else if (state.viewHorizon === 'epoch') {
         // Epoch view
@@ -14196,10 +14267,8 @@ let _navAnimating = false;
 function animateNavTransition(direction, updateFn) {
     // direction: 'left' = forward (next), 'right' = backward (prev)
     const timeline = document.getElementById('timeline-list');
-    const actions = document.getElementById('actions-list');
-    // Don't animate actions when in sleep mode — "Good Night" is static
-    const sleepMode = isInSleepRange() && !state.workingOn && !state.onBreak;
-    const targets = [timeline, !sleepMode && actions].filter(Boolean);
+    // Actions use staggered fade-in from renderActions() — no directional slide
+    const targets = [timeline];
 
     // Cancel any in-flight animation
     for (const el of targets) {

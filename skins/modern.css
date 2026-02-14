@@ -799,6 +799,10 @@ body {
     opacity: 0.6;
 }
 
+#project-tree.dragging-active .insert-marker {
+    display: none;
+}
+
 /* ─── Scroll-to-Selected Banner ─── */
 .scroll-to-selected-banner {
     display: flex;
@@ -5514,6 +5518,47 @@ select.schedule-leadtime-input {
     outline: 1px dashed var(--accent);
 }
 
+/* Drag-reveal: smoothly show hidden layers during drag */
+.horizon-layer.horizon-drag-reveal {
+    opacity: 0;
+    max-height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    overflow: hidden;
+    animation: horizon-layer-reveal 200ms ease forwards;
+}
+
+@keyframes horizon-layer-reveal {
+    to {
+        opacity: 0.5;
+        max-height: 40px;
+        padding-top: 3px;
+        padding-bottom: 3px;
+    }
+}
+
+/* Fade-out when drag ends */
+.horizon-layer.horizon-drag-hide {
+    animation: horizon-layer-hide 200ms ease forwards;
+    overflow: hidden;
+}
+
+@keyframes horizon-layer-hide {
+    from {
+        opacity: 0.5;
+        max-height: 40px;
+        padding-top: 3px;
+        padding-bottom: 3px;
+    }
+
+    to {
+        opacity: 0;
+        max-height: 0;
+        padding-top: 0;
+        padding-bottom: 0;
+    }
+}
+
 /* ── Session Horizon Layer ── */
 .horizon-layer-session {
     display: flex;
@@ -6967,6 +7012,23 @@ select.schedule-leadtime-input {
 
 .nav-slide-in-right {
     animation: nav-slide-in-right 150ms ease-out forwards;
+}
+
+/* ── Action enter animation (staggered fade-in) ── */
+@keyframes action-enter {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.action-enter {
+    animation: action-enter 200ms ease-out both;
 }
 
 /* ── Epoch Tab Styles ── */

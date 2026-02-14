@@ -2839,7 +2839,89 @@
       "id": 359,
       "timestamp": 1771067877131,
       "manual": true
+    },
+    {
+      "text": "Worked on: actions change items animation (10m)",
+      "projectName": "anything › nice to have",
+      "type": "work",
+      "startTime": 1771068101585,
+      "endTime": 1771068707743,
+      "targetEndTime": 1771069901585,
+      "itemId": 428,
+      "id": 360,
+      "timestamp": 1771068101585,
+      "manual": true
+    },
+    {
+      "text": "Done: actions change items animation",
+      "projectName": "anything › nice to have",
+      "type": "completion",
+      "id": 361,
+      "timestamp": 1771068742782
+    },
+    {
+      "text": "Worked on: anything (2m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1771068737069,
+      "endTime": 1771068870233,
+      "itemId": 9,
+      "id": 362,
+      "timestamp": 1771068737069,
+      "manual": true
+    },
+    {
+      "text": "Worked on: anything (5m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1771068874794,
+      "endTime": 1771069226390,
+      "itemId": 9,
+      "id": 363,
+      "timestamp": 1771068874794,
+      "manual": true
+    },
+    {
+      "text": "Break (6m)",
+      "type": "break",
+      "startTime": 1771069233515,
+      "endTime": 1771069603987,
+      "targetEndTime": 1771070133514,
+      "id": 364,
+      "timestamp": 1771069233515
+    },
+    {
+      "text": "Worked on: anything (0m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1771069603987,
+      "endTime": 1771069622944,
+      "itemId": 9,
+      "id": 365,
+      "timestamp": 1771069603987,
+      "manual": true
+    },
+    {
+      "text": "Worked on: anything (2m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1771069622944,
+      "endTime": 1771069752458,
+      "itemId": 9,
+      "id": 366,
+      "timestamp": 1771069622944,
+      "manual": true
+    },
+    {
+      "text": "Worked on: anything (8m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1771069866936,
+      "endTime": 1771070376903,
+      "itemId": 9,
+      "id": 367,
+      "timestamp": 1771069866936
     }
   ],
-  "nextId": 360
+  "nextId": 368
 }
