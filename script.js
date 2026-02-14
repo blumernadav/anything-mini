@@ -6281,8 +6281,7 @@ function renderTimeContext() {
         // Unfocused: show normal date nav
         container.classList.remove('time-context-focused');
         container.className = container.className.replace(/\btime-context-type-\S+/g, '').trim();
-        const dateNav = container.querySelector('.date-nav');
-        if (dateNav) dateNav.style.display = '';
+        // Note: don't force dateNav visible here — renderHorizonTower controls layer visibility
         container.querySelectorAll('.time-context-session').forEach(el => el.remove());
 
         // Sync date nav for current horizon
@@ -6311,9 +6310,7 @@ function renderTimeContext() {
         container.className = container.className.replace(/\btime-context-type-\S+/g, '').trim();
         container.classList.add(`time-context-type-${top.type}`);
 
-        // Keep date-nav visible — renderHorizonTower already dims it
-        const dateNav = container.querySelector('.date-nav');
-        if (dateNav) dateNav.style.display = '';
+        // Keep date-nav visibility as set by renderHorizonTower
         container.querySelectorAll('.time-context-session').forEach(el => el.remove());
 
         const sessionEl = document.createElement('div');

@@ -7404,7 +7404,7 @@ select.schedule-leadtime-input {
     }
 
     to {
-        transform: scale(0.97);
+        transform: scale(1.03);
         opacity: 0;
     }
 }
@@ -7416,14 +7416,14 @@ select.schedule-leadtime-input {
     }
 
     to {
-        transform: scale(1.03);
+        transform: scale(0.97);
         opacity: 0;
     }
 }
 
 @keyframes nav-slide-in-up {
     from {
-        transform: scale(1.03);
+        transform: scale(0.97);
         opacity: 0;
     }
 
@@ -7435,7 +7435,7 @@ select.schedule-leadtime-input {
 
 @keyframes nav-slide-in-down {
     from {
-        transform: scale(0.97);
+        transform: scale(1.03);
         opacity: 0;
     }
 
