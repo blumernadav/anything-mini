@@ -2143,15 +2143,16 @@ function itemMatchesTimeContext(action, dateKey) {
     const ownContexts = (item && item.timeContexts) || [];
     // Item has its own contexts — only check those, don't inherit from ancestors
     if (ownContexts.length > 0) {
-        // Check date matches first — items can have BOTH epoch ("ongoing") and day contexts
-        if (ownContexts.some(tc => contextMatchesDate(tc, dateKey))) return true;
+        // Exact bare-date match (e.g. "2026-02-14" matches dateKey "2026-02-14")
+        if (ownContexts.includes(dateKey)) return true;
+        // Epoch contexts — items with epoch only show via deadline shadow, not day views
         if (ownContexts.some(tc => isEpochContext(tc))) {
-            // Even epoch items can appear via deadline shadow
             if (item && _deadlineShadowMatchesDate(item, dateKey)) return true;
             return false;
         }
-        if (ownContexts.some(tc => contextMatchesDate(tc, dateKey))) return true;
-        // Overnight segments: check if any segment from a prior date is still live
+        // Segment/entry contexts (e.g. "2026-02-14@13:08-00:30") do NOT match the bare
+        // date view — they only appear when their specific segment is focused (handled
+        // by the session focus filter). But check overnight segments from prior dates.
         const now = new Date();
         if (ownContexts.some(tc => {
             const p = parseTimeContext(tc);
@@ -3601,6 +3602,20 @@ function renderProjectLevel(items, parent, depth, query = '', matchingIds = new 
                 e.dataTransfer.effectAllowed = 'move';
                 e.dataTransfer.setData('application/x-action-id', String(item.id));
                 window._draggedAction = item;
+                // Multi-select: if this item is selected and part of multi-selection
+                const idStr = String(item.id);
+                const isMulti = state.selectedActionIds.has(idStr) && state.selectedActionIds.size >= 2;
+                if (isMulti) {
+                    window._draggedActionIds = [...state.selectedActionIds];
+                    const ghost = document.createElement('div');
+                    ghost.className = 'multi-drag-ghost';
+                    ghost.textContent = `${state.selectedActionIds.size} items`;
+                    document.body.appendChild(ghost);
+                    e.dataTransfer.setDragImage(ghost, 0, 0);
+                    setTimeout(() => ghost.remove(), 0);
+                } else {
+                    window._draggedActionIds = null;
+                }
                 row.classList.add('dragging');
                 document.getElementById('project-tree').classList.add('dragging-active');
                 document.body.classList.add('dragging-to-timeline');
@@ -3613,6 +3628,7 @@ function renderProjectLevel(items, parent, depth, query = '', matchingIds = new 
                 dragState.draggedId = null;
                 dragState.dropTarget = null;
                 window._draggedAction = null;
+                window._draggedActionIds = null;
                 clearDropIndicators();
                 document.querySelectorAll('.time-block-drag-over').forEach(el => el.classList.remove('time-block-drag-over'));
                 document.querySelectorAll('.horizon-layer-drag-over').forEach(el => el.classList.remove('horizon-layer-drag-over'));
@@ -4591,49 +4607,47 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 // Project-to-Actions: assign current time context + select as project filter
                 if (e.dataTransfer.types.includes('application/x-action-id')) {
-                    const itemId = parseInt(e.dataTransfer.getData('application/x-action-id'), 10);
-                    const item = findItemById(itemId);
-                    if (!item) return;
+                    const dragIds = getMultiDragIds(e);
+                    if (dragIds.length === 0) return;
                     e.preventDefault();
                     actionsSection.classList.remove('actions-drag-over');
                     window._draggedAction = null;
                     const ctxs = getCurrentTimeContexts();
                     (async () => {
-                        // Strip existing entry/session/segment contexts that are subsumed
-                        // by the plain-date contexts being assigned (fixes dragging an item
-                        // with an entry context to day — the entry context must be removed).
-                        if (item.timeContexts) {
-                            const plainDates = ctxs.filter(c => /^\d{4}-\d{2}-\d{2}$/.test(c));
-                            if (plainDates.length > 0) {
-                                const before = item.timeContexts.length;
-                                item.timeContexts = item.timeContexts.filter(tc => {
-                                    // Keep if it's not a sub-context of any plain date being added
-                                    return !plainDates.some(d => tc.startsWith(d + '@'));
-                                });
-                                // Clean up contextDurations for removed contexts
-                                if (item.contextDurations && item.timeContexts.length < before) {
-                                    for (const key of Object.keys(item.contextDurations)) {
-                                        if (plainDates.some(d => key.startsWith(d + '@'))) {
-                                            delete item.contextDurations[key];
+                        for (const itemId of dragIds) {
+                            const item = findItemById(itemId);
+                            if (!item) continue;
+                            // Strip existing entry/session/segment contexts that are subsumed
+                            if (item.timeContexts) {
+                                const plainDates = ctxs.filter(c => /^\d{4}-\d{2}-\d{2}$/.test(c));
+                                if (plainDates.length > 0) {
+                                    const before = item.timeContexts.length;
+                                    item.timeContexts = item.timeContexts.filter(tc => {
+                                        return !plainDates.some(d => tc.startsWith(d + '@'));
+                                    });
+                                    if (item.contextDurations && item.timeContexts.length < before) {
+                                        for (const key of Object.keys(item.contextDurations)) {
+                                            if (plainDates.some(d => key.startsWith(d + '@'))) {
+                                                delete item.contextDurations[key];
+                                            }
                                         }
                                     }
                                 }
                             }
-                        }
-                        // Assign current time context
-                        for (const ctx of ctxs) { await addTimeContext(itemId, ctx); }
-                        // Reparent under selected project if applicable
-                        if (state.selectedItemId && state.selectedItemId !== itemId) {
-                            const selectedItem = findItemById(state.selectedItemId);
-                            if (selectedItem) {
-                                // Only reparent if the item isn't already a descendant of the selected project
-                                const descIds = collectDescendantIds(selectedItem);
-                                if (!descIds.includes(itemId)) {
-                                    moveItem(itemId, { id: state.selectedItemId, position: 'inside' });
-                                    saveItems();
+                            for (const ctx of ctxs) { await addTimeContext(itemId, ctx); }
+                            // Reparent under selected project if applicable
+                            if (state.selectedItemId && state.selectedItemId !== itemId) {
+                                const selectedItem = findItemById(state.selectedItemId);
+                                if (selectedItem) {
+                                    const descIds = collectDescendantIds(selectedItem);
+                                    if (!descIds.includes(itemId)) {
+                                        moveItem(itemId, { id: state.selectedItemId, position: 'inside' });
+                                        saveItems();
+                                    }
                                 }
                             }
                         }
+                        clearActionSelection();
                         renderAll();
                     })();
                 }
@@ -5118,7 +5132,9 @@ function createActionElement(action) {
                 const ancestors = action._path
                     ? action._path.slice(0, -1).map(p => p.name).join(' › ')
                     : '';
-                await startWorking(action.id, action.name, ancestors);
+                const durMins = getContextDuration(action, getCurrentViewContext());
+                const targetEnd = durMins > 0 ? Date.now() + durMins * 60000 : undefined;
+                await startWorking(action.id, action.name, ancestors, targetEnd);
             }
         });
         // Right-click: open duration picker for timed work
@@ -5669,6 +5685,17 @@ function renderHorizonTower() {
 
     const currentLevel = state.viewHorizon;
 
+    // ── Visibility: show max 3 layers around the active one ──
+    // Bottom → 2 above; Top → 2 below; Middle → 1 above + 1 below
+    const _layers = ['epoch', 'week', 'day', 'session'];
+    const _activeIdx = Math.max(0, _layers.indexOf(currentLevel));
+    const _minVis = Math.max(0, Math.min(_activeIdx - 1, _layers.length - 3));
+    const _maxVis = _minVis + 2;
+    epochLayer.style.display = (0 >= _minVis && 0 <= _maxVis) ? '' : 'none';
+    weekLayer.style.display = (1 >= _minVis && 1 <= _maxVis) ? '' : 'none';
+    dayLayer.style.display = (2 >= _minVis && 2 <= _maxVis) ? '' : 'none';
+    if (sessionLayer) sessionLayer.style.display = (3 >= _minVis && 3 <= _maxVis) ? '' : 'none';
+
     // Auto-sync epochFilter when timelineViewDate crosses epoch boundaries
     _syncEpochForCurrentWeek();
 
@@ -5723,9 +5750,8 @@ function renderHorizonTower() {
     dayLayer.classList.toggle('horizon-layer-active', currentLevel === 'day');
     dayLayer.classList.toggle('horizon-layer-dim', currentLevel !== 'day');
 
-    // Session layer: always visible
+    // Session layer: visibility managed by the 3-layer window above
     if (sessionLayer) {
-        sessionLayer.style.display = '';
         sessionLayer.classList.toggle('horizon-layer-active', currentLevel === 'session');
         sessionLayer.classList.toggle('horizon-layer-dim', currentLevel !== 'session');
 
@@ -5917,29 +5943,28 @@ function _attachLiveIndicatorDnD(indicator, liveType) {
                 }
             }
         } else {
-            itemId = e.dataTransfer.getData('application/x-action-id');
-        }
-        if (!itemId) return;
-        itemId = parseInt(itemId, 10);
-
-        if (liveType === 'idle') {
-            await rescheduleToDate(itemId, todayKey);
-        } else {
-            // work or break — add to the session's segment context
-            await addSegmentContext(itemId, `${todayKey}@${liveType}`);
-
-            // Move item under the active project when dropping onto work indicator
-            if (liveType === 'work' && state.workingOn && state.workingOn.itemId) {
-                const ancestors = getAncestorPath(state.workingOn.itemId);
-                const projectId = (ancestors && ancestors.length > 0) ? ancestors[0].id : state.workingOn.itemId;
-                // Only move if the item isn't already under this project
-                const itemAncestors = getAncestorPath(itemId);
-                const itemProjectId = (itemAncestors && itemAncestors.length > 0) ? itemAncestors[0].id : null;
-                if (itemProjectId !== projectId) {
-                    moveItem(itemId, { id: projectId, position: 'inside' });
-                    await api.put('/items', state.items);
+            // Regular action drag (multi-select aware)
+            const dragIds = getMultiDragIds(e);
+            if (dragIds.length === 0) return;
+            for (const itemId of dragIds) {
+                if (liveType === 'idle') {
+                    await rescheduleToDate(itemId, todayKey);
+                } else {
+                    await addSegmentContext(itemId, `${todayKey}@${liveType}`);
+                    // Move item under the active project when dropping onto work indicator
+                    if (liveType === 'work' && state.workingOn && state.workingOn.itemId) {
+                        const ancestors = getAncestorPath(state.workingOn.itemId);
+                        const projectId = (ancestors && ancestors.length > 0) ? ancestors[0].id : state.workingOn.itemId;
+                        const itemAncestors = getAncestorPath(itemId);
+                        const itemProjectId = (itemAncestors && itemAncestors.length > 0) ? itemAncestors[0].id : null;
+                        if (itemProjectId !== projectId) {
+                            moveItem(itemId, { id: projectId, position: 'inside' });
+                            await api.put('/items', state.items);
+                        }
+                    }
                 }
             }
+            clearActionSelection();
         }
     });
 }
@@ -7309,11 +7334,10 @@ function renderWeekView(container) {
                 return;
             }
 
-            // Regular action item
-            const actionId = e.dataTransfer.getData('application/x-action-id');
-            if (actionId) {
-                await rescheduleToDate(parseInt(actionId, 10), dateKey);
-            }
+            // Regular action item (multi-select aware)
+            const dragIds = getMultiDragIds(e);
+            for (const id of dragIds) { await rescheduleToDate(id, dateKey); }
+            if (dragIds.length > 0) clearActionSelection();
         });
 
         weekEl.appendChild(row);
@@ -8118,14 +8142,15 @@ function createFreeTimeBlock(startMs, endMs) {
             return;
         }
 
-        // Normal drag from Actions panel
-        const action = window._draggedAction;
-        console.log('[FREE-BLOCK] normal drop, action:', action?.id);
-        if (!action) return;
+        // Normal drag from Actions panel (multi-select aware)
+        const dragIds = getMultiDragIds(e);
+        if (dragIds.length === 0) return;
         window._draggedAction = null;
-        // Carry duration from the current view context (Actions panel)
-        const srcDur = getContextDuration(findItemById(action.id));
-        addSegmentContext(action.id, newSegCtx, srcDur || undefined);
+        for (const id of dragIds) {
+            const srcDur = getContextDuration(findItemById(id));
+            addSegmentContext(id, newSegCtx, srcDur || undefined);
+        }
+        clearActionSelection();
     });
 
     // ── Nested segment-assigned items ──
@@ -9123,11 +9148,12 @@ function _attachEntryDropAndQueue(el, contextStr, deadlineMs) {
             return;
         }
 
-        // Normal drag from Actions panel
-        const action = window._draggedAction;
-        if (!action) return;
+        // Normal drag from Actions panel (multi-select aware)
+        const dragIds = getMultiDragIds(e);
+        if (dragIds.length === 0) return;
         window._draggedAction = null;
-        addSegmentContext(action.id, contextStr);
+        for (const id of dragIds) { addSegmentContext(id, contextStr); }
+        clearActionSelection();
     });
 
     // ── Nested entry-assigned items ──
@@ -10726,15 +10752,17 @@ function createPlannedTimeBlock(entry, isPhantom = false) {
             return;
         }
 
-        // Normal drag from Actions panel
-        const action = window._draggedAction;
-        if (!action) return;
-        // Validate descendant constraint for item-bound sessions
-        if (planDescendantIds && !planDescendantIds.has(action.id)) return;
+        // Normal drag from Actions panel (multi-select aware)
+        const dragIds = getMultiDragIds(e);
+        if (dragIds.length === 0) return;
         window._draggedAction = null;
-        // Carry duration from the current view context (Actions panel)
-        const srcDur = getContextDuration(findItemById(action.id));
-        addSegmentContext(action.id, entryCtx, srcDur || undefined);
+        for (const id of dragIds) {
+            // Validate descendant constraint for item-bound sessions
+            if (planDescendantIds && !planDescendantIds.has(id)) continue;
+            const srcDur = getContextDuration(findItemById(id));
+            addSegmentContext(id, entryCtx, srcDur || undefined);
+        }
+        clearActionSelection();
     });
 
     // Add intention button (+)
@@ -14340,10 +14368,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 await rescheduleToDate(parseInt(itemId, 10), targetDateKey);
                 return;
             }
-            // Regular action/project drag
-            const actionId = e.dataTransfer.getData('application/x-action-id');
-            if (!actionId) return;
-            await rescheduleToDate(parseInt(actionId, 10), targetDateKey);
+            // Regular action/project drag (multi-select aware)
+            const dragIds = getMultiDragIds(e);
+            for (const id of dragIds) { await rescheduleToDate(id, targetDateKey); }
+            if (dragIds.length > 0) clearActionSelection();
         });
     }
     setupDayArrowDnD('date-nav-prev', -1);
@@ -14387,10 +14415,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 await sendToWeek(parseInt(itemId, 10), targetWeekKey, segDur);
                 return;
             }
-            // Regular action/project drag
-            const actionId = e.dataTransfer.getData('application/x-action-id');
-            if (!actionId) return;
-            await sendToWeek(parseInt(actionId, 10), targetWeekKey);
+            // Regular action/project drag (multi-select aware)
+            const dragIds = getMultiDragIds(e);
+            for (const id of dragIds) { await sendToWeek(id, targetWeekKey); }
+            if (dragIds.length > 0) clearActionSelection();
         });
     }
     setupWeekArrowDnD('week-nav-prev', -1);
@@ -14483,9 +14511,10 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         // Regular action/project drag
-        const actionId = e.dataTransfer.getData('application/x-action-id');
-        if (!actionId) return;
-        await sendToEpoch(parseInt(actionId, 10), targetEpoch);
+        // Multi-select aware
+        const dragIds = getMultiDragIds(e);
+        for (const id of dragIds) { await sendToEpoch(id, targetEpoch); }
+        if (dragIds.length > 0) clearActionSelection();
     });
 
     // Week layer: click to navigate to week view, drag to degrade to week scope
@@ -14575,9 +14604,10 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         // Regular action/project drag
-        const actionId = e.dataTransfer.getData('application/x-action-id');
-        if (!actionId) return;
-        await sendToWeek(parseInt(actionId, 10), weekKey);
+        // Multi-select aware
+        const dragIds = getMultiDragIds(e);
+        for (const id of dragIds) { await sendToWeek(id, weekKey); }
+        if (dragIds.length > 0) clearActionSelection();
     });
 
     // Day layer: click to navigate back to day, drag to promote from ongoing
@@ -14635,10 +14665,11 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         // Regular action/project drag
-        const actionId = e.dataTransfer.getData('application/x-action-id');
-        if (!actionId) return;
+        // Multi-select aware
+        const dragIds = getMultiDragIds(e);
         const dateKey = getDateKey(state.timelineViewDate);
-        await promoteFromOngoing(parseInt(actionId, 10), dateKey);
+        for (const id of dragIds) { await promoteFromOngoing(id, dateKey); }
+        if (dragIds.length > 0) clearActionSelection();
     });
 
     // ── Session layer: click to enter session horizon, prev/next to navigate, DnD to schedule ──
@@ -14697,9 +14728,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
             // Regular action drag
-            const actionId = e.dataTransfer.getData('application/x-action-id');
-            if (!actionId) return;
-            await addSegmentContext(parseInt(actionId, 10), seg.segmentKey);
+            // Multi-select aware
+            const dragIds = getMultiDragIds(e);
+            for (const id of dragIds) { await addSegmentContext(id, seg.segmentKey); }
+            if (dragIds.length > 0) clearActionSelection();
         });
     }
 

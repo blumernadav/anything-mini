@@ -2795,7 +2795,51 @@
       "type": "completion",
       "id": 355,
       "timestamp": 1771066315019
+    },
+    {
+      "text": "Worked on: anything (14m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1771065899785,
+      "endTime": 1771066774160,
+      "itemId": 9,
+      "id": 356,
+      "timestamp": 1771065899785,
+      "manual": true
+    },
+    {
+      "text": "Worked on: anything (17m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1771066843952,
+      "endTime": 1771067865033,
+      "itemId": 9,
+      "id": 357,
+      "timestamp": 1771066843952,
+      "manual": true
+    },
+    {
+      "text": "Worked on: month horizon (0m)",
+      "projectName": "anything › core",
+      "type": "work",
+      "startTime": 1771067874198,
+      "endTime": 1771067875456,
+      "itemId": 349,
+      "id": 358,
+      "timestamp": 1771067874198,
+      "manual": true
+    },
+    {
+      "text": "Worked on: actions change items animation (3m)",
+      "projectName": "anything › nice to have",
+      "type": "work",
+      "startTime": 1771067877131,
+      "endTime": 1771068093976,
+      "itemId": 428,
+      "id": 359,
+      "timestamp": 1771067877131,
+      "manual": true
     }
   ],
-  "nextId": 356
+  "nextId": 360
 }

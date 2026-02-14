@@ -3,14 +3,20 @@
   "showDone": false,
   "showUnscheduled": true,
   "panels": {
-    "left": 378,
+    "left": 401,
     "right": 365
   },
   "hidePastEntries": true,
-  "workingOn": null,
-  "selectedItemId": "",
+  "workingOn": {
+    "itemId": 428,
+    "itemName": "actions change items animation",
+    "projectName": "anything › nice to have",
+    "startTime": 1771068101585,
+    "targetEndTime": 1771069901585
+  },
+  "selectedItemId": 9,
   "onBreak": null,
-  "timelineViewDate": "2026-02-14T10:36:25.387Z",
+  "timelineViewDate": "2026-02-14T11:21:44.893Z",
   "scheduleFilter": "scheduled+unscheduled",
   "collapsedGroups": [
     86,
@@ -24,10 +30,20 @@
     240,
     242,
     164,
+    122,
+    144,
+    145,
+    155,
+    248,
     319,
-    9
+    17,
+    62,
+    293,
+    300,
+    423,
+    92
   ],
-  "viewHorizon": "week",
+  "viewHorizon": "session",
   "weekCollapsedDays": {
     "2026-02-08": true,
     "2026-02-09": true,
@@ -60,11 +76,23 @@
     ],
     "weekGroups_2026-02-14": []
   },
-  "focusStack": [],
-  "projectTreeScrollTop": 3822.222412109375,
+  "focusStack": [
+    {
+      "startMs": 1771063200000,
+      "endMs": 1771108200000,
+      "label": "Free Time",
+      "type": "free",
+      "icon": "✨",
+      "tier": "session",
+      "segmentKey": "2026-02-14@12:00-00:30",
+      "entryId": null,
+      "itemId": null
+    }
+  ],
+  "projectTreeScrollTop": 0,
   "darkMode": "light",
   "skinFamily": "duolingo",
-  "sessionIndex": 2,
+  "sessionIndex": 0,
   "epochFilter": "ongoing",
   "ongoingPastWeeks": 0,
   "ongoingFutureWeeks": 2,

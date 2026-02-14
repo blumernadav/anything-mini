@@ -66,21 +66,6 @@
           "timeContexts": [
             "ongoing"
           ]
-        },
-        {
-          "id": 98,
-          "name": "סוכנים וכאלה",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770633310924,
-          "done": false,
-          "timeContexts": [
-            "2026-02-14"
-          ],
-          "estimatedDuration": null,
-          "contextDurations": {
-            "2026-02-14": 15
-          }
         }
       ],
       "expanded": false,
@@ -197,7 +182,22 @@
         {
           "id": 243,
           "name": "סשן איתי",
-          "children": [],
+          "children": [
+            {
+              "id": 429,
+              "name": "לענות על התאריכים בקבוצה של איתי",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1771067299908,
+              "done": false,
+              "timeContexts": [
+                "2026-02-14"
+              ],
+              "contextDurations": {
+                "2026-02-14": 10
+              }
+            }
+          ],
           "expanded": false,
           "createdAt": 1770772108348,
           "done": true,
@@ -337,17 +337,6 @@
           }
         },
         {
-          "id": 408,
-          "name": "when degrading - keep duration",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770993478460,
-          "done": false,
-          "timeContexts": [
-            "ongoing"
-          ]
-        },
-        {
           "id": 397,
           "name": "idea - see in actions \"how much out of how much is scheduled\" (esp. for week/month but also day)",
           "children": [],
@@ -355,9 +344,11 @@
           "createdAt": 1770981831207,
           "done": false,
           "timeContexts": [
-            "week:2026-02-08"
+            "ongoing"
           ],
-          "contextDurations": {}
+          "contextDurations": {
+            "ongoing": 120
+          }
         },
         {
           "id": 396,
@@ -400,9 +391,11 @@
           "createdAt": 1770979784782,
           "done": false,
           "timeContexts": [
-            "week:2026-02-08"
+            "ongoing"
           ],
-          "contextDurations": {}
+          "contextDurations": {
+            "ongoing": 60
+          }
         },
         {
           "id": 392,
@@ -426,10 +419,10 @@
           "createdAt": 1770976741920,
           "done": false,
           "timeContexts": [
-            "week:2026-02-08"
+            "ongoing"
           ],
           "contextDurations": {
-            "2026-02-13": 30
+            "ongoing": 30
           }
         },
         {
@@ -444,10 +437,10 @@
               "createdAt": 1770973172517,
               "done": false,
               "timeContexts": [
-                "week:2026-02-08"
+                "ongoing"
               ],
               "contextDurations": {
-                "week:2026-02-08": 30
+                "ongoing": 30
               }
             }
           ],
@@ -455,10 +448,10 @@
           "createdAt": 1770972497996,
           "done": false,
           "timeContexts": [
-            "week:2026-02-08"
+            "ongoing"
           ],
           "contextDurations": {
-            "week:2026-02-08": 60
+            "ongoing": 60
           }
         },
         {
@@ -469,10 +462,10 @@
           "createdAt": 1770943488414,
           "done": false,
           "timeContexts": [
-            "week:2026-02-08"
+            "ongoing"
           ],
           "contextDurations": {
-            "week:2026-02-08": 30
+            "ongoing": 30
           }
         },
         {
@@ -483,9 +476,11 @@
           "createdAt": 1770944485303,
           "done": false,
           "timeContexts": [
-            "week:2026-02-08"
+            "ongoing"
           ],
-          "contextDurations": {}
+          "contextDurations": {
+            "ongoing": 30
+          }
         },
         {
           "id": 365,
@@ -503,8 +498,9 @@
                   "createdAt": 1770998665821,
                   "done": false,
                   "timeContexts": [
-                    "week:2026-02-08"
-                  ]
+                    "ongoing"
+                  ],
+                  "contextDurations": {}
                 },
                 {
                   "id": 413,
@@ -514,8 +510,9 @@
                   "createdAt": 1770998657955,
                   "done": false,
                   "timeContexts": [
-                    "week:2026-02-08"
-                  ]
+                    "ongoing"
+                  ],
+                  "contextDurations": {}
                 },
                 {
                   "id": 411,
@@ -525,8 +522,9 @@
                   "createdAt": 1770998483883,
                   "done": false,
                   "timeContexts": [
-                    "week:2026-02-08"
-                  ]
+                    "ongoing"
+                  ],
+                  "contextDurations": {}
                 },
                 {
                   "id": 410,
@@ -536,8 +534,9 @@
                   "createdAt": 1770998034227,
                   "done": false,
                   "timeContexts": [
-                    "week:2026-02-08"
-                  ]
+                    "ongoing"
+                  ],
+                  "contextDurations": {}
                 },
                 {
                   "id": 323,
@@ -547,10 +546,10 @@
                   "createdAt": 1770852026134,
                   "done": false,
                   "timeContexts": [
-                    "week:2026-02-08"
+                    "ongoing"
                   ],
                   "contextDurations": {
-                    "week:2026-02-08": 15
+                    "ongoing": 15
                   }
                 }
               ],
@@ -573,8 +572,9 @@
                   "createdAt": 1771027001568,
                   "done": false,
                   "timeContexts": [
-                    "week:2026-02-08"
-                  ]
+                    "ongoing"
+                  ],
+                  "contextDurations": {}
                 },
                 {
                   "id": 412,
@@ -584,8 +584,9 @@
                   "createdAt": 1770998637870,
                   "done": false,
                   "timeContexts": [
-                    "week:2026-02-08"
-                  ]
+                    "ongoing"
+                  ],
+                  "contextDurations": {}
                 }
               ],
               "expanded": false,
@@ -603,10 +604,10 @@
               "createdAt": 1770913093639,
               "done": false,
               "timeContexts": [
-                "week:2026-02-08"
+                "2026-02-14@13:09-00:30"
               ],
               "contextDurations": {
-                "week:2026-02-08": 60
+                "2026-02-14@13:09-00:30": 60
               }
             },
             {
@@ -670,7 +671,7 @@
               "createdAt": 1770988289520,
               "done": false,
               "timeContexts": [
-                "week:2026-02-15"
+                "ongoing"
               ],
               "contextDurations": {}
             },
@@ -979,10 +980,10 @@
               "createdAt": 1770603489050,
               "done": false,
               "timeContexts": [
-                "week:2026-02-08"
+                "2026-02-14@13:11-00:30"
               ],
               "contextDurations": {
-                "week:2026-02-08": 25
+                "2026-02-14@13:11-00:30": 25
               }
             },
             {
@@ -1094,10 +1095,10 @@
               "createdAt": 1770726107923,
               "done": false,
               "timeContexts": [
-                "week:2026-02-08"
+                "ongoing"
               ],
               "contextDurations": {
-                "week:2026-02-08": 60
+                "ongoing": 60
               }
             },
             {
@@ -1108,11 +1109,23 @@
               "createdAt": 1770996747938,
               "done": false,
               "timeContexts": [
-                "week:2026-02-08"
+                "ongoing"
+              ],
+              "contextDurations": {}
+            },
+            {
+              "id": 408,
+              "name": "when degrading - keep duration",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770993478460,
+              "done": false,
+              "timeContexts": [
+                "ongoing"
               ]
             }
           ],
-          "expanded": true,
+          "expanded": false,
           "createdAt": 1770939013487,
           "done": false,
           "timeContexts": [
@@ -1410,6 +1423,54 @@
               "children": [],
               "expanded": false,
               "createdAt": 1770950388960,
+              "done": false,
+              "timeContexts": [
+                "ongoing"
+              ]
+            },
+            {
+              "id": 424,
+              "name": "priorities",
+              "children": [
+                {
+                  "id": 427,
+                  "name": "my values/another values slider?",
+                  "children": [],
+                  "expanded": false,
+                  "createdAt": 1771067197607,
+                  "done": false,
+                  "timeContexts": [
+                    "ongoing"
+                  ],
+                  "contextDurations": {}
+                },
+                {
+                  "id": 426,
+                  "name": "need/want slider?",
+                  "children": [],
+                  "expanded": false,
+                  "createdAt": 1771067185814,
+                  "done": false,
+                  "timeContexts": [
+                    "ongoing"
+                  ],
+                  "contextDurations": {}
+                },
+                {
+                  "id": 425,
+                  "name": "urgent/important fuzzy sliders",
+                  "children": [],
+                  "expanded": false,
+                  "createdAt": 1771067176923,
+                  "done": false,
+                  "timeContexts": [
+                    "ongoing"
+                  ],
+                  "contextDurations": {}
+                }
+              ],
+              "expanded": false,
+              "createdAt": 1771067160524,
               "done": false,
               "timeContexts": [
                 "ongoing"
@@ -1773,6 +1834,20 @@
               "timeContexts": [
                 "ongoing"
               ]
+            },
+            {
+              "id": 428,
+              "name": "actions change items animation",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1771067242157,
+              "done": false,
+              "timeContexts": [
+                "2026-02-14@13:08-00:30"
+              ],
+              "contextDurations": {
+                "2026-02-14@13:08-00:30": 30
+              }
             }
           ],
           "expanded": false,
@@ -3101,7 +3176,7 @@
           ]
         }
       ],
-      "expanded": true,
+      "expanded": false,
       "createdAt": 1770591468116,
       "done": false,
       "timeContexts": [
@@ -3118,6 +3193,33 @@
       "children": [],
       "expanded": false,
       "createdAt": 1770673365184,
+      "done": false,
+      "timeContexts": [
+        "ongoing"
+      ]
+    },
+    {
+      "id": 423,
+      "name": "יעילות (לעשות את אותם הדברים אבל מהר)",
+      "children": [
+        {
+          "id": 98,
+          "name": "סוכנים וכאלה",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770633310924,
+          "done": false,
+          "timeContexts": [
+            "2026-02-14"
+          ],
+          "estimatedDuration": null,
+          "contextDurations": {
+            "2026-02-14": 15
+          }
+        }
+      ],
+      "expanded": false,
+      "createdAt": 1771066816319,
       "done": false,
       "timeContexts": [
         "ongoing"
@@ -3230,8 +3332,9 @@
               "createdAt": 1771066420199,
               "done": false,
               "timeContexts": [
-                "week:2026-02-08"
-              ]
+                "week:2026-02-15"
+              ],
+              "contextDurations": {}
             },
             {
               "id": 421,
@@ -3241,8 +3344,9 @@
               "createdAt": 1771066412199,
               "done": false,
               "timeContexts": [
-                "week:2026-02-08"
-              ]
+                "week:2026-02-15"
+              ],
+              "contextDurations": {}
             },
             {
               "id": 420,
@@ -3252,8 +3356,9 @@
               "createdAt": 1771066407050,
               "done": false,
               "timeContexts": [
-                "week:2026-02-08"
-              ]
+                "week:2026-02-15"
+              ],
+              "contextDurations": {}
             },
             {
               "id": 419,
@@ -3263,8 +3368,9 @@
               "createdAt": 1771066377217,
               "done": false,
               "timeContexts": [
-                "week:2026-02-08"
-              ]
+                "week:2026-02-15"
+              ],
+              "contextDurations": {}
             }
           ],
           "expanded": false,
@@ -3352,7 +3458,7 @@
           }
         }
       ],
-      "expanded": true,
+      "expanded": false,
       "createdAt": 1770812573309,
       "done": false,
       "timeContexts": [
@@ -3769,7 +3875,7 @@
           "contextDurations": {}
         }
       ],
-      "expanded": true,
+      "expanded": false,
       "createdAt": 1770646819822,
       "done": false,
       "timeContexts": [
@@ -3911,7 +4017,7 @@
           ]
         }
       ],
-      "expanded": true,
+      "expanded": false,
       "createdAt": 1770656654513,
       "done": false,
       "timeContexts": [
@@ -3934,7 +4040,7 @@
           ]
         }
       ],
-      "expanded": true,
+      "expanded": false,
       "createdAt": 1770719785075,
       "done": false,
       "timeContexts": [
@@ -3945,7 +4051,10 @@
         "2026-02-19",
         "2026-02-20",
         "2026-02-21"
-      ]
+      ],
+      "contextDurations": {
+        "2026-02-15": 15
+      }
     },
     {
       "id": 240,
@@ -4083,7 +4192,7 @@
           }
         }
       ],
-      "expanded": true,
+      "expanded": false,
       "createdAt": 1770773753107,
       "done": false,
       "timeContexts": [
@@ -4146,5 +4255,5 @@
       ]
     }
   ],
-  "nextId": 423
+  "nextId": 430
 }
