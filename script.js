@@ -291,7 +291,11 @@ function renderAll() {
     requestAnimationFrame(() => {
         renderProjects();
         renderActions();
-        renderTimeline();
+        if (state._skipTimelineRender) {
+            state._skipTimelineRender = false;
+        } else {
+            renderTimeline();
+        }
         renderTimeContext();
     });
 }
@@ -2144,26 +2148,29 @@ function getCurrentSessionIndex(segments) {
 function navigateSession(direction) {
     const segments = buildPlanSegments();
     if (segments.length === 0) return;
-    const newIndex = state.sessionIndex + direction;
-    if (newIndex < 0) {
-        // Cross to previous day — select its last session
-        state.timelineViewDate.setDate(state.timelineViewDate.getDate() - 1);
-        savePref('timelineViewDate', state.timelineViewDate.toISOString());
-        const prevSegments = buildPlanSegments();
-        state.sessionIndex = prevSegments.length - 1;
-    } else if (newIndex >= segments.length) {
-        // Cross to next day — select its first session
-        state.timelineViewDate.setDate(state.timelineViewDate.getDate() + 1);
-        savePref('timelineViewDate', state.timelineViewDate.toISOString());
-        state.sessionIndex = 0;
-    } else {
-        state.sessionIndex = newIndex;
-    }
-    savePref('sessionIndex', state.sessionIndex);
-    const activeSegments = buildPlanSegments();
-    _syncSessionToFocusStack(activeSegments[state.sessionIndex]);
-    state._animateActions = true;
-    renderAll();
+    const slideDir = direction < 0 ? 'right' : 'left';
+    animateNavTransition(slideDir, () => {
+        const newIndex = state.sessionIndex + direction;
+        if (newIndex < 0) {
+            // Cross to previous day — select its last session
+            state.timelineViewDate.setDate(state.timelineViewDate.getDate() - 1);
+            savePref('timelineViewDate', state.timelineViewDate.toISOString());
+            const prevSegments = buildPlanSegments();
+            state.sessionIndex = prevSegments.length - 1;
+        } else if (newIndex >= segments.length) {
+            // Cross to next day — select its first session
+            state.timelineViewDate.setDate(state.timelineViewDate.getDate() + 1);
+            savePref('timelineViewDate', state.timelineViewDate.toISOString());
+            state.sessionIndex = 0;
+        } else {
+            state.sessionIndex = newIndex;
+        }
+        savePref('sessionIndex', state.sessionIndex);
+        const activeSegments = buildPlanSegments();
+        _syncSessionToFocusStack(activeSegments[state.sessionIndex]);
+        state._animateActions = true;
+        renderAll();
+    });
 }
 
 // Get the currently-active session segment object (or null)
@@ -4719,8 +4726,29 @@ function getDeepViewContextLabel(action) {
             return null;
         }
 
+        // Entry context (planned entry): look up the entry's time range
+        if (parsed && parsed.entryId) {
+            if (state.viewHorizon !== 'session') {
+                const entry = state.timeline?.entries?.find(e => String(e.id) === String(parsed.entryId));
+                if (entry && entry.timestamp && entry.endTime) {
+                    const fmt = (ms) => {
+                        const d = new Date(ms);
+                        return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+                    };
+                    return `${fmt(entry.timestamp)}–${fmt(entry.endTime)}`;
+                }
+                // Fallback: show day name if entry not found
+                if (parsed.date && state.viewHorizon !== 'day') {
+                    const d = new Date(parsed.date + 'T12:00:00');
+                    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+                    return days[d.getDay()];
+                }
+            }
+            return null;
+        }
+
         // Date context: show day name ("Mon", "Tue") — only when viewing above-day level
-        if (parsed && parsed.date && !parsed.segment && !parsed.entryId) {
+        if (parsed && parsed.date && !parsed.segment) {
             if (state.viewHorizon !== 'day') {
                 const d = new Date(parsed.date + 'T12:00:00');
                 const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -6263,23 +6291,26 @@ function toggleSessionFocus(session) {
         }
     }
     // Enter session horizon — find matching plan segment
-    const segments = buildPlanSegments();
-    let matchIdx = -1;
-    for (let i = 0; i < segments.length; i++) {
-        const seg = segments[i];
-        // Match by time range overlap
-        if (session.startMs >= seg.startMs && session.startMs < seg.endMs) {
-            matchIdx = i;
-            break;
+    animateLayerTransition('up', () => {
+        const segments = buildPlanSegments();
+        let matchIdx = -1;
+        for (let i = 0; i < segments.length; i++) {
+            const seg = segments[i];
+            // Match by time range overlap
+            if (session.startMs >= seg.startMs && session.startMs < seg.endMs) {
+                matchIdx = i;
+                break;
+            }
         }
-    }
-    if (matchIdx === -1) matchIdx = getCurrentSessionIndex(segments);
-    state.sessionIndex = matchIdx;
-    state.viewHorizon = 'session';
-    savePref('viewHorizon', 'session');
-    savePref('sessionIndex', state.sessionIndex);
-    _syncSessionToFocusStack(segments[state.sessionIndex]);
-    renderAll();
+        if (matchIdx === -1) matchIdx = getCurrentSessionIndex(segments);
+        state.sessionIndex = matchIdx;
+        state.viewHorizon = 'session';
+        savePref('viewHorizon', 'session');
+        savePref('sessionIndex', state.sessionIndex);
+        _syncSessionToFocusStack(segments[state.sessionIndex]);
+        state._animateActions = true;
+        renderAll();
+    });
 }
 
 // Render the time-context bar: date nav (unfocused) or session info (focused)
@@ -7265,12 +7296,15 @@ function renderWeekView(container) {
         dayLabel.title = 'Click to view this day';
         dayLabel.addEventListener('click', (e) => {
             e.stopPropagation();
-            state.timelineViewDate = new Date(dayDate);
-            savePref('timelineViewDate', state.timelineViewDate.toISOString());
-            state.viewHorizon = 'day';
-            savePref('viewHorizon', 'day');
-            clearFocusStack();
-            renderAll();
+            animateLayerTransition('up', () => {
+                state.timelineViewDate = new Date(dayDate);
+                savePref('timelineViewDate', state.timelineViewDate.toISOString());
+                state.viewHorizon = 'day';
+                savePref('viewHorizon', 'day');
+                clearFocusStack();
+                state._animateActions = true;
+                renderAll();
+            });
         });
 
         const timesLabel = document.createElement('span');
@@ -7992,16 +8026,18 @@ function renderMonthView(container) {
             label.textContent = dayAbbrev[dow];
             pip.appendChild(label);
 
-            // Click pip → day view
+            // Click pip → day view (zoom in)
             pip.addEventListener('click', (e) => {
                 e.stopPropagation();
-                state.timelineViewDate = new Date(dayDate);
-                clearFocusStack();
-                state.viewHorizon = 'day';
-                savePref('viewHorizon', 'day');
-                savePref('timelineViewDate', state.timelineViewDate.toISOString());
-                state._animateActions = true;
-                renderAll();
+                animateLayerTransition('up', () => {
+                    state.timelineViewDate = new Date(dayDate);
+                    clearFocusStack();
+                    state.viewHorizon = 'day';
+                    savePref('viewHorizon', 'day');
+                    savePref('timelineViewDate', state.timelineViewDate.toISOString());
+                    state._animateActions = true;
+                    renderAll();
+                });
             });
 
             strip.appendChild(pip);
@@ -8052,16 +8088,18 @@ function renderMonthView(container) {
             toggle.textContent = isCurrentlyVisible ? '▸' : '▾';
         });
 
-        // Drill-down on range label click → go to week view
+        // Drill-down on range label click → go to week view (zoom in)
         rangeSpan.addEventListener('click', (e) => {
             e.stopPropagation();
-            const range = getWeekDateRange(weekKey);
-            if (range) state.timelineViewDate = range.start;
-            clearFocusStack();
-            state.viewHorizon = 'week';
-            savePref('viewHorizon', 'week');
-            state._animateActions = true;
-            renderAll();
+            animateLayerTransition('up', () => {
+                const range = getWeekDateRange(weekKey);
+                if (range) state.timelineViewDate = range.start;
+                clearFocusStack();
+                state.viewHorizon = 'week';
+                savePref('viewHorizon', 'week');
+                state._animateActions = true;
+                renderAll();
+            });
         });
 
         // DnD: week card as drop target
@@ -12092,22 +12130,23 @@ function updateDateNav() {
         if (weekTodayBtn) weekTodayBtn.style.display = 'none';
     }
 
+    // Always update the day layer label to show the actual date
+    const options = { weekday: 'short', month: 'short', day: 'numeric' };
+    let dateText = viewDate.toLocaleDateString('en-US', options);
+    if (viewDate.getFullYear() !== now.getFullYear()) {
+        dateText += `, ${viewDate.getFullYear()}`;
+    }
+    if (dateEl) dateEl.textContent = dateText;
+
     if (state.viewHorizon === 'month' || state.viewHorizon === 'epoch' || state.viewHorizon === 'session') {
         // Non-day horizons: hide day-level Today button and picker
         if (todayBtn) todayBtn.style.display = 'none';
         if (pickerEl) pickerEl.style.display = 'none';
-        // Still update the date text so it shows current date when dimmed
-        const options = { weekday: 'short', month: 'short', day: 'numeric' };
-        let dateText = viewDate.toLocaleDateString('en-US', options);
-        if (viewDate.getFullYear() !== now.getFullYear()) {
-            dateText += `, ${viewDate.getFullYear()}`;
-        }
-        if (dateEl) dateEl.textContent = dateText;
         return;
     }
 
     if (state.viewHorizon === 'week') {
-        // Week mode: show week range
+        // Week mode: update week layer elements only (day layer label already set above)
         const weekKey = getWeekKey(viewDate);
         const range = getWeekDateRange(weekKey);
         const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -12120,9 +12159,8 @@ function updateDateNav() {
                 ? `${range.end.getDate()}`
                 : `${endMonth} ${range.end.getDate()}`;
             weekRangeStr = `${startStr}–${endStr}`;
-            if (dateEl) dateEl.textContent = weekRangeStr;
         }
-        // Also update the week layer label
+        // Update the week layer label
         const weekNavLabel = document.getElementById('week-nav-label');
         if (weekNavLabel) weekNavLabel.textContent = weekRangeStr;
         // Update week nav picker value
@@ -12138,27 +12176,14 @@ function updateDateNav() {
         if (weekTodayBtn) {
             weekTodayBtn.style.display = weekKey === currentWeek ? 'none' : '';
         }
-        if (todayBtn) {
-            todayBtn.style.display = weekKey === currentWeek ? 'none' : '';
-            todayBtn.textContent = 'This Week';
-        }
-        if (pickerEl) {
-            const y = viewDate.getFullYear();
-            const m = String(viewDate.getMonth() + 1).padStart(2, '0');
-            const d = String(viewDate.getDate()).padStart(2, '0');
-            pickerEl.value = `${y}-${m}-${d}`;
-        }
+        // Day layer buttons are hidden by renderHorizonTower when not in day mode
+        if (todayBtn) todayBtn.style.display = 'none';
+        if (pickerEl) pickerEl.style.display = 'none';
         return;
     }
 
-    // Day mode
+    // Day mode (dateEl already set above)
     const isToday = isCurrentDay(viewDate);
-    const options = { weekday: 'short', month: 'short', day: 'numeric' };
-    let dateText = viewDate.toLocaleDateString('en-US', options);
-    if (viewDate.getFullYear() !== now.getFullYear()) {
-        dateText += `, ${viewDate.getFullYear()}`;
-    }
-    if (dateEl) dateEl.textContent = dateText;
     if (todayBtn) {
         todayBtn.style.display = isToday ? 'none' : '';
         todayBtn.textContent = 'Today';
@@ -14926,126 +14951,157 @@ function openDefaultsModal() {
 }
 
 // ─── Hide-Past Accordion Animation ───
-function animateHidePastToggle(isHiding, renderFn) {
+function animateHidePastToggle(isHiding) {
     const timeline = document.getElementById('timeline-list');
 
-    if (state.viewHorizon === 'week') {
-        // Week view: animate individual past day rows
-        // 1) Collect existing past-day-row elements + their preceding sleep dividers
-        const oldRows = [];
-        if (!isHiding) {
-            // We're about to SHOW past days — snapshot what's there now (nothing)
-        } else {
-            // We're about to HIDE past days — snapshot the current rows
-            timeline.querySelectorAll('.week-day-row.week-day-past').forEach(row => {
-                const items = [row];
-                // Also grab the preceding sleep divider if any
-                const prev = row.previousElementSibling;
-                if (prev && prev.classList.contains('week-sleep-divider')) items.unshift(prev);
-                oldRows.push(items);
-            });
-        }
+    // ── Shared helpers ──
+    const DURATION = '280ms';
+    const EASING = 'cubic-bezier(0.4, 0, 0.2, 1)';
+    const TRANS = `max-height ${DURATION} ${EASING}, opacity ${DURATION} ${EASING}, margin ${DURATION} ${EASING}, padding ${DURATION} ${EASING}`;
 
-        // Render with the new state — but we need the past rows in the DOM for animation
-        // Temporarily force pastDisplayMode to 'full' so they render, then animate away
+    function collapseElements(elements) {
+        elements.forEach(el => {
+            const h = el.offsetHeight;
+            const style = getComputedStyle(el);
+            const mt = style.marginTop, mb = style.marginBottom;
+            const pt = style.paddingTop, pb = style.paddingBottom;
+            const startOpacity = style.opacity;  // respect CSS-defined opacity (e.g. dimmed past)
+            el.style.overflow = 'hidden';
+            el.style.transition = 'none';
+            el.style.maxHeight = h + 'px';
+            el.style.marginTop = mt;
+            el.style.marginBottom = mb;
+            el.style.paddingTop = pt;
+            el.style.paddingBottom = pb;
+            el.style.opacity = startOpacity;
+            void el.offsetHeight;
+            el.style.transition = TRANS;
+            el.style.maxHeight = '0px';
+            el.style.marginTop = '0px';
+            el.style.marginBottom = '0px';
+            el.style.paddingTop = '0px';
+            el.style.paddingBottom = '0px';
+            el.style.opacity = '0';
+            let done = false;
+            const cleanup = () => { if (done) return; done = true; el.remove(); };
+            el.addEventListener('transitionend', (e) => { if (e.propertyName === 'max-height') cleanup(); });
+            setTimeout(cleanup, 350);
+        });
+    }
+
+    function expandElements(elements) {
+        elements.forEach(el => {
+            const h = el.offsetHeight;
+            const style = getComputedStyle(el);
+            const mt = style.marginTop, mb = style.marginBottom;
+            const pt = style.paddingTop, pb = style.paddingBottom;
+            const targetOpacity = style.opacity;  // respect CSS-defined opacity (e.g. dimmed past)
+            el.style.overflow = 'hidden';
+            el.style.transition = 'none';
+            el.style.maxHeight = '0px';
+            el.style.marginTop = '0px';
+            el.style.marginBottom = '0px';
+            el.style.paddingTop = '0px';
+            el.style.paddingBottom = '0px';
+            el.style.opacity = '0';
+            void el.offsetHeight;
+            el.style.transition = TRANS;
+            el.style.maxHeight = h + 'px';
+            el.style.marginTop = mt;
+            el.style.marginBottom = mb;
+            el.style.paddingTop = pt;
+            el.style.paddingBottom = pb;
+            el.style.opacity = targetOpacity;
+            let done = false;
+            const cleanup = () => {
+                if (done) return; done = true;
+                el.style.overflow = '';
+                el.style.transition = '';
+                el.style.maxHeight = '';
+                el.style.marginTop = '';
+                el.style.marginBottom = '';
+                el.style.paddingTop = '';
+                el.style.paddingBottom = '';
+                el.style.opacity = '';
+            };
+            el.addEventListener('transitionend', (e) => { if (e.propertyName === 'max-height') cleanup(); });
+            setTimeout(cleanup, 350);
+        });
+    }
+
+    // ── Week view: animate individual past day rows ──
+    if (state.viewHorizon === 'week') {
         if (isHiding) {
+            // Temporarily show past so they render, then animate away
             state.pastDisplayMode = 'show';
-            renderFn();
+            renderTimeline();
             state.pastDisplayMode = 'hide';
 
-            // Now animate each past day row to collapse
-            const pastRows = timeline.querySelectorAll('.week-day-row.week-day-past');
-            const toAnimate = [];
-            pastRows.forEach(row => {
-                const items = [row];
+            const toCollapse = [];
+            timeline.querySelectorAll('.week-day-row.week-day-past').forEach(row => {
                 const prev = row.previousElementSibling;
-                if (prev && prev.classList.contains('week-sleep-divider')) items.unshift(prev);
-                toAnimate.push(items);
+                if (prev && prev.classList.contains('week-sleep-divider')) toCollapse.push(prev);
+                toCollapse.push(row);
             });
-
-            toAnimate.forEach(group => {
-                group.forEach(el => {
-                    const h = el.offsetHeight;
-                    el.style.overflow = 'hidden';
-                    el.style.transition = 'none';
-                    el.style.maxHeight = h + 'px';
-                    el.style.opacity = '1';
-                    requestAnimationFrame(() => {
-                        el.style.transition = 'max-height 250ms ease-out, opacity 200ms ease-out';
-                        el.style.maxHeight = '0px';
-                        el.style.opacity = '0';
-                        const cleanup = () => el.remove();
-                        el.addEventListener('transitionend', cleanup, { once: true });
-                        setTimeout(cleanup, 300);
-                    });
-                });
-            });
+            collapseElements(toCollapse);
         } else {
-            // Showing past: render with past included, then animate them in
-            renderFn();
-
-            const pastRows = timeline.querySelectorAll('.week-day-row.week-day-past');
-            const toAnimate = [];
-            pastRows.forEach(row => {
-                const items = [row];
+            renderTimeline();
+            const toExpand = [];
+            timeline.querySelectorAll('.week-day-row.week-day-past').forEach(row => {
                 const prev = row.previousElementSibling;
-                if (prev && prev.classList.contains('week-sleep-divider')) items.unshift(prev);
-                toAnimate.push(items);
+                if (prev && prev.classList.contains('week-sleep-divider')) toExpand.push(prev);
+                toExpand.push(row);
             });
-
-            toAnimate.forEach(group => {
-                group.forEach(el => {
-                    const h = el.offsetHeight;
-                    el.style.overflow = 'hidden';
-                    el.style.transition = 'none';
-                    el.style.maxHeight = '0px';
-                    el.style.opacity = '0';
-                    // Force layout
-                    el.offsetHeight;
-                    requestAnimationFrame(() => {
-                        el.style.transition = 'max-height 250ms ease-out, opacity 200ms ease-out';
-                        el.style.maxHeight = h + 'px';
-                        el.style.opacity = '1';
-                        const cleanup = () => {
-                            el.style.overflow = '';
-                            el.style.transition = '';
-                            el.style.maxHeight = '';
-                            el.style.opacity = '';
-                        };
-                        el.addEventListener('transitionend', cleanup, { once: true });
-                        setTimeout(cleanup, 300);
-                    });
-                });
-            });
+            expandElements(toExpand);
         }
         return;
     }
 
-    // Day view: accordion wrapper approach
-    const oldH = timeline.scrollHeight;
-    renderFn();
-    const newH = timeline.scrollHeight;
-    const diff = newH - oldH;
-    if (Math.abs(diff) < 2) return;
+    // ── Month view: animate individual past week cards ──
+    if (state.viewHorizon === 'month') {
+        if (isHiding) {
+            state.pastDisplayMode = 'show';
+            renderTimeline();
+            state.pastDisplayMode = 'hide';
+            const pastCards = [...timeline.querySelectorAll('.month-week-card-past')];
+            collapseElements(pastCards);
+        } else {
+            renderTimeline();
+            const pastCards = [...timeline.querySelectorAll('.month-week-card-past')];
+            expandElements(pastCards);
+        }
+        return;
+    }
 
-    const wrapper = document.createElement('div');
-    while (timeline.firstChild) wrapper.appendChild(timeline.firstChild);
-    timeline.appendChild(wrapper);
-
-    wrapper.style.transition = 'none';
-    wrapper.style.marginTop = `${-diff}px`;
-
-    requestAnimationFrame(() => {
-        wrapper.style.transition = 'margin-top 250ms ease-out';
-        wrapper.style.marginTop = '0px';
-
-        const cleanup = () => {
-            while (wrapper.firstChild) timeline.appendChild(wrapper.firstChild);
-            wrapper.remove();
-        };
-        wrapper.addEventListener('transitionend', cleanup, { once: true });
-        setTimeout(cleanup, 300);
-    });
+    // ── Day view: snapshot old, render new, crossfade ──
+    if (isHiding) {
+        // Render WITH past first (state-toggle), snapshot, then render WITHOUT
+        state.pastDisplayMode = 'show';
+        renderTimeline();
+        state.pastDisplayMode = 'hide';
+        // Snapshot current children count
+        const oldChildren = [...timeline.children];
+        // Re-render without past
+        renderTimeline();
+        const newChildren = new Set([...timeline.children]);
+        // Find elements that disappeared (old only)
+        const removed = oldChildren.filter(c => !newChildren.has(c));
+        if (removed.length > 0) {
+            // Re-insert old-only elements at top for collapse animation
+            removed.forEach(el => timeline.insertBefore(el, timeline.firstChild));
+            collapseElements(removed);
+        }
+    } else {
+        // Render with past included, animate new elements in
+        // First snapshot current (without past)
+        const oldChildSet = new Set([...timeline.children]);
+        renderTimeline();
+        // Find new elements that weren't there before
+        const added = [...timeline.children].filter(c => !oldChildSet.has(c));
+        if (added.length > 0) {
+            expandElements(added);
+        }
+    }
 }
 
 // ─── Nav Slide Animation ───
@@ -15730,6 +15786,7 @@ document.addEventListener('DOMContentLoaded', () => {
             state.sessionIndex = getCurrentSessionIndex(segments);
             savePref('sessionIndex', state.sessionIndex);
             _syncSessionToFocusStack(segments[state.sessionIndex]);
+            state._animateActions = true;
             renderAll();
         });
         sessionLayer.addEventListener('dragover', (e) => {
@@ -15782,8 +15839,12 @@ document.addEventListener('DOMContentLoaded', () => {
         state.pastDisplayMode = wasHidden ? 'show' : 'hide';
         savePref('pastDisplayMode', state.pastDisplayMode);
         syncPastDisplayBtn(hidePastBtn);
-        // Animate the transition
-        animateHidePastToggle(!wasHidden, () => renderAll());
+        // Animate the timeline transition (calls renderTimeline directly)
+        animateHidePastToggle(!wasHidden);
+        // Update non-timeline UI (horizon tower, actions, projects, etc.)
+        // Skip the deferred renderTimeline inside renderAll so it doesn't clobber the animation
+        state._skipTimelineRender = true;
+        renderAll();
     });
 
     // Streak check-in button

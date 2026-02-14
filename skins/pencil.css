@@ -1707,6 +1707,13 @@ body {
     opacity: 1;
 }
 
+/* ─── Live Working Indicator ─── */
+.action-item.action-item-working {
+    border-left: 2px solid #2b7a4b;
+    padding-left: 4px;
+    background: rgba(43, 122, 75, 0.06);
+}
+
 /* ─── Goal Badges (Projects) ─── */
 .project-goal-badge {
     font-size: 12px;

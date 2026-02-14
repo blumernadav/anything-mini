@@ -3088,7 +3088,96 @@
       "type": "completion",
       "id": 383,
       "timestamp": 1771086198779
+    },
+    {
+      "text": "Worked on: animations (55m)",
+      "projectName": "anything › nice to have",
+      "type": "work",
+      "startTime": 1771085496663,
+      "endTime": 1771088844979,
+      "itemId": 278,
+      "id": 384,
+      "timestamp": 1771085496663,
+      "manual": true
+    },
+    {
+      "text": "Worked on: animations (5m)",
+      "projectName": "anything › nice to have",
+      "type": "work",
+      "startTime": 1771088964940,
+      "endTime": 1771089313835,
+      "itemId": 278,
+      "id": 385,
+      "timestamp": 1771088964940,
+      "manual": true
+    },
+    {
+      "text": "Worked on: animations (6m)",
+      "projectName": "anything › nice to have",
+      "type": "work",
+      "startTime": 1771089655197,
+      "endTime": 1771090056740,
+      "itemId": 278,
+      "id": 386,
+      "timestamp": 1771089655197,
+      "manual": true
+    },
+    {
+      "text": "Break (6m)",
+      "type": "break",
+      "startTime": 1771090068548,
+      "endTime": 1771090479142,
+      "targetEndTime": 1771090968548,
+      "id": 387,
+      "timestamp": 1771090068548
+    },
+    {
+      "text": "Worked on: לענות להודעות (14m)",
+      "projectName": "Inbox",
+      "type": "work",
+      "startTime": 1771090479148,
+      "endTime": 1771091365222,
+      "targetEndTime": 1771091379131,
+      "itemId": 444,
+      "id": 388,
+      "timestamp": 1771090479148,
+      "manual": true
+    },
+    {
+      "text": "Worked on: עופר (3m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1771091376231,
+      "endTime": 1771091577371,
+      "targetEndTime": 1771094976231,
+      "itemId": 145,
+      "id": 389,
+      "timestamp": 1771091376231,
+      "manual": true
+    },
+    {
+      "text": "Worked on: עופר (0m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1771091578496,
+      "endTime": 1771091609529,
+      "targetEndTime": 1771095178496,
+      "itemId": 145,
+      "id": 390,
+      "timestamp": 1771091578496
+    },
+    {
+      "text": "Worked on: לשתף את הדרייב (13m)",
+      "projectName": "משפחה",
+      "type": "work",
+      "startTime": 1771091609536,
+      "endTime": 1771092393224,
+      "targetEndTime": 1771092509529,
+      "itemId": 385,
+      "id": 391,
+      "timestamp": 1771091609536,
+      "manual": true
     }
   ],
-  "nextId": 384
+  "nextId": 392
 }

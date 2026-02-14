@@ -1858,6 +1858,13 @@ body {
     opacity: 1;
 }
 
+/* ─── Live Working Indicator ─── */
+.action-item.action-item-working {
+    border-left: 3px solid var(--duo-green);
+    padding-left: 7px;
+    background: var(--duo-green-dim);
+}
+
 /* ─── Goal Badges (Projects) ─── */
 .project-goal-badge {
     font-size: 10px;

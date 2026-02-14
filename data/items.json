@@ -5,6 +5,39 @@
       "name": "Inbox",
       "children": [
         {
+          "id": 457,
+          "name": "steer the future towards a better one as a self aware agent",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771086736067,
+          "done": false,
+          "timeContexts": [
+            "future"
+          ]
+        },
+        {
+          "id": 456,
+          "name": "family",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771086721745,
+          "done": false,
+          "timeContexts": [
+            "future"
+          ]
+        },
+        {
+          "id": 455,
+          "name": "fulfillment",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771086715832,
+          "done": false,
+          "timeContexts": [
+            "future"
+          ]
+        },
+        {
           "id": 444,
           "name": "לענות להודעות",
           "children": [],
@@ -12,12 +45,9 @@
           "createdAt": 1771081425864,
           "done": false,
           "timeContexts": [
-            "2026-02-14"
+            "ongoing"
           ],
-          "contextDurations": {
-            "2026-02-14": 15,
-            "month:2026-02": 15
-          }
+          "contextDurations": {}
         },
         {
           "id": 361,
@@ -27,11 +57,10 @@
           "createdAt": 1770932403465,
           "done": false,
           "timeContexts": [
-            "week:2026-02-08"
+            "week:2026-02-15"
           ],
           "contextDurations": {
-            "2026-02-13": 10,
-            "week:2026-02-08": 10
+            "week:2026-02-15": 10
           }
         },
         {
@@ -89,11 +118,11 @@
           "createdAt": 1770951370710,
           "done": false,
           "timeContexts": [
-            "2026-02-14"
+            "2026-02-14@19:07-00:30"
           ],
           "contextLeadTimes": {},
           "contextDurations": {
-            "2026-02-14": 15
+            "2026-02-14@19:07-00:30": 15
           }
         }
       ],
@@ -392,7 +421,8 @@
           "createdAt": 1770603909137,
           "done": false,
           "timeContexts": [
-            "ongoing"
+            "ongoing",
+            "week:2026-02-15"
           ]
         },
         {
@@ -438,12 +468,39 @@
           }
         }
       ],
-      "expanded": false,
+      "expanded": true,
       "createdAt": 1770609703744,
       "done": false,
       "timeContexts": [
         "ongoing"
       ]
+    },
+    {
+      "id": 145,
+      "name": "עופר",
+      "children": [
+        {
+          "id": 146,
+          "name": "דברים מגניבים למערך 14",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770648806607,
+          "done": true,
+          "goal": null,
+          "timeContexts": [
+            "ongoing"
+          ]
+        }
+      ],
+      "expanded": false,
+      "createdAt": 1770648790566,
+      "done": false,
+      "timeContexts": [
+        "2026-02-14@19:07-00:30"
+      ],
+      "contextDurations": {
+        "2026-02-14@19:07-00:30": 60
+      }
     },
     {
       "id": 9,
@@ -459,90 +516,6 @@
           "timeContexts": [
             "ongoing"
           ]
-        },
-        {
-          "id": 441,
-          "name": "edit/remove past logs",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1771076084973,
-          "done": false,
-          "timeContexts": [
-            "week:2026-02-15"
-          ],
-          "contextDurations": {}
-        },
-        {
-          "id": 440,
-          "name": "upon hover show in past logs free time / idle and be able to fill it automatically",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1771076074101,
-          "done": false,
-          "timeContexts": [
-            "week:2026-02-08"
-          ],
-          "contextDurations": {}
-        },
-        {
-          "id": 432,
-          "name": "top bar time context overlap with live indicator",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1771072571576,
-          "done": false,
-          "timeContexts": [
-            "ongoing"
-          ],
-          "contextDurations": {}
-        },
-        {
-          "id": 397,
-          "name": "idea - see in actions \"how much out of how much is scheduled\" (esp. for week/month but also day)",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770981831207,
-          "done": false,
-          "timeContexts": [
-            "ongoing"
-          ],
-          "contextDurations": {
-            "ongoing": 120
-          }
-        },
-        {
-          "id": 430,
-          "name": "idea - countdown is a plan",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1771068468814,
-          "done": false,
-          "timeContexts": [
-            "ongoing"
-          ]
-        },
-        {
-          "id": 431,
-          "name": "maybe do not clamp free time to now?",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1771072424809,
-          "done": false,
-          "timeContexts": [
-            "ongoing"
-          ]
-        },
-        {
-          "id": 415,
-          "name": "capacity bar should show WHOLE capacity (start to end)? or just what's visible?",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770998710806,
-          "done": false,
-          "timeContexts": [
-            "ongoing"
-          ],
-          "contextDurations": {}
         },
         {
           "id": 398,
@@ -590,105 +563,6 @@
           "timeContexts": [
             "week:2026-02-08"
           ]
-        },
-        {
-          "id": 393,
-          "name": "maybe decouple 2 concepts - \"lock\" horizons to a project, and schedule under",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770979784782,
-          "done": false,
-          "timeContexts": [
-            "ongoing"
-          ],
-          "contextDurations": {
-            "ongoing": 60
-          }
-        },
-        {
-          "id": 392,
-          "name": "reconcile what's in the timeline and what's in actions",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770979755970,
-          "done": false,
-          "timeContexts": [
-            "ongoing"
-          ],
-          "contextDurations": {
-            "2026-02-13": 15
-          }
-        },
-        {
-          "id": 390,
-          "name": "what appears under live work / break / idle? what's planned or is it its own time context?",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770976741920,
-          "done": false,
-          "timeContexts": [
-            "ongoing"
-          ],
-          "contextDurations": {
-            "ongoing": 30
-          }
-        },
-        {
-          "id": 386,
-          "name": "differentiate focus sessions from appointments",
-          "children": [
-            {
-              "id": 388,
-              "name": "maybe focus sessions are sliding window (\"package\" intention)",
-              "children": [],
-              "expanded": false,
-              "createdAt": 1770973172517,
-              "done": false,
-              "timeContexts": [
-                "ongoing"
-              ],
-              "contextDurations": {
-                "ongoing": 30
-              }
-            }
-          ],
-          "expanded": false,
-          "createdAt": 1770972497996,
-          "done": false,
-          "timeContexts": [
-            "ongoing"
-          ],
-          "contextDurations": {
-            "ongoing": 60
-          }
-        },
-        {
-          "id": 374,
-          "name": "prep time should be occupied time",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770943488414,
-          "done": false,
-          "timeContexts": [
-            "ongoing"
-          ],
-          "contextDurations": {
-            "ongoing": 30
-          }
-        },
-        {
-          "id": 375,
-          "name": "special idle running in night (between day close/end)",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770944485303,
-          "done": false,
-          "timeContexts": [
-            "ongoing"
-          ],
-          "contextDurations": {
-            "ongoing": 30
-          }
         },
         {
           "id": 365,
@@ -759,6 +633,30 @@
                   "contextDurations": {
                     "ongoing": 15
                   }
+                },
+                {
+                  "id": 441,
+                  "name": "edit/remove past logs",
+                  "children": [],
+                  "expanded": false,
+                  "createdAt": 1771076084973,
+                  "done": false,
+                  "timeContexts": [
+                    "ongoing"
+                  ],
+                  "contextDurations": {}
+                },
+                {
+                  "id": 440,
+                  "name": "upon hover show in past logs free time / idle and be able to fill it automatically",
+                  "children": [],
+                  "expanded": false,
+                  "createdAt": 1771076074101,
+                  "done": false,
+                  "timeContexts": [
+                    "ongoing"
+                  ],
+                  "contextDurations": {}
                 }
               ],
               "expanded": false,
@@ -795,6 +693,45 @@
                     "ongoing"
                   ],
                   "contextDurations": {}
+                },
+                {
+                  "id": 431,
+                  "name": "maybe do not clamp free time to now?",
+                  "children": [],
+                  "expanded": false,
+                  "createdAt": 1771072424809,
+                  "done": false,
+                  "timeContexts": [
+                    "ongoing"
+                  ]
+                },
+                {
+                  "id": 390,
+                  "name": "what appears under live work / break / idle? what's planned or is it its own time context?",
+                  "children": [],
+                  "expanded": false,
+                  "createdAt": 1770976741920,
+                  "done": false,
+                  "timeContexts": [
+                    "ongoing"
+                  ],
+                  "contextDurations": {
+                    "ongoing": 30
+                  }
+                },
+                {
+                  "id": 375,
+                  "name": "special idle running in night (between day close/end)",
+                  "children": [],
+                  "expanded": false,
+                  "createdAt": 1770944485303,
+                  "done": false,
+                  "timeContexts": [
+                    "ongoing"
+                  ],
+                  "contextDurations": {
+                    "ongoing": 30
+                  }
                 }
               ],
               "expanded": false,
@@ -803,6 +740,20 @@
               "timeContexts": [
                 "ongoing"
               ]
+            },
+            {
+              "id": 393,
+              "name": "maybe decouple 2 concepts - \"lock\" horizons to a project, and schedule under",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770979784782,
+              "done": false,
+              "timeContexts": [
+                "ongoing"
+              ],
+              "contextDurations": {
+                "ongoing": 60
+              }
             },
             {
               "id": 349,
@@ -817,6 +768,89 @@
               "contextDurations": {
                 "2026-02-14@17:49-00:30": 45
               }
+            },
+            {
+              "id": 460,
+              "name": "top level planning",
+              "children": [
+                {
+                  "id": 374,
+                  "name": "prep time should be occupied time",
+                  "children": [],
+                  "expanded": false,
+                  "createdAt": 1770943488414,
+                  "done": false,
+                  "timeContexts": [
+                    "ongoing"
+                  ],
+                  "contextDurations": {
+                    "ongoing": 30
+                  }
+                },
+                {
+                  "id": 386,
+                  "name": "differentiate focus sessions from appointments",
+                  "children": [
+                    {
+                      "id": 388,
+                      "name": "maybe focus sessions are sliding window (\"package\" intention)",
+                      "children": [],
+                      "expanded": false,
+                      "createdAt": 1770973172517,
+                      "done": false,
+                      "timeContexts": [
+                        "ongoing"
+                      ],
+                      "contextDurations": {
+                        "ongoing": 30
+                      }
+                    }
+                  ],
+                  "expanded": false,
+                  "createdAt": 1770972497996,
+                  "done": false,
+                  "timeContexts": [
+                    "ongoing"
+                  ],
+                  "contextDurations": {
+                    "ongoing": 60
+                  }
+                },
+                {
+                  "id": 461,
+                  "name": "whole day plans",
+                  "children": [],
+                  "expanded": false,
+                  "createdAt": 1771089270215,
+                  "done": false,
+                  "timeContexts": [
+                    "2026-02-14@19:26-00:30"
+                  ],
+                  "contextDurations": {
+                    "2026-02-14@19:26-00:30": 25
+                  }
+                },
+                {
+                  "id": 397,
+                  "name": "idea - see in actions \"how much out of how much is scheduled\" (esp. for week/month but also day)",
+                  "children": [],
+                  "expanded": false,
+                  "createdAt": 1770981831207,
+                  "done": false,
+                  "timeContexts": [
+                    "ongoing"
+                  ],
+                  "contextDurations": {
+                    "ongoing": 120
+                  }
+                }
+              ],
+              "expanded": false,
+              "createdAt": 1771089143334,
+              "done": false,
+              "timeContexts": [
+                "ongoing"
+              ]
             },
             {
               "id": 452,
@@ -1355,7 +1389,7 @@
               ]
             }
           ],
-          "expanded": true,
+          "expanded": false,
           "createdAt": 1770939013487,
           "done": false,
           "timeContexts": [
@@ -1705,6 +1739,17 @@
               "timeContexts": [
                 "ongoing"
               ]
+            },
+            {
+              "id": 430,
+              "name": "idea - countdown is a plan",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1771068468814,
+              "done": false,
+              "timeContexts": [
+                "ongoing"
+              ]
             }
           ],
           "expanded": false,
@@ -1821,7 +1866,20 @@
             {
               "id": 278,
               "name": "animations",
-              "children": [],
+              "children": [
+                {
+                  "id": 459,
+                  "name": "projects animations",
+                  "children": [],
+                  "expanded": false,
+                  "createdAt": 1771089048830,
+                  "done": false,
+                  "timeContexts": [
+                    "ongoing"
+                  ],
+                  "contextDurations": {}
+                }
+              ],
               "expanded": false,
               "createdAt": 1770809865316,
               "done": false,
@@ -2069,7 +2127,7 @@
               }
             }
           ],
-          "expanded": true,
+          "expanded": false,
           "createdAt": 1770939024902,
           "done": false,
           "timeContexts": [
@@ -2080,6 +2138,17 @@
           "id": 364,
           "name": "bugs",
           "children": [
+            {
+              "id": 462,
+              "name": "flicker of green in horizon layers animation",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1771089489784,
+              "done": false,
+              "timeContexts": [
+                "ongoing"
+              ]
+            },
             {
               "id": 389,
               "name": "durations under a session in actions area",
@@ -2129,9 +2198,46 @@
               "timeContexts": [
                 "ongoing"
               ]
+            },
+            {
+              "id": 458,
+              "name": "jump at the end of timeline accordion fix",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1771088812867,
+              "done": false,
+              "timeContexts": [
+                "ongoing"
+              ]
+            },
+            {
+              "id": 432,
+              "name": "top bar time context overlap with live indicator",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1771072571576,
+              "done": false,
+              "timeContexts": [
+                "ongoing"
+              ],
+              "contextDurations": {}
+            },
+            {
+              "id": 392,
+              "name": "reconcile what's in the timeline and what's in actions",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770979755970,
+              "done": false,
+              "timeContexts": [
+                "ongoing"
+              ],
+              "contextDurations": {
+                "2026-02-13": 15
+              }
             }
           ],
-          "expanded": false,
+          "expanded": true,
           "createdAt": 1770938999434,
           "done": false,
           "timeContexts": [
@@ -2313,6 +2419,18 @@
               "children": [],
               "expanded": false,
               "createdAt": 1770949862364,
+              "done": false,
+              "timeContexts": [
+                "ongoing"
+              ],
+              "contextDurations": {}
+            },
+            {
+              "id": 415,
+              "name": "capacity bar should show WHOLE capacity (start to end)? or just what's visible?",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770998710806,
               "done": false,
               "timeContexts": [
                 "ongoing"
@@ -3698,10 +3816,10 @@
           "createdAt": 1770971728857,
           "done": false,
           "timeContexts": [
-            "2026-02-14"
+            "2026-02-14@19:07-00:30"
           ],
           "contextDurations": {
-            "2026-02-14": 15
+            "2026-02-14@19:07-00:30": 15
           }
         }
       ],
@@ -3735,7 +3853,7 @@
           "createdAt": 1771084110531,
           "done": false,
           "timeContexts": [
-            "month:2026-02"
+            "ongoing"
           ]
         },
         {
@@ -3757,10 +3875,10 @@
           "createdAt": 1770912310256,
           "done": false,
           "timeContexts": [
-            "2026-02-14"
+            "2026-02-14@19:08-00:30"
           ],
           "contextDurations": {
-            "2026-02-14": 30
+            "2026-02-14@19:08-00:30": 30
           }
         },
         {
@@ -3815,10 +3933,10 @@
               "createdAt": 1770810830525,
               "done": false,
               "timeContexts": [
-                "2026-02-14"
+                "2026-02-14@19:08-00:30"
               ],
               "contextDurations": {
-                "2026-02-14": 30
+                "2026-02-14@19:08-00:30": 30
               }
             }
           ],
@@ -3963,7 +4081,7 @@
           ]
         }
       ],
-      "expanded": true,
+      "expanded": false,
       "createdAt": 1770603206837,
       "done": false,
       "timeContexts": [
@@ -4022,6 +4140,35 @@
       "id": 137,
       "name": "חברים",
       "children": [
+        {
+          "id": 465,
+          "name": "להעביר ליונתן כסף חתונה",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771091337506,
+          "done": false,
+          "timeContexts": [
+            "2026-02-14@19:49-00:30"
+          ],
+          "contextDurations": {
+            "2026-02-14@19:49-00:30": 2
+          }
+        },
+        {
+          "id": 464,
+          "name": "לבדוק מה עם שני",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771090042198,
+          "done": false,
+          "timeContexts": [
+            "2026-02-14",
+            "2026-02-14@12:00-00:30"
+          ],
+          "contextDurations": {
+            "2026-02-14@12:00-00:30": 5
+          }
+        },
         {
           "id": 445,
           "name": "לדגום את יובדו",
@@ -4188,36 +4335,25 @@
       ]
     },
     {
-      "id": 145,
-      "name": "עופר",
-      "children": [
-        {
-          "id": 146,
-          "name": "דברים מגניבים למערך 14",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770648806607,
-          "done": true,
-          "goal": null,
-          "timeContexts": [
-            "ongoing"
-          ]
-        }
-      ],
-      "expanded": false,
-      "createdAt": 1770648790566,
-      "done": false,
-      "timeContexts": [
-        "2026-02-14"
-      ],
-      "contextDurations": {
-        "2026-02-14": 60
-      }
-    },
-    {
       "id": 155,
       "name": "כסף",
-      "children": [],
+      "children": [
+        {
+          "id": 463,
+          "name": "מיילים ודברים של כסף, ביטוח לאומי וכו׳",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771090030916,
+          "done": false,
+          "timeContexts": [
+            "2026-02-14",
+            "2026-02-14@12:00-00:30"
+          ],
+          "contextDurations": {
+            "2026-02-14@12:00-00:30": 5
+          }
+        }
+      ],
       "expanded": false,
       "createdAt": 1770651242811,
       "done": false,
@@ -4410,11 +4546,10 @@
           "createdAt": 1770854980211,
           "done": false,
           "timeContexts": [
-            "week:2026-02-08"
+            "2026-02-14"
           ],
           "contextDurations": {
-            "2026-02-13": 10,
-            "week:2026-02-08": 10
+            "2026-02-14": 10
           }
         },
         {
@@ -4425,13 +4560,10 @@
           "createdAt": 1770847807010,
           "done": false,
           "timeContexts": [
-            "week:2026-02-08"
+            "2026-02-14"
           ],
           "contextDurations": {
-            "2026-02-11": 10,
-            "2026-02-12": 5,
-            "2026-02-13": 5,
-            "week:2026-02-08": 10
+            "2026-02-14": 10
           }
         }
       ],
@@ -4443,5 +4575,5 @@
       ]
     }
   ],
-  "nextId": 455
+  "nextId": 466
 }
