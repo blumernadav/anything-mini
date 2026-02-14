@@ -3079,8 +3079,16 @@
       "targetEndTime": 1771085839527,
       "itemId": 349,
       "id": 382,
-      "timestamp": 1771078879533
+      "timestamp": 1771078879533,
+      "manual": true
+    },
+    {
+      "text": "Done: month horizon",
+      "projectName": "anything › core",
+      "type": "completion",
+      "id": 383,
+      "timestamp": 1771086198779
     }
   ],
-  "nextId": 383
+  "nextId": 384
 }

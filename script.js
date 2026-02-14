@@ -6110,9 +6110,21 @@ function renderHorizonTower() {
     // Set week label — always show specific date range (even when dimmed)
     _updateWeekNavLabel();
 
-    // Day layer: always visible, active when viewHorizon is day, dim otherwise
+    // Day layer: active when viewHorizon is day, dim otherwise
     dayLayer.classList.toggle('horizon-layer-active', currentLevel === 'day');
     dayLayer.classList.toggle('horizon-layer-dim', currentLevel !== 'day');
+    // Show/hide day nav buttons based on active state
+    const dayActive = currentLevel === 'day';
+    const dayPrevBtn = document.getElementById('date-nav-prev');
+    const dayNextBtn = document.getElementById('date-nav-next');
+    const dayTodayBtn = document.getElementById('date-nav-today-btn');
+    const dayPicker = document.getElementById('date-nav-picker');
+    if (dayPrevBtn) dayPrevBtn.style.display = dayActive ? '' : 'none';
+    if (dayNextBtn) dayNextBtn.style.display = dayActive ? '' : 'none';
+    if (!dayActive) {
+        if (dayTodayBtn) dayTodayBtn.style.display = 'none';
+        if (dayPicker) dayPicker.style.display = 'none';
+    }
 
     // Session layer: visibility managed by the 3-layer window above
     if (sessionLayer) {
@@ -6281,27 +6293,8 @@ function renderTimeContext() {
         // Unfocused: show normal date nav
         container.classList.remove('time-context-focused');
         container.className = container.className.replace(/\btime-context-type-\S+/g, '').trim();
-        // Note: don't force dateNav visible here — renderHorizonTower controls layer visibility
+        // Note: layer visibility and nav buttons are managed by renderHorizonTower
         container.querySelectorAll('.time-context-session').forEach(el => el.remove());
-
-        // Sync date nav for current horizon
-        const prevBtn = document.getElementById('date-nav-prev');
-        const nextBtn = document.getElementById('date-nav-next');
-        const todayBtn = document.getElementById('date-nav-today-btn');
-
-        if (state.viewHorizon === 'epoch') {
-            if (prevBtn) prevBtn.style.display = 'none';
-            if (nextBtn) nextBtn.style.display = 'none';
-            if (todayBtn) todayBtn.style.display = 'none';
-        } else if (state.viewHorizon === 'week') {
-            if (prevBtn) prevBtn.style.display = '';
-            if (nextBtn) nextBtn.style.display = '';
-            // "This Week" button visibility handled by updateDateNav()
-        } else {
-            if (prevBtn) prevBtn.style.display = '';
-            if (nextBtn) nextBtn.style.display = '';
-            // Today button visibility is handled by updateDateNav()
-        }
     } else {
 
         // Focused: transform the bar — keep horizon layers visible (dimmed by renderHorizonTower)

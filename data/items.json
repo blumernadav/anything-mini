@@ -810,7 +810,7 @@
               "children": [],
               "expanded": false,
               "createdAt": 1770913093639,
-              "done": false,
+              "done": true,
               "timeContexts": [
                 "2026-02-14@17:49-00:30"
               ],
@@ -3735,7 +3735,7 @@
           "createdAt": 1771084110531,
           "done": false,
           "timeContexts": [
-            "ongoing"
+            "month:2026-02"
           ]
         },
         {
@@ -3963,7 +3963,7 @@
           ]
         }
       ],
-      "expanded": false,
+      "expanded": true,
       "createdAt": 1770603206837,
       "done": false,
       "timeContexts": [
@@ -4443,5 +4443,5 @@
       ]
     }
   ],
-  "nextId": 454
+  "nextId": 455
 }

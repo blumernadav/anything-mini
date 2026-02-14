@@ -16,7 +16,7 @@
   },
   "selectedItemId": "",
   "onBreak": null,
-  "timelineViewDate": "2026-02-14T16:19:39.741Z",
+  "timelineViewDate": "2026-01-31T22:00:00.000Z",
   "scheduleFilter": "scheduled+unscheduled",
   "collapsedGroups": [
     86,
@@ -47,7 +47,7 @@
     9,
     17
   ],
-  "viewHorizon": "day",
+  "viewHorizon": "month",
   "weekCollapsedDays": {
     "2026-02-08": true,
     "2026-02-09": true,
@@ -81,7 +81,7 @@
     "weekGroups_2026-02-14": []
   },
   "focusStack": [],
-  "projectTreeScrollTop": 0,
+  "projectTreeScrollTop": 5828.88916015625,
   "darkMode": "dark",
   "skinFamily": "duolingo",
   "sessionIndex": 0,
@@ -95,5 +95,5 @@
     314
   ],
   "pastDisplayMode": "hide",
-  "deepView": true
+  "deepView": false
 }
