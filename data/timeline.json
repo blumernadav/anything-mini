@@ -2920,8 +2920,45 @@
       "endTime": 1771070376903,
       "itemId": 9,
       "id": 367,
-      "timestamp": 1771069866936
+      "timestamp": 1771069866936,
+      "manual": true
+    },
+    {
+      "text": "Worked on: fix the 2 insert markers - one works one not (8m)",
+      "projectName": "anything › bugs",
+      "type": "work",
+      "startTime": 1771070376925,
+      "endTime": 1771070882959,
+      "targetEndTime": 1771070976902,
+      "itemId": 294,
+      "id": 368,
+      "timestamp": 1771070376925,
+      "manual": true
+    },
+    {
+      "text": "Worked on: לסדר טיפה את הבית (21m)",
+      "projectName": "בית",
+      "type": "work",
+      "startTime": 1771070882976,
+      "endTime": 1771072169194,
+      "targetEndTime": 1771074482959,
+      "itemId": 296,
+      "id": 369,
+      "timestamp": 1771070882976,
+      "manual": true
+    },
+    {
+      "text": "Worked on: fix the 2 insert markers - one works one not (5m)",
+      "projectName": "anything › bugs",
+      "type": "work",
+      "startTime": 1771072214905,
+      "endTime": 1771072546372,
+      "targetEndTime": 1771072814905,
+      "itemId": 294,
+      "id": 370,
+      "timestamp": 1771072214905,
+      "manual": true
     }
   ],
-  "nextId": 368
+  "nextId": 371
 }

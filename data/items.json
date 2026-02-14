@@ -120,20 +120,6 @@
           "contextDurations": {}
         },
         {
-          "id": 234,
-          "name": "להתקלח",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770736677309,
-          "done": false,
-          "timeContexts": [
-            "ongoing"
-          ],
-          "contextDurations": {
-            "2026-02-12": 15
-          }
-        },
-        {
           "id": 213,
           "name": "לסדר את הבית",
           "children": [],
@@ -149,17 +135,17 @@
           }
         },
         {
-          "id": 272,
-          "name": "להתקין את הסודה סטרים",
+          "id": 234,
+          "name": "להתקלח",
           "children": [],
           "expanded": false,
-          "createdAt": 1770808515559,
+          "createdAt": 1770736677309,
           "done": false,
           "timeContexts": [
-            "2026-02-14"
+            "ongoing"
           ],
           "contextDurations": {
-            "2026-02-14": 30
+            "2026-02-12": 15
           }
         },
         {
@@ -174,7 +160,21 @@
             "2026-02-14@12:00-00:30"
           ],
           "contextDurations": {
-            "2026-02-14@13:52-00:30": 60
+            "2026-02-14@12:00-00:30": 60
+          }
+        },
+        {
+          "id": 272,
+          "name": "להתקין את הסודה סטרים",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770808515559,
+          "done": false,
+          "timeContexts": [
+            "2026-02-14@14:09-00:30"
+          ],
+          "contextDurations": {
+            "2026-02-14@14:09-00:30": 30
           }
         },
         {
@@ -218,7 +218,7 @@
           }
         }
       ],
-      "expanded": false,
+      "expanded": true,
       "createdAt": 1770773753107,
       "done": false,
       "timeContexts": [
@@ -433,11 +433,47 @@
       "name": "anything",
       "children": [
         {
+          "id": 432,
+          "name": "top bar time context overlap with live indicator",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771072571576,
+          "done": false,
+          "timeContexts": [
+            "ongoing"
+          ]
+        },
+        {
+          "id": 397,
+          "name": "idea - see in actions \"how much out of how much is scheduled\" (esp. for week/month but also day)",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770981831207,
+          "done": false,
+          "timeContexts": [
+            "ongoing"
+          ],
+          "contextDurations": {
+            "ongoing": 120
+          }
+        },
+        {
           "id": 430,
           "name": "idea - countdown is a plan",
           "children": [],
           "expanded": false,
           "createdAt": 1771068468814,
+          "done": false,
+          "timeContexts": [
+            "ongoing"
+          ]
+        },
+        {
+          "id": 431,
+          "name": "maybe do not clamp free time to now?",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771072424809,
           "done": false,
           "timeContexts": [
             "ongoing"
@@ -467,20 +503,6 @@
           ],
           "contextDurations": {
             "2026-02-13": 30
-          }
-        },
-        {
-          "id": 397,
-          "name": "idea - see in actions \"how much out of how much is scheduled\" (esp. for week/month but also day)",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770981831207,
-          "done": false,
-          "timeContexts": [
-            "ongoing"
-          ],
-          "contextDurations": {
-            "ongoing": 120
           }
         },
         {
@@ -737,7 +759,8 @@
               "createdAt": 1770913093639,
               "done": false,
               "timeContexts": [
-                "2026-02-14@13:09-00:30"
+                "2026-02-14",
+                "2026-02-14@12:00-00:30"
               ],
               "contextDurations": {
                 "2026-02-14@13:09-00:30": 60
@@ -2045,7 +2068,7 @@
               ]
             }
           ],
-          "expanded": true,
+          "expanded": false,
           "createdAt": 1770938999434,
           "done": false,
           "timeContexts": [
@@ -4150,7 +4173,10 @@
           "done": false,
           "timeContexts": [
             "2026-02-14"
-          ]
+          ],
+          "contextDurations": {
+            "2026-02-14": 20
+          }
         }
       ],
       "expanded": false,
@@ -4270,5 +4296,5 @@
       ]
     }
   ],
-  "nextId": 431
+  "nextId": 433
 }

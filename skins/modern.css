@@ -799,10 +799,6 @@ body {
     opacity: 0.6;
 }
 
-#project-tree.dragging-active .insert-marker {
-    display: none;
-}
-
 /* ─── Scroll-to-Selected Banner ─── */
 .scroll-to-selected-banner {
     display: flex;

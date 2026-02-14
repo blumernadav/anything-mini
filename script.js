@@ -277,12 +277,15 @@ function renderAll() {
         cleanPastSessions(nowForSession);
     }
 
-    renderProjects();
-    renderActions();
-    renderTimeline();
-    renderTimeContext();
     renderHorizonTower();
     updateContextLabels();
+    // Defer heavy renders so the tower updates visually first
+    requestAnimationFrame(() => {
+        renderProjects();
+        renderActions();
+        renderTimeline();
+        renderTimeContext();
+    });
 }
 
 // ─── Tree Utilities ───
@@ -2046,10 +2049,24 @@ function getCurrentSessionIndex(segments) {
 function navigateSession(direction) {
     const segments = buildPlanSegments();
     if (segments.length === 0) return;
-    state.sessionIndex = Math.max(0, Math.min(segments.length - 1, state.sessionIndex + direction));
+    const newIndex = state.sessionIndex + direction;
+    if (newIndex < 0) {
+        // Cross to previous day — select its last session
+        state.timelineViewDate.setDate(state.timelineViewDate.getDate() - 1);
+        savePref('timelineViewDate', state.timelineViewDate.toISOString());
+        const prevSegments = buildPlanSegments();
+        state.sessionIndex = prevSegments.length - 1;
+    } else if (newIndex >= segments.length) {
+        // Cross to next day — select its first session
+        state.timelineViewDate.setDate(state.timelineViewDate.getDate() + 1);
+        savePref('timelineViewDate', state.timelineViewDate.toISOString());
+        state.sessionIndex = 0;
+    } else {
+        state.sessionIndex = newIndex;
+    }
     savePref('sessionIndex', state.sessionIndex);
-    // Auto-populate focusStack with the selected segment
-    _syncSessionToFocusStack(segments[state.sessionIndex]);
+    const activeSegments = buildPlanSegments();
+    _syncSessionToFocusStack(activeSegments[state.sessionIndex]);
     renderAll();
 }
 
@@ -3559,6 +3576,7 @@ function handleDrop() {
 
 function renderProjectLevel(items, parent, depth, query = '', matchingIds = new Set()) {
     const isSearching = !!query;
+    let isFirstRenderedAtLevel = true; // tracks whether 'before' zone is needed
     for (let idx = 0; idx < items.length; idx++) {
         const item = items[idx];
         const leaf = isLeaf(item);
@@ -3571,6 +3589,9 @@ function renderProjectLevel(items, parent, depth, query = '', matchingIds = new 
         if (isSearching && !matchingIds.has(item.id)) continue;
 
 
+        // Capture whether this is the first rendered non-Inbox item (for drag zones)
+        const isFirstAtLevel = isFirstRenderedAtLevel && !isInbox;
+        if (!isInbox) isFirstRenderedAtLevel = false;
 
         // ─── Insert marker BEFORE this item (skip before Inbox) ───
         if (!isInbox) {
@@ -3647,15 +3668,17 @@ function renderProjectLevel(items, parent, depth, query = '', matchingIds = new 
 
                 clearDropIndicators();
 
-                // Inbox only accepts 'inside' and 'after' drops, never 'before'
-                if (zone < 0.25 && !isInbox) {
-                    // Drop before
+                // First item at this level gets a 'before' zone; subsequent items only get 'inside' + 'after'
+                // (prevents duplicate indicators — 'after A' already covers the gap between A and B)
+                const allowBefore = isFirstAtLevel && !isInbox;
+                if (allowBefore && zone < 0.25) {
+                    // Drop before (first item only)
                     const indicator = document.createElement('div');
                     indicator.className = 'drop-indicator drop-indicator-before';
                     indicator.style.marginLeft = row.style.paddingLeft;
                     node.insertBefore(indicator, row);
                     dragState.dropTarget = { id: item.id, position: 'before' };
-                } else if (zone > 0.75 && !isInbox) {
+                } else if (zone > (allowBefore ? 0.75 : 0.5) && !isInbox) {
                     // Drop after
                     const indicator = document.createElement('div');
                     indicator.className = 'drop-indicator drop-indicator-after';
@@ -4258,7 +4281,9 @@ function renderActions(opts) {
     container.appendChild(fragment);
 
     // ── Staggered fade-in animation ──
-    if (!opts || !opts.collapseOnly) {
+    const shouldSkipAnimation = (opts && opts.collapseOnly) || state._skipActionsAnimation;
+    state._skipActionsAnimation = false;
+    if (!shouldSkipAnimation) {
         const expandedGroup = opts && opts.expandedGroupId;
         let animTargets;
         if (expandedGroup) {
@@ -4696,7 +4721,8 @@ function createActionElement(action) {
 
     const item = document.createElement('div');
     const actionIdStr = String(action.id);
-    item.className = 'action-item' + (action.done ? ' done' : '') + (state.selectedActionIds.has(actionIdStr) ? ' selected' : '');
+    const isLiveWorking = state.workingOn && state.workingOn.itemId === action.id;
+    item.className = 'action-item' + (action.done ? ' done' : '') + (state.selectedActionIds.has(actionIdStr) ? ' selected' : '') + (isLiveWorking ? ' action-item-working' : '');
     item.dataset.id = action.id;
 
     // ── Multiselect click handler ──
@@ -12519,6 +12545,7 @@ async function startWorking(itemId, itemName, projectName, targetEndTime) {
         targetEndTime: targetEndTime || null,
     };
     savePref('workingOn', state.workingOn);
+    state._skipActionsAnimation = true;
     renderAll();
 }
 
@@ -12549,6 +12576,7 @@ async function stopWorking() {
     // Clear working state
     state.workingOn = null;
     savePref('workingOn', null);
+    state._skipActionsAnimation = true;
     renderAll();
 }
 
@@ -12595,6 +12623,7 @@ async function stopBreak() {
     // Clear break state
     state.onBreak = null;
     savePref('onBreak', null);
+    state._skipActionsAnimation = true;
     renderAll();
 }
 
