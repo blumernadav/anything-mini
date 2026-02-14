@@ -3069,7 +3069,18 @@
       "itemId": 447,
       "id": 381,
       "timestamp": 1771171200000
+    },
+    {
+      "text": "Worked on: month horizon (1h 49m)",
+      "projectName": "anything › core",
+      "type": "work",
+      "startTime": 1771078879533,
+      "endTime": 1771085472959,
+      "targetEndTime": 1771085839527,
+      "itemId": 349,
+      "id": 382,
+      "timestamp": 1771078879533
     }
   ],
-  "nextId": 382
+  "nextId": 383
 }

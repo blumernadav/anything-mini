@@ -818,12 +818,7 @@ function isWeekInMonth(weekKey, monthKey) {
 function isItemInMonth(item, monthKey) {
     if (!item) return false;
     const tcs = item.timeContexts || [];
-    if (tcs.includes(monthKey)) return true;
-    // Check if any week context falls within this month
-    for (const tc of tcs) {
-        if (isWeekContext(tc) && isWeekInMonth(tc, monthKey)) return true;
-    }
-    return false;
+    return tcs.includes(monthKey);
 }
 
 // Send an item to a month backlog — strips other temporal contexts, adds month context.
@@ -7877,8 +7872,9 @@ function renderMonthView(container) {
             const dayDate = new Date(weekStartDate);
             dayDate.setDate(weekStartDate.getDate() + d);
             const times = getEffectiveDayTimes(dayDate);
-            const dayMins = (times.dayEndHour * 60 + times.dayEndMinute) - (times.dayStartHour * 60 + times.dayStartMinute);
-            if (dayMins > 0) total += dayMins;
+            let dayMins = (times.dayEndHour * 60 + times.dayEndMinute) - (times.dayStartHour * 60 + times.dayStartMinute);
+            if (dayMins <= 0) dayMins += 24 * 60; // cross-midnight
+            total += dayMins;
         }
         return total;
     }
@@ -7937,44 +7933,41 @@ function renderMonthView(container) {
         if (isCurrent) card.classList.add('month-week-card-current');
         if (isPast) card.classList.add('month-week-card-past');
 
-        // Header with week number
+        // Determine default expand state: current week expanded, others collapsed
+        const isExpanded = isCurrent;
+
+        // Header with toggle arrow and week number
         const header = document.createElement('div');
         header.className = 'month-week-header';
-        header.innerHTML = `
-            <span class="month-week-range">Week ${weekNumber} · ${rangeLabel}</span>
-            ${isCurrent ? '<span class="month-week-now">This Week</span>' : ''}
-            <span class="month-week-count">${itemCount} item${itemCount !== 1 ? 's' : ''}</span>
-        `;
-        header.addEventListener('click', () => {
-            const range = getWeekDateRange(weekKey);
-            if (range) state.timelineViewDate = range.start;
-            clearFocusStack();
-            state.viewHorizon = 'week';
-            savePref('viewHorizon', 'week');
-            state._animateActions = true;
-            renderAll();
-        });
+
+        const toggle = document.createElement('span');
+        toggle.className = 'month-week-toggle';
+        toggle.textContent = isExpanded ? '▾' : '▸';
+
+        const rangeSpan = document.createElement('span');
+        rangeSpan.className = 'month-week-range';
+        rangeSpan.textContent = `Week ${weekNumber} · ${rangeLabel}`;
+        rangeSpan.title = 'Click to drill into this week';
+
+        header.appendChild(toggle);
+        header.appendChild(rangeSpan);
+        if (isCurrent) {
+            const nowBadge = document.createElement('span');
+            nowBadge.className = 'month-week-now';
+            nowBadge.textContent = 'This Week';
+            header.appendChild(nowBadge);
+        }
+        const countSpan = document.createElement('span');
+        countSpan.className = 'month-week-count';
+        countSpan.textContent = `${itemCount} item${itemCount !== 1 ? 's' : ''}`;
+        header.appendChild(countSpan);
+
         card.appendChild(header);
 
-        // Capacity / progress bar
-        if (totalEstMins > 0 || itemCount > 0) {
-            const capBar = document.createElement('div');
-            capBar.className = 'segment-capacity-bar month-week-progress';
-            const availMins = Math.max(1, capMins);
-            const fillPct = Math.min(100, (totalEstMins / availMins) * 100);
-            const isOver = totalEstMins > availMins;
-            const hrsLabel = totalEstMins >= 60
-                ? `${Math.floor(totalEstMins / 60)}h${totalEstMins % 60 ? totalEstMins % 60 + 'm' : ''}`
-                : `${totalEstMins}m`;
-            const availLabel = capMins >= 60
-                ? `${Math.floor(capMins / 60)}h`
-                : `${capMins}m`;
-            capBar.innerHTML = `
-                <span class="segment-capacity-label">${hrsLabel} / ${availLabel}</span>
-                <div class="segment-capacity-track"><div class="segment-capacity-fill${isOver ? ' over-capacity' : ''}" style="width:${fillPct}%"></div></div>
-            `;
-            card.appendChild(capBar);
-        }
+        // Collapsible content wrapper (day pips + project summary)
+        const content = document.createElement('div');
+        content.className = 'month-week-content';
+        if (!isExpanded) content.style.display = 'none';
 
         // Day pip strip
         const strip = document.createElement('div');
@@ -8023,7 +8016,7 @@ function renderMonthView(container) {
 
             strip.appendChild(pip);
         }
-        card.appendChild(strip);
+        content.appendChild(strip);
 
         // Project summary (inline, truncated to top 3 + "+N more")
         if (Object.keys(projectGroups).length > 0) {
@@ -8036,8 +8029,50 @@ function renderMonthView(container) {
             let text = shown.map(([name, count]) => `${name} (${count})`).join(' · ');
             if (remaining > 0) text += ` · +${remaining} more`;
             projSummary.textContent = text;
-            card.appendChild(projSummary);
+            content.appendChild(projSummary);
         }
+
+        card.appendChild(content);
+
+        // Capacity / progress bar — always visible (below content when expanded, below header when collapsed)
+        if (totalEstMins > 0 || itemCount > 0) {
+            const capBar = document.createElement('div');
+            capBar.className = 'segment-capacity-bar month-week-progress';
+            const availMins = Math.max(1, capMins);
+            const fillPct = Math.min(100, (totalEstMins / availMins) * 100);
+            const isOver = totalEstMins > availMins;
+            const hrsLabel = totalEstMins >= 60
+                ? `${Math.floor(totalEstMins / 60)}h${totalEstMins % 60 ? totalEstMins % 60 + 'm' : ''}`
+                : `${totalEstMins}m`;
+            const availLabel = capMins >= 60
+                ? `${Math.floor(capMins / 60)}h`
+                : `${capMins}m`;
+            capBar.innerHTML = `
+                <span class="segment-capacity-label">${hrsLabel} / ${availLabel}</span>
+                <div class="segment-capacity-track"><div class="segment-capacity-fill${isOver ? ' over-capacity' : ''}" style="width:${fillPct}%"></div></div>
+            `;
+            card.appendChild(capBar);
+        }
+
+        // Toggle collapse/expand on header click (but drill-down on range label click)
+        header.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const isCurrentlyVisible = content.style.display !== 'none';
+            content.style.display = isCurrentlyVisible ? 'none' : '';
+            toggle.textContent = isCurrentlyVisible ? '▸' : '▾';
+        });
+
+        // Drill-down on range label click → go to week view
+        rangeSpan.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const range = getWeekDateRange(weekKey);
+            if (range) state.timelineViewDate = range.start;
+            clearFocusStack();
+            state.viewHorizon = 'week';
+            savePref('viewHorizon', 'week');
+            state._animateActions = true;
+            renderAll();
+        });
 
         // DnD: week card as drop target
         card.addEventListener('dragover', (e) => {
@@ -12239,6 +12274,14 @@ function updateContextLabels() {
         epochSeg.className = 'breadcrumb-segment breadcrumb-current';
         epochSeg.textContent = `${epochIcons[state.epochFilter] || '📦'} ${epochLabels[state.epochFilter] || 'Ongoing'}`;
         whenContainer.appendChild(epochSeg);
+    } else if (state.viewHorizon === 'month') {
+        // Month view
+        const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+            'July', 'August', 'September', 'October', 'November', 'December'];
+        const monthSeg = document.createElement('span');
+        monthSeg.className = 'breadcrumb-segment breadcrumb-current';
+        monthSeg.textContent = `🗓️ ${monthNames[viewDate.getMonth()]} ${viewDate.getFullYear()}`;
+        whenContainer.appendChild(monthSeg);
     } else if (state.viewHorizon === 'week') {
         // Week view
         const weekKey = getWeekKey(state.timelineViewDate);
@@ -13610,6 +13653,9 @@ function openScheduleModal(itemIdOrIds, itemName) {
     // Session date nav state (independent)
     let sessionViewDate = new Date(state.timelineViewDate);
 
+    // Month nav state (independent)
+    let monthViewDate = new Date(state.timelineViewDate);
+
     // Week nav state (independent)
     let weekViewDate = new Date(state.timelineViewDate);
 
@@ -13691,6 +13737,44 @@ function openScheduleModal(itemIdOrIds, itemName) {
     }
 
     async function toggleOngoing() { return toggleEpoch('ongoing'); }
+
+    function getScheduleMonthKey() {
+        return getMonthKey(monthViewDate);
+    }
+
+    function formatMonthLabel(d) {
+        const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+            'July', 'August', 'September', 'October', 'November', 'December'];
+        return `${monthNames[d.getMonth()]} ${d.getFullYear()}`;
+    }
+
+    async function toggleMonth() {
+        const mk = getScheduleMonthKey();
+        if (assignedContexts.has(mk)) {
+            // Remove this month context
+            for (const id of itemIds) {
+                const itm = findItemById(id);
+                if (itm) {
+                    itm.timeContexts = (itm.timeContexts || []).filter(tc => tc !== mk);
+                    await api.patch(`/items/${id}`, { timeContexts: itm.timeContexts });
+                }
+            }
+        } else if (scheduleMode === 'one-time') {
+            await setContexts([mk]);
+            return;
+        } else {
+            for (const id of itemIds) {
+                const itm = findItemById(id);
+                if (itm) {
+                    itm.timeContexts = (itm.timeContexts || []).filter(tc => !EPOCH_CONTEXTS.includes(tc));
+                    if (!itm.timeContexts.includes(mk)) itm.timeContexts.push(mk);
+                    await api.patch(`/items/${id}`, { timeContexts: itm.timeContexts });
+                }
+            }
+        }
+        assignedContexts = getAssignedContexts();
+        buildContent();
+    }
 
     function getScheduleWeekKey() {
         return getWeekKey(weekViewDate);
@@ -13857,18 +13941,27 @@ function openScheduleModal(itemIdOrIds, itemName) {
         const hasFuture = isEpochAssigned('future');
         const hasPast = isEpochAssigned('past');
         const hasAnyEpoch = hasOngoing || hasFuture || hasPast;
+        const hasMonth = [...assignedContexts].some(tc => isMonthContext(tc));
         const hasWeek = [...assignedContexts].some(tc => isWeekContext(tc));
         const hasDate = [...assignedContexts].some(tc => /^\d{4}-\d{2}-\d{2}$/.test(tc));
         const hasSession = [...assignedContexts].some(tc => tc.includes('@'));
 
         // Count assigned contexts per tier (for badges on collapsed headers)
         const countEpoch = (hasOngoing ? 1 : 0) + (hasFuture ? 1 : 0) + (hasPast ? 1 : 0);
+        const countMonth = [...assignedContexts].filter(tc => isMonthContext(tc)).length;
         const countWeek = [...assignedContexts].filter(tc => isWeekContext(tc)).length;
         const countDay = [...assignedContexts].filter(tc => /^\d{4}-\d{2}-\d{2}$/.test(tc)).length;
         const countSession = [...assignedContexts].filter(tc => tc.includes('@')).length;
         function badgeHtml(count) {
             return count > 0 ? `<span class="schedule-section-badge">${count}</span>` : '';
         }
+
+        // Month section data
+        const scheduleMk = getScheduleMonthKey();
+        const monthLabel = formatMonthLabel(monthViewDate);
+        const isMonthAssigned = assignedContexts.has(scheduleMk);
+        const currentMonthKey = getMonthKey(getLogicalToday());
+        const canMonthPrev = scheduleMk > currentMonthKey;
 
         // Week section data
         const scheduleWk = getScheduleWeekKey();
@@ -13925,6 +14018,23 @@ function openScheduleModal(itemIdOrIds, itemName) {
                         </div>
                         <div class="schedule-epoch-toggle ${hasFuture ? 'schedule-epoch-active' : ''}" data-epoch="future" id="schedule-epoch-future-btn">
                             🔮 ${hasFuture ? '✓ Future' : 'Move to Future'}
+                        </div>
+                    </div></div>
+                </details>
+        `;
+
+        // ── Month section ──
+        html += `
+                <details class="schedule-section" data-tier="month"${sectionOpen('month', hasMonth) ? ' open' : ''}>
+                    <summary class="schedule-section-header">🗓️ Month${badgeHtml(countMonth)}</summary>
+                    <div class="schedule-section-content-wrapper"><div class="schedule-section-content">
+                        <div class="schedule-week-nav">
+                            <button class="schedule-cal-nav-btn${canMonthPrev ? '' : ' schedule-cal-nav-btn-disabled'}" id="schedule-month-prev"${canMonthPrev ? '' : ' disabled'}>‹</button>
+                            <span class="schedule-week-label">${monthLabel}</span>
+                            <button class="schedule-cal-nav-btn" id="schedule-month-next">›</button>
+                        </div>
+                        <div class="schedule-week-toggle ${isMonthAssigned ? 'schedule-week-active' : ''}" id="schedule-month-btn">
+                            ${isMonthAssigned ? '✓ Assigned to this Month' : 'Assign to this Month'}
                         </div>
                     </div></div>
                 </details>
@@ -14097,6 +14207,23 @@ function openScheduleModal(itemIdOrIds, itemName) {
         // Epoch toggles (ongoing + future only — past is auto)
         modal.querySelector('#schedule-epoch-ongoing-btn')?.addEventListener('click', () => toggleEpoch('ongoing'));
         modal.querySelector('#schedule-epoch-future-btn')?.addEventListener('click', () => toggleEpoch('future'));
+
+        // Month toggle
+        modal.querySelector('#schedule-month-btn')?.addEventListener('click', toggleMonth);
+
+        // Month nav
+        if (canMonthPrev) {
+            modal.querySelector('#schedule-month-prev').addEventListener('click', () => {
+                monthViewDate = new Date(monthViewDate);
+                monthViewDate.setMonth(monthViewDate.getMonth() - 1);
+                buildContent();
+            });
+        }
+        modal.querySelector('#schedule-month-next')?.addEventListener('click', () => {
+            monthViewDate = new Date(monthViewDate);
+            monthViewDate.setMonth(monthViewDate.getMonth() + 1);
+            buildContent();
+        });
 
         // Week toggle
         modal.querySelector('#schedule-week-btn')?.addEventListener('click', toggleWeek);
@@ -14976,6 +15103,59 @@ function animateNavTransition(direction, updateFn) {
     }, 200);
 }
 
+// ── Vertical layer transition (slide + scale) ──
+// direction: 'up' = zooming in (epoch→day), 'down' = zooming out (day→epoch)
+function animateLayerTransition(direction, updateFn) {
+    const timeline = document.getElementById('timeline-list');
+    const targets = [timeline];
+    const allClasses = ['nav-slide-out-up', 'nav-slide-out-down', 'nav-slide-in-up', 'nav-slide-in-down'];
+
+    // Cancel any in-flight animation
+    for (const el of targets) {
+        allClasses.forEach(c => el.classList.remove(c));
+        el.getAnimations().forEach(a => a.cancel());
+    }
+
+    let outDone = false;
+    let inDone = false;
+
+    // Phase 1: slide old content out
+    const outClass = direction === 'up' ? 'nav-slide-out-up' : 'nav-slide-out-down';
+    for (const el of targets) el.classList.add(outClass);
+
+    const onSlideOutDone = () => {
+        if (outDone) return;
+        outDone = true;
+        for (const el of targets) el.classList.remove(outClass);
+
+        // Phase 2: update state + re-render
+        updateFn();
+
+        // Phase 3: slide new content in
+        const inClass = direction === 'up' ? 'nav-slide-in-up' : 'nav-slide-in-down';
+        for (const el of targets) el.classList.add(inClass);
+
+        const cleanup = () => {
+            if (inDone) return;
+            inDone = true;
+            for (const el of targets) el.classList.remove(inClass);
+            _navAnimating = false;
+        };
+        timeline.addEventListener('animationend', (e) => {
+            if (e.target === timeline) cleanup();
+        }, { once: true });
+        setTimeout(cleanup, 250);
+    };
+
+    _navAnimating = true;
+    timeline.addEventListener('animationend', (e) => {
+        if (e.target === timeline) onSlideOutDone();
+    }, { once: true });
+    setTimeout(() => {
+        if (!outDone) onSlideOutDone();
+    }, 250);
+}
+
 // ─── Event Bindings ───
 document.addEventListener('DOMContentLoaded', () => {
     // Skin system
@@ -15241,11 +15421,13 @@ document.addEventListener('DOMContentLoaded', () => {
     epochLayer.addEventListener('click', (e) => {
         if (e.target.closest('.epoch-nav-btn')) return;
         if (state.viewHorizon === 'epoch') return;
-        clearFocusStack();
-        state.viewHorizon = 'epoch';
-        savePref('viewHorizon', 'epoch');
-        state._animateActions = true;
-        renderAll();
+        animateLayerTransition('down', () => {
+            clearFocusStack();
+            state.viewHorizon = 'epoch';
+            savePref('viewHorizon', 'epoch');
+            state._animateActions = true;
+            renderAll();
+        });
     });
 
     // DnD on the epoch layer — sends to whatever epoch is currently displayed
@@ -15294,11 +15476,15 @@ document.addEventListener('DOMContentLoaded', () => {
     monthLayer.addEventListener('click', (e) => {
         if (e.target.closest('.month-nav-btn, .date-nav-today-btn')) return;
         if (state.viewHorizon === 'month') return;
-        clearFocusStack();
-        state.viewHorizon = 'month';
-        savePref('viewHorizon', 'month');
-        state._animateActions = true;
-        renderAll();
+        const _layerDepth = { epoch: 0, month: 1, week: 2, day: 3, session: 4 };
+        const dir = (_layerDepth[state.viewHorizon] || 0) < _layerDepth.month ? 'up' : 'down';
+        animateLayerTransition(dir, () => {
+            clearFocusStack();
+            state.viewHorizon = 'month';
+            savePref('viewHorizon', 'month');
+            state._animateActions = true;
+            renderAll();
+        });
     });
     document.getElementById('month-nav-prev').addEventListener('click', (e) => {
         e.stopPropagation();
@@ -15367,12 +15553,16 @@ document.addEventListener('DOMContentLoaded', () => {
         // Don't trigger horizon switch when clicking nav buttons, picker, or today btn
         if (e.target.closest('.week-nav-btn, .date-nav-picker, .date-nav-today-btn')) return;
         if (state.viewHorizon === 'week') return; // already active — don't re-trigger
-        state._weekScrollTarget = getDateKey(state.timelineViewDate); // remember source day
-        clearFocusStack();
-        state.viewHorizon = 'week';
-        savePref('viewHorizon', 'week');
-        state._animateActions = true;
-        renderAll();
+        const _layerDepth = { epoch: 0, month: 1, week: 2, day: 3, session: 4 };
+        const dir = (_layerDepth[state.viewHorizon] || 0) < _layerDepth.week ? 'up' : 'down';
+        animateLayerTransition(dir, () => {
+            state._weekScrollTarget = getDateKey(state.timelineViewDate); // remember source day
+            clearFocusStack();
+            state.viewHorizon = 'week';
+            savePref('viewHorizon', 'week');
+            state._animateActions = true;
+            renderAll();
+        });
     });
     // Week nav arrow buttons
     document.getElementById('week-nav-prev').addEventListener('click', (e) => {
@@ -15463,21 +15653,16 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.target.closest('.date-nav-btn')) return;
         // Only ignore date-display clicks when already in day view
         if (state.viewHorizon === 'day' && e.target.closest('.date-nav-display')) return;
-        if (state.viewHorizon === 'session') {
-            // Pop out of session horizon → back to day
+        if (state.viewHorizon === 'day') return;
+        const _layerDepth = { epoch: 0, month: 1, week: 2, day: 3, session: 4 };
+        const dir = (_layerDepth[state.viewHorizon] || 0) < _layerDepth.day ? 'up' : 'down';
+        animateLayerTransition(dir, () => {
+            clearFocusStack();
             state.viewHorizon = 'day';
             savePref('viewHorizon', 'day');
-            clearFocusStack();
             state._animateActions = true;
             renderAll();
-            return;
-        }
-        if (state.viewHorizon === 'day') return;
-        clearFocusStack();
-        state.viewHorizon = 'day';
-        savePref('viewHorizon', 'day');
-        state._animateActions = true;
-        renderAll();
+        });
     });
     dayLayer.addEventListener('dragover', (e) => {
         if (!window._draggedAction && !e.dataTransfer.types.includes('application/x-segment-item-id')) return;
@@ -15526,15 +15711,17 @@ document.addEventListener('DOMContentLoaded', () => {
         sessionLayer.addEventListener('click', (e) => {
             if (e.target.closest('.session-nav-btn, .date-nav-today-btn')) return;
             if (state.viewHorizon === 'session') return; // already active
-            // Enter session horizon — auto-select current segment
-            const segments = buildPlanSegments();
-            state.sessionIndex = getCurrentSessionIndex(segments);
-            state.viewHorizon = 'session';
-            savePref('viewHorizon', 'session');
-            savePref('sessionIndex', state.sessionIndex);
-            _syncSessionToFocusStack(segments[state.sessionIndex]);
-            state._animateActions = true;
-            renderAll();
+            animateLayerTransition('up', () => {
+                // Enter session horizon — auto-select current segment
+                const segments = buildPlanSegments();
+                state.sessionIndex = getCurrentSessionIndex(segments);
+                state.viewHorizon = 'session';
+                savePref('viewHorizon', 'session');
+                savePref('sessionIndex', state.sessionIndex);
+                _syncSessionToFocusStack(segments[state.sessionIndex]);
+                state._animateActions = true;
+                renderAll();
+            });
         });
         document.getElementById('session-nav-prev').addEventListener('click', (e) => {
             e.stopPropagation();

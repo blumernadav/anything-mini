@@ -5797,6 +5797,18 @@ select.schedule-leadtime-input {
     cursor: pointer;
 }
 
+.month-week-toggle {
+    font-size: 14px;
+    color: var(--duo-text-faint);
+    flex-shrink: 0;
+    width: 14px;
+    text-align: center;
+}
+
+.month-week-content {
+    padding-top: 4px;
+}
+
 .month-week-range {
     font-size: 13px;
     font-weight: 800;
@@ -7382,6 +7394,71 @@ select.schedule-leadtime-input {
 
 .nav-slide-in-right {
     animation: nav-slide-in-right 150ms ease-out forwards;
+}
+
+/* ── Vertical layer transitions (zoom) ── */
+@keyframes nav-slide-out-up {
+    from {
+        transform: scale(1);
+        opacity: 1;
+    }
+
+    to {
+        transform: scale(0.97);
+        opacity: 0;
+    }
+}
+
+@keyframes nav-slide-out-down {
+    from {
+        transform: scale(1);
+        opacity: 1;
+    }
+
+    to {
+        transform: scale(1.03);
+        opacity: 0;
+    }
+}
+
+@keyframes nav-slide-in-up {
+    from {
+        transform: scale(1.03);
+        opacity: 0;
+    }
+
+    to {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+@keyframes nav-slide-in-down {
+    from {
+        transform: scale(0.97);
+        opacity: 0;
+    }
+
+    to {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+.nav-slide-out-up {
+    animation: nav-slide-out-up 180ms ease-in-out forwards;
+}
+
+.nav-slide-out-down {
+    animation: nav-slide-out-down 180ms ease-in-out forwards;
+}
+
+.nav-slide-in-up {
+    animation: nav-slide-in-up 180ms ease-in-out forwards;
+}
+
+.nav-slide-in-down {
+    animation: nav-slide-in-down 180ms ease-in-out forwards;
 }
 
 /* ── Action enter animation (staggered fade-in) ── */

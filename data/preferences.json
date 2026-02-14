@@ -3,20 +3,20 @@
   "showDone": false,
   "showUnscheduled": true,
   "panels": {
-    "left": 395,
-    "right": 435
+    "left": 500,
+    "right": 500
   },
   "hidePastEntries": true,
   "workingOn": {
-    "itemId": 349,
-    "itemName": "month horizon",
-    "projectName": "anything › core",
-    "startTime": 1771078879533,
-    "targetEndTime": 1771084159527
+    "itemId": 278,
+    "itemName": "animations",
+    "projectName": "anything › nice to have",
+    "startTime": 1771085496663,
+    "targetEndTime": null
   },
   "selectedItemId": "",
   "onBreak": null,
-  "timelineViewDate": "2026-02-14T15:22:41.144Z",
+  "timelineViewDate": "2026-02-14T16:03:41.854Z",
   "scheduleFilter": "scheduled+unscheduled",
   "collapsedGroups": [
     86,
@@ -32,18 +32,18 @@
     122,
     144,
     155,
-    62,
     92,
     145,
-    28,
     167,
     303,
-    248,
     423,
     137,
     293,
     319,
     300,
+    28,
+    62,
+    248,
     9,
     17
   ],
@@ -95,5 +95,5 @@
     314
   ],
   "pastDisplayMode": "hide",
-  "deepView": false
+  "deepView": true
 }
