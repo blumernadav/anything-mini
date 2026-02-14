@@ -1528,17 +1528,31 @@ body {
 }
 
 .action-estimate-badge.no-estimate {
-    opacity: 0;
+    display: none;
     font-size: 13px;
     color: var(--duo-text-faint);
 }
 
 .action-item:hover .action-estimate-badge.no-estimate {
+    display: inline-block;
     opacity: 0.4;
+    animation: estimate-badge-in 0.2s var(--ease) both;
 }
 
 .action-estimate-badge.no-estimate:hover {
     opacity: 0.8;
+}
+
+@keyframes estimate-badge-in {
+    from {
+        opacity: 0;
+        transform: scale(0.7);
+    }
+
+    to {
+        opacity: 0.4;
+        transform: scale(1);
+    }
 }
 
 /* ─── Pressure Bar ─── */
@@ -1652,6 +1666,41 @@ body {
     color: var(--duo-text);
     line-height: 1.4;
     word-break: break-word;
+    flex: 1;
+    min-width: 0;
+}
+
+.missing-dur-name-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.missing-dur-remove {
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--duo-border);
+    background: var(--duo-white);
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 10px;
+    font-weight: 700;
+    font-family: inherit;
+    color: var(--duo-text-faint);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--dur) var(--ease);
+    padding: 0;
+    line-height: 1;
+}
+
+.missing-dur-remove:hover {
+    border-color: var(--duo-red);
+    color: white;
+    background: var(--duo-red);
+    box-shadow: 0 2px 0 #c0392b;
 }
 
 .missing-dur-presets {
@@ -4768,6 +4817,180 @@ select.schedule-leadtime-input {
     opacity: 0.8;
 }
 
+/* ── Compact Past Entries ── */
+.compact-past-entry {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 12px;
+    opacity: 0.5;
+    cursor: pointer;
+    border-radius: var(--duo-radius-sm);
+    border-left: 4px solid transparent;
+    transition: all var(--dur) var(--ease);
+    min-height: 26px;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.compact-past-entry:hover {
+    opacity: 0.85;
+    background: var(--duo-hover);
+}
+
+.compact-past-work {
+    border-left-color: var(--duo-green);
+}
+
+.compact-past-break {
+    border-left-color: #1cb0f6;
+}
+
+.compact-past-idle {
+    border-left-color: var(--duo-gold);
+}
+
+.compact-past-planned {
+    border-left-color: rgba(118, 75, 226, 0.6);
+}
+
+.compact-past-icon {
+    width: 18px;
+    text-align: center;
+    font-size: 13px;
+    flex-shrink: 0;
+}
+
+.compact-past-label {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--duo-text);
+    font-weight: 700;
+}
+
+.compact-past-merge-badge {
+    font-size: 10px;
+    font-weight: 800;
+    color: var(--duo-text-faint);
+    background: var(--duo-border);
+    padding: 0 5px;
+    border-radius: 10px;
+    margin-left: 4px;
+}
+
+.compact-past-time {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--duo-text-faint);
+    font-variant-numeric: tabular-nums;
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+.compact-past-duration {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--duo-text-faint);
+    font-variant-numeric: tabular-nums;
+    flex-shrink: 0;
+    min-width: 36px;
+    text-align: right;
+}
+
+.compact-past-project {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--duo-text-faint);
+    opacity: 0.6;
+    flex-shrink: 0;
+    max-width: 80px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.compact-past-entry+.compact-past-entry {
+    margin-top: 0;
+}
+
+/* ── Compact Project Groups ── */
+.compact-project-wrapper {
+    margin: 0;
+}
+
+.compact-project-group {
+    opacity: 0.65;
+}
+
+.compact-project-group:hover {
+    opacity: 0.9;
+}
+
+.compact-project-expanded {
+    opacity: 0.85;
+    border-left-color: var(--duo-green);
+}
+
+.compact-project-chevron {
+    font-size: 10px;
+    transition: transform var(--dur) var(--ease);
+}
+
+.compact-project-subs {
+    padding-left: 30px;
+    border-left: 3px solid rgba(88, 204, 2, 0.15);
+    margin-left: 10px;
+}
+
+.compact-project-sub {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 8px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--duo-text-faint);
+    min-height: 22px;
+}
+
+.compact-project-sub-dot {
+    width: 16px;
+    text-align: center;
+    flex-shrink: 0;
+    font-size: 12px;
+    color: var(--duo-green);
+}
+
+.compact-project-sub-label {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.compact-project-sub-time {
+    font-size: 11px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    flex-shrink: 0;
+    opacity: 0.6;
+}
+
+.compact-project-sub-tag {
+    font-size: 10px;
+    font-weight: 700;
+    opacity: 0.5;
+    flex-shrink: 0;
+    max-width: 60px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 .time-block-time-editable {
     cursor: pointer;
     transition: all var(--dur) var(--ease);
@@ -5813,8 +6036,20 @@ select.schedule-leadtime-input {
     box-shadow: 0 2px 0 rgba(45, 212, 191, 0.3);
 }
 
-.time-block-free:hover .plan-next-btn {
+.time-block-free:hover .plan-next-btn,
+.time-block-planned:hover .plan-next-btn {
     opacity: 1;
+}
+
+.time-block-planned .plan-next-btn {
+    border-color: rgba(96, 165, 250, 0.3);
+    background: rgba(96, 165, 250, 0.08);
+    color: #3b82f6;
+}
+
+.time-block-planned .plan-next-btn:hover {
+    background: rgba(96, 165, 250, 0.2);
+    border-color: #3b82f6;
 }
 
 .plan-next-btn:hover {
@@ -6331,17 +6566,253 @@ select.schedule-leadtime-input {
     font-weight: 700;
 }
 
-/* Ghost plan: overlapped by work but not fully absorbed */
-.plan-ghost {
-    opacity: 0.35;
-    border-left-style: dashed;
-    box-shadow: none;
-    margin-bottom: 0;
+/* ── Divergence Resolution Prompt ── */
+.divergence-prompt {
+    margin: 4px 6px;
+    padding: 10px 12px;
+    border-radius: var(--duo-radius-sm);
+    border: 2px solid rgba(245, 158, 11, 0.35);
+    border-left: 4px solid #f59e0b;
+    background: rgba(245, 158, 11, 0.06);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
 }
 
-.plan-ghost:hover {
-    opacity: 0.6;
-    transform: none;
+.divergence-prompt-header {
+    font-size: 13px;
+    font-weight: 700;
+    color: #d97706;
+}
+
+.divergence-prompt-detail {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--duo-text-faint);
+}
+
+.divergence-prompt-actions {
+    display: flex;
+    gap: 6px;
+    margin-top: 4px;
+    justify-content: flex-end;
+}
+
+.divergence-btn {
+    padding: 5px 12px;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all var(--dur) var(--ease);
+    border: 2px solid;
+}
+
+.divergence-btn-skip {
+    background: transparent;
+    border-color: var(--border);
+    color: var(--text-faint);
+}
+
+.divergence-btn-skip:hover {
+    background: rgba(0, 0, 0, 0.03);
+    color: var(--text-soft);
+}
+
+.divergence-btn-ok {
+    background: var(--duo-green);
+    border-color: var(--duo-green-dark);
+    color: white;
+    box-shadow: 0 2px 0 var(--duo-green-dark);
+    font-size: 13px;
+    padding: 5px 18px;
+}
+
+.divergence-btn-ok:hover {
+    transform: translateY(-1px);
+    background: #62d902;
+}
+
+.divergence-btn-ok:active {
+    transform: translateY(1px);
+    box-shadow: none;
+}
+
+.divergence-btn-reschedule {
+    background: var(--duo-white);
+    border-color: var(--duo-border);
+    color: var(--duo-text-soft);
+    box-shadow: 0 2px 0 var(--duo-border);
+}
+
+.divergence-btn-reschedule:hover {
+    border-color: #f59e0b;
+    color: #d97706;
+    background: rgba(245, 158, 11, 0.08);
+    box-shadow: 0 2px 0 rgba(245, 158, 11, 0.4);
+}
+
+.divergence-btn-reschedule:active {
+    transform: translateY(1px);
+    box-shadow: none;
+}
+
+.divergence-reschedule-options {
+    display: flex;
+    gap: 4px;
+    margin-top: 4px;
+    padding-top: 6px;
+    border-top: 1px solid var(--duo-border);
+}
+
+.divergence-btn-sub {
+    flex: 1;
+    padding: 5px 8px;
+    border-radius: 8px;
+    font-size: 11px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all var(--dur) var(--ease);
+    border: 2px solid var(--duo-border);
+    background: var(--duo-white);
+    color: var(--duo-text-soft);
+    box-shadow: 0 2px 0 var(--duo-border);
+    text-align: center;
+}
+
+.divergence-btn-sub:hover {
+    background: #60a5fa;
+    color: white;
+    border-color: #3b82f6;
+    box-shadow: 0 2px 0 #3b82f6;
+}
+
+.divergence-btn-sub:active {
+    transform: translateY(1px);
+    box-shadow: none;
+}
+
+.divergence-btn-drop {
+    color: var(--duo-text-faint);
+}
+
+.divergence-btn-drop:hover {
+    background: var(--duo-red-dim);
+    color: var(--duo-red);
+    border-color: var(--duo-red);
+    box-shadow: 0 2px 0 var(--duo-red);
+}
+
+.divergence-btn-compact {
+    padding: 3px 8px;
+    font-size: 11px;
+}
+
+.divergence-btn-plan {
+    background: var(--duo-blue);
+    border-color: var(--duo-blue-dark, #1a73e8);
+    color: white;
+    box-shadow: 0 2px 0 var(--duo-blue-dark, #1a73e8);
+    padding: 3px 10px;
+    font-size: 11px;
+}
+
+.divergence-btn-plan:hover {
+    background: #4ca3ff;
+    transform: translateY(-1px);
+}
+
+.divergence-btn-plan:active {
+    transform: translateY(1px);
+    box-shadow: none;
+}
+
+.divergence-btn-log {
+    background: var(--duo-white, #fff);
+    border-color: var(--duo-border, #e5e5e5);
+    color: var(--duo-text-soft, #777);
+    box-shadow: 0 2px 0 var(--duo-border, #e5e5e5);
+    padding: 3px 10px;
+    font-size: 11px;
+}
+
+.divergence-btn-log:hover {
+    background: #f5f5f5;
+    color: var(--text);
+    transform: translateY(-1px);
+}
+
+.divergence-btn-log:active {
+    transform: translateY(1px);
+    box-shadow: none;
+}
+
+.divergence-seg-header {
+    border-bottom: 1px solid var(--duo-border, #e5e5e5);
+    padding-bottom: 2px;
+    margin-bottom: 2px;
+}
+
+.divergence-seg-actions-label {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--text-faint);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Divergence banner (hide-past mode) */
+.divergence-banner {
+    margin: 4px 6px;
+    padding: 6px 8px;
+    border-radius: var(--duo-radius-sm);
+    border: 2px solid rgba(245, 158, 11, 0.25);
+    background: rgba(245, 158, 11, 0.04);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.divergence-banner-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.divergence-banner-label {
+    font-size: 12px;
+    font-weight: 700;
+    color: #d97706;
+    flex: 1;
+    min-width: 0;
+}
+
+.divergence-banner-actions {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+/* Live indicator divergence badge */
+.live-divergence-badge {
+    font-size: 11px;
+    margin-left: 4px;
+    animation: divergence-pulse 2s ease-in-out infinite;
+}
+
+@keyframes divergence-pulse {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.5;
+    }
 }
 
 /* Phantom prep block: lead-time preparation block before a planned entry */
@@ -6368,97 +6839,6 @@ select.schedule-leadtime-input {
     color: #f59e0b;
 }
 
-/* Timeline overlap group: side-by-side plan vs reality lanes */
-.timeline-overlap-group {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 4px;
-    position: relative;
-    padding: 0;
-    margin: 4px 6px;
-    align-items: stretch;
-    overflow: hidden;
-}
-
-.timeline-overlap-group::before {
-    content: '';
-    position: absolute;
-    top: 4px;
-    bottom: 4px;
-    left: calc(50% - 0.5px);
-    width: 1px;
-    background: var(--duo-border);
-    opacity: 0.3;
-}
-
-.overlap-lane {
-    min-width: 0;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-}
-
-.overlap-lane .time-block {
-    margin: 0;
-    padding: 6px 6px;
-    box-shadow: none;
-    box-sizing: border-box;
-    width: 100%;
-    flex: 1;
-}
-
-.overlap-lane .time-block-label {
-    font-size: 11px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.overlap-lane .time-block-time {
-    font-size: 10px;
-}
-
-.overlap-lane .time-block-status {
-    font-size: 10px;
-}
-
-.overlap-lane .time-block-icon {
-    font-size: 12px !important;
-}
-
-.overlap-lane .time-block-content {
-    gap: 1px;
-}
-
-.overlap-lane .time-block-stop-btn {
-    width: 22px;
-    height: 22px;
-    font-size: 11px;
-    box-shadow: none;
-}
-
-.overlap-lane .time-block-project {
-    font-size: 9px;
-}
-
-.overlap-lane-plan .time-block {
-    border-right: none;
-    border-top-right-radius: 0;
-    border-bottom-right-radius: 0;
-}
-
-.overlap-lane-reality .time-block {
-    border-top-left-radius: 0;
-    border-bottom-left-radius: 0;
-}
-
-.plan-ghost .time-block-label::after {
-    content: ' · plan';
-    font-weight: 600;
-    font-size: 9px;
-    opacity: 0.5;
-    font-style: italic;
-}
 
 .plan-start-btn {
     opacity: 0;
@@ -6942,6 +7322,85 @@ select.schedule-leadtime-input {
     font-size: 14px;
     font-weight: 600;
     color: var(--text);
+}
+
+
+.divergence-segments {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin: 6px 0;
+    padding: 6px 8px;
+    background: transparent;
+    font-size: 12px;
+    font-family: inherit;
+    font-weight: 600;
+    color: var(--duo-text-soft, #777);
+}
+
+.divergence-segment {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 3px 0;
+}
+
+.divergence-seg-info {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.divergence-seg-actions {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+    margin-left: 8px;
+}
+
+.divergence-banner-seg {
+    padding-left: 16px;
+    opacity: 0.9;
+    font-size: 0.82rem;
+}
+
+.divergence-banner-header {
+    font-weight: 600;
+}
+
+.divergence-collapsed {
+    display: none;
+}
+
+.divergence-banner-summary {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    padding: 4px 0;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--duo-text, #333);
+}
+
+.divergence-banner-summary:hover {
+    opacity: 0.8;
+}
+
+.divergence-chevron {
+    font-size: 10px;
+    color: var(--duo-text-soft, #999);
+    transition: transform 0.15s;
+}
+
+.divergence-banner-label-toggle {
+    cursor: pointer;
+}
+
+.divergence-banner-label-toggle:hover {
+    opacity: 0.7;
 }
 
 .epoch-overview-count {

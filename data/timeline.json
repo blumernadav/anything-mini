@@ -2203,7 +2203,8 @@
       "endTime": 1770971835566,
       "itemId": 335,
       "id": 295,
-      "timestamp": 1770971779467
+      "timestamp": 1770971779467,
+      "manual": true
     },
     {
       "text": "Worked on: לארגן אורי גלר (5m)",
@@ -2213,7 +2214,8 @@
       "endTime": 1770972149601,
       "itemId": 339,
       "id": 296,
-      "timestamp": 1770971835585
+      "timestamp": 1770971835585,
+      "manual": true
     },
     {
       "text": "anything",
@@ -2272,7 +2274,8 @@
       "targetEndTime": 1770978715819,
       "itemId": 391,
       "id": 302,
-      "timestamp": 1770976915819
+      "timestamp": 1770976915819,
+      "manual": true
     },
     {
       "text": "Done: general titles or specific values? if specific - remember last and persist it?",
@@ -2337,7 +2340,8 @@
       "endTime": 1770986336193,
       "itemId": 9,
       "id": 310,
-      "timestamp": 1770984787256
+      "timestamp": 1770984787256,
+      "manual": true
     },
     {
       "text": "Worked on: anything (5m)",
@@ -2347,7 +2351,8 @@
       "endTime": 1770986666843,
       "itemId": 9,
       "id": 311,
-      "timestamp": 1770986339934
+      "timestamp": 1770986339934,
+      "manual": true
     },
     {
       "text": "Worked on: מקלחת (11m)",
@@ -2357,7 +2362,8 @@
       "endTime": 1770987357698,
       "itemId": 387,
       "id": 312,
-      "timestamp": 1770986688642
+      "timestamp": 1770986688642,
+      "manual": true
     },
     {
       "text": "Done: מקלחת",
@@ -2370,12 +2376,426 @@
       "text": "להתכונן לחתונה של יונתן",
       "projectName": null,
       "type": "planned",
-      "startTime": 1770991200000,
+      "startTime": 1770994800000,
       "endTime": 1770998400000,
       "itemId": null,
       "id": 314,
+      "timestamp": 1770994800000
+    },
+    {
+      "text": "Worked on: anything (17m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1770987591002,
+      "endTime": 1770988669583,
+      "itemId": 9,
+      "id": 315,
+      "timestamp": 1770987591002,
+      "manual": true
+    },
+    {
+      "text": "anything",
+      "projectName": null,
+      "type": "planned",
+      "startTime": 1770991200000,
+      "endTime": 1770993900000,
+      "itemId": 9,
+      "id": 316,
       "timestamp": 1770991200000
+    },
+    {
+      "text": "Done: א. צהריים",
+      "projectName": "בית",
+      "type": "completion",
+      "id": 317,
+      "timestamp": 1770988804713
+    },
+    {
+      "text": "Done: פמי",
+      "projectName": "health",
+      "type": "completion",
+      "id": 318,
+      "timestamp": 1770988820857
+    },
+    {
+      "text": "Break (40m)",
+      "type": "break",
+      "startTime": 1770988936916,
+      "endTime": 1770991363249,
+      "id": 319,
+      "timestamp": 1770988936916
+    },
+    {
+      "text": "Worked on: live blocks - work, break, idle - print to past and you can reconcile with plans, including general work plans (22m)",
+      "projectName": "anything › core",
+      "type": "work",
+      "startTime": 1770991416954,
+      "endTime": 1770992789136,
+      "itemId": 302,
+      "id": 320,
+      "timestamp": 1770991416954
+    },
+    {
+      "text": "Worked on: anything (24m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1770992789136,
+      "endTime": 1770994283773,
+      "itemId": 9,
+      "id": 321,
+      "timestamp": 1770992789136
+    },
+    {
+      "text": "Worked on: anything (1m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1770994283773,
+      "endTime": 1770994400421,
+      "itemId": 9,
+      "id": 322,
+      "timestamp": 1770994283773,
+      "manual": true
+    },
+    {
+      "text": "Worked on: מה אני לובש לחתונה (7m)",
+      "projectName": "בית",
+      "type": "work",
+      "startTime": 1770994468383,
+      "endTime": 1770994931956,
+      "targetEndTime": 1770995668383,
+      "itemId": 342,
+      "id": 323,
+      "timestamp": 1770994468383,
+      "manual": true
+    },
+    {
+      "text": "Done: מה אני לובש לחתונה",
+      "projectName": "בית",
+      "type": "completion",
+      "id": 324,
+      "timestamp": 1770994971177
+    },
+    {
+      "text": "Worked on: פמי (1h 0m)",
+      "projectName": "health",
+      "type": "work",
+      "startTime": 1770966000000,
+      "endTime": 1770969600000,
+      "itemId": 188,
+      "id": 325,
+      "timestamp": 1770966000000
+    },
+    {
+      "text": "Worked on: anything (5m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1770995326759,
+      "endTime": 1770995650149,
+      "itemId": 9,
+      "id": 326,
+      "timestamp": 1770995326759,
+      "manual": true
+    },
+    {
+      "text": "Worked on: anything (5m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1770974100000,
+      "endTime": 1770974407541,
+      "itemId": 9,
+      "id": 327,
+      "timestamp": 1770974100000
+    },
+    {
+      "text": "Worked on: anything (4m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1770975866258,
+      "endTime": 1770976146457,
+      "itemId": 9,
+      "id": 328,
+      "timestamp": 1770975866258
+    },
+    {
+      "text": "Worked on: anything (1m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1770976810455,
+      "endTime": 1770976915819,
+      "itemId": 9,
+      "id": 329,
+      "timestamp": 1770976810455
+    },
+    {
+      "text": "Worked on: anything (3m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1770991200000,
+      "endTime": 1770991416954,
+      "itemId": 9,
+      "id": 330,
+      "timestamp": 1770991200000
+    },
+    {
+      "text": "Worked on: anything (1m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1770980506248,
+      "endTime": 1770980591102,
+      "itemId": 9,
+      "id": 331,
+      "timestamp": 1770980506248
+    },
+    {
+      "text": "Worked on: anything (4m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1770979507391,
+      "endTime": 1770979795848,
+      "itemId": 9,
+      "id": 332,
+      "timestamp": 1770979507391
+    },
+    {
+      "text": "Worked on: live blocks - work, break, idle - print to past and you can reconcile with plans, including general work plans (24m)",
+      "projectName": "anything › core",
+      "type": "work",
+      "startTime": 1770995650179,
+      "endTime": 1770997129672,
+      "itemId": 302,
+      "id": 333,
+      "timestamp": 1770995650179,
+      "manual": true
+    },
+    {
+      "text": "Worked on: live blocks - work, break, idle - print to past and you can reconcile with plans, including general work plans (1m)",
+      "projectName": "anything › core",
+      "type": "work",
+      "startTime": 1770997166264,
+      "endTime": 1770997230866,
+      "itemId": 302,
+      "id": 334,
+      "timestamp": 1770997166264,
+      "manual": true
+    },
+    {
+      "text": "Worked on: anything (9m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1770997295495,
+      "endTime": 1770997877318,
+      "itemId": 9,
+      "id": 335,
+      "timestamp": 1770997295495,
+      "manual": true
+    },
+    {
+      "text": "Worked on: להתכונן לחתונה של יונתן (0m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1770997919683,
+      "endTime": 1770997924125,
+      "targetEndTime": 1770998400000,
+      "itemId": null,
+      "id": 336,
+      "timestamp": 1770997919683,
+      "manual": true
+    },
+    {
+      "text": "Worked on: anything (1m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1770997978716,
+      "endTime": 1770998075133,
+      "itemId": 9,
+      "id": 337,
+      "timestamp": 1770997978716,
+      "manual": true
+    },
+    {
+      "text": "Worked on: anything (0m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1770998142416,
+      "endTime": 1770998158252,
+      "itemId": 9,
+      "id": 338,
+      "timestamp": 1770998142416,
+      "manual": true
+    },
+    {
+      "text": "Worked on: חתונה של יונתן (7h 7m)",
+      "projectName": "חברים",
+      "type": "work",
+      "startTime": 1770998553190,
+      "endTime": 1771024202469,
+      "targetEndTime": 1771020000000,
+      "itemId": 304,
+      "id": 339,
+      "timestamp": 1770998553190
+    },
+    {
+      "text": "Worked on: להתכונן לחתונה של יונתן (0m)",
+      "projectName": null,
+      "type": "work",
+      "manual": true,
+      "startTime": 1770995650149,
+      "endTime": 1770995650179,
+      "itemId": null,
+      "id": 340,
+      "timestamp": 1770995650149
+    },
+    {
+      "text": "Worked on: להתכונן לחתונה של יונתן (1m)",
+      "projectName": null,
+      "type": "work",
+      "manual": true,
+      "startTime": 1770997129672,
+      "endTime": 1770997166264,
+      "itemId": null,
+      "id": 341,
+      "timestamp": 1770997129672
+    },
+    {
+      "text": "Worked on: להתכונן לחתונה של יונתן (1m)",
+      "projectName": null,
+      "type": "work",
+      "manual": true,
+      "startTime": 1770997230866,
+      "endTime": 1770997295495,
+      "itemId": null,
+      "id": 342,
+      "timestamp": 1770997230866
+    },
+    {
+      "text": "Worked on: להתכונן לחתונה של יונתן (1m)",
+      "projectName": null,
+      "type": "work",
+      "manual": true,
+      "startTime": 1770997877318,
+      "endTime": 1770997919683,
+      "itemId": null,
+      "id": 343,
+      "timestamp": 1770997877318
+    },
+    {
+      "text": "Worked on: להתכונן לחתונה של יונתן (1m)",
+      "projectName": null,
+      "type": "work",
+      "manual": true,
+      "startTime": 1770997924125,
+      "endTime": 1770997978716,
+      "itemId": null,
+      "id": 344,
+      "timestamp": 1770997924125
+    },
+    {
+      "text": "Worked on: להתכונן לחתונה של יונתן (1m)",
+      "projectName": null,
+      "type": "work",
+      "manual": true,
+      "startTime": 1770998075133,
+      "endTime": 1770998142416,
+      "itemId": null,
+      "id": 345,
+      "timestamp": 1770998075133
+    },
+    {
+      "text": "Worked on: להתכונן לחתונה של יונתן (4m)",
+      "projectName": null,
+      "type": "work",
+      "manual": true,
+      "startTime": 1770998158252,
+      "endTime": 1770998400000,
+      "itemId": null,
+      "id": 346,
+      "timestamp": 1770998158252
+    },
+    {
+      "text": "Idle (planned: להתכונן לחתונה של יונתן) (7m)",
+      "type": "idle",
+      "manual": true,
+      "startTime": 1770994931956,
+      "endTime": 1770995326759,
+      "id": 347,
+      "timestamp": 1770994931956
+    },
+    {
+      "text": "Worked on: anything (23m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1771024778848,
+      "endTime": 1771026171716,
+      "itemId": 9,
+      "id": 348,
+      "timestamp": 1771024778848,
+      "manual": true
+    },
+    {
+      "text": "Done: live blocks - work, break, idle - print to past and you can reconcile with plans, including general work plans",
+      "projectName": "anything › core",
+      "type": "completion",
+      "id": 349,
+      "timestamp": 1771026992918
+    },
+    {
+      "text": "Worked on: anything (10m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1771026442570,
+      "endTime": 1771027077603,
+      "itemId": 9,
+      "id": 350,
+      "timestamp": 1771026442570,
+      "manual": true
+    },
+    {
+      "text": "Worked on: anything (6m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1771027501937,
+      "endTime": 1771027871456,
+      "itemId": 9,
+      "id": 351,
+      "timestamp": 1771027501937,
+      "manual": true
+    },
+    {
+      "text": "Worked on: change logs to entry style compact logs (10h 22m)",
+      "projectName": "anything › core › showing past logs",
+      "type": "work",
+      "startTime": 1771027871482,
+      "endTime": 1771027920000,
+      "itemId": 410,
+      "id": 352,
+      "timestamp": 1771027871482,
+      "manual": true
+    },
+    {
+      "text": "Worked on: anything (44m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1771063200000,
+      "endTime": 1771065899785,
+      "itemId": 9,
+      "id": 353,
+      "timestamp": 1771063200000,
+      "manual": true
+    },
+    {
+      "text": "Done: להתגלח",
+      "projectName": "בית",
+      "type": "completion",
+      "id": 354,
+      "timestamp": 1771066276861
+    },
+    {
+      "text": "Done: שבעה סבתא של ירין",
+      "projectName": "חברים",
+      "type": "completion",
+      "id": 355,
+      "timestamp": 1771066315019
     }
   ],
-  "nextId": 315
+  "nextId": 356
 }

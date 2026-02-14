@@ -13,7 +13,8 @@ const state = {
     timeline: { entries: [], nextId: 1 },
     selectedItemId: null, // selected node (project/branch) for filtering
     timelineViewDate: new Date(), // which day is displayed in timeline
-    hidePastEntries: false, // toggle to hide past entries across all horizons
+    pastDisplayMode: 'show', // 'hide' | 'show' — whether past entries are visible in timeline
+    pastCardStyle: 'compact', // 'compact' | 'full' — card style for past entries (configured in Settings)
     showDone: false, // when true, done items are visible in actions and project tree
     scheduleFilter: 'scheduled+unscheduled', // 'scheduled' | 'scheduled+unscheduled' | 'all'
     viewHorizon: 'day', // 'day' | 'week' | 'epoch' | 'session' — horizon level for timeline navigation
@@ -29,6 +30,8 @@ const state = {
     lastSessionCleanupMinute: null, // throttles session cleanup to once per minute
     selectedActionIds: new Set(), // multiselect for actions
     selectionAnchor: null, // last manually toggled action ID (for shift-click range)
+    divergenceBannerExpanded: false, // whether the top-level banner summary is expanded
+    divergencePlansExpanded: new Set(), // set of plan entry IDs whose segments are expanded
     settings: {
         dayStartHour: 8,
         dayStartMinute: 0,
@@ -122,7 +125,21 @@ async function loadAll() {
     if (prefs.onBreak) {
         state.onBreak = prefs.onBreak;
     }
-    state.hidePastEntries = prefs.hidePastEntries === true;
+    // Migration: old 3-state pastDisplayMode → new 2-state (hide/show)
+    if (prefs.pastDisplayMode === 'hide') {
+        state.pastDisplayMode = 'hide';
+    } else {
+        state.pastDisplayMode = 'show';
+    }
+    // Restore card style preference (compact or full)
+    if (prefs.pastCardStyle === 'full' || prefs.pastCardStyle === 'compact') {
+        state.pastCardStyle = prefs.pastCardStyle;
+    } else if (prefs.pastDisplayMode === 'full') {
+        // Migration: old 'full' mode → pastCardStyle = 'full'
+        state.pastCardStyle = 'full';
+    } else {
+        state.pastCardStyle = 'compact';
+    }
     state.showDone = prefs.showDone === true;
     const validFilters = ['scheduled', 'scheduled+unscheduled', 'all'];
     state.scheduleFilter = validFilters.includes(prefs.scheduleFilter) ? prefs.scheduleFilter : 'scheduled+unscheduled';
@@ -143,6 +160,9 @@ async function loadAll() {
     if (Array.isArray(prefs.focusStack) && prefs.focusStack.length > 0) {
         state.focusStack = prefs.focusStack;
     }
+    // Restore divergence banner collapse state
+    state.divergenceBannerExpanded = prefs.divergenceBannerExpanded || false;
+    state.divergencePlansExpanded = new Set(prefs.divergencePlansExpanded || []);
     // Restore project tree scroll position
     if (typeof prefs.projectTreeScrollTop === 'number') {
         state._pendingProjectTreeScroll = prefs.projectTreeScrollTop;
@@ -192,14 +212,26 @@ function syncToggleUI() {
     }
     const hidePastBtn = document.getElementById('hide-past-btn');
     if (hidePastBtn) {
-        hidePastBtn.classList.toggle('active', !state.hidePastEntries);
-        hidePastBtn.title = state.hidePastEntries ? 'Show past' : 'Hide past';
+        syncPastDisplayBtn(hidePastBtn);
     }
     const showUnschedBtn = document.getElementById('show-unscheduled-btn');
     if (showUnschedBtn) {
         syncScheduleFilterBtn(showUnschedBtn);
     }
 }
+
+// Sync past-display button icon/title based on 2-state pastDisplayMode
+function syncPastDisplayBtn(btn) {
+    const hidden = state.pastDisplayMode === 'hide';
+    btn.textContent = hidden ? '👁' : '⏳';
+    btn.title = hidden ? 'Show past' : 'Hide past';
+    btn.classList.toggle('active', !hidden);
+}
+
+// Convenience: check if we should hide past entries entirely
+function isPastHidden() { return state.pastDisplayMode === 'hide'; }
+// Convenience: check if past entries should render in compact mode
+function isPastCompact() { return state.pastCardStyle === 'compact'; }
 
 // Ensure Inbox exists as the first node in the tree
 function ensureInbox() {
@@ -1041,6 +1073,960 @@ function buildPlanSegments(viewDate) {
     }
 
     return segments;
+}
+
+// ── Divergence Detection & Resolution ──
+
+// Check if childId is a descendant of ancestorId in the item tree
+function _isDescendantOf(childId, ancestorId) {
+    if (!childId || !ancestorId) return false;
+    const ancestor = findItemById(ancestorId);
+    if (!ancestor || !ancestor.children) return false;
+    // BFS through ancestor's subtree
+    const queue = [...ancestor.children];
+    while (queue.length > 0) {
+        const node = queue.shift();
+        if (node.id === childId) return true;
+        if (node.children) queue.push(...node.children);
+    }
+    return false;
+}
+
+// Detects granular divergences between planned timeline and actual reality.
+// Returns an array of divergences; plan divergences include per-segment
+// breakdown. Manual log entries (manual: true) are treated as authoritative
+// and never trigger divergences — resolution works by creating manual logs.
+function detectDivergences(allDayEntries, nowMs) {
+    const divergences = [];
+
+    const plans = allDayEntries.filter(e =>
+        e.type === 'planned' && e.endTime && !e._phantom && e.endTime <= nowMs
+    );
+    // Include both work and idle entries as coverage (manual idle = confirmed idle)
+    const coverageEntries = allDayEntries.filter(e =>
+        (e.type === 'work' || e.type === 'idle') && e.endTime
+    );
+
+    // ── Plan divergences: decompose each past plan into segments ──
+    for (const entry of plans) {
+        if (entry._absorbed) continue;
+
+        const planStart = entry.timestamp;
+        const planEnd = entry.endTime;
+        if (planEnd <= planStart) continue;
+
+        // Find coverage overlapping this plan's window, clipped to plan bounds
+        const overlappingCoverage = coverageEntries
+            .filter(w => Math.max(w.timestamp, planStart) < Math.min(w.endTime, planEnd))
+            .map(w => ({
+                entry: w,
+                start: Math.max(w.timestamp, planStart),
+                end: Math.min(w.endTime, planEnd),
+            }))
+            .sort((a, b) => a.start - b.start);
+
+        // Build segment breakdown
+        const segments = [];
+        let cursor = planStart;
+
+        for (const cov of overlappingCoverage) {
+            if (cov.start > cursor) {
+                segments.push({ type: 'idle', startMs: cursor, endMs: cov.start });
+            }
+            // Manual entries are always treated as authoritative coverage
+            if (cov.entry.manual) {
+                segments.push({
+                    type: 'covered',
+                    startMs: cov.start,
+                    endMs: cov.end,
+                    workEntry: cov.entry,
+                });
+            } else {
+                const workItemId = cov.entry.itemId;
+                const planItemId = entry.itemId;
+                const sameProject = planItemId && workItemId &&
+                    (String(planItemId) === String(workItemId) || _isDescendantOf(workItemId, planItemId));
+                segments.push({
+                    type: sameProject ? 'covered' : 'different',
+                    startMs: cov.start,
+                    endMs: cov.end,
+                    workEntry: cov.entry,
+                });
+            }
+            cursor = Math.max(cursor, cov.end);
+        }
+        if (cursor < planEnd) {
+            segments.push({ type: 'idle', startMs: cursor, endMs: planEnd });
+        }
+
+        // Filter to only unresolved segments (idle or different)
+        const unresolvedSegs = segments.filter(seg => seg.type !== 'covered');
+
+        if (unresolvedSegs.length === 0) continue; // All segments covered
+
+        const divType = overlappingCoverage.length > 0 ? 'partial' : 'skipped';
+        divergences.push({ entry, type: divType, segments: unresolvedSegs, allSegments: segments });
+    }
+
+    // ── Unplanned work: automatic work entries not covered by any plan ──
+    const workEntries = coverageEntries.filter(e => e.type === 'work');
+    for (const work of workEntries) {
+        if (work.endTime > nowMs) continue;
+        if (work.manual) continue; // Manual work is intentional, never "unplanned"
+
+        const hasOverlappingPlan = plans.some(p =>
+            Math.max(p.timestamp, work.timestamp) < Math.min(p.endTime, work.endTime)
+        );
+        if (!hasOverlappingPlan) {
+            divergences.push({
+                type: 'unplanned',
+                workEntry: work,
+                startMs: work.timestamp,
+                endMs: work.endTime,
+            });
+        }
+    }
+
+    return divergences;
+}
+
+// Detects work in the gap between day end and next day's start.
+// viewDate = the day currently being displayed.
+// Returns divergences with perspective: 'prev-day' (extend end) or 'next-day' (start earlier).
+function detectOutOfHoursWork(viewDate, nowMs) {
+    const entries = (state.timeline && state.timeline.entries) || [];
+    const { dayEnd } = getDayBoundaries(viewDate);
+    const dayEndMs = dayEnd.getTime();
+
+    // Find the next day's start
+    const nextDay = new Date(viewDate);
+    nextDay.setDate(nextDay.getDate() + 1);
+    const { dayStart: nextDayStart } = getDayBoundaries(nextDay);
+    const nextDayStartMs = nextDayStart.getTime();
+
+    // Also check the previous day's gap (for when viewing the "next day" perspective)
+    const prevDay = new Date(viewDate);
+    prevDay.setDate(prevDay.getDate() - 1);
+    const { dayEnd: prevDayEnd } = getDayBoundaries(prevDay);
+    const prevDayEndMs = prevDayEnd.getTime();
+    const { dayStart: thisDayStart } = getDayBoundaries(viewDate);
+    const thisDayStartMs = thisDayStart.getTime();
+
+    const divergences = [];
+
+    // Work that OVERLAPS with the gap AFTER this day's end (perspective: prev-day → extend end)
+    if (nextDayStartMs > dayEndMs) {
+        const overlapping = entries.filter(e =>
+            e.type === 'work' && e.endTime &&
+            e.endTime > dayEndMs && e.timestamp < nextDayStartMs &&
+            e.endTime <= nowMs
+        );
+        for (const work of overlapping) {
+            // Clip to the gap — only the out-of-hours portion matters
+            const oohStart = Math.max(work.timestamp, dayEndMs);
+            const oohEnd = Math.min(work.endTime, nextDayStartMs);
+            divergences.push({
+                type: 'out-of-hours',
+                perspective: 'prev-day',
+                workEntry: work,
+                startMs: oohStart,
+                endMs: oohEnd,
+                gapStart: dayEndMs,
+                gapEnd: nextDayStartMs,
+                dayDate: viewDate,
+            });
+        }
+    }
+
+    // Work that OVERLAPS with the gap BEFORE this day's start (perspective: next-day → start earlier)
+    if (thisDayStartMs > prevDayEndMs) {
+        const overlapping = entries.filter(e =>
+            e.type === 'work' && e.endTime &&
+            e.endTime > prevDayEndMs && e.timestamp < thisDayStartMs &&
+            e.endTime <= nowMs
+        );
+        for (const work of overlapping) {
+            const oohStart = Math.max(work.timestamp, prevDayEndMs);
+            const oohEnd = Math.min(work.endTime, thisDayStartMs);
+            divergences.push({
+                type: 'out-of-hours',
+                perspective: 'next-day',
+                workEntry: work,
+                startMs: oohStart,
+                endMs: oohEnd,
+                gapStart: prevDayEndMs,
+                gapEnd: thisDayStartMs,
+                dayDate: viewDate,
+            });
+        }
+    }
+
+    return divergences;
+}
+// ── Resolution functions ──
+// Resolution works by creating/marking manual log entries so that
+// detectDivergences naturally finds them as authoritative coverage.
+// Plans are NEVER modified or deleted.
+
+// Accept Log for a single idle segment — create a manual idle entry
+async function _resolveSegmentAcceptLog_Idle(planEntry, seg) {
+    const planName = planEntry.text || 'Planned session';
+    const durationMs = seg.endMs - seg.startMs;
+    const durStr = _fmtDuration(durationMs);
+
+    await api.post('/timeline', {
+        text: 'Idle',
+        type: 'idle',
+        manual: true,
+        startTime: seg.startMs,
+        endTime: seg.endMs,
+    });
+
+    state.timeline = await api.get('/timeline');
+    renderAll();
+}
+
+// Accept Log for a single different-work segment — mark the work entry as manual
+async function _resolveSegmentAcceptLog_Different(seg) {
+    const workEntry = seg.workEntry;
+    if (!workEntry) return;
+
+    await api.patch(`/timeline/${workEntry.id}`, { manual: true });
+
+    state.timeline = await api.get('/timeline');
+    renderAll();
+}
+
+// Accept Log for ALL segments of a plan at once
+async function _resolveAllSegmentsAsLog(divergence) {
+    for (const seg of (divergence.allSegments || divergence.segments || [])) {
+        if (seg.type === 'covered') continue;
+        if (seg.type === 'idle') {
+            await _resolveSegmentAcceptLog_Idle(divergence.entry, seg);
+        } else if (seg.type === 'different') {
+            await _resolveSegmentAcceptLog_Different(seg);
+        }
+    }
+    // Reload once at the end (individual functions already reload, but ensure consistency)
+    state.timeline = await api.get('/timeline');
+    renderAll();
+}
+
+// Accept unplanned work — mark it as manual (intentional)
+async function resolveDivergenceAcceptUnplanned(workEntryId) {
+    await api.patch(`/timeline/${workEntryId}`, { manual: true });
+
+    state.timeline = await api.get('/timeline');
+    renderAll();
+}
+
+// Accept Plan for idle segment — create retroactive manual work entry for the gap
+async function _resolveSegmentAcceptPlan_Idle(planEntry, seg) {
+    const planName = planEntry.text || 'Planned session';
+    const itemId = planEntry.itemId || null;
+    const projectName = planEntry.projectName || null;
+    const durationMs = seg.endMs - seg.startMs;
+    const durStr = _fmtDuration(durationMs);
+
+    await api.post('/timeline', {
+        text: `Worked on: ${planName} (${durStr})`,
+        projectName,
+        type: 'work',
+        manual: true,
+        startTime: seg.startMs,
+        endTime: seg.endMs,
+        itemId,
+    });
+
+    state.timeline = await api.get('/timeline');
+    renderAll();
+}
+
+// Accept Plan for different-work segment — re-attribute the work entry to the planned project
+async function _resolveSegmentAcceptPlan_Different(planEntry, seg) {
+    const planName = planEntry.text || 'Planned session';
+    const workEntry = seg.workEntry;
+    if (!workEntry) return;
+
+    const durationMs = workEntry.endTime - workEntry.timestamp;
+    const durStr = _fmtDuration(durationMs);
+
+    await api.patch(`/timeline/${workEntry.id}`, {
+        text: `Worked on: ${planName} (${durStr})`,
+        itemId: planEntry.itemId || null,
+        projectName: planEntry.projectName || null,
+        manual: true,
+    });
+
+    state.timeline = await api.get('/timeline');
+    renderAll();
+}
+
+// Accept Plan for ALL idle segments of a plan at once
+async function resolveDivergenceDidIt(entry) {
+    const planName = entry.text || 'Planned session';
+    const itemId = entry.itemId || null;
+    const projectName = entry.projectName || null;
+    const planStart = entry.timestamp;
+    const planEnd = entry.endTime;
+
+    // Find coverage overlapping this plan to compute uncovered gaps
+    const coverageEntries = ((state.timeline && state.timeline.entries) || [])
+        .filter(e => (e.type === 'work' || e.type === 'idle') && e.endTime &&
+            Math.max(e.timestamp, planStart) < Math.min(e.endTime, planEnd));
+
+    // Build covered intervals (merge overlapping coverage)
+    const covered = coverageEntries
+        .map(e => [Math.max(e.timestamp, planStart), Math.min(e.endTime, planEnd)])
+        .sort((a, b) => a[0] - b[0]);
+    const merged = [];
+    for (const [s, e] of covered) {
+        if (merged.length && s <= merged[merged.length - 1][1]) {
+            merged[merged.length - 1][1] = Math.max(merged[merged.length - 1][1], e);
+        } else {
+            merged.push([s, e]);
+        }
+    }
+
+    const gaps = [];
+    let cursor = planStart;
+    for (const [s, e] of merged) {
+        if (s > cursor) gaps.push([cursor, s]);
+        cursor = Math.max(cursor, e);
+    }
+    if (cursor < planEnd) gaps.push([cursor, planEnd]);
+
+    for (const [gapStart, gapEnd] of gaps) {
+        const durationMs = gapEnd - gapStart;
+        const durStr = _fmtDuration(durationMs);
+        await api.post('/timeline', {
+            text: `Worked on: ${planName} (${durStr})`,
+            projectName,
+            type: 'work',
+            manual: true,
+            startTime: gapStart,
+            endTime: gapEnd,
+            itemId,
+        });
+    }
+
+    // Also mark any non-manual different-work entries as manual (user confirmed the plan)
+    for (const ce of coverageEntries) {
+        if (ce.type === 'work' && !ce.manual) {
+            await api.patch(`/timeline/${ce.id}`, {
+                text: `Worked on: ${planName} (${_fmtDuration(ce.endTime - ce.timestamp)})`,
+                itemId: itemId,
+                projectName: projectName,
+                manual: true,
+            });
+        }
+    }
+
+    state.timeline = await api.get('/timeline');
+    renderAll();
+}
+
+async function resolveDivergenceReschedule(entry, target) {
+    // Rescheduling creates a NEW plan and covers the old time with a manual idle log.
+    // The original plan entry is never deleted.
+    const planStart = entry.timestamp;
+    const planEnd = entry.endTime;
+    const duration = planEnd - planStart;
+    const planName = entry.text || 'Planned session';
+
+    // Create manual idle log for the original time slot
+    await api.post('/timeline', {
+        text: 'Idle',
+        type: 'idle',
+        manual: true,
+        startTime: planStart,
+        endTime: planEnd,
+    });
+
+    // Create the new plan entry at the target time
+    if (target === 'drop') {
+        // Drop = just cover original with idle, no new plan
+        await degradeEntryContexts(entry.id);
+    } else if (target === 'tomorrow') {
+        const tomorrow = new Date(planStart);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        const newStart = tomorrow.getTime();
+        const newEnd = newStart + duration;
+        await api.post('/timeline', {
+            text: entry.text,
+            type: 'planned',
+            startTime: newStart,
+            endTime: newEnd,
+            itemId: entry.itemId || null,
+            projectName: entry.projectName || null,
+        });
+    } else if (target === 'later') {
+        const segments = buildPlanSegments();
+        const nowMs = Date.now();
+        let slotFound = false;
+        for (const seg of segments) {
+            if (seg.type !== 'free') continue;
+            if (seg.endMs <= nowMs) continue;
+            const slotStart = Math.max(seg.startMs, nowMs);
+            if (seg.endMs - slotStart >= duration) {
+                const newEnd = slotStart + duration;
+                await api.post('/timeline', {
+                    text: entry.text,
+                    type: 'planned',
+                    startTime: slotStart,
+                    endTime: newEnd,
+                    itemId: entry.itemId || null,
+                    projectName: entry.projectName || null,
+                });
+                slotFound = true;
+                break;
+            }
+        }
+        if (!slotFound) return resolveDivergenceReschedule(entry, 'tomorrow');
+    }
+
+    state.timeline = await api.get('/timeline');
+    renderAll();
+}
+
+// ── Out-of-hours resolution ──
+
+// Extend this day's end to include out-of-hours work (viewed from "previous day")
+async function resolveOutOfHoursExtendDay(div) {
+    const workEnd = new Date(div.endMs);
+    const dateKey = getDateKey(div.dayDate);
+    const current = getEffectiveDayTimes(div.dayDate);
+
+    if (!state.settings.dayOverrides) state.settings.dayOverrides = {};
+    state.settings.dayOverrides[dateKey] = {
+        ...current,
+        dayEndHour: workEnd.getHours(),
+        dayEndMinute: workEnd.getMinutes() + (workEnd.getSeconds() > 0 ? 1 : 0), // round up
+    };
+    await api.put('/settings', state.settings);
+    renderAll();
+}
+
+// Pull this day's start earlier to include out-of-hours work (viewed from "next day")
+async function resolveOutOfHoursEarlierStart(div) {
+    const workStart = new Date(div.startMs);
+    const dateKey = getDateKey(div.dayDate);
+    const current = getEffectiveDayTimes(div.dayDate);
+
+    if (!state.settings.dayOverrides) state.settings.dayOverrides = {};
+    state.settings.dayOverrides[dateKey] = {
+        ...current,
+        dayStartHour: workStart.getHours(),
+        dayStartMinute: workStart.getMinutes(),
+    };
+    await api.put('/settings', state.settings);
+    renderAll();
+}
+
+// Trim the log entry to exclude the out-of-hours portion
+async function resolveOutOfHoursTrimLog(div) {
+    const entry = div.workEntry;
+    if (!entry) return;
+
+    if (div.perspective === 'prev-day') {
+        // Work extends past day end — trim endTime to gapStart (day end)
+        if (entry.timestamp >= div.gapStart) {
+            // Entire entry is in the gap — delete it
+            await api.delete(`/timeline/${entry.id}`);
+        } else {
+            await api.patch(`/timeline/${entry.id}`, { endTime: div.gapStart });
+        }
+    } else {
+        // Work starts before day start — trim timestamp to gapEnd (day start)
+        if (entry.endTime <= div.gapEnd) {
+            // Entire entry is in the gap — delete it
+            await api.delete(`/timeline/${entry.id}`);
+        } else {
+            await api.patch(`/timeline/${entry.id}`, { timestamp: div.gapEnd });
+        }
+    }
+
+    state.timeline = await api.get('/timeline');
+    renderAll();
+}
+
+// ── Shared helpers ──
+function _fmtDivTime(ms) {
+    const d = new Date(ms);
+    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
+function _fmtDuration(ms) {
+    const mins = Math.round(ms / 60000);
+    if (mins < 60) return `${mins}m`;
+    const hrs = Math.floor(mins / 60);
+    const rem = mins % 60;
+    return rem > 0 ? `${hrs}h ${rem}m` : `${hrs}h`;
+}
+
+function _cleanWorkName(text) {
+    return (text || 'Work').replace(/^Worked on:\s*/i, '').replace(/\s*\(\d+h?\s*\d*m?\)$/, '');
+}
+
+// Helper: create Plan/Log action buttons for a segment
+function _createSegmentActions(planEntry, seg) {
+    const segActions = document.createElement('span');
+    segActions.className = 'divergence-seg-actions';
+    const planName = _cleanWorkName(planEntry.text);
+
+    if (seg.type === 'idle') {
+        const planBtn = document.createElement('button');
+        planBtn.className = 'divergence-btn divergence-btn-plan';
+        planBtn.textContent = 'Plan';
+        planBtn.title = `Accept plan — log "${planName}" for this time`;
+        planBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            _resolveSegmentAcceptPlan_Idle(planEntry, seg);
+        });
+
+        const logBtn = document.createElement('button');
+        logBtn.className = 'divergence-btn divergence-btn-log';
+        logBtn.textContent = 'Log';
+        logBtn.title = 'Accept log — I was idle during this time';
+        logBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            _resolveSegmentAcceptLog_Idle(planEntry, seg);
+        });
+
+        segActions.appendChild(planBtn);
+        segActions.appendChild(logBtn);
+    } else if (seg.type === 'different') {
+        const workName = _cleanWorkName(seg.workEntry.text);
+
+        const planBtn = document.createElement('button');
+        planBtn.className = 'divergence-btn divergence-btn-plan';
+        planBtn.textContent = 'Plan';
+        planBtn.title = `Accept plan — change log from "${workName}" to "${planName}"`;
+        planBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            _resolveSegmentAcceptPlan_Different(planEntry, seg);
+        });
+
+        const logBtn = document.createElement('button');
+        logBtn.className = 'divergence-btn divergence-btn-log';
+        logBtn.textContent = 'Log';
+        logBtn.title = `Accept log — I worked on "${workName}", not "${planName}"`;
+        logBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            _resolveSegmentAcceptLog_Different(seg);
+        });
+
+        segActions.appendChild(planBtn);
+        segActions.appendChild(logBtn);
+    }
+
+    return segActions;
+}
+
+// ── Create inline divergence prompt with per-segment Plan/Log actions ──
+function createDivergencePrompt(divergence) {
+    if (divergence.type === 'unplanned') {
+        return _createUnplannedWorkPrompt(divergence);
+    }
+
+    const { entry, segments } = divergence;
+    const el = document.createElement('div');
+    el.className = 'divergence-prompt';
+    el.dataset.startTime = entry.timestamp;
+    el.dataset.endTime = entry.endTime;
+
+    // Header
+    const header = document.createElement('div');
+    header.className = 'divergence-prompt-header';
+    const planName = entry.text || 'Planned session';
+    header.textContent = `⚡ "${planName}" · ${_fmtDivTime(entry.timestamp)}–${_fmtDivTime(entry.endTime)}`;
+    el.appendChild(header);
+
+    // Per-segment rows with Plan/Log actions
+    if (segments && segments.length > 0) {
+        const segList = document.createElement('div');
+        segList.className = 'divergence-segments';
+
+        // Column header row
+        const colHeader = document.createElement('div');
+        colHeader.className = 'divergence-segment divergence-seg-header';
+        const colInfo = document.createElement('span');
+        colInfo.className = 'divergence-seg-info';
+        const colActions = document.createElement('span');
+        colActions.className = 'divergence-seg-actions divergence-seg-actions-label';
+        colActions.textContent = 'Accept:';
+        colHeader.appendChild(colInfo);
+        colHeader.appendChild(colActions);
+        segList.appendChild(colHeader);
+
+        for (const seg of segments) {
+            const segRow = document.createElement('div');
+            segRow.className = `divergence-segment divergence-seg-${seg.type}`;
+
+            // Info column
+            const info = document.createElement('span');
+            info.className = 'divergence-seg-info';
+            const dur = _fmtDuration(seg.endMs - seg.startMs);
+            const timeRange = `${_fmtDivTime(seg.startMs)}–${_fmtDivTime(seg.endMs)}`;
+
+            if (seg.type === 'idle') {
+                info.textContent = `○ ${timeRange}  idle · ${dur}`;
+            } else if (seg.type === 'different') {
+                const display = _cleanWorkName(seg.workEntry.text);
+                info.textContent = `● ${timeRange}  ${display} · ${dur}`;
+            }
+
+            segRow.appendChild(info);
+            segRow.appendChild(_createSegmentActions(entry, seg));
+            segList.appendChild(segRow);
+        }
+
+        el.appendChild(segList);
+    }
+
+    // Plan-level actions
+    const planActions = document.createElement('div');
+    planActions.className = 'divergence-prompt-actions';
+
+    const allLogBtn = document.createElement('button');
+    allLogBtn.className = 'divergence-btn divergence-btn-log';
+    allLogBtn.textContent = 'All logs';
+    allLogBtn.title = 'Accept all logs — keep what actually happened';
+    allLogBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        _resolveAllSegmentsAsLog(divergence);
+    });
+
+    const rescheduleBtn = document.createElement('button');
+    rescheduleBtn.className = 'divergence-btn divergence-btn-reschedule';
+    rescheduleBtn.textContent = '↻ Reschedule';
+    rescheduleBtn.title = 'Reschedule this plan to later today, tomorrow, or drop it';
+    rescheduleBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const existing = el.querySelector('.divergence-reschedule-options');
+        if (existing) { existing.remove(); return; }
+        const opts = _createRescheduleOptions(entry);
+        planActions.after(opts);
+    });
+
+    const acceptAllPlanBtn = document.createElement('button');
+    acceptAllPlanBtn.className = 'divergence-btn divergence-btn-ok';
+    acceptAllPlanBtn.textContent = 'Accept all plans';
+    acceptAllPlanBtn.title = 'Accept plan for all segments — log all idle time as work';
+    acceptAllPlanBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        resolveDivergenceDidIt(entry);
+    });
+
+    planActions.appendChild(rescheduleBtn);
+    planActions.appendChild(acceptAllPlanBtn);
+    planActions.appendChild(allLogBtn);
+    el.appendChild(planActions);
+
+    return el;
+}
+
+// Unplanned work prompt
+function _createUnplannedWorkPrompt(divergence) {
+    const { workEntry } = divergence;
+    const el = document.createElement('div');
+    el.className = 'divergence-prompt divergence-prompt-unplanned';
+    el.dataset.startTime = divergence.startMs;
+    el.dataset.endTime = divergence.endMs;
+
+    const header = document.createElement('div');
+    header.className = 'divergence-prompt-header';
+    const workName = _cleanWorkName(workEntry.text);
+    const dur = _fmtDuration(divergence.endMs - divergence.startMs);
+    header.textContent = `⚡ Unplanned: "${workName}" · ${_fmtDivTime(divergence.startMs)}–${_fmtDivTime(divergence.endMs)} (${dur})`;
+
+    const actions = document.createElement('div');
+    actions.className = 'divergence-prompt-actions';
+
+    // Plan = accept plan (nothing was planned) — dismiss the unplanned work
+    const planBtn = document.createElement('button');
+    planBtn.className = 'divergence-btn divergence-btn-plan';
+    planBtn.textContent = 'Plan';
+    planBtn.title = 'Accept plan — nothing was planned, dismiss this';
+    planBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        resolveDivergenceAcceptUnplanned(workEntry.id);
+    });
+
+    // Log = accept log (acknowledge the unplanned work)
+    const logBtn = document.createElement('button');
+    logBtn.className = 'divergence-btn divergence-btn-log';
+    logBtn.textContent = 'Log';
+    logBtn.title = `Accept log — acknowledge "${workName}" as work done`;
+    logBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        resolveDivergenceAcceptUnplanned(workEntry.id);
+    });
+
+    actions.appendChild(planBtn);
+    actions.appendChild(logBtn);
+
+    el.appendChild(header);
+    el.appendChild(actions);
+    return el;
+}
+
+// Shared helper: create reschedule sub-option buttons
+function _createRescheduleOptions(entry) {
+    const opts = document.createElement('div');
+    opts.className = 'divergence-reschedule-options';
+
+    const laterBtn = document.createElement('button');
+    laterBtn.className = 'divergence-btn divergence-btn-sub';
+    laterBtn.textContent = 'Later Today';
+    laterBtn.addEventListener('click', (ev) => { ev.stopPropagation(); resolveDivergenceReschedule(entry, 'later'); });
+
+    const tomorrowBtn = document.createElement('button');
+    tomorrowBtn.className = 'divergence-btn divergence-btn-sub';
+    tomorrowBtn.textContent = 'Tomorrow';
+    tomorrowBtn.addEventListener('click', (ev) => { ev.stopPropagation(); resolveDivergenceReschedule(entry, 'tomorrow'); });
+
+    const dropBtn = document.createElement('button');
+    dropBtn.className = 'divergence-btn divergence-btn-sub divergence-btn-drop';
+    dropBtn.textContent = 'Drop';
+    dropBtn.addEventListener('click', (ev) => { ev.stopPropagation(); resolveDivergenceReschedule(entry, 'drop'); });
+
+    opts.appendChild(laterBtn);
+    opts.appendChild(tomorrowBtn);
+    opts.appendChild(dropBtn);
+    return opts;
+}
+
+// ── Compact divergence banner (hide-past mode) — collapsible ──
+function createDivergenceBanner(divergences) {
+    const banner = document.createElement('div');
+    banner.className = 'divergence-banner';
+
+    // Calculate summary stats
+    let totalSegments = 0;
+    let totalTimeMs = 0;
+    for (const div of divergences) {
+        if (div.type === 'unplanned' || div.type === 'out-of-hours') {
+            totalSegments++;
+            totalTimeMs += (div.endMs - div.startMs);
+        } else {
+            const segs = div.segments || [];
+            totalSegments += segs.length;
+            for (const s of segs) totalTimeMs += (s.endMs - s.startMs);
+        }
+    }
+
+    // Summary header — click to expand/collapse all
+    const summaryRow = document.createElement('div');
+    summaryRow.className = 'divergence-banner-summary';
+    const summaryChevron = document.createElement('span');
+    summaryChevron.className = 'divergence-chevron';
+    summaryChevron.textContent = '▸';
+    const summaryText = document.createElement('span');
+    summaryText.className = 'divergence-banner-summary-text';
+    const durStr = _fmtDuration(totalTimeMs);
+    summaryText.textContent = `⚡ ${totalSegments} divergence${totalSegments !== 1 ? 's' : ''} · ${durStr} to resolve`;
+    summaryRow.appendChild(summaryChevron);
+    summaryRow.appendChild(summaryText);
+    banner.appendChild(summaryRow);
+
+    // Container for all divergence items (collapsible)
+    const itemsContainer = document.createElement('div');
+    itemsContainer.className = 'divergence-banner-items';
+    if (!state.divergenceBannerExpanded) itemsContainer.classList.add('divergence-collapsed');
+    if (state.divergenceBannerExpanded) summaryChevron.textContent = '▾';
+
+    summaryRow.addEventListener('click', () => {
+        const collapsed = itemsContainer.classList.toggle('divergence-collapsed');
+        summaryChevron.textContent = collapsed ? '▸' : '▾';
+        state.divergenceBannerExpanded = !collapsed;
+        savePref('divergenceBannerExpanded', state.divergenceBannerExpanded);
+    });
+
+    for (const div of divergences) {
+        if (div.type === 'unplanned') {
+            const row = document.createElement('div');
+            row.className = 'divergence-banner-item';
+            const label = document.createElement('span');
+            label.className = 'divergence-banner-label';
+            const workName = _cleanWorkName(div.workEntry.text);
+            label.textContent = `⚡ Unplanned: "${workName}" · ${_fmtDivTime(div.startMs)}–${_fmtDivTime(div.endMs)}`;
+            const actions = document.createElement('span');
+            actions.className = 'divergence-banner-actions';
+
+            const planBtn = document.createElement('button');
+            planBtn.className = 'divergence-btn divergence-btn-plan divergence-btn-compact';
+            planBtn.textContent = 'Plan';
+            planBtn.title = 'Accept plan — nothing was planned, dismiss';
+            planBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                resolveDivergenceAcceptUnplanned(div.workEntry.id);
+            });
+
+            const logBtn = document.createElement('button');
+            logBtn.className = 'divergence-btn divergence-btn-log divergence-btn-compact';
+            logBtn.textContent = 'Log';
+            logBtn.title = `Accept log — acknowledge "${workName}"`;
+            logBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                resolveDivergenceAcceptUnplanned(div.workEntry.id);
+            });
+
+            actions.appendChild(planBtn);
+            actions.appendChild(logBtn);
+            row.appendChild(label);
+            row.appendChild(actions);
+            itemsContainer.appendChild(row);
+            continue;
+        }
+
+        if (div.type === 'out-of-hours') {
+            const row = document.createElement('div');
+            row.className = 'divergence-banner-item';
+            const label = document.createElement('span');
+            label.className = 'divergence-banner-label';
+            const workName = _cleanWorkName(div.workEntry.text);
+            label.textContent = `🌙 Out-of-hours: "${workName}" · ${_fmtDivTime(div.startMs)}–${_fmtDivTime(div.endMs)}`;
+            const actions = document.createElement('span');
+            actions.className = 'divergence-banner-actions';
+
+            if (div.perspective === 'prev-day') {
+                const extendBtn = document.createElement('button');
+                extendBtn.className = 'divergence-btn divergence-btn-plan divergence-btn-compact';
+                extendBtn.textContent = 'Extend day';
+                extendBtn.title = 'Extend this day\'s end to include this work';
+                extendBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    resolveOutOfHoursExtendDay(div);
+                });
+                actions.appendChild(extendBtn);
+            } else {
+                const earlierBtn = document.createElement('button');
+                earlierBtn.className = 'divergence-btn divergence-btn-plan divergence-btn-compact';
+                earlierBtn.textContent = 'Start earlier';
+                earlierBtn.title = 'Start this day earlier to include this work';
+                earlierBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    resolveOutOfHoursEarlierStart(div);
+                });
+                actions.appendChild(earlierBtn);
+            }
+
+            const trimBtn = document.createElement('button');
+            trimBtn.className = 'divergence-btn divergence-btn-log divergence-btn-compact';
+            trimBtn.textContent = 'Trim log';
+            trimBtn.title = 'Trim the log entry to exclude the out-of-hours portion';
+            trimBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                resolveOutOfHoursTrimLog(div);
+            });
+            actions.appendChild(trimBtn);
+
+
+            row.appendChild(label);
+            row.appendChild(actions);
+            itemsContainer.appendChild(row);
+            continue;
+        }
+
+        // Plan divergence: collapsible header + per-segment rows
+        const planName = div.entry.text || 'Planned session';
+        const timeStr = `${_fmtDivTime(div.entry.timestamp)}–${_fmtDivTime(div.entry.endTime)}`;
+        const segCount = (div.segments || []).length;
+
+        // Header row — clickable to toggle segments
+        const headerRow = document.createElement('div');
+        headerRow.className = 'divergence-banner-item divergence-banner-header';
+        const headerLeft = document.createElement('span');
+        headerLeft.className = 'divergence-banner-label divergence-banner-label-toggle';
+        const planChevron = document.createElement('span');
+        planChevron.className = 'divergence-chevron';
+        planChevron.textContent = '▸';
+        headerLeft.appendChild(planChevron);
+        headerLeft.appendChild(document.createTextNode(` ⚡ "${planName}" · ${timeStr} (${segCount})`));
+
+        const headerActions = document.createElement('span');
+        headerActions.className = 'divergence-banner-actions';
+
+        // Reschedule
+        const rescheduleBtn = document.createElement('button');
+        rescheduleBtn.className = 'divergence-btn divergence-btn-reschedule divergence-btn-compact';
+        rescheduleBtn.textContent = '↻';
+        rescheduleBtn.title = 'Reschedule plan';
+        rescheduleBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const existing = headerRow.querySelector('.divergence-reschedule-options');
+            if (existing) { existing.remove(); return; }
+            const opts = _createRescheduleOptions(div.entry);
+            headerRow.appendChild(opts);
+        });
+
+        // Accept all plans
+        const acceptAllPlanBtn = document.createElement('button');
+        acceptAllPlanBtn.className = 'divergence-btn divergence-btn-plan divergence-btn-compact';
+        acceptAllPlanBtn.textContent = 'All plans';
+        acceptAllPlanBtn.title = 'Accept all plans — log all idle time as work';
+        acceptAllPlanBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            resolveDivergenceDidIt(div.entry);
+        });
+
+        // All logs
+        const allLogBtn = document.createElement('button');
+        allLogBtn.className = 'divergence-btn divergence-btn-log divergence-btn-compact';
+        allLogBtn.textContent = 'All logs';
+        allLogBtn.title = 'Accept all logs — keep what actually happened';
+        allLogBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            _resolveAllSegmentsAsLog(div);
+        });
+
+        headerActions.appendChild(rescheduleBtn);
+        headerActions.appendChild(acceptAllPlanBtn);
+        headerActions.appendChild(allLogBtn);
+        headerRow.appendChild(headerLeft);
+        headerRow.appendChild(headerActions);
+        itemsContainer.appendChild(headerRow);
+
+        // Segment rows container (collapsible per-plan)
+        const segContainer = document.createElement('div');
+        segContainer.className = 'divergence-banner-segs';
+        const planId = div.entry.id;
+        if (!state.divergencePlansExpanded.has(planId)) segContainer.classList.add('divergence-collapsed');
+        if (state.divergencePlansExpanded.has(planId)) planChevron.textContent = '▾';
+
+        headerLeft.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const collapsed = segContainer.classList.toggle('divergence-collapsed');
+            planChevron.textContent = collapsed ? '▸' : '▾';
+            if (collapsed) state.divergencePlansExpanded.delete(planId);
+            else state.divergencePlansExpanded.add(planId);
+            savePref('divergencePlansExpanded', [...state.divergencePlansExpanded]);
+        });
+
+        for (const seg of (div.segments || [])) {
+            const segRow = document.createElement('div');
+            segRow.className = `divergence-banner-item divergence-banner-seg divergence-seg-${seg.type}`;
+            const segLabel = document.createElement('span');
+            segLabel.className = 'divergence-banner-label';
+            const dur = _fmtDuration(seg.endMs - seg.startMs);
+            const segTime = `${_fmtDivTime(seg.startMs)}–${_fmtDivTime(seg.endMs)}`;
+            if (seg.type === 'idle') {
+                segLabel.textContent = `  ○ ${segTime}  idle · ${dur}`;
+            } else if (seg.type === 'different') {
+                const display = _cleanWorkName(seg.workEntry.text);
+                segLabel.textContent = `  ● ${segTime}  ${display} · ${dur}`;
+            }
+
+            segRow.appendChild(segLabel);
+            segRow.appendChild(_createSegmentActions(div.entry, seg));
+            segContainer.appendChild(segRow);
+        }
+        itemsContainer.appendChild(segContainer);
+    }
+
+    banner.appendChild(itemsContainer);
+    return banner;
 }
 
 // Find the index of the segment containing now (or nearest future segment)
@@ -4955,7 +5941,7 @@ function _renderLiveSessionIndicator() {
         let idleStartMs = dayStart.getTime();
         const entries = (state.timeline && state.timeline.entries) || [];
         for (const entry of entries) {
-            if (entry.endTime && entry.timestamp <= nowMs && (entry.type === 'work' || entry.type === 'break' || entry.type === 'planned')) {
+            if (entry.endTime && entry.timestamp <= nowMs && (entry.type === 'work' || entry.type === 'break')) {
                 if (entry.endTime > idleStartMs && entry.endTime <= nowMs) {
                     idleStartMs = entry.endTime;
                 }
@@ -5018,6 +6004,9 @@ function _renderLiveSessionIndicator() {
 
         // DnD: drop onto idle → schedule to today
         _attachLiveIndicatorDnD(indicator, 'idle');
+
+        // Divergence badge: show ⚡ if unresolved divergences exist
+        _appendDivergenceBadge(indicator);
 
         liveSlot.appendChild(indicator);
         return;
@@ -5141,8 +6130,38 @@ function _renderLiveSessionIndicator() {
     // DnD: drop onto work/break indicator → add to session context
     _attachLiveIndicatorDnD(indicator, isWork ? 'work' : 'break');
 
+    // Divergence badge: show ⚡ if unresolved divergences exist
+    _appendDivergenceBadge(indicator);
+
     // Insert into the header live slot
     liveSlot.appendChild(indicator);
+}
+
+// ── Divergence Badge Helper ──
+// Appends a small ⚡ badge to a live indicator when unresolved post-hoc divergences exist
+function _appendDivergenceBadge(indicator) {
+    const entries = (state.timeline && state.timeline.entries) || [];
+    const nowMs = Date.now();
+    const logicalToday = getLogicalToday();
+    const { dayStart, dayEnd } = getDayBoundaries(logicalToday);
+    const dayStartMs = dayStart.getTime();
+    const dayEndMs = dayEnd.getTime();
+
+    // Quick check: any planned entries today that ended before now and aren't absorbed?
+    // Use detectDivergences for accurate check (respects manual log flags)
+    const allDayEntries = entries.filter(e =>
+        e.timestamp >= dayStartMs && e.timestamp < dayEndMs
+    );
+    let unresolvedCount = detectDivergences(allDayEntries, nowMs).length;
+    unresolvedCount += detectOutOfHoursWork(logicalToday, nowMs).length;
+
+    if (unresolvedCount === 0) return;
+
+    const badge = document.createElement('span');
+    badge.className = 'live-divergence-badge';
+    badge.textContent = '⚡';
+    badge.title = `${unresolvedCount} unresolved plan${unresolvedCount > 1 ? 's' : ''}`;
+    indicator.appendChild(badge);
 }
 
 // ── Sleep Indicator ──
@@ -5706,7 +6725,7 @@ function renderWeekView(container) {
         if (dayCapacityMins <= 0) dayCapacityMins += 24 * 60; // cross-midnight
 
         const isPast = dateKey < todayKey;
-        const shouldHidePast = isPast && state.hidePastEntries && !(isNightTime && dateKey === prevCalDayKey);
+        const shouldHidePast = isPast && isPastHidden() && !(isNightTime && dateKey === prevCalDayKey);
 
         // ── Sleep divider between days ──
         let sleepDivEl = null;
@@ -6297,7 +7316,7 @@ function renderTimeline() {
     const quickLog = document.querySelector('.quick-log');
 
     // Clear all rendered blocks (including breadcrumb)
-    container.querySelectorAll('.time-block, .timeline-entry, .epoch-placeholder, .epoch-week-overview, .week-view, .session-panel, .timeline-overlap-group, .week-sleep-divider').forEach(el => el.remove());
+    container.querySelectorAll('.time-block, .timeline-entry, .epoch-placeholder, .epoch-week-overview, .week-view, .session-panel, .week-sleep-divider, .divergence-prompt, .divergence-banner, .compact-past-entry, .compact-project-wrapper').forEach(el => el.remove());
 
     // ── Epoch horizon: show week overview for the epoch's range ──
     if (state.viewHorizon === 'epoch') {
@@ -6645,12 +7664,10 @@ function renderTimeline() {
     // Block entries have a time span (work, break, planned) and define the timeline structure.
     // Moment entries (completion, manual logs) happen at a point in time and render
     // indented under the block during which they occurred.
-    const isBlockEntry = (e) => e.endTime && (e.type === 'work' || e.type === 'break' || e.type === 'planned');
+    const isBlockEntry = (e) => e.endTime && (e.type === 'work' || e.type === 'break' || e.type === 'planned' || e.type === 'idle');
 
     // ── Plan Absorption: hide planned entries fully covered by matching work entries ──
     // A planned entry is "absorbed" if a work entry with the same itemId covers ≥80% of its time.
-    // A planned entry is a "ghost" if it overlaps with any work entry but isn't fully absorbed.
-    // Include the live workingOn state as a virtual work entry for ghost detection
     const workEntries = allDayEntries.filter(e => e.type === 'work' && e.endTime);
     if (state.workingOn) {
         workEntries.push({
@@ -6669,28 +7686,37 @@ function renderTimeline() {
 
         // Check for absorption: same itemId + ≥80% time overlap
         let absorbed = false;
-        let ghosted = false;
         for (const work of workEntries) {
             const overlapStart = Math.max(planStart, work.timestamp);
             const overlapEnd = Math.min(planEnd, work.endTime);
             const overlap = Math.max(0, overlapEnd - overlapStart);
-            if (overlap > 0) {
-                if (entry.itemId && work.itemId === entry.itemId && overlap >= planDuration * 0.8) {
-                    absorbed = true;
-                    break;
-                }
-                ghosted = true;
+            if (entry.itemId && work.itemId === entry.itemId && overlap >= planDuration * 0.8) {
+                absorbed = true;
+                break;
             }
         }
         entry._absorbed = absorbed;
-        entry._ghost = !absorbed && ghosted;
     }
 
     const allBlockEntries = allDayEntries.filter(e => isBlockEntry(e) && !e._absorbed);
     const allMomentEntries = allDayEntries.filter(e => !isBlockEntry(e));
 
+    // ── Divergence Detection: find planned sessions that ended without being absorbed ──
+    const divergences = detectDivergences(allDayEntries, nowMs);
+    // Also detect out-of-hours work (gap between day end and next day start)
+    divergences.push(...detectOutOfHoursWork(state.timelineViewDate, nowMs));
+    const divergenceByEntryId = new Map();
+    const divergenceByWorkId = new Map();
+    for (const div of divergences) {
+        if (div.type === 'unplanned' || div.type === 'out-of-hours') {
+            divergenceByWorkId.set(div.workEntry.id, div);
+        } else {
+            divergenceByEntryId.set(div.entry.id, div);
+        }
+    }
+
     // When "hide past entries" is on and viewing today, remove entries before now
-    const hidePast = state.hidePastEntries;
+    const hidePast = isPastHidden();
     const dayBlockEntries = hidePast
         ? allBlockEntries.filter(e => (e.endTime || e.timestamp) >= nowMs)
         : allBlockEntries;
@@ -6699,6 +7725,11 @@ function renderTimeline() {
         : allMomentEntries;
 
     const fragment = document.createDocumentFragment();
+
+    // ── Divergence banner: show unresolved divergences as compact queue ──
+    if (divergences.length > 0) {
+        fragment.appendChild(createDivergenceBanner(divergences));
+    }
 
     // ── Night indicator BEFORE Day Start (previous day's end → this day's start) ──
     if (!hidePast || !viewingToday) {
@@ -6743,73 +7774,37 @@ function renderTimeline() {
         }
     };
 
-    let dayEndRenderedInFork = false;
+
 
     // ── When hiding past entries, inject idle/working block before the entry loop ──
     // The idle/working block represents the CURRENT state and should always be visible
     if (hidePast && viewingToday && nowMs > dayStart.getTime() && nowMs < dayEndMs) {
-        const idleStart = lastBlockEndBeforeNow || dayStart.getTime();
-        const firstFutureBlock = dayBlockEntries[0];
-        const idleEnd = firstFutureBlock ? Math.min(nowMs, firstFutureBlock.timestamp) : nowMs;
-        if (idleEnd > idleStart) {
-            if (state.workingOn) {
-                const workProjectedEnd = Math.max(nowMs, state.workingOn.targetEndTime || 0);
-                if (workProjectedEnd > dayEndMs) {
-                    // Work extends past day end — show divergence fork
-                    const overlapGroup = document.createElement('div');
-                    overlapGroup.className = 'timeline-overlap-group';
-                    const planLane = document.createElement('div');
-                    planLane.className = 'overlap-lane overlap-lane-plan';
-                    planLane.appendChild(createDayBoundaryBlock('day-end', dayEnd, now));
-                    const realityLane = document.createElement('div');
-                    realityLane.className = 'overlap-lane overlap-lane-reality';
-                    realityLane.appendChild(createWorkingTimeBlock(state.workingOn.startTime, idleEnd));
-                    overlapGroup.appendChild(planLane);
-                    overlapGroup.appendChild(realityLane);
-                    fragment.appendChild(overlapGroup);
-                    cursor = Math.max(cursor, dayEndMs);
-                    dayEndRenderedInFork = true;
-                } else {
-                    fragment.appendChild(createWorkingTimeBlock(state.workingOn.startTime, idleEnd));
-                    cursor = Math.max(cursor, workProjectedEnd);
-                }
-            } else if (state.onBreak) {
-                fragment.appendChild(createBreakTimeBlock(state.onBreak.startTime, idleEnd));
-                const breakProjectedEnd = Math.max(nowMs, state.onBreak.targetEndTime || nowMs);
-                cursor = Math.max(cursor, breakProjectedEnd);
-            } else {
-                fragment.appendChild(createIdleTimeBlock(idleStart, idleEnd));
-                cursor = Math.max(cursor, idleEnd);
-            }
+        if (state.workingOn) {
+            const workProjectedEnd = Math.max(nowMs, state.workingOn.targetEndTime || 0);
+            fragment.appendChild(createWorkingTimeBlock(state.workingOn.startTime, nowMs));
+            cursor = Math.max(cursor, workProjectedEnd);
+        } else if (state.onBreak) {
+            fragment.appendChild(createBreakTimeBlock(state.onBreak.startTime, nowMs));
+            const breakProjectedEnd = Math.max(nowMs, state.onBreak.targetEndTime || nowMs);
+            cursor = Math.max(cursor, breakProjectedEnd);
+        } else {
+            // Show idle from the end of the last block (or day start) to now, cap start at now
+            const idleStart = Math.min(lastBlockEndBeforeNow || dayStart.getTime(), nowMs);
+            fragment.appendChild(createIdleTimeBlock(idleStart, nowMs));
+            cursor = Math.max(cursor, nowMs);
         }
     }
 
     // ── If no block entries before now and viewing today, idle/working from day start to now ──
+    // Skip when hidePast already injected the idle/working block above
     if (!hidePast && viewingToday && !lastBlockBeforeNow && nowMs > dayStart.getTime() && nowMs < dayEndMs) {
         const firstBlock = dayBlockEntries[0];
         const idleEnd = firstBlock ? Math.min(nowMs, firstBlock.timestamp) : Math.min(nowMs, dayEndMs);
         if (idleEnd > dayStart.getTime()) {
             if (state.workingOn) {
                 const workProjectedEnd = Math.max(nowMs, state.workingOn.targetEndTime || 0);
-                if (workProjectedEnd > dayEndMs) {
-                    // Work extends past day end — show divergence fork
-                    const overlapGroup = document.createElement('div');
-                    overlapGroup.className = 'timeline-overlap-group';
-                    const planLane = document.createElement('div');
-                    planLane.className = 'overlap-lane overlap-lane-plan';
-                    planLane.appendChild(createDayBoundaryBlock('day-end', dayEnd, now));
-                    const realityLane = document.createElement('div');
-                    realityLane.className = 'overlap-lane overlap-lane-reality';
-                    realityLane.appendChild(createWorkingTimeBlock(state.workingOn.startTime, idleEnd));
-                    overlapGroup.appendChild(planLane);
-                    overlapGroup.appendChild(realityLane);
-                    fragment.appendChild(overlapGroup);
-                    cursor = Math.max(cursor, dayEndMs);
-                    dayEndRenderedInFork = true;
-                } else {
-                    fragment.appendChild(createWorkingTimeBlock(state.workingOn.startTime, idleEnd));
-                    cursor = Math.max(cursor, workProjectedEnd);
-                }
+                fragment.appendChild(createWorkingTimeBlock(state.workingOn.startTime, idleEnd));
+                cursor = Math.max(cursor, workProjectedEnd);
             } else if (state.onBreak) {
                 fragment.appendChild(createBreakTimeBlock(state.onBreak.startTime, idleEnd));
                 const breakProjectedEnd = Math.max(nowMs, state.onBreak.targetEndTime || nowMs);
@@ -6823,89 +7818,51 @@ function renderTimeline() {
         appendMomentsBetween(fragment, dayStart.getTime(), idleEnd);
     }
 
-    // ── Pre-compute overlap clusters: groups of ghost plans + work that share time ranges ──
-    // Each cluster becomes a single two-column overlap group in the UI
-    const overlapClusters = []; // array of { plans: [], work: [], entries: Set, start, end, liveWork: bool }
-    const entryToCluster = new Map();
 
-    for (let i = 0; i < dayBlockEntries.length; i++) {
-        const entry = dayBlockEntries[i];
-        if (entryToCluster.has(entry)) continue;
-        if (!entry._ghost) continue; // clusters start from ghost plans
 
-        // Start a cluster from this ghost plan
-        let clusterEnd = entry.endTime;
-        const clusterPlans = [entry];
-        const clusterWork = [];
-        const clusterEntries = new Set([entry]);
-
-        // Greedily expand: find all entries that overlap the cluster's time range
-        // Also include live work as a time range extender
-        let expanded = true;
-        let liveWork = false;
-        while (expanded) {
-            expanded = false;
-
-            // Check if live working overlaps the cluster — if so, extend the range
-            // Use targetEndTime to project future overlap (e.g., countdown budgeted time)
-            if (viewingToday && state.workingOn && !liveWork) {
-                const clusterStart = Math.min(...[...clusterEntries].map(e => e.timestamp));
-                const workProjectedEnd = Math.max(nowMs, state.workingOn.targetEndTime || 0);
-                if (state.workingOn.startTime < clusterEnd && workProjectedEnd > clusterStart) {
-                    clusterEnd = Math.max(clusterEnd, workProjectedEnd);
-                    liveWork = true;
-                    expanded = true;
-                }
-            }
-
-            for (let j = 0; j < dayBlockEntries.length; j++) {
-                const other = dayBlockEntries[j];
-                if (clusterEntries.has(other)) continue;
-                // Must overlap the cluster's time range
-                const clusterStart = Math.min(...[...clusterEntries].map(e => e.timestamp));
-                if (other.timestamp > clusterEnd || other.endTime < clusterStart) continue;
-                if (other._ghost) {
-                    clusterPlans.push(other);
-                    clusterEntries.add(other);
-                    clusterEnd = Math.max(clusterEnd, other.endTime);
-                    expanded = true;
-                } else if (other.type === 'work') {
-                    clusterWork.push(other);
-                    clusterEntries.add(other);
-                    clusterEnd = Math.max(clusterEnd, other.endTime);
-                    expanded = true;
-                }
-            }
-        }
-
-        // Detect if the cluster extends past day end boundary
-        const hitsDayEnd = clusterEnd > dayEndMs && dayEndMs > Math.min(...[...clusterEntries].map(e => e.timestamp));
-
-        // Only form a cluster if there's at least one ghost plan AND at least one work entry (or live work)
-        if (clusterPlans.length > 0 && (clusterWork.length > 0 || liveWork)) {
-            const cluster = {
-                plans: clusterPlans.sort((a, b) => a.timestamp - b.timestamp),
-                work: clusterWork.sort((a, b) => a.timestamp - b.timestamp),
-                entries: clusterEntries,
-                start: Math.min(...[...clusterEntries].map(e => e.timestamp)),
-                end: clusterEnd,
-                liveWork,
-                hitsDayEnd,
-            };
-            overlapClusters.push(cluster);
-            for (const e of clusterEntries) {
-                entryToCluster.set(e, cluster);
-            }
-        }
-    }
-
-    // Track which clusters have been rendered
-    const renderedClusters = new Set();
+    // ── Compact mode: split past vs present/future entries ──
+    const compactMode = isPastCompact();
 
     for (let i = 0; i < dayBlockEntries.length; i++) {
         const entry = dayBlockEntries[i];
         const entryTime = entry.timestamp;
         const entryEnd = entry.endTime;
+        const entryIsPast = entryEnd < nowMs;
+
+        // In compact mode, collect contiguous past entries and render as batch
+        if (compactMode && entryIsPast) {
+            // Collect all contiguous past block entries starting from i
+            const pastRun = [];
+            let j = i;
+            while (j < dayBlockEntries.length && dayBlockEntries[j].endTime < nowMs) {
+                pastRun.push(dayBlockEntries[j]);
+                j++;
+            }
+            // Collect moment entries in the past range to absorb completions
+            const pastStart = pastRun[0].timestamp;
+            const pastEnd = pastRun[pastRun.length - 1].endTime;
+            const pastMoments = dayMomentEntries.filter(m => m.timestamp >= pastStart && m.timestamp < pastEnd + 60000);
+
+            // Smart-merge with project grouping and completion absorption
+            const { items: merged, absorbedMomentIds } = mergePastEntries(pastRun, pastMoments);
+            for (const m of merged) {
+                if (m._isProjectGroup) {
+                    fragment.appendChild(createCompactProjectGroup(m));
+                } else {
+                    fragment.appendChild(createCompactPastEntry(m));
+                }
+            }
+            // Render non-absorbed moment entries
+            const remainingMoments = dayMomentEntries.filter(
+                m => m.timestamp >= pastStart && m.timestamp < pastEnd && !absorbedMomentIds.has(m.id)
+            );
+            for (const m of remainingMoments) {
+                fragment.appendChild(createMomentEntry(m));
+            }
+            cursor = Math.max(cursor, pastEnd);
+            i = j - 1; // skip processed entries (loop will increment)
+            continue;
+        }
 
         // Insert free time block for any gap before this block entry
         if (entryTime > cursor) {
@@ -6918,84 +7875,31 @@ function renderTimeline() {
             appendMomentsBetween(fragment, cursor, entryTime);
         }
 
-        // ── Check if this entry belongs to an overlap cluster ──
-        const cluster = entryToCluster.get(entry);
-        if (cluster && !renderedClusters.has(cluster)) {
-            // Render the entire cluster as a single overlap group
-            renderedClusters.add(cluster);
+        // Render entry normally
+        fragment.appendChild(createTimelineElement(entry));
+        appendMomentsBetween(fragment, entryTime, entryEnd);
+        cursor = Math.max(cursor, entryEnd);
 
-            const overlapGroup = document.createElement('div');
-            overlapGroup.className = 'timeline-overlap-group';
-
-            const planLane = document.createElement('div');
-            planLane.className = 'overlap-lane overlap-lane-plan';
-            for (const plan of cluster.plans) {
-                planLane.appendChild(createTimelineElement(plan));
-            }
-            // If work extends past day end, show day boundary in the planned lane
-            if (cluster.hitsDayEnd) {
-                planLane.appendChild(createDayBoundaryBlock('day-end', dayEnd, now));
-            }
-
-            const realityLane = document.createElement('div');
-            realityLane.className = 'overlap-lane overlap-lane-reality';
-            for (const work of cluster.work) {
-                realityLane.appendChild(createTimelineElement(work));
-            }
-            if (cluster.liveWork) {
-                realityLane.appendChild(createWorkingTimeBlock(state.workingOn.startTime, nowMs));
-            }
-
-            overlapGroup.appendChild(planLane);
-            overlapGroup.appendChild(realityLane);
-            fragment.appendChild(overlapGroup);
-
-            appendMomentsBetween(fragment, cluster.start, cluster.end);
-            cursor = Math.max(cursor, cluster.end);
-            if (cluster.liveWork) cursor = Math.max(cursor, nowMs);
-        } else if (cluster && renderedClusters.has(cluster)) {
-            // Already rendered as part of the cluster — skip
-            cursor = Math.max(cursor, entryEnd);
-        } else {
-            // Normal (non-clustered) entry
-            fragment.appendChild(createTimelineElement(entry));
-            appendMomentsBetween(fragment, entryTime, entryEnd);
-            cursor = Math.max(cursor, entryEnd);
+        // ── Divergence prompt: if this planned entry is an unresolved divergence, show resolve prompt ──
+        if (!hidePast && entry.type === 'planned' && divergenceByEntryId.has(entry.id)) {
+            fragment.appendChild(createDivergencePrompt(divergenceByEntryId.get(entry.id)));
+        }
+        // ── Unplanned work prompt: if this work entry has no covering plan ──
+        if (!hidePast && entry.type === 'work' && divergenceByWorkId.has(entry.id)) {
+            fragment.appendChild(createDivergencePrompt(divergenceByWorkId.get(entry.id)));
         }
 
         // ── Idle/Working block: inject after the last block before "now" ──
         const isLastBeforeNow = entryTime === lastBlockBeforeNow;
-        const clusterHandledWorking = cluster && cluster.liveWork;
 
-        if (!clusterHandledWorking && !hidePast && viewingToday && isLastBeforeNow && nowMs > entryEnd) {
+        if (viewingToday && isLastBeforeNow && nowMs > entryEnd) {
             const nextBlock = dayBlockEntries[i + 1];
-            const nextCluster = nextBlock ? entryToCluster.get(nextBlock) : null;
             const idleEnd = nextBlock ? Math.min(nowMs, nextBlock.timestamp) : nowMs;
             if (idleEnd > entryEnd) {
-                // Don't inject working block if the next cluster already handles it
-                if (nextCluster && nextCluster.liveWork) {
-                    // Working block will be rendered as part of the next cluster
-                } else if (state.workingOn) {
+                if (state.workingOn) {
                     const workProjectedEnd = Math.max(nowMs, state.workingOn.targetEndTime || 0);
-                    if (workProjectedEnd > dayEndMs) {
-                        // Work extends past day end — show divergence fork
-                        const overlapGroup = document.createElement('div');
-                        overlapGroup.className = 'timeline-overlap-group';
-                        const planLane = document.createElement('div');
-                        planLane.className = 'overlap-lane overlap-lane-plan';
-                        planLane.appendChild(createDayBoundaryBlock('day-end', dayEnd, now));
-                        const realityLane = document.createElement('div');
-                        realityLane.className = 'overlap-lane overlap-lane-reality';
-                        realityLane.appendChild(createWorkingTimeBlock(state.workingOn.startTime, idleEnd));
-                        overlapGroup.appendChild(planLane);
-                        overlapGroup.appendChild(realityLane);
-                        fragment.appendChild(overlapGroup);
-                        cursor = Math.max(cursor, dayEndMs);
-                        dayEndRenderedInFork = true;
-                    } else {
-                        fragment.appendChild(createWorkingTimeBlock(state.workingOn.startTime, idleEnd));
-                        cursor = Math.max(cursor, workProjectedEnd);
-                    }
+                    fragment.appendChild(createWorkingTimeBlock(state.workingOn.startTime, idleEnd));
+                    cursor = Math.max(cursor, workProjectedEnd);
                 } else if (state.onBreak) {
                     fragment.appendChild(createBreakTimeBlock(state.onBreak.startTime, idleEnd));
                     const breakProjectedEnd = Math.max(nowMs, state.onBreak.targetEndTime || nowMs);
@@ -7021,9 +7925,7 @@ function renderTimeline() {
     }
 
     // ── Day End block ──
-    if (!dayEndRenderedInFork) {
-        fragment.appendChild(createDayBoundaryBlock('day-end', dayEnd, now));
-    }
+    fragment.appendChild(createDayBoundaryBlock('day-end', dayEnd, now));
 
     // ── Night indicator AFTER Day End (this day's end → next day's start) ──
     const nextDay = new Date(viewDate);
@@ -8983,10 +9885,377 @@ function createDayBoundaryBlock(type, boundaryTime, now) {
     return el;
 }
 
+// ── Smart Merge Phase 2: group past blocks by project tree, absorb completions ──
+function mergePastEntries(entries, moments) {
+    if (entries.length === 0) return { items: [], absorbedMomentIds: new Set() };
+
+    // Helper: extract root project from projectName like "anything › core" → "anything"
+    // When projectName is empty, the item IS the root project — derive from its label text
+    const getRootProject = (e) => {
+        const pn = e.projectName || '';
+        if (pn) return pn.split(' › ')[0].trim().toUpperCase();
+        // No projectName → the item is a root project; use its label as root
+        let label = (e.text || '').trim();
+        if (label.startsWith('Worked on: ')) label = label.slice(11);
+        label = label.replace(/\s*\(\d+[hm]\s*\d*[m]?\)\s*$/, '');
+        return label.toUpperCase();
+    };
+
+    // Helper: normalize label for same-entry merging
+    const normalizeLabel = (e) => {
+        let t = (e.text || e.type || '').trim();
+        if (t.startsWith('Worked on: ')) t = t.slice(11);
+        if (t.startsWith('Done: ')) t = t.slice(6);
+        t = t.replace(/\s*\(\d+[hm]\s*\d*[m]?\)\s*$/, '');
+        return t.toUpperCase();
+    };
+
+    // Step 1: Absorb completion moments into work blocks (only if same root project)
+    const completionMoments = (moments || []).filter(m => m.type === 'completion');
+    const entryCompletions = new Map(); // blockIndex → [...completions]
+    for (const cm of completionMoments) {
+        const cmRoot = getRootProject(cm);
+        // Find the enclosing or nearest-preceding work block with matching root project
+        let bestIdx = -1;
+        for (let i = 0; i < entries.length; i++) {
+            const e = entries[i];
+            if (e.type !== 'work') continue;
+            // Must share the same root project
+            if (cmRoot && getRootProject(e) !== cmRoot) continue;
+            // Completion falls within or at the end of this work block
+            if (cm.timestamp >= e.timestamp && cm.timestamp <= (e.endTime || e.timestamp) + 60000) {
+                bestIdx = i;
+                break;
+            }
+            // Completion after this block — keep as candidate (nearest preceding)
+            if (cm.timestamp > (e.endTime || e.timestamp)) {
+                bestIdx = i;
+            }
+        }
+        if (bestIdx >= 0) {
+            if (!entryCompletions.has(bestIdx)) entryCompletions.set(bestIdx, []);
+            entryCompletions.get(bestIdx).push(cm);
+        }
+    }
+
+    // Step 2: Attach completions and mark absorbed moment IDs
+    const absorbedMomentIds = new Set();
+    for (let i = 0; i < entries.length; i++) {
+        if (entryCompletions.has(i)) {
+            entries[i] = { ...entries[i], _completions: entryCompletions.get(i) };
+            for (const c of entryCompletions.get(i)) absorbedMomentIds.add(c.id);
+        }
+    }
+
+    // Step 3: Group entries into project groups and standalone blocks
+    const result = [];
+    let currentGroup = null;
+
+    const flushGroup = () => {
+        if (!currentGroup) return;
+        // Count unique task labels (same logic as renderer dedup)
+        const seen = new Set();
+        for (const e of currentGroup.entries) {
+            seen.add(normalizeLabel(e));
+            if (e._completions) {
+                for (const c of e._completions) seen.add(normalizeLabel(c));
+            }
+        }
+        if (seen.size < 2) {
+            // Only 1 unique task → render as standalone compact row, not a group
+            result.push(currentGroup.entries[0]);
+        } else {
+            result.push(currentGroup);
+        }
+        currentGroup = null;
+    };
+
+    for (let i = 0; i < entries.length; i++) {
+        const entry = entries[i];
+
+        // Non-work entries (break, idle) → flush current group, merge with previous if same type
+        if (entry.type !== 'work' && entry.type !== 'planned') {
+            flushGroup();
+            // Merge consecutive same-type entries (e.g. two adjacent breaks)
+            const prev = result.length > 0 ? result[result.length - 1] : null;
+            if (prev && !prev._isProjectGroup && prev.type === entry.type) {
+                const gap = entry.timestamp - (prev.endTime || prev.timestamp);
+                if (gap <= 2 * 60 * 1000) {
+                    result[result.length - 1] = {
+                        ...prev,
+                        endTime: Math.max(prev.endTime || prev.timestamp, entry.endTime || entry.timestamp),
+                        _mergedCount: (prev._mergedCount || 1) + 1,
+                    };
+                    continue;
+                }
+            }
+            result.push(entry);
+            continue;
+        }
+
+        const root = getRootProject(entry);
+        const gap = currentGroup
+            ? entry.timestamp - currentGroup.endTime
+            : 0;
+
+        // Same root project and gap ≤ 15 min → extend group
+        if (currentGroup && root === currentGroup.rootProject && gap <= 15 * 60 * 1000) {
+            currentGroup.entries.push(entry);
+            currentGroup.endTime = Math.max(currentGroup.endTime, entry.endTime || entry.timestamp);
+        } else {
+            // Flush previous group, start new one
+            flushGroup();
+            currentGroup = {
+                _isProjectGroup: true,
+                rootProject: root,
+                rootProjectDisplay: (entry.projectName || '').split(' › ')[0].trim()
+                    || ((entry.text || '').startsWith('Worked on: ')
+                        ? (entry.text || '').slice(11).replace(/\s*\(\d+[hm]\s*\d*[m]?\)\s*$/, '')
+                        : (entry.text || '')),
+                entries: [entry],
+                timestamp: entry.timestamp,
+                endTime: entry.endTime || entry.timestamp,
+            };
+        }
+    }
+    flushGroup();
+
+    return { items: result, absorbedMomentIds };
+}
+
+// ── Compact Project Group: collapsible project header with sub-rows ──
+function createCompactProjectGroup(group) {
+    const el = document.createElement('div');
+    el.className = 'compact-past-entry compact-past-work compact-project-group';
+    el.dataset.startTime = group.timestamp;
+    el.dataset.endTime = group.endTime;
+
+    // Collect all unique task labels (from work entries + completions)
+    const tasks = [];
+    const seenLabels = new Set();
+    for (const entry of group.entries) {
+        // Add the work entry itself as a task
+        let workLabel = entry.text || '';
+        if (workLabel.startsWith('Worked on: ')) workLabel = workLabel.slice(11);
+        workLabel = workLabel.replace(/\s*\(\d+[hm]\s*\d*[m]?\)\s*$/, '');
+
+        const subProject = (entry.projectName || '').includes(' › ')
+            ? entry.projectName.split(' › ').slice(1).join(' › ')
+            : '';
+
+        if (workLabel && !seenLabels.has(workLabel.toUpperCase())) {
+            seenLabels.add(workLabel.toUpperCase());
+            tasks.push({
+                label: workLabel,
+                time: entry.timestamp,
+                subProject,
+                isCompletion: false,
+            });
+        }
+
+        // Add completions
+        if (entry._completions) {
+            for (const c of entry._completions) {
+                let cLabel = c.text || '';
+                if (cLabel.startsWith('Done: ')) cLabel = cLabel.slice(6);
+                if (!seenLabels.has(cLabel.toUpperCase())) {
+                    seenLabels.add(cLabel.toUpperCase());
+                    const cSub = (c.projectName || '').includes(' › ')
+                        ? c.projectName.split(' › ').slice(1).join(' › ')
+                        : '';
+                    tasks.push({
+                        label: cLabel,
+                        time: c.timestamp,
+                        subProject: cSub,
+                        isCompletion: true,
+                    });
+                }
+            }
+        }
+    }
+    tasks.sort((a, b) => a.time - b.time);
+
+    const totalTasks = tasks.length;
+    const durationMs = group.endTime - group.timestamp;
+    const hrs = Math.floor(durationMs / 3600000);
+    const mins = Math.floor((durationMs % 3600000) / 60000);
+    const durStr = hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
+
+    // Chevron
+    const chevron = document.createElement('span');
+    chevron.className = 'compact-project-chevron compact-past-icon';
+    chevron.textContent = '▸';
+
+    // Label: project name + task count
+    const label = document.createElement('span');
+    label.className = 'compact-past-label';
+    label.textContent = group.rootProjectDisplay || 'Work';
+
+    const badge = document.createElement('span');
+    badge.className = 'compact-past-merge-badge';
+    badge.textContent = `${totalTasks} task${totalTasks !== 1 ? 's' : ''}`;
+    label.appendChild(badge);
+
+    // Time range
+    const time = document.createElement('span');
+    time.className = 'compact-past-time';
+    time.textContent = `${formatTime(group.timestamp)} – ${formatTime(group.endTime)}`;
+
+    // Duration
+    const dur = document.createElement('span');
+    dur.className = 'compact-past-duration';
+    dur.textContent = durStr;
+
+    el.appendChild(chevron);
+    el.appendChild(label);
+    el.appendChild(time);
+    el.appendChild(dur);
+
+    // Sub-rows container (initially hidden)
+    const subContainer = document.createElement('div');
+    subContainer.className = 'compact-project-subs';
+    subContainer.style.display = 'none';
+
+    for (const task of tasks) {
+        const sub = document.createElement('div');
+        sub.className = 'compact-project-sub';
+
+        const dot = document.createElement('span');
+        dot.className = 'compact-project-sub-dot';
+        dot.textContent = task.isCompletion ? '✓' : '•';
+
+        const subLabel = document.createElement('span');
+        subLabel.className = 'compact-project-sub-label';
+        subLabel.textContent = task.label;
+
+        const subTime = document.createElement('span');
+        subTime.className = 'compact-project-sub-time';
+        subTime.textContent = formatTime(task.time);
+
+        sub.appendChild(dot);
+        sub.appendChild(subLabel);
+        sub.appendChild(subTime);
+
+        if (task.subProject) {
+            const subTag = document.createElement('span');
+            subTag.className = 'compact-project-sub-tag';
+            subTag.textContent = task.subProject;
+            sub.appendChild(subTag);
+        }
+
+        subContainer.appendChild(sub);
+    }
+
+    // Insert sub-container after the main row (as sibling, via wrapper)
+    const wrapper = document.createElement('div');
+    wrapper.className = 'compact-project-wrapper';
+    wrapper.appendChild(el);
+    wrapper.appendChild(subContainer);
+
+    // Click to expand/collapse
+    el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isOpen = subContainer.style.display !== 'none';
+        subContainer.style.display = isOpen ? 'none' : '';
+        chevron.textContent = isOpen ? '▸' : '▾';
+        el.classList.toggle('compact-project-expanded', !isOpen);
+    });
+
+    return wrapper;
+}
+
+// ── Compact Past Entry: slim single-line row for standalone break/idle/work in compact mode ──
+function createCompactPastEntry(entry) {
+    const el = document.createElement('div');
+    el.className = 'compact-past-entry';
+    el.dataset.id = entry.id || '';
+    el.dataset.startTime = entry.timestamp;
+    el.dataset.endTime = entry.endTime || entry.timestamp;
+
+    // Color-code by type via modifier class
+    const typeClass = {
+        work: 'compact-past-work',
+        break: 'compact-past-break',
+        idle: 'compact-past-idle',
+        planned: 'compact-past-planned',
+    }[entry.type] || '';
+    if (typeClass) el.classList.add(typeClass);
+
+    // Icon
+    const icon = document.createElement('span');
+    icon.className = 'compact-past-icon';
+    const icons = { work: '🔥', break: '☕', idle: '○', planned: '📌' };
+    icon.textContent = icons[entry.type] || '•';
+
+    // Label
+    const label = document.createElement('span');
+    label.className = 'compact-past-label';
+    let labelText = entry.text || entry.type || '';
+    if (labelText.startsWith('Worked on: ')) labelText = labelText.slice(11);
+    labelText = labelText.replace(/\s*\(\d+[hm]\s*\d*[m]?\)\s*$/, '');
+    label.textContent = labelText;
+
+    // Merged count badge
+    if (entry._mergedCount && entry._mergedCount > 1) {
+        const badge = document.createElement('span');
+        badge.className = 'compact-past-merge-badge';
+        badge.textContent = `×${entry._mergedCount}`;
+        badge.title = `${entry._mergedCount} entries merged`;
+        label.appendChild(badge);
+    }
+
+    // Time range
+    const time = document.createElement('span');
+    time.className = 'compact-past-time';
+    time.textContent = `${formatTime(entry.timestamp)} – ${formatTime(entry.endTime || entry.timestamp)}`;
+
+    // Duration
+    const durationMs = (entry.endTime || entry.timestamp) - entry.timestamp;
+    const hrs = Math.floor(durationMs / 3600000);
+    const mins = Math.floor((durationMs % 3600000) / 60000);
+    const dur = document.createElement('span');
+    dur.className = 'compact-past-duration';
+    dur.textContent = hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
+
+    el.appendChild(icon);
+    el.appendChild(label);
+    el.appendChild(time);
+    el.appendChild(dur);
+
+    // Project tag
+    if (entry.projectName) {
+        const proj = document.createElement('span');
+        proj.className = 'compact-past-project';
+        proj.textContent = entry.projectName;
+        el.appendChild(proj);
+    }
+
+    // Click to expand: replace compact row with full card (toggle)
+    el.addEventListener('click', () => {
+        if (el._expanded) {
+            const compactNew = createCompactPastEntry(entry);
+            el.replaceWith(compactNew);
+        } else {
+            el._expanded = true;
+            const full = createTimelineElement(entry);
+            full._compactEntry = entry;
+            full.addEventListener('click', (e) => {
+                if (e.target.closest('button')) return;
+                e.stopPropagation();
+                const compactNew = createCompactPastEntry(entry);
+                full.replaceWith(compactNew);
+            }, { once: true });
+            el.replaceWith(full);
+        }
+    });
+
+    return el;
+}
+
 function createTimelineElement(entry) {
     // Block entries (work, break, planned) render as time blocks
     if (entry.type === 'planned') {
-        return createPlannedTimeBlock(entry, entry._ghost, entry._phantom);
+        return createPlannedTimeBlock(entry, entry._phantom);
     }
     if (entry.type === 'work') {
         return createWorkEntryBlock(entry);
@@ -8994,9 +10263,55 @@ function createTimelineElement(entry) {
     if (entry.type === 'break') {
         return createBreakEntryBlock(entry);
     }
+    if (entry.type === 'idle') {
+        return createIdleEntryBlock(entry);
+    }
 
     // Fallback: any other entry type renders as a moment entry
     return createMomentEntry(entry);
+}
+
+// ── Idle Entry: renders as a muted time block for confirmed idle periods ──
+function createIdleEntryBlock(entry) {
+    const el = document.createElement('div');
+    el.className = 'time-block time-block-idle time-block-past focusable-block';
+    el.dataset.id = entry.id;
+    el.dataset.startTime = entry.timestamp;
+    el.dataset.endTime = entry.endTime;
+
+    const durationMs = (entry.endTime || entry.timestamp) - entry.timestamp;
+    const hrs = Math.floor(durationMs / 3600000);
+    const mins = Math.floor((durationMs % 3600000) / 60000);
+
+    const icon = document.createElement('div');
+    icon.className = 'time-block-icon';
+    icon.textContent = '○';
+
+    const content = document.createElement('div');
+    content.className = 'time-block-content';
+
+    const label = document.createElement('div');
+    label.className = 'time-block-label';
+    let labelText = entry.text || 'Idle';
+    labelText = labelText.replace(/\s*\(\d+[hm]\s*\d*[m]?\)\s*$/, '');
+    label.textContent = labelText;
+
+    const time = document.createElement('div');
+    time.className = 'time-block-time';
+    time.textContent = `${formatTime(entry.timestamp)} – ${formatTime(entry.endTime)}`;
+
+    const status = document.createElement('div');
+    status.className = 'time-block-status';
+    status.textContent = hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
+
+    content.appendChild(label);
+    content.appendChild(time);
+    content.appendChild(status);
+
+    el.appendChild(icon);
+    el.appendChild(content);
+
+    return el;
 }
 
 // ── Past Work Entry: renders as a time block (like the live "working" block) ──
@@ -9214,9 +10529,9 @@ function createMomentEntry(entry) {
     return el;
 }
 
-function createPlannedTimeBlock(entry, isGhost = false, isPhantom = false) {
+function createPlannedTimeBlock(entry, isPhantom = false) {
     const el = document.createElement('div');
-    el.className = 'time-block time-block-planned focusable-block' + (isGhost ? ' plan-ghost' : '') + (isPhantom ? ' time-block-phantom' : '');
+    el.className = 'time-block time-block-planned focusable-block' + (isPhantom ? ' time-block-phantom' : '');
     el.dataset.id = entry.id;
     el.dataset.startTime = entry.timestamp;
     el.dataset.endTime = entry.endTime;
@@ -10691,8 +12006,8 @@ function updateCapacitySummary(sortedActions) {
                 const isToday = parsed.date === currentDateKey;
                 const isLiveOvernight = !isToday && _isOvernightSegmentLive(parsed, nowDate);
                 if (!isToday && !isLiveOvernight) continue;
-                // Skip past segments when hidePastEntries is on
-                if (state.hidePastEntries && viewingToday && parsed.segment) {
+                // Skip past segments when past is hidden
+                if (isPastHidden() && viewingToday && parsed.segment) {
                     const [, endStr] = [parsed.segment.start, parsed.segment.end];
                     const [eh, em] = endStr.split(':').map(Number);
                     const endDate = new Date(state.timelineViewDate);
@@ -10710,7 +12025,7 @@ function updateCapacitySummary(sortedActions) {
                 }
             }
         }
-        console.log('[pressure-bar] hidePast:', state.hidePastEntries, 'viewingToday:', viewingToday, 'total fuzzy:', fuzzySubtracted);
+        console.log('[pressure-bar] pastMode:', state.pastDisplayMode, 'viewingToday:', viewingToday, 'total fuzzy:', fuzzySubtracted);
         availMins = Math.max(0, availMins);
     }
 
@@ -10770,10 +12085,45 @@ function showMissingDurationPopover(anchorEl) {
         const row = document.createElement('div');
         row.className = 'missing-dur-row';
 
+        // Remove-from-scope button
+        const removeBtn = document.createElement('button');
+        removeBtn.className = 'missing-dur-remove';
+        removeBtn.textContent = '✕';
+        removeBtn.title = 'Remove from current time scope';
+        removeBtn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            const dateKey = getDateKey(state.timelineViewDate);
+            if (state.viewHorizon === 'epoch') {
+                // Epoch → just remove the epoch context
+                const itm = findItemById(item.id);
+                if (!itm) return;
+                if (!itm.timeContexts) itm.timeContexts = [];
+                itm.timeContexts = itm.timeContexts.filter(tc => tc !== state.epochFilter);
+                await api.patch(`/items/${item.id}`, { timeContexts: itm.timeContexts });
+            } else if (state.viewHorizon === 'week') {
+                // Week → degrade to ongoing
+                await sendToOngoing(item.id);
+            } else {
+                // Day view → degrade to week (remove date key, add week context)
+                const weekKey = getWeekKey(state.timelineViewDate);
+                await sendToWeek(item.id, weekKey);
+            }
+            row.remove();
+            if (popover.querySelectorAll('.missing-dur-row').length === 0) {
+                dismissDurationPicker();
+            }
+        });
+        row.appendChild(removeBtn);
+
         const nameEl = document.createElement('span');
         nameEl.className = 'missing-dur-name';
         nameEl.textContent = item.name;
-        row.appendChild(nameEl);
+
+        const nameRow = document.createElement('div');
+        nameRow.className = 'missing-dur-name-row';
+        nameRow.appendChild(removeBtn);
+        nameRow.appendChild(nameEl);
+        row.appendChild(nameRow);
 
         const btns = document.createElement('div');
         btns.className = 'missing-dur-presets';
@@ -10809,7 +12159,7 @@ function calculateTotalFreeTime() {
 
     // Use nowMs as effective start when viewing today (only future free time matters)
     // Or if hiding past entries, ensure we don't count past time as free
-    const effectiveStart = (viewingToday || state.hidePastEntries) ? Math.max(nowMs, dayStartMs) : dayStartMs;
+    const effectiveStart = (viewingToday || isPastHidden()) ? Math.max(nowMs, dayStartMs) : dayStartMs;
 
     if (effectiveStart >= dayEndMs) return 0;
 
@@ -12590,6 +13940,14 @@ function openDefaultsModal() {
             </div>
             <div class="modal-divider"></div>
             <div class="modal-field">
+                <label class="modal-label" for="defaults-past-card-style">📋 Past entries card style</label>
+                <select id="defaults-past-card-style" class="modal-input">
+                    <option value="compact">Compact</option>
+                    <option value="full">Full cards</option>
+                </select>
+            </div>
+            <div class="modal-divider"></div>
+            <div class="modal-field">
                 <label class="modal-label" for="defaults-skin">🎨 Skin</label>
                 <select id="defaults-skin" class="modal-input">
                     <option value="duolingo">Duolingo</option>
@@ -12615,6 +13973,7 @@ function openDefaultsModal() {
         `${String(state.settings.dayEndHour).padStart(2, '0')}:${String(state.settings.dayEndMinute).padStart(2, '0')}`;
     document.getElementById('defaults-week-start').value = String(state.settings.weekStartDay ?? 0);
     document.getElementById('defaults-sleep-guard').checked = state.settings.sleepGuard !== false;
+    document.getElementById('defaults-past-card-style').value = state.pastCardStyle;
     document.getElementById('defaults-skin').value = _skinFamily;
 
 
@@ -12636,6 +13995,12 @@ function openDefaultsModal() {
         state.settings.dayEndMinute = em;
         state.settings.weekStartDay = parseInt(document.getElementById('defaults-week-start').value, 10);
         state.settings.sleepGuard = document.getElementById('defaults-sleep-guard').checked;
+        // Save past card style preference
+        const newCardStyle = document.getElementById('defaults-past-card-style').value;
+        if (newCardStyle !== state.pastCardStyle) {
+            state.pastCardStyle = newCardStyle;
+            savePref('pastCardStyle', state.pastCardStyle);
+        }
         const selectedSkin = document.getElementById('defaults-skin').value;
         if (selectedSkin !== _skinFamily) applySkinFamily(selectedSkin);
         await api.put('/settings', state.settings);
@@ -12666,11 +14031,11 @@ function animateHidePastToggle(isHiding, renderFn) {
         }
 
         // Render with the new state — but we need the past rows in the DOM for animation
-        // Temporarily force hidePastEntries off so they render, then animate away
+        // Temporarily force pastDisplayMode to 'full' so they render, then animate away
         if (isHiding) {
-            state.hidePastEntries = false;
+            state.pastDisplayMode = 'show';
             renderFn();
-            state.hidePastEntries = true;
+            state.pastDisplayMode = 'hide';
 
             // Now animate each past day row to collapse
             const pastRows = timeline.querySelectorAll('.week-day-row.week-day-past');
@@ -13308,17 +14673,17 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Hide-past toggle (default: OFF = past entries visible)
-    // hidePastEntries state is restored in loadAll() from backend preferences
+    // pastDisplayMode state is restored in loadAll() from backend preferences
     const hidePastBtn = document.getElementById('hide-past-btn');
-    hidePastBtn.classList.toggle('active', !state.hidePastEntries);
-    hidePastBtn.title = state.hidePastEntries ? 'Show past' : 'Hide past';
+    syncPastDisplayBtn(hidePastBtn);
     hidePastBtn.addEventListener('click', () => {
-        const hiding = !state.hidePastEntries;
-        state.hidePastEntries = hiding;
-        savePref('hidePastEntries', hiding);
-        hidePastBtn.classList.toggle('active', !hiding);
-        hidePastBtn.title = hiding ? 'Show past' : 'Hide past';
-        animateHidePastToggle(hiding, () => renderAll());
+        // 2-way toggle: show ↔ hide
+        const wasHidden = state.pastDisplayMode === 'hide';
+        state.pastDisplayMode = wasHidden ? 'show' : 'hide';
+        savePref('pastDisplayMode', state.pastDisplayMode);
+        syncPastDisplayBtn(hidePastBtn);
+        // Animate the transition
+        animateHidePastToggle(!wasHidden, () => renderAll());
     });
 
     // Streak check-in button

@@ -1402,17 +1402,31 @@ body {
 }
 
 .action-estimate-badge.no-estimate {
-    opacity: 0;
+    display: none;
     font-size: 14px;
     color: var(--pencil-ghost);
 }
 
 .action-item:hover .action-estimate-badge.no-estimate {
+    display: inline-block;
     opacity: 0.4;
+    animation: estimate-badge-in 0.2s var(--ease) both;
 }
 
 .action-estimate-badge.no-estimate:hover {
     opacity: 0.8;
+}
+
+@keyframes estimate-badge-in {
+    from {
+        opacity: 0;
+        transform: scale(0.7);
+    }
+
+    to {
+        opacity: 0.4;
+        transform: scale(1);
+    }
 }
 
 /* ─── Pressure Bar ─── */
@@ -1523,6 +1537,39 @@ body {
     color: var(--pencil);
     line-height: 1.4;
     word-break: break-word;
+    flex: 1;
+    min-width: 0;
+}
+
+.missing-dur-name-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.missing-dur-remove {
+    flex-shrink: 0;
+    width: 18px;
+    height: 18px;
+    border: 1px dashed var(--pencil-ghost);
+    background: transparent;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 10px;
+    font-family: 'Caveat', cursive;
+    color: var(--pencil-faint);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--dur) var(--ease);
+    padding: 0;
+    line-height: 1;
+}
+
+.missing-dur-remove:hover {
+    border-color: var(--red-pen);
+    border-style: solid;
+    color: var(--red-pen);
 }
 
 .missing-dur-presets {
@@ -3806,6 +3853,89 @@ select.schedule-leadtime-input {
     margin-left: auto;
 }
 
+.divergence-prompt-detail {
+    font-size: 0.82rem;
+    color: var(--pencil-ghost);
+}
+
+.divergence-segments {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin: 6px 0;
+    padding: 6px 8px;
+    font-size: 14px;
+    font-family: 'Caveat', cursive;
+    font-weight: 700;
+    color: var(--pencil-soft);
+}
+
+.divergence-segment {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 3px 0;
+}
+
+.divergence-seg-info {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.divergence-seg-actions {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+    margin-left: 8px;
+}
+
+.divergence-banner-seg {
+    padding-left: 16px;
+    opacity: 0.9;
+    font-size: 0.82rem;
+}
+
+.divergence-banner-header {
+    font-weight: 700;
+}
+
+.divergence-collapsed {
+    display: none;
+}
+
+.divergence-banner-summary {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    padding: 4px 0;
+    font-size: 15px;
+    font-weight: 700;
+    font-family: 'Caveat', cursive;
+    color: var(--pencil);
+}
+
+.divergence-banner-summary:hover {
+    opacity: 0.7;
+}
+
+.divergence-chevron {
+    font-size: 10px;
+    color: var(--pencil-soft);
+    transition: transform 0.15s;
+}
+
+.divergence-banner-label-toggle {
+    cursor: pointer;
+}
+
+.divergence-banner-label-toggle:hover {
+    opacity: 0.7;
+}
+
 .time-block-day-start .time-block-label {
     color: #b8860b;
 }
@@ -4375,6 +4505,175 @@ select.schedule-leadtime-input {
 
 .time-block-past:hover {
     opacity: 0.8;
+}
+
+/* ── Compact Past Entries ── */
+.compact-past-entry {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 3px 8px;
+    opacity: 0.5;
+    cursor: pointer;
+    border-radius: var(--radius);
+    border-left: 2px solid transparent;
+    transition: all var(--dur) var(--ease);
+    min-height: 24px;
+    font-size: 14px;
+    font-family: 'Caveat', cursive;
+}
+
+.compact-past-entry:hover {
+    opacity: 0.85;
+    background: rgba(255, 243, 168, 0.15);
+}
+
+.compact-past-work {
+    border-left-color: #5eab5e;
+}
+
+.compact-past-break {
+    border-left-color: var(--blue-pen);
+}
+
+.compact-past-idle {
+    border-left-color: #b8860b;
+}
+
+.compact-past-planned {
+    border-left-color: rgba(90, 60, 150, 0.5);
+}
+
+.compact-past-icon {
+    width: 16px;
+    text-align: center;
+    font-size: 12px;
+    flex-shrink: 0;
+}
+
+.compact-past-label {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--pencil-soft);
+    font-weight: 600;
+}
+
+.compact-past-merge-badge {
+    font-size: 11px;
+    color: var(--pencil-faint);
+    margin-left: 4px;
+    font-weight: 400;
+    font-family: 'Caveat', cursive;
+}
+
+.compact-past-time {
+    font-size: 13px;
+    font-family: 'Caveat', cursive;
+    color: var(--pencil-faint);
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+.compact-past-duration {
+    font-size: 13px;
+    font-family: 'Caveat', cursive;
+    color: var(--pencil-faint);
+    flex-shrink: 0;
+    min-width: 32px;
+    text-align: right;
+}
+
+.compact-past-project {
+    font-size: 12px;
+    font-family: 'Caveat', cursive;
+    color: var(--pencil-faint);
+    opacity: 0.6;
+    flex-shrink: 0;
+    max-width: 80px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.compact-past-entry+.compact-past-entry {
+    margin-top: 0;
+}
+
+/* ── Compact Project Groups ── */
+.compact-project-wrapper {
+    margin: 0;
+}
+
+.compact-project-group {
+    opacity: 0.65;
+}
+
+.compact-project-group:hover {
+    opacity: 0.9;
+}
+
+.compact-project-expanded {
+    opacity: 0.85;
+    border-left-color: #5eab5e;
+}
+
+.compact-project-chevron {
+    font-size: 10px;
+    transition: transform var(--dur) var(--ease);
+}
+
+.compact-project-subs {
+    padding-left: 24px;
+    border-left: 1px dashed rgba(94, 171, 94, 0.3);
+    margin-left: 8px;
+}
+
+.compact-project-sub {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 6px;
+    font-size: 13px;
+    font-family: 'Caveat', cursive;
+    color: var(--pencil-faint);
+    min-height: 20px;
+}
+
+.compact-project-sub-dot {
+    width: 14px;
+    text-align: center;
+    flex-shrink: 0;
+    font-size: 12px;
+    color: #5eab5e;
+}
+
+.compact-project-sub-label {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.compact-project-sub-time {
+    font-size: 12px;
+    font-family: 'Caveat', cursive;
+    flex-shrink: 0;
+    opacity: 0.6;
+}
+
+.compact-project-sub-tag {
+    font-size: 11px;
+    font-family: 'Caveat', cursive;
+    opacity: 0.5;
+    flex-shrink: 0;
+    max-width: 60px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .time-block-time-editable {
@@ -5394,8 +5693,20 @@ select.schedule-leadtime-input {
     line-height: 1;
 }
 
-.time-block-free:hover .plan-next-btn {
+.time-block-free:hover .plan-next-btn,
+.time-block-planned:hover .plan-next-btn {
     opacity: 1;
+}
+
+.time-block-planned .plan-next-btn {
+    border-color: rgba(43, 87, 154, 0.3);
+    background: rgba(43, 87, 154, 0.04);
+    color: var(--blue-pen);
+}
+
+.time-block-planned .plan-next-btn:hover {
+    background: rgba(43, 87, 154, 0.1);
+    border-color: var(--blue-pen);
 }
 
 .plan-next-btn:hover {
@@ -5901,14 +6212,212 @@ select.schedule-leadtime-input {
     color: var(--blue-pen);
 }
 
-/* Ghost plan: overlapped by work but not fully absorbed */
-.plan-ghost {
-    opacity: 0.35;
-    margin-bottom: 0;
+/* ── Divergence Resolution Prompt ── */
+.divergence-prompt {
+    margin: 4px 6px;
+    padding: 8px 10px;
+    border-radius: var(--radius);
+    border: 1px dashed #c4880a;
+    border-left: 2px solid #c4880a;
+    background: rgba(196, 136, 10, 0.04);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
 }
 
-.plan-ghost:hover {
-    opacity: 0.6;
+.divergence-prompt-header {
+    font-size: 15px;
+    font-family: 'Caveat', cursive;
+    font-weight: 700;
+    color: #c4880a;
+}
+
+.divergence-prompt-detail {
+    font-size: 13px;
+    font-family: 'Caveat', cursive;
+    color: var(--pencil-ghost);
+}
+
+.divergence-prompt-actions {
+    display: flex;
+    gap: 6px;
+    margin-top: 4px;
+    justify-content: flex-end;
+}
+
+.divergence-btn {
+    padding: 3px 12px;
+    border-radius: var(--radius);
+    font-size: 15px;
+    font-family: 'Caveat', cursive;
+    cursor: pointer;
+    transition: all var(--dur) var(--ease);
+    border: 1px dashed;
+    background: transparent;
+}
+
+.divergence-btn-skip {
+    color: var(--pencil-ghost);
+    border-color: var(--pencil-ghost);
+}
+
+.divergence-btn-skip:hover {
+    color: var(--pencil-soft);
+    border-color: var(--pencil-soft);
+}
+
+.divergence-btn-ok {
+    color: #5eab5e;
+    border-color: #5eab5e;
+    border-style: solid;
+}
+
+.divergence-btn-ok:hover {
+    background: rgba(94, 171, 94, 0.08);
+}
+
+.divergence-btn-reschedule {
+    color: var(--pencil-soft);
+    border-color: var(--pencil-ghost);
+}
+
+.divergence-btn-reschedule:hover {
+    border-color: #c4880a;
+    color: #c4880a;
+}
+
+.divergence-reschedule-options {
+    display: flex;
+    gap: 4px;
+    margin-top: 4px;
+    padding-top: 6px;
+    border-top: 1px dashed var(--pencil-ghost);
+}
+
+.divergence-btn-sub {
+    flex: 1;
+    padding: 3px 6px;
+    border-radius: var(--radius);
+    font-size: 14px;
+    font-family: 'Caveat', cursive;
+    cursor: pointer;
+    transition: all var(--dur) var(--ease);
+    border: 1px dashed var(--pencil-ghost);
+    background: transparent;
+    color: var(--pencil-soft);
+    text-align: center;
+}
+
+.divergence-btn-sub:hover {
+    border-style: solid;
+    border-color: var(--blue-pen);
+    color: var(--blue-pen);
+}
+
+.divergence-btn-drop {
+    color: var(--pencil-ghost);
+}
+
+.divergence-btn-drop:hover {
+    border-color: var(--red-pen);
+    color: var(--red-pen);
+}
+
+.divergence-btn-compact {
+    padding: 2px 6px;
+    font-size: 13px;
+}
+
+.divergence-btn-plan {
+    color: var(--blue-pen);
+    border-color: var(--blue-pen);
+    border-style: solid;
+    padding: 2px 10px;
+    font-size: 14px;
+}
+
+.divergence-btn-plan:hover {
+    background: rgba(43, 87, 154, 0.08);
+}
+
+.divergence-btn-log {
+    color: var(--pencil-soft);
+    border-color: var(--pencil-ghost);
+    padding: 2px 10px;
+    font-size: 14px;
+}
+
+.divergence-btn-log:hover {
+    border-style: solid;
+    border-color: var(--pencil-soft);
+    color: var(--pencil);
+}
+
+.divergence-seg-header {
+    border-bottom: 1px dashed var(--pencil-ghost);
+    padding-bottom: 2px;
+    margin-bottom: 2px;
+}
+
+.divergence-seg-actions-label {
+    font-size: 13px;
+    font-family: 'Caveat', cursive;
+    font-weight: 700;
+    color: var(--pencil-ghost);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Divergence banner (hide-past mode) */
+.divergence-banner {
+    margin: 4px 6px;
+    padding: 6px 8px;
+    border-radius: var(--radius);
+    border: 1px dashed #c4880a;
+    background: rgba(196, 136, 10, 0.03);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.divergence-banner-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.divergence-banner-label {
+    font-size: 14px;
+    font-family: 'Caveat', cursive;
+    font-weight: 700;
+    color: #c4880a;
+    flex: 1;
+    min-width: 0;
+}
+
+.divergence-banner-actions {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.live-divergence-badge {
+    font-size: 11px;
+    margin-left: 4px;
+    animation: divergence-pulse 2s ease-in-out infinite;
+}
+
+@keyframes divergence-pulse {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.5;
+    }
 }
 
 /* Phantom prep block: lead-time preparation block before a planned entry */
@@ -5931,92 +6440,6 @@ select.schedule-leadtime-input {
     color: #c4880a;
 }
 
-/* Timeline overlap group: side-by-side plan vs reality lanes */
-.timeline-overlap-group {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 4px;
-    position: relative;
-    padding: 0;
-    margin: 4px 6px;
-    align-items: stretch;
-    overflow: hidden;
-}
-
-.timeline-overlap-group::before {
-    content: '';
-    position: absolute;
-    top: 4px;
-    bottom: 4px;
-    left: calc(50% - 0.5px);
-    width: 1px;
-    background: var(--pencil-ghost);
-    opacity: 0.4;
-}
-
-.overlap-lane {
-    min-width: 0;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-}
-
-.overlap-lane .time-block {
-    margin: 0;
-    padding: 6px 4px;
-    box-sizing: border-box;
-    width: 100%;
-    flex: 1;
-}
-
-.overlap-lane .time-block-label {
-    font-size: 13px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.overlap-lane .time-block-time {
-    font-size: 11px;
-}
-
-.overlap-lane .time-block-status {
-    font-size: 11px;
-}
-
-.overlap-lane .time-block-icon {
-    font-size: 12px !important;
-}
-
-.overlap-lane .time-block-content {
-    gap: 1px;
-}
-
-.overlap-lane .time-block-stop-btn {
-    width: 20px;
-    height: 20px;
-    font-size: 11px;
-}
-
-.overlap-lane-plan .time-block {
-    border-right: none;
-    border-top-right-radius: 0;
-    border-bottom-right-radius: 0;
-}
-
-.overlap-lane-reality .time-block {
-    border-top-left-radius: 0;
-    border-bottom-left-radius: 0;
-}
-
-.plan-ghost .time-block-label::after {
-    content: ' · plan';
-    font-weight: 400;
-    font-size: 12px;
-    font-family: 'Caveat', cursive;
-    opacity: 0.5;
-    font-style: italic;
-}
 
 .plan-start-btn {
     opacity: 0;

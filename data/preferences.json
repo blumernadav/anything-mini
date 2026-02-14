@@ -4,24 +4,17 @@
   "showUnscheduled": true,
   "panels": {
     "left": 378,
-    "right": 344
+    "right": 365
   },
   "hidePastEntries": true,
-  "workingOn": {
-    "itemId": 9,
-    "itemName": "anything",
-    "projectName": null,
-    "startTime": 1770987591002,
-    "targetEndTime": null
-  },
+  "workingOn": null,
   "selectedItemId": "",
   "onBreak": null,
-  "timelineViewDate": "2026-02-13T12:41:22.671Z",
+  "timelineViewDate": "2026-02-14T10:36:25.387Z",
   "scheduleFilter": "scheduled+unscheduled",
   "collapsedGroups": [
     86,
     78,
-    28,
     181,
     29,
     157,
@@ -30,26 +23,19 @@
     199,
     240,
     242,
-    319,
-    293,
     164,
-    62,
-    145,
-    122,
-    300,
-    92,
-    17,
+    319,
     9
   ],
-  "viewHorizon": "day",
+  "viewHorizon": "week",
   "weekCollapsedDays": {
     "2026-02-08": true,
     "2026-02-09": true,
     "2026-02-10": true,
     "2026-02-11": true,
     "2026-02-12": false,
-    "2026-02-13": true,
-    "2026-02-14": true,
+    "2026-02-13": false,
+    "2026-02-14": false,
     "2026-04-15": false,
     "2026-03-15": true,
     "2026-03-16": true,
@@ -71,14 +57,22 @@
     "weekGroups_2026-02-13": [],
     "weekGroups_2026-02-15": [
       300
-    ]
+    ],
+    "weekGroups_2026-02-14": []
   },
   "focusStack": [],
-  "projectTreeScrollTop": 989,
+  "projectTreeScrollTop": 3365.5556640625,
   "darkMode": "light",
   "skinFamily": "duolingo",
-  "sessionIndex": 5,
+  "sessionIndex": 2,
   "epochFilter": "ongoing",
   "ongoingPastWeeks": 0,
-  "ongoingFutureWeeks": 2
+  "ongoingFutureWeeks": 2,
+  "resolvedDivergences": [],
+  "divergenceBannerExpanded": true,
+  "divergencePlansExpanded": [
+    297,
+    314
+  ],
+  "pastDisplayMode": "hide"
 }

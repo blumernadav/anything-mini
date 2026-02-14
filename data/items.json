@@ -12,10 +12,11 @@
           "createdAt": 1770932403465,
           "done": false,
           "timeContexts": [
-            "2026-02-13"
+            "week:2026-02-08"
           ],
           "contextDurations": {
-            "2026-02-13": 10
+            "2026-02-13": 10,
+            "week:2026-02-08": 10
           }
         },
         {
@@ -26,7 +27,7 @@
           "createdAt": 1770860188414,
           "done": false,
           "timeContexts": [
-            "2026-02-13"
+            "week:2026-02-08"
           ],
           "contextDurations": {
             "2026-02-13": 15
@@ -74,11 +75,11 @@
           "createdAt": 1770633310924,
           "done": false,
           "timeContexts": [
-            "2026-02-13"
+            "2026-02-14"
           ],
           "estimatedDuration": null,
           "contextDurations": {
-            "2026-02-13": 10
+            "2026-02-14": 15
           }
         }
       ],
@@ -102,9 +103,12 @@
           "createdAt": 1770951370710,
           "done": false,
           "timeContexts": [
-            "week:2026-02-08"
+            "2026-02-14"
           ],
-          "contextLeadTimes": {}
+          "contextLeadTimes": {},
+          "contextDurations": {
+            "2026-02-14": 15
+          }
         }
       ],
       "expanded": false,
@@ -130,10 +134,10 @@
               "createdAt": 1770730496059,
               "done": false,
               "timeContexts": [
-                "2026-02-13"
+                "2026-02-14"
               ],
               "contextDurations": {
-                "2026-02-13": 25
+                "2026-02-14": 30
               }
             }
           ],
@@ -260,10 +264,10 @@
           "createdAt": 1770609710103,
           "done": false,
           "timeContexts": [
-            "2026-02-13@12:18-16:00"
+            "2026-02-14"
           ],
           "contextDurations": {
-            "2026-02-13@12:18-16:00": 5
+            "2026-02-14": 15
           }
         },
         {
@@ -274,10 +278,10 @@
           "createdAt": 1770808570871,
           "done": false,
           "timeContexts": [
-            "2026-02-13@12:18-16:00"
+            "2026-02-14"
           ],
           "contextDurations": {
-            "2026-02-13@12:18-16:00": 5
+            "2026-02-14": 5
           }
         },
         {
@@ -295,7 +299,7 @@
           }
         }
       ],
-      "expanded": true,
+      "expanded": false,
       "createdAt": 1770609703744,
       "done": false,
       "timeContexts": [
@@ -307,6 +311,18 @@
       "name": "anything",
       "children": [
         {
+          "id": 415,
+          "name": "capacity bar should show WHOLE capacity (start to end)? or just what's visible?",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770998710806,
+          "done": false,
+          "timeContexts": [
+            "ongoing"
+          ],
+          "contextDurations": {}
+        },
+        {
           "id": 398,
           "name": "fix cleaning back to day scope from past planned sessions",
           "children": [],
@@ -314,11 +330,22 @@
           "createdAt": 1770983647893,
           "done": true,
           "timeContexts": [
-            "2026-02-13"
+            "week:2026-02-08"
           ],
           "contextDurations": {
             "2026-02-13": 30
           }
+        },
+        {
+          "id": 408,
+          "name": "when degrading - keep duration",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770993478460,
+          "done": false,
+          "timeContexts": [
+            "ongoing"
+          ]
         },
         {
           "id": 397,
@@ -340,7 +367,7 @@
           "createdAt": 1770981704559,
           "done": true,
           "timeContexts": [
-            "2026-02-13"
+            "week:2026-02-08"
           ]
         },
         {
@@ -351,7 +378,7 @@
           "createdAt": 1770980523320,
           "done": true,
           "timeContexts": [
-            "2026-02-13"
+            "week:2026-02-08"
           ]
         },
         {
@@ -362,7 +389,7 @@
           "createdAt": 1770979982757,
           "done": true,
           "timeContexts": [
-            "2026-02-13"
+            "week:2026-02-08"
           ]
         },
         {
@@ -385,7 +412,7 @@
           "createdAt": 1770979755970,
           "done": false,
           "timeContexts": [
-            "2026-02-13"
+            "ongoing"
           ],
           "contextDurations": {
             "2026-02-13": 15
@@ -402,7 +429,7 @@
             "week:2026-02-08"
           ],
           "contextDurations": {
-            "week:2026-02-08": 30
+            "2026-02-13": 30
           }
         },
         {
@@ -465,6 +492,110 @@
           "name": "core",
           "children": [
             {
+              "id": 416,
+              "name": "showing past logs",
+              "children": [
+                {
+                  "id": 414,
+                  "name": "absorb concept rethink",
+                  "children": [],
+                  "expanded": false,
+                  "createdAt": 1770998665821,
+                  "done": false,
+                  "timeContexts": [
+                    "week:2026-02-08"
+                  ]
+                },
+                {
+                  "id": 413,
+                  "name": "intentions absorbtion",
+                  "children": [],
+                  "expanded": false,
+                  "createdAt": 1770998657955,
+                  "done": false,
+                  "timeContexts": [
+                    "week:2026-02-08"
+                  ]
+                },
+                {
+                  "id": 411,
+                  "name": "past plans hide/show after accepting",
+                  "children": [],
+                  "expanded": false,
+                  "createdAt": 1770998483883,
+                  "done": false,
+                  "timeContexts": [
+                    "week:2026-02-08"
+                  ]
+                },
+                {
+                  "id": 410,
+                  "name": "change logs to entry style compact logs",
+                  "children": [],
+                  "expanded": false,
+                  "createdAt": 1770998034227,
+                  "done": false,
+                  "timeContexts": [
+                    "week:2026-02-08"
+                  ]
+                },
+                {
+                  "id": 323,
+                  "name": "see past logs in every epoch",
+                  "children": [],
+                  "expanded": false,
+                  "createdAt": 1770852026134,
+                  "done": false,
+                  "timeContexts": [
+                    "week:2026-02-08"
+                  ],
+                  "contextDurations": {
+                    "week:2026-02-08": 15
+                  }
+                }
+              ],
+              "expanded": false,
+              "createdAt": 1771026904558,
+              "done": false,
+              "timeContexts": [
+                "ongoing"
+              ]
+            },
+            {
+              "id": 417,
+              "name": "live logging",
+              "children": [
+                {
+                  "id": 418,
+                  "name": "maybe live logging for good night",
+                  "children": [],
+                  "expanded": false,
+                  "createdAt": 1771027001568,
+                  "done": false,
+                  "timeContexts": [
+                    "week:2026-02-08"
+                  ]
+                },
+                {
+                  "id": 412,
+                  "name": "live logs vs plans - under which to put intentions?",
+                  "children": [],
+                  "expanded": false,
+                  "createdAt": 1770998637870,
+                  "done": false,
+                  "timeContexts": [
+                    "week:2026-02-08"
+                  ]
+                }
+              ],
+              "expanded": false,
+              "createdAt": 1771026926358,
+              "done": false,
+              "timeContexts": [
+                "ongoing"
+              ]
+            },
+            {
               "id": 349,
               "name": "month horizon",
               "children": [],
@@ -500,7 +631,7 @@
               "createdAt": 1770927503105,
               "done": true,
               "timeContexts": [
-                "2026-02-13"
+                "week:2026-02-08"
               ],
               "contextDurations": {}
             },
@@ -528,7 +659,7 @@
                   "createdAt": 1770926420908,
                   "done": false,
                   "timeContexts": [
-                    "2026-02-13"
+                    "ongoing"
                   ],
                   "contextDurations": {
                     "2026-02-13": 10
@@ -640,32 +771,16 @@
               }
             },
             {
-              "id": 323,
-              "name": "see past logs in every epoch",
-              "children": [],
-              "expanded": false,
-              "createdAt": 1770852026134,
-              "done": false,
-              "timeContexts": [
-                "week:2026-02-08"
-              ],
-              "contextDurations": {
-                "week:2026-02-08": 15
-              }
-            },
-            {
               "id": 302,
               "name": "live blocks - work, break, idle - print to past and you can reconcile with plans, including general work plans",
               "children": [],
               "expanded": false,
               "createdAt": 1770822520306,
-              "done": false,
+              "done": true,
               "timeContexts": [
-                "2026-02-13"
+                "week:2026-02-08"
               ],
-              "contextDurations": {
-                "2026-02-13": 60
-              }
+              "contextDurations": {}
             },
             {
               "id": 298,
@@ -726,7 +841,19 @@
             {
               "id": 282,
               "name": "idea - move \"done\" to be done under a context",
-              "children": [],
+              "children": [
+                {
+                  "id": 407,
+                  "name": "maybe absorb done like absorb plan?",
+                  "children": [],
+                  "expanded": false,
+                  "createdAt": 1770988850571,
+                  "done": false,
+                  "timeContexts": [
+                    "ongoing"
+                  ]
+                }
+              ],
               "expanded": false,
               "createdAt": 1770810064805,
               "done": false,
@@ -972,6 +1099,17 @@
               "contextDurations": {
                 "week:2026-02-08": 60
               }
+            },
+            {
+              "id": 409,
+              "name": "live divergence indicators on the plan/live",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770996747938,
+              "done": false,
+              "timeContexts": [
+                "week:2026-02-08"
+              ]
             }
           ],
           "expanded": true,
@@ -1656,7 +1794,7 @@
               "createdAt": 1770976616634,
               "done": false,
               "timeContexts": [
-                "2026-02-13"
+                "ongoing"
               ],
               "contextDurations": {
                 "2026-02-13": 15
@@ -2967,11 +3105,11 @@
       "createdAt": 1770591468116,
       "done": false,
       "timeContexts": [
-        "week:2026-02-08"
+        "ongoing"
       ],
       "estimatedDuration": 60,
       "contextDurations": {
-        "week:2026-02-08": 60
+        "ongoing": 60
       }
     },
     {
@@ -3023,10 +3161,10 @@
           ],
           "expanded": false,
           "createdAt": 1770681106983,
-          "done": false,
+          "done": true,
           "estimatedDuration": 90,
           "timeContexts": [
-            "2026-02-13"
+            "week:2026-02-08"
           ],
           "contextDurations": {
             "2026-02-13": 60
@@ -3083,7 +3221,52 @@
         {
           "id": 352,
           "name": "יומולדת לאבא",
-          "children": [],
+          "children": [
+            {
+              "id": 422,
+              "name": "מתנה?",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1771066420199,
+              "done": false,
+              "timeContexts": [
+                "week:2026-02-08"
+              ]
+            },
+            {
+              "id": 421,
+              "name": "שיר",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1771066412199,
+              "done": false,
+              "timeContexts": [
+                "week:2026-02-08"
+              ]
+            },
+            {
+              "id": 420,
+              "name": "אנשים",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1771066407050,
+              "done": false,
+              "timeContexts": [
+                "week:2026-02-08"
+              ]
+            },
+            {
+              "id": 419,
+              "name": "תסריט",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1771066377217,
+              "done": false,
+              "timeContexts": [
+                "week:2026-02-08"
+              ]
+            }
+          ],
           "expanded": false,
           "createdAt": 1770922605406,
           "done": false,
@@ -3162,14 +3345,14 @@
           "createdAt": 1770971728857,
           "done": false,
           "timeContexts": [
-            "2026-02-13@12:18-16:00"
+            "2026-02-14"
           ],
           "contextDurations": {
-            "2026-02-13@12:18-16:00": 15
+            "2026-02-14": 15
           }
         }
       ],
-      "expanded": false,
+      "expanded": true,
       "createdAt": 1770812573309,
       "done": false,
       "timeContexts": [
@@ -3188,11 +3371,10 @@
           "createdAt": 1770912310256,
           "done": false,
           "timeContexts": [
-            "2026-02-13"
+            "2026-02-14"
           ],
           "contextDurations": {
-            "2026-02-12": 60,
-            "2026-02-13": 30
+            "2026-02-14": 30
           }
         },
         {
@@ -3203,11 +3385,10 @@
           "createdAt": 1770912286750,
           "done": false,
           "timeContexts": [
-            "2026-02-13"
+            "2026-02-14"
           ],
           "contextDurations": {
-            "2026-02-12": 30,
-            "2026-02-13": 15
+            "2026-02-14": 10
           }
         },
         {
@@ -3248,11 +3429,10 @@
               "createdAt": 1770810830525,
               "done": false,
               "timeContexts": [
-                "2026-02-13"
+                "2026-02-14"
               ],
               "contextDurations": {
-                "2026-02-12": 60,
-                "2026-02-13": 30
+                "2026-02-14": 30
               }
             }
           ],
@@ -3446,10 +3626,10 @@
       "createdAt": 1770639234396,
       "done": false,
       "timeContexts": [
-        "2026-02-13"
+        "2026-02-14"
       ],
       "contextDurations": {
-        "2026-02-13": 15
+        "2026-02-14": 30
       }
     },
     {
@@ -3544,7 +3724,7 @@
               "createdAt": 1770987671358,
               "done": false,
               "timeContexts": [
-                "2026-02-13"
+                "ongoing"
               ]
             }
           ],
@@ -3552,7 +3732,7 @@
           "createdAt": 1770823995914,
           "done": false,
           "timeContexts": [
-            "2026-02-13"
+            "ongoing"
           ],
           "contextDurations": {
             "2026-02-13": 5,
@@ -3567,7 +3747,7 @@
           "children": [],
           "expanded": false,
           "createdAt": 1770729592951,
-          "done": false,
+          "done": true,
           "estimatedDuration": 90,
           "timeContexts": [
             "week:2026-02-08"
@@ -3584,11 +3764,9 @@
           "createdAt": 1770896669281,
           "done": false,
           "timeContexts": [
-            "2026-02-13@12:18-16:00"
+            "week:2026-02-15"
           ],
-          "contextDurations": {
-            "2026-02-13@12:18-16:00": 10
-          }
+          "contextDurations": {}
         }
       ],
       "expanded": true,
@@ -3630,10 +3808,10 @@
       "createdAt": 1770648790566,
       "done": false,
       "timeContexts": [
-        "2026-02-13"
+        "2026-02-14"
       ],
       "contextDurations": {
-        "2026-02-13": 60
+        "2026-02-14": 60
       }
     },
     {
@@ -3796,6 +3974,18 @@
       "name": "בית",
       "children": [
         {
+          "id": 406,
+          "name": "להתגלח",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1770988590514,
+          "done": true,
+          "timeContexts": [
+            "week:2026-02-08"
+          ],
+          "contextDurations": {}
+        },
+        {
           "id": 234,
           "name": "להתקלח",
           "children": [],
@@ -3832,10 +4022,10 @@
           "createdAt": 1770808515559,
           "done": false,
           "timeContexts": [
-            "2026-02-13@12:18-16:00"
+            "2026-02-14"
           ],
           "contextDurations": {
-            "2026-02-13@12:18-16:00": 30
+            "2026-02-14": 30
           }
         },
         {
@@ -3846,10 +4036,10 @@
           "createdAt": 1770812039041,
           "done": false,
           "timeContexts": [
-            "2026-02-13@13:18-16:00"
+            "2026-02-14"
           ],
           "contextDurations": {
-            "2026-02-13@13:18-16:00": 60
+            "2026-02-14": 60
           }
         },
         {
@@ -3858,13 +4048,11 @@
           "children": [],
           "expanded": false,
           "createdAt": 1770909150598,
-          "done": false,
+          "done": true,
           "timeContexts": [
-            "2026-02-13@entry:314"
+            "week:2026-02-08"
           ],
-          "contextDurations": {
-            "2026-02-13@entry:314": 10
-          }
+          "contextDurations": {}
         },
         {
           "id": 387,
@@ -3874,10 +4062,9 @@
           "createdAt": 1770972747119,
           "done": true,
           "timeContexts": [
-            "2026-02-13@12:18-16:00"
+            "week:2026-02-08"
           ],
           "contextDurations": {
-            "2026-02-13@12:18-16:00": 10,
             "2026-02-13@13:44-18:00": 30
           }
         },
@@ -3887,9 +4074,9 @@
           "children": [],
           "expanded": false,
           "createdAt": 1770976860202,
-          "done": false,
+          "done": true,
           "timeContexts": [
-            "2026-02-13"
+            "week:2026-02-08"
           ],
           "contextDurations": {
             "2026-02-13": 30
@@ -3926,10 +4113,11 @@
           "createdAt": 1770854980211,
           "done": false,
           "timeContexts": [
-            "2026-02-13"
+            "week:2026-02-08"
           ],
           "contextDurations": {
-            "2026-02-13": 10
+            "2026-02-13": 10,
+            "week:2026-02-08": 10
           }
         },
         {
@@ -3940,12 +4128,13 @@
           "createdAt": 1770847807010,
           "done": false,
           "timeContexts": [
-            "2026-02-13"
+            "week:2026-02-08"
           ],
           "contextDurations": {
             "2026-02-11": 10,
             "2026-02-12": 5,
-            "2026-02-13": 5
+            "2026-02-13": 5,
+            "week:2026-02-08": 10
           }
         }
       ],
@@ -3957,5 +4146,5 @@
       ]
     }
   ],
-  "nextId": 406
+  "nextId": 423
 }
