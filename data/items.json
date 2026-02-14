@@ -5,6 +5,20 @@
       "name": "Inbox",
       "children": [
         {
+          "id": 444,
+          "name": "לענות להודעות",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771081425864,
+          "done": false,
+          "timeContexts": [
+            "2026-02-14"
+          ],
+          "contextDurations": {
+            "2026-02-14": 15
+          }
+        },
+        {
           "id": 361,
           "name": "לדבר עם יונתן",
           "children": [],
@@ -260,7 +274,22 @@
         {
           "id": 311,
           "name": "ג׳אז בחצר",
-          "children": [],
+          "children": [
+            {
+              "id": 447,
+              "name": "חזרה לג׳אז",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1771082071665,
+              "done": false,
+              "timeContexts": [
+                "2026-02-15@entry:381"
+              ],
+              "contextDurations": {
+                "2026-02-15@entry:381": 0
+              }
+            }
+          ],
           "expanded": false,
           "createdAt": 1770824890691,
           "done": false,
@@ -439,7 +468,10 @@
           "children": [],
           "expanded": false,
           "createdAt": 1771080528439,
-          "done": false
+          "done": true,
+          "timeContexts": [
+            "ongoing"
+          ]
         },
         {
           "id": 441,
@@ -449,7 +481,7 @@
           "createdAt": 1771076084973,
           "done": false,
           "timeContexts": [
-            "week:2026-02-08"
+            "week:2026-02-15"
           ],
           "contextDurations": {}
         },
@@ -3958,6 +3990,20 @@
       "name": "חברים",
       "children": [
         {
+          "id": 445,
+          "name": "לדגום את יובדו",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771081449310,
+          "done": false,
+          "timeContexts": [
+            "2026-02-14"
+          ],
+          "contextDurations": {
+            "2026-02-14": 5
+          }
+        },
+        {
           "id": 316,
           "name": "הרפז",
           "children": [],
@@ -4208,7 +4254,19 @@
     {
       "id": 191,
       "name": "ללמוד",
-      "children": [],
+      "children": [
+        {
+          "id": 446,
+          "name": "שפות",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771081501653,
+          "done": false,
+          "timeContexts": [
+            "2026-02-14"
+          ]
+        }
+      ],
       "expanded": false,
       "createdAt": 1770681442391,
       "done": false,
@@ -4352,5 +4410,5 @@
       ]
     }
   ],
-  "nextId": 444
+  "nextId": 448
 }

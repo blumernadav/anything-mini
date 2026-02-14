@@ -32,6 +32,7 @@ const state = {
     selectionAnchor: null, // last manually toggled action ID (for shift-click range)
     divergenceBannerExpanded: false, // whether the top-level banner summary is expanded
     divergencePlansExpanded: new Set(), // set of plan entry IDs whose segments are expanded
+    deepView: false, // when true, actions show items from all layers at or below current horizon
     settings: {
         dayStartHour: 8,
         dayStartMinute: 0,
@@ -163,6 +164,7 @@ async function loadAll() {
     // Restore divergence banner collapse state
     state.divergenceBannerExpanded = prefs.divergenceBannerExpanded || false;
     state.divergencePlansExpanded = new Set(prefs.divergencePlansExpanded || []);
+    state.deepView = prefs.deepView === true;
     // Restore project tree scroll position
     if (typeof prefs.projectTreeScrollTop === 'number') {
         state._pendingProjectTreeScroll = prefs.projectTreeScrollTop;
@@ -217,6 +219,11 @@ function syncToggleUI() {
     const showUnschedBtn = document.getElementById('show-unscheduled-btn');
     if (showUnschedBtn) {
         syncScheduleFilterBtn(showUnschedBtn);
+    }
+    const deepViewBtn = document.getElementById('deep-view-btn');
+    if (deepViewBtn) {
+        deepViewBtn.classList.toggle('active', state.deepView);
+        deepViewBtn.title = state.deepView ? 'Showing all layers' : 'Show all layers';
     }
 }
 
@@ -4173,7 +4180,7 @@ function renderActions(opts) {
         const focusedSession = state.focusStack.length > 0 ? state.focusStack[state.focusStack.length - 1] : null;
         const viewKey = getDateKey(state.timelineViewDate);
         const todayKey = getDateKey(getLogicalToday());
-        const timeIsFiltered = !!focusedSession || state.viewHorizon === 'epoch' || viewKey !== todayKey;
+        const timeIsFiltered = !!focusedSession || state.viewHorizon === 'epoch' || state.viewHorizon === 'month' || viewKey !== todayKey;
 
         if (projectIsFiltered || timeIsFiltered) {
             // Replace default empty state content with filter-aware message
@@ -4428,7 +4435,10 @@ function getFilteredActions() {
 
     // ── Horizon + Schedule filter ──
     const currentDateKey = getDateKey(state.timelineViewDate);
-    if (state.viewHorizon === 'epoch') {
+    if (state.deepView) {
+        // Deep view: include items from current level AND all lower levels
+        allLeaves = allLeaves.filter(a => itemMatchesDeepView(a, currentDateKey));
+    } else if (state.viewHorizon === 'epoch') {
         // Show only items in the active epoch
         allLeaves = allLeaves.filter(a => isItemInEpoch(a, state.epochFilter));
     } else if (state.viewHorizon === 'month') {
@@ -4563,11 +4573,14 @@ function getFilteredActions() {
     }
 
     // Exclude items with segment-level contexts — they belong to the timeline, not Actions.
-    // They only appear when their specific session is focused (handled above).
-    allLeaves = allLeaves.filter(a => {
-        const item = findItemById(a.id);
-        return !hasSegmentContext(item, currentDateKey);
-    });
+    // They only appear when their specific session is focused (handled above),
+    // OR when deep view is active (shows all lower layers).
+    if (!state.deepView) {
+        allLeaves = allLeaves.filter(a => {
+            const item = findItemById(a.id);
+            return !hasSegmentContext(item, currentDateKey);
+        });
+    }
 
     if (!state.selectedItemId) return allLeaves;
 
@@ -4579,6 +4592,168 @@ function getFilteredActions() {
     const descendantIds = collectDescendantIds(selectedItem);
 
     return allLeaves.filter(leaf => descendantIds.includes(leaf.id) && leaf.id !== selectedItem.id);
+}
+
+// ─── Deep View Helpers ───
+
+// Deep view: match items at the current horizon level AND all lower levels.
+// epoch → month, week, day, session
+// month → week, day, session
+// week → day, session
+// day → session (segments)
+function itemMatchesDeepView(action, currentDateKey) {
+    if (state.viewHorizon === 'epoch') {
+        if (isItemInEpoch(action, state.epochFilter)) return true;
+        return isItemInEpochRange(action, state.epochFilter);
+    }
+    if (state.viewHorizon === 'month') {
+        const monthKey = getMonthKey(state.timelineViewDate);
+        if (isItemInMonth(action, monthKey)) return true;
+        return isItemInMonthDays(action, state.timelineViewDate);
+    }
+    if (state.viewHorizon === 'week') {
+        const weekKey = getWeekKey(state.timelineViewDate);
+        if (isItemInWeek(action, weekKey)) return true;
+        return isItemInWeekDays(action, state.timelineViewDate);
+    }
+    // Day horizon: show day items + session-level items
+    if (itemMatchesTimeContext(action, currentDateKey)) return true;
+    const item = findItemById(action.id);
+    return hasSegmentContext(item, currentDateKey);
+}
+
+// Check if an item has a date/week context falling within the epoch's date range
+function isItemInEpochRange(action, epochName) {
+    const item = findItemById(action.id);
+    const tcs = (item && item.timeContexts) || [];
+    for (const tc of tcs) {
+        if (isWeekContext(tc)) {
+            if (isWeekInEpoch(tc, epochName)) return true;
+            continue;
+        }
+        if (isMonthContext(tc)) {
+            // Check if any part of the month overlaps the epoch range
+            const monthRange = getMonthDateRange(tc);
+            if (monthRange) {
+                const epochRange = getEpochWeekRange(epochName);
+                const monthStartWeek = getWeekKey(monthRange.start);
+                const monthEndWeek = getWeekKey(monthRange.end);
+                if ((!epochRange.startWeek || monthEndWeek >= epochRange.startWeek) &&
+                    (!epochRange.endWeek || monthStartWeek <= epochRange.endWeek)) return true;
+            }
+            continue;
+        }
+        const parsed = parseTimeContext(tc);
+        if (parsed && parsed.date) {
+            if (isDateInEpochRange(parsed.date, epochName)) return true;
+        }
+    }
+    return false;
+}
+
+// Check if a date string falls within an epoch's date range
+function isDateInEpochRange(dateKey, epochName) {
+    const epochRange = getEpochWeekRange(epochName);
+    // Convert week boundaries to date boundaries
+    if (epochRange.startWeek) {
+        const startRange = getWeekDateRange(epochRange.startWeek);
+        if (startRange && dateKey < getDateKey(startRange.start)) return false;
+    }
+    if (epochRange.endWeek) {
+        const endRange = getWeekDateRange(epochRange.endWeek);
+        if (endRange && dateKey > getDateKey(endRange.end)) return false;
+    }
+    return true;
+}
+
+// Check if an item has a day-level context for any day in the given week
+function isItemInWeekDays(action, viewDate) {
+    const item = findItemById(action.id);
+    const tcs = (item && item.timeContexts) || [];
+    const weekKey = getWeekKey(viewDate);
+    const range = getWeekDateRange(weekKey);
+    if (!range) return false;
+    const startKey = getDateKey(range.start);
+    const endKey = getDateKey(range.end);
+    for (const tc of tcs) {
+        const parsed = parseTimeContext(tc);
+        if (parsed && parsed.date && parsed.date >= startKey && parsed.date <= endKey) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// Check if an item has a day-level context for any day in the given month
+function isItemInMonthDays(action, viewDate) {
+    const item = findItemById(action.id);
+    const tcs = (item && item.timeContexts) || [];
+    const monthKey = getMonthKey(viewDate);
+    const range = getMonthDateRange(monthKey);
+    if (!range) return false;
+    const startKey = getDateKey(range.start);
+    const endKey = getDateKey(range.end);
+    for (const tc of tcs) {
+        // Week context within the month
+        if (isWeekContext(tc)) {
+            if (isWeekInMonth(tc, monthKey)) return true;
+            continue;
+        }
+        const parsed = parseTimeContext(tc);
+        if (parsed && parsed.date && parsed.date >= startKey && parsed.date <= endKey) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// Return a human-readable label for the item's most specific time context
+// relative to the current view. Only shown when deep view is active.
+function getDeepViewContextLabel(action) {
+    const item = findItemById(action.id);
+    if (!item || !item.timeContexts) return null;
+
+    for (const tc of item.timeContexts) {
+        const parsed = parseTimeContext(tc);
+
+        // Segment context (session level): "10:00–12:00"
+        if (parsed && parsed.segment) {
+            if (state.viewHorizon !== 'session') {
+                return `${parsed.segment.start}–${parsed.segment.end}`;
+            }
+            return null;
+        }
+
+        // Date context: show day name ("Mon", "Tue") — only when viewing above-day level
+        if (parsed && parsed.date && !parsed.segment && !parsed.entryId) {
+            if (state.viewHorizon !== 'day') {
+                const d = new Date(parsed.date + 'T12:00:00');
+                const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+                return days[d.getDay()];
+            }
+            return null;
+        }
+
+        // Week context: show "W07" etc — only when viewing epoch/month
+        if (isWeekContext(tc)) {
+            if (state.viewHorizon === 'epoch' || state.viewHorizon === 'month') {
+                return tc.substring(5); // e.g. "2026-02-10"
+            }
+            return null;
+        }
+
+        // Month context: show "Feb" etc — only when viewing epoch
+        if (isMonthContext(tc)) {
+            if (state.viewHorizon === 'epoch') {
+                const monthStr = tc.substring(6); // "2026-02"
+                const [y, m] = monthStr.split('-').map(Number);
+                const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                return months[m - 1];
+            }
+            return null;
+        }
+    }
+    return null; // Same level as current view — no badge needed
 }
 
 // ─── Multiselect Helpers ───
@@ -5043,8 +5218,16 @@ function createActionElement(action) {
         badgesRow.appendChild(estimateBadge);
     }
 
-    // Time context badges removed — the header layers now indicate the active
-    // time context, making per-item badges redundant.
+    // Deep view context badge — show the item's actual horizon level when deep view is on
+    if (state.deepView) {
+        const ctxLabel = getDeepViewContextLabel(action);
+        if (ctxLabel) {
+            const ctxBadge = document.createElement('span');
+            ctxBadge.className = 'action-context-badge';
+            ctxBadge.textContent = ctxLabel;
+            badgesRow.appendChild(ctxBadge);
+        }
+    }
 
     // Show goal progress badge (if this action or an ancestor has a goal)
     const goaledAncestor = findNearestGoal(action);
@@ -7628,6 +7811,281 @@ function renderWeekView(container) {
             }
         });
     }
+}
+
+// ── Month View: week cards with day pips ──
+function renderMonthView(container) {
+    const monthKey = getMonthKey(state.timelineViewDate);
+    const monthRange = getMonthDateRange(monthKey);
+    if (!monthRange) return;
+
+    const el = document.createElement('div');
+    el.className = 'month-view';
+
+    const ms = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const dayAbbrev = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+    const wsd = state.settings.weekStartDay ?? 0;
+    const today = getLogicalToday();
+    const todayKey = getDateKey(today);
+    const currentWeekKey = getWeekKey(today);
+    const hidePast = isPastHidden();
+    const allItems = collectAllItems(state.items.items).filter(it => !it.deleted && (!state.showDone ? !it.done : true));
+
+    // Helper: collect all items touching a week (week-level context, any day-level context within range, or session/entry-level context)
+    function getWeekAllItems(weekKey, weekStartDate, weekEndDate) {
+        const wkItems = [];
+        const seen = new Set();
+        for (const it of allItems) {
+            if (seen.has(it.id)) continue;
+            const tcs = it.timeContexts || [];
+            for (const tc of tcs) {
+                if (tc === weekKey) { seen.add(it.id); wkItems.push(it); break; }
+                // Day-level: "YYYY-MM-DD" or "YYYY-MM-DD@..."
+                const dayMatch = tc.match(/^(\d{4}-\d{2}-\d{2})/);
+                if (dayMatch) {
+                    const d = new Date(dayMatch[1] + 'T12:00:00');
+                    if (d >= weekStartDate && d <= weekEndDate) { seen.add(it.id); wkItems.push(it); break; }
+                }
+            }
+        }
+        return wkItems;
+    }
+
+    // Helper: aggregate total estimated minutes from contextDurations for contexts within a week range
+    function aggregateWeekDuration(items, weekStartDate, weekEndDate, weekKey) {
+        let totalMins = 0;
+        for (const it of items) {
+            const cd = it.contextDurations || {};
+            for (const [ctx, dur] of Object.entries(cd)) {
+                // Match if context is the week key itself
+                if (ctx === weekKey) { totalMins += dur; continue; }
+                // Match if context is a day within this week
+                const dayMatch = ctx.match(/^(\d{4}-\d{2}-\d{2})/);
+                if (dayMatch) {
+                    const d = new Date(dayMatch[1] + 'T12:00:00');
+                    if (d >= weekStartDate && d <= weekEndDate) { totalMins += dur; }
+                }
+            }
+        }
+        return totalMins;
+    }
+
+    // Compute available capacity per week: sum of each day's capacity
+    function weekCapacityMins(weekStartDate) {
+        let total = 0;
+        for (let d = 0; d < 7; d++) {
+            const dayDate = new Date(weekStartDate);
+            dayDate.setDate(weekStartDate.getDate() + d);
+            const times = getEffectiveDayTimes(dayDate);
+            const dayMins = (times.dayEndHour * 60 + times.dayEndMinute) - (times.dayStartHour * 60 + times.dayStartMinute);
+            if (dayMins > 0) total += dayMins;
+        }
+        return total;
+    }
+
+    // Enumerate weeks in this logical month
+    let weekStart = new Date(monthRange.start);
+    let weekNumber = 1;
+    while (weekStart <= monthRange.end) {
+        const weekEnd = new Date(weekStart);
+        weekEnd.setDate(weekStart.getDate() + 6);
+        const weekKey = getWeekKey(weekStart);
+
+        const isPast = weekEnd < today && weekKey !== currentWeekKey;
+        const isCurrent = weekKey === currentWeekKey;
+
+        // Past-filter: skip past weeks entirely when past is hidden
+        if (isPast && hidePast) {
+            weekStart = new Date(weekStart);
+            weekStart.setDate(weekStart.getDate() + 7);
+            weekNumber++;
+            continue;
+        }
+
+        // Collect all items touching this week (week-level + day-level)
+        const weekItems = getWeekAllItems(weekKey, weekStart, weekEnd);
+        const itemCount = weekItems.length;
+
+        // Aggregate durations for capacity bar
+        const totalEstMins = aggregateWeekDuration(weekItems, weekStart, weekEnd, weekKey);
+        const capMins = weekCapacityMins(weekStart);
+
+        // Group items by root ancestor for project summary
+        const projectGroups = {};
+        for (const item of weekItems) {
+            let root = item;
+            while (root.parent) {
+                const p = findItemById(root.parent);
+                if (!p) break;
+                root = p;
+            }
+            const rootName = root.name || 'Uncategorized';
+            if (!projectGroups[rootName]) projectGroups[rootName] = 0;
+            projectGroups[rootName]++;
+        }
+
+        // Format week header with week number
+        const startMonth = ms[weekStart.getMonth()];
+        const endMonth = ms[weekEnd.getMonth()];
+        const rangeLabel = startMonth === endMonth
+            ? `${startMonth} ${weekStart.getDate()}–${weekEnd.getDate()}`
+            : `${startMonth} ${weekStart.getDate()} – ${endMonth} ${weekEnd.getDate()}`;
+
+        const card = document.createElement('div');
+        card.className = 'month-week-card';
+        card.dataset.weekKey = weekKey;
+        if (isCurrent) card.classList.add('month-week-card-current');
+        if (isPast) card.classList.add('month-week-card-past');
+
+        // Header with week number
+        const header = document.createElement('div');
+        header.className = 'month-week-header';
+        header.innerHTML = `
+            <span class="month-week-range">Week ${weekNumber} · ${rangeLabel}</span>
+            ${isCurrent ? '<span class="month-week-now">This Week</span>' : ''}
+            <span class="month-week-count">${itemCount} item${itemCount !== 1 ? 's' : ''}</span>
+        `;
+        header.addEventListener('click', () => {
+            const range = getWeekDateRange(weekKey);
+            if (range) state.timelineViewDate = range.start;
+            clearFocusStack();
+            state.viewHorizon = 'week';
+            savePref('viewHorizon', 'week');
+            state._animateActions = true;
+            renderAll();
+        });
+        card.appendChild(header);
+
+        // Capacity / progress bar
+        if (totalEstMins > 0 || itemCount > 0) {
+            const capBar = document.createElement('div');
+            capBar.className = 'segment-capacity-bar month-week-progress';
+            const availMins = Math.max(1, capMins);
+            const fillPct = Math.min(100, (totalEstMins / availMins) * 100);
+            const isOver = totalEstMins > availMins;
+            const hrsLabel = totalEstMins >= 60
+                ? `${Math.floor(totalEstMins / 60)}h${totalEstMins % 60 ? totalEstMins % 60 + 'm' : ''}`
+                : `${totalEstMins}m`;
+            const availLabel = capMins >= 60
+                ? `${Math.floor(capMins / 60)}h`
+                : `${capMins}m`;
+            capBar.innerHTML = `
+                <span class="segment-capacity-label">${hrsLabel} / ${availLabel}</span>
+                <div class="segment-capacity-track"><div class="segment-capacity-fill${isOver ? ' over-capacity' : ''}" style="width:${fillPct}%"></div></div>
+            `;
+            card.appendChild(capBar);
+        }
+
+        // Day pip strip
+        const strip = document.createElement('div');
+        strip.className = 'month-day-strip';
+        for (let d = 0; d < 7; d++) {
+            const dayDate = new Date(weekStart);
+            dayDate.setDate(weekStart.getDate() + d);
+            const dayKey = getDateKey(dayDate);
+            const dow = dayDate.getDay();
+
+            // Count items on this specific day
+            const dayItems = allItems.filter(it => {
+                const tcs = it.timeContexts || [];
+                return tcs.some(tc => tc === dayKey || tc.startsWith(dayKey + '@'));
+            });
+
+            const pip = document.createElement('div');
+            pip.className = 'month-day-pip';
+            pip.title = `${dayAbbrev[dow]} ${ms[dayDate.getMonth()]} ${dayDate.getDate()} — ${dayItems.length} item${dayItems.length !== 1 ? 's' : ''}`;
+
+            if (dayKey === todayKey) pip.classList.add('month-day-pip-today');
+            if (dayDate < today && dayKey !== todayKey) pip.classList.add('month-day-pip-past');
+            if (dayItems.length > 0) {
+                pip.classList.add('month-day-pip-filled');
+                if (dayItems.length >= 7) pip.classList.add('month-day-pip-high');
+                else if (dayItems.length >= 4) pip.classList.add('month-day-pip-mid');
+            }
+
+            // Day abbreviation label
+            const label = document.createElement('span');
+            label.className = 'month-day-pip-label';
+            label.textContent = dayAbbrev[dow];
+            pip.appendChild(label);
+
+            // Click pip → day view
+            pip.addEventListener('click', (e) => {
+                e.stopPropagation();
+                state.timelineViewDate = new Date(dayDate);
+                clearFocusStack();
+                state.viewHorizon = 'day';
+                savePref('viewHorizon', 'day');
+                savePref('timelineViewDate', state.timelineViewDate.toISOString());
+                state._animateActions = true;
+                renderAll();
+            });
+
+            strip.appendChild(pip);
+        }
+        card.appendChild(strip);
+
+        // Project summary (inline, truncated to top 3 + "+N more")
+        if (Object.keys(projectGroups).length > 0) {
+            const projSummary = document.createElement('div');
+            projSummary.className = 'month-week-projects';
+            const sortedProjects = Object.entries(projectGroups).sort((a, b) => b[1] - a[1]);
+            const MAX_PROJECTS = 4;
+            const shown = sortedProjects.slice(0, MAX_PROJECTS);
+            const remaining = sortedProjects.length - shown.length;
+            let text = shown.map(([name, count]) => `${name} (${count})`).join(' · ');
+            if (remaining > 0) text += ` · +${remaining} more`;
+            projSummary.textContent = text;
+            card.appendChild(projSummary);
+        }
+
+        // DnD: week card as drop target
+        card.addEventListener('dragover', (e) => {
+            if (!window._draggedAction && !e.dataTransfer.types.includes('application/x-segment-item-id')) return;
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            card.classList.add('month-week-drag-over');
+        });
+        card.addEventListener('dragleave', () => {
+            card.classList.remove('month-week-drag-over');
+        });
+        card.addEventListener('drop', async (e) => {
+            e.preventDefault();
+            card.classList.remove('month-week-drag-over');
+            const targetWeekKey = weekKey;
+            // Segment queue item drag
+            if (e.dataTransfer.types.includes('application/x-segment-item-id')) {
+                const itemId = e.dataTransfer.getData('application/x-segment-item-id');
+                const segCtx = e.dataTransfer.getData('application/x-segment-context');
+                if (!itemId) return;
+                let segDur;
+                if (segCtx) {
+                    const item = findItemById(Number(itemId));
+                    if (item) {
+                        segDur = item.contextDurations?.[segCtx];
+                        if (item.timeContexts) item.timeContexts = item.timeContexts.filter(tc => tc !== segCtx);
+                        if (item.contextDurations) delete item.contextDurations[segCtx];
+                    }
+                }
+                await sendToWeek(parseInt(itemId, 10), targetWeekKey, segDur);
+                return;
+            }
+            // Regular action/project drag (multi-select aware)
+            const dragIds = getMultiDragIds(e);
+            for (const id of dragIds) { await sendToWeek(id, targetWeekKey); }
+            if (dragIds.length > 0) clearActionSelection();
+        });
+
+        el.appendChild(card);
+
+        // Advance to next week
+        weekStart = new Date(weekStart);
+        weekStart.setDate(weekStart.getDate() + 7);
+        weekNumber++;
+    }
+
+    container.appendChild(el);
+    updateDateNav();
 }
 
 function renderTimeline() {
@@ -11609,7 +12067,7 @@ function updateDateNav() {
         if (weekTodayBtn) weekTodayBtn.style.display = 'none';
     }
 
-    if (state.viewHorizon === 'epoch' || state.viewHorizon === 'session') {
+    if (state.viewHorizon === 'month' || state.viewHorizon === 'epoch' || state.viewHorizon === 'session') {
         // Non-day horizons: hide day-level Today button and picker
         if (todayBtn) todayBtn.style.display = 'none';
         if (pickerEl) pickerEl.style.display = 'none';
@@ -12438,6 +12896,9 @@ function showMissingDurationPopover(anchorEl) {
                 if (!itm.timeContexts) itm.timeContexts = [];
                 itm.timeContexts = itm.timeContexts.filter(tc => tc !== state.epochFilter);
                 await api.patch(`/items/${item.id}`, { timeContexts: itm.timeContexts });
+            } else if (state.viewHorizon === 'month') {
+                // Month → degrade to ongoing
+                await sendToOngoing(item.id);
             } else if (state.viewHorizon === 'week') {
                 // Week → degrade to ongoing
                 await sendToOngoing(item.id);
@@ -14553,6 +15014,19 @@ document.addEventListener('DOMContentLoaded', () => {
         renderAll();
     });
 
+    // Deep view toggle: show items from all layers at/below current horizon
+    const deepViewBtn = document.getElementById('deep-view-btn');
+    deepViewBtn.classList.toggle('active', state.deepView);
+    deepViewBtn.title = state.deepView ? 'Showing all layers' : 'Show all layers';
+    deepViewBtn.addEventListener('click', () => {
+        state.deepView = !state.deepView;
+        savePref('deepView', state.deepView);
+        deepViewBtn.classList.toggle('active', state.deepView);
+        deepViewBtn.title = state.deepView ? 'Showing all layers' : 'Show all layers';
+        state._animateActions = true;
+        renderAll();
+    });
+
     // Schedule filter 3-way toggle: scheduled → scheduled+unscheduled → all
     // State is restored in loadAll() from backend preferences
     const showUnschedBtn = document.getElementById('show-unscheduled-btn');
@@ -14569,6 +15043,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Date nav buttons — renderAll() so actions list updates with time context
     document.getElementById('date-nav-prev').addEventListener('click', () => {
+        if (state.viewHorizon === 'month') {
+            const d = state.timelineViewDate;
+            state.timelineViewDate = new Date(d.getFullYear(), d.getMonth() - 1, 1);
+            clearFocusStack();
+            savePref('timelineViewDate', state.timelineViewDate.toISOString());
+            animateNavTransition('right', () => { state._animateActions = true; renderAll(); });
+            return;
+        }
         const d = new Date(state.timelineViewDate);
         const step = state.viewHorizon === 'week' ? 7 : 1;
         d.setDate(d.getDate() - step);
@@ -14578,6 +15060,14 @@ document.addEventListener('DOMContentLoaded', () => {
         animateNavTransition('right', () => { state._animateActions = true; renderAll(); });
     });
     document.getElementById('date-nav-next').addEventListener('click', () => {
+        if (state.viewHorizon === 'month') {
+            const d = state.timelineViewDate;
+            state.timelineViewDate = new Date(d.getFullYear(), d.getMonth() + 1, 1);
+            clearFocusStack();
+            savePref('timelineViewDate', state.timelineViewDate.toISOString());
+            animateNavTransition('left', () => { state._animateActions = true; renderAll(); });
+            return;
+        }
         const d = new Date(state.timelineViewDate);
         const step = state.viewHorizon === 'week' ? 7 : 1;
         d.setDate(d.getDate() + step);
@@ -14796,6 +15286,78 @@ document.addEventListener('DOMContentLoaded', () => {
         // Multi-select aware
         const dragIds = getMultiDragIds(e);
         for (const id of dragIds) { await sendToEpoch(id, targetEpoch); }
+        if (dragIds.length > 0) clearActionSelection();
+    });
+
+    // Month layer: click to navigate to month view, prev/next month, DnD
+    const monthLayer = document.getElementById('horizon-month-layer');
+    monthLayer.addEventListener('click', (e) => {
+        if (e.target.closest('.month-nav-btn, .date-nav-today-btn')) return;
+        if (state.viewHorizon === 'month') return;
+        clearFocusStack();
+        state.viewHorizon = 'month';
+        savePref('viewHorizon', 'month');
+        state._animateActions = true;
+        renderAll();
+    });
+    document.getElementById('month-nav-prev').addEventListener('click', (e) => {
+        e.stopPropagation();
+        const d = state.timelineViewDate;
+        state.timelineViewDate = new Date(d.getFullYear(), d.getMonth() - 1, 1);
+        clearFocusStack();
+        savePref('timelineViewDate', state.timelineViewDate.toISOString());
+        animateNavTransition('right', () => { state._animateActions = true; renderAll(); });
+    });
+    document.getElementById('month-nav-next').addEventListener('click', (e) => {
+        e.stopPropagation();
+        const d = state.timelineViewDate;
+        state.timelineViewDate = new Date(d.getFullYear(), d.getMonth() + 1, 1);
+        clearFocusStack();
+        savePref('timelineViewDate', state.timelineViewDate.toISOString());
+        animateNavTransition('left', () => { state._animateActions = true; renderAll(); });
+    });
+    document.getElementById('month-nav-this-btn').addEventListener('click', (e) => {
+        e.stopPropagation();
+        state.timelineViewDate = getLogicalToday();
+        clearFocusStack();
+        savePref('timelineViewDate', state.timelineViewDate.toISOString());
+        state._animateActions = true;
+        renderAll();
+    });
+    // DnD on month layer — sends to current month context
+    monthLayer.addEventListener('dragover', (e) => {
+        if (!window._draggedAction && !e.dataTransfer.types.includes('application/x-segment-item-id')) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        monthLayer.classList.add('horizon-layer-drag-over');
+    });
+    monthLayer.addEventListener('dragleave', () => {
+        monthLayer.classList.remove('horizon-layer-drag-over');
+    });
+    monthLayer.addEventListener('drop', async (e) => {
+        e.preventDefault();
+        monthLayer.classList.remove('horizon-layer-drag-over');
+        const targetMonthKey = getMonthKey(state.timelineViewDate);
+        // Segment queue item drag
+        if (e.dataTransfer.types.includes('application/x-segment-item-id')) {
+            const itemId = e.dataTransfer.getData('application/x-segment-item-id');
+            const segCtx = e.dataTransfer.getData('application/x-segment-context');
+            if (!itemId) return;
+            let segDur;
+            if (segCtx) {
+                const item = findItemById(Number(itemId));
+                if (item) {
+                    segDur = item.contextDurations?.[segCtx];
+                    if (item.timeContexts) item.timeContexts = item.timeContexts.filter(tc => tc !== segCtx);
+                    if (item.contextDurations) delete item.contextDurations[segCtx];
+                }
+            }
+            await sendToMonth(parseInt(itemId, 10), targetMonthKey, segDur);
+            return;
+        }
+        // Regular action/project drag (multi-select aware)
+        const dragIds = getMultiDragIds(e);
+        for (const id of dragIds) { await sendToMonth(id, targetMonthKey); }
         if (dragIds.length > 0) clearActionSelection();
     });
 

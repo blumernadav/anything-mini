@@ -3052,7 +3052,24 @@
       "id": 379,
       "timestamp": 1771078839663,
       "manual": true
+    },
+    {
+      "text": "Done: sometimes we DO want to see everything under a time range with banners and not only explicit",
+      "projectName": "anything",
+      "type": "completion",
+      "id": 380,
+      "timestamp": 1771081984706
+    },
+    {
+      "text": "חזרה לג׳אז",
+      "projectName": "פרויקטי מוזיקה › ג׳אז בחצר",
+      "type": "planned",
+      "startTime": 1771171200000,
+      "endTime": 1771182000000,
+      "itemId": 447,
+      "id": 381,
+      "timestamp": 1771171200000
     }
   ],
-  "nextId": 380
+  "nextId": 382
 }

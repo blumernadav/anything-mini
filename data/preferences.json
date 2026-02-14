@@ -12,11 +12,11 @@
     "itemName": "month horizon",
     "projectName": "anything › core",
     "startTime": 1771078879533,
-    "targetEndTime": 1771082479527
+    "targetEndTime": 1771084159527
   },
-  "selectedItemId": 9,
+  "selectedItemId": "",
   "onBreak": null,
-  "timelineViewDate": "2026-02-14T14:59:37.417Z",
+  "timelineViewDate": "2026-02-14T15:22:41.144Z",
   "scheduleFilter": "scheduled+unscheduled",
   "collapsedGroups": [
     86,
@@ -32,18 +32,20 @@
     122,
     144,
     155,
-    319,
     62,
-    300,
-    423,
-    293,
     92,
     145,
     28,
-    137,
     167,
     303,
-    248
+    248,
+    423,
+    137,
+    293,
+    319,
+    300,
+    9,
+    17
   ],
   "viewHorizon": "day",
   "weekCollapsedDays": {
@@ -51,9 +53,9 @@
     "2026-02-09": true,
     "2026-02-10": true,
     "2026-02-11": true,
-    "2026-02-12": false,
-    "2026-02-13": false,
-    "2026-02-14": false,
+    "2026-02-12": true,
+    "2026-02-13": true,
+    "2026-02-14": true,
     "2026-04-15": false,
     "2026-03-15": true,
     "2026-03-16": true,
@@ -78,22 +80,9 @@
     ],
     "weekGroups_2026-02-14": []
   },
-  "focusStack": [
-    {
-      "startMs": 1771078879533,
-      "endMs": 1771082479527,
-      "label": "month horizon",
-      "type": "working",
-      "icon": "🔥",
-      "projectName": "anything › core",
-      "itemId": 349,
-      "targetEndTime": 1771082479527,
-      "liveType": "work",
-      "tier": "session"
-    }
-  ],
+  "focusStack": [],
   "projectTreeScrollTop": 0,
-  "darkMode": "light",
+  "darkMode": "dark",
   "skinFamily": "duolingo",
   "sessionIndex": 0,
   "epochFilter": "ongoing",
@@ -105,5 +94,6 @@
     297,
     314
   ],
-  "pastDisplayMode": "hide"
+  "pastDisplayMode": "hide",
+  "deepView": false
 }

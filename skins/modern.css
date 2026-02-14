@@ -1540,6 +1540,18 @@ body {
     }
 }
 
+/* ─── Deep View Context Badge ─── */
+.action-context-badge {
+    font-size: 10px;
+    padding: 1px 6px;
+    border-radius: 8px;
+    background: rgba(100, 149, 237, 0.12);
+    color: rgba(139, 172, 237, 0.85);
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.02em;
+}
+
 /* ─── Pressure Bar ─── */
 .pressure-bar {
     position: relative;
@@ -5612,6 +5624,192 @@ select.schedule-leadtime-input {
 
 .horizon-layer-session.horizon-layer-dim:hover {
     opacity: 0.8;
+}
+
+/* ── Month Horizon Layer ── */
+.month-nav-display {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-width: 0;
+    cursor: pointer;
+}
+
+.horizon-layer-month.horizon-layer-active {
+    justify-content: flex-start;
+}
+
+.horizon-layer-dim .month-nav-display {
+    flex: unset;
+    justify-content: center;
+    cursor: default;
+}
+
+.horizon-layer-active #month-nav-label {
+    color: var(--text);
+    font-weight: 500;
+    transition: color var(--dur) var(--ease);
+}
+
+#month-nav-next {
+    margin-left: auto;
+}
+
+/* ── Month View (week cards with day pips) ── */
+.month-view {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px;
+}
+
+.month-week-card {
+    display: flex;
+    flex-direction: column;
+    padding: 6px 10px;
+    border-radius: var(--radius-sm);
+    transition: background var(--dur) var(--ease), outline-color var(--dur) var(--ease);
+    background: var(--bg-surface);
+    border: 1px solid transparent;
+}
+
+.month-week-card:hover {
+    background: var(--bg-hover);
+}
+
+.month-week-card-current {
+    border-color: var(--accent);
+    background: rgba(96, 165, 250, 0.04);
+}
+
+.month-week-card-past {
+    opacity: 0.5;
+}
+
+.month-week-card-past:hover {
+    opacity: 0.8;
+}
+
+.month-week-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    padding-bottom: 6px;
+}
+
+.month-week-range {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.month-week-now {
+    font-size: 9px;
+    font-weight: 600;
+    color: var(--accent);
+    background: var(--accent-dim);
+    padding: 1px 6px;
+    border-radius: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.month-week-count {
+    font-size: 10px;
+    color: var(--text-faint);
+    margin-left: auto;
+}
+
+/* Day pip strip */
+.month-day-strip {
+    display: flex;
+    gap: 3px;
+}
+
+.month-day-pip {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 4px 2px;
+    border-radius: 4px;
+    background: var(--bg);
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: all var(--dur) var(--ease);
+    min-height: 28px;
+}
+
+.month-day-pip:hover {
+    border-color: var(--accent);
+    background: var(--accent-dim);
+}
+
+.month-day-pip-label {
+    font-size: 8px;
+    color: var(--text-faint);
+    font-weight: 500;
+    text-transform: uppercase;
+}
+
+.month-day-pip-filled {
+    background: rgba(96, 165, 250, 0.08);
+    border-color: rgba(96, 165, 250, 0.15);
+}
+
+.month-day-pip-filled.month-day-pip-mid {
+    background: rgba(96, 165, 250, 0.15);
+    border-color: rgba(96, 165, 250, 0.25);
+}
+
+.month-day-pip-filled.month-day-pip-high {
+    background: rgba(96, 165, 250, 0.22);
+    border-color: rgba(96, 165, 250, 0.35);
+}
+
+.month-day-pip-today {
+    border-color: var(--accent) !important;
+    background: var(--accent-dim) !important;
+    box-shadow: 0 0 0 1px var(--accent);
+}
+
+.month-day-pip-today .month-day-pip-label {
+    color: var(--accent);
+    font-weight: 700;
+}
+
+.month-day-pip-past {
+    opacity: 0.5;
+}
+
+.month-day-pip-past:hover {
+    opacity: 0.8;
+}
+
+/* Project summary */
+.month-week-projects {
+    font-size: 10px;
+    color: var(--text-faint);
+    padding-top: 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* DnD hover */
+.month-week-drag-over {
+    outline: 1px dashed var(--accent) !important;
+    background: var(--accent-dim) !important;
+    border-color: var(--accent) !important;
+}
+
+.month-week-progress {
+    margin-top: 4px;
+    margin-bottom: 4px;
 }
 
 /* ── Session Panel (Timeline replacement at session level) ── */
