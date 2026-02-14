@@ -4433,6 +4433,15 @@ function clearActionSelection() {
     refreshActionSelectionUI();
 }
 
+// Returns array of action IDs being dragged (multi-select aware)
+function getMultiDragIds(e) {
+    if (window._draggedActionIds && window._draggedActionIds.length > 0) {
+        return window._draggedActionIds.map(id => parseInt(id, 10));
+    }
+    const singleId = e.dataTransfer.getData('application/x-action-id');
+    return singleId ? [parseInt(singleId, 10)] : [];
+}
+
 // ── Bulk Action Bar ──
 function updateBulkActionBar() {
     const container = document.getElementById('actions-list');
@@ -4709,7 +4718,27 @@ function createActionElement(action) {
         item.addEventListener('dragstart', (e) => {
             e.dataTransfer.setData('application/x-action-id', String(action.id));
             e.dataTransfer.effectAllowed = 'copyMove';
-            item.classList.add('action-item-dragging');
+            // Multi-select: if this item is part of a selection ≥ 2, carry all selected IDs
+            const isMulti = state.selectedActionIds.has(actionIdStr) && state.selectedActionIds.size >= 2;
+            if (isMulti) {
+                window._draggedActionIds = [...state.selectedActionIds];
+                // Show count badge as drag image
+                const ghost = document.createElement('div');
+                ghost.className = 'multi-drag-ghost';
+                ghost.textContent = `${state.selectedActionIds.size} items`;
+                document.body.appendChild(ghost);
+                e.dataTransfer.setDragImage(ghost, 0, 0);
+                setTimeout(() => ghost.remove(), 0);
+                // Fade all selected items
+                document.querySelectorAll('.action-item').forEach(el => {
+                    if (state.selectedActionIds.has(String(el.dataset.id))) {
+                        el.classList.add('action-item-dragging');
+                    }
+                });
+            } else {
+                window._draggedActionIds = null;
+                item.classList.add('action-item-dragging');
+            }
             // Store action data for the timeline drop handler
             window._draggedAction = action;
             // Also set dragState so project tree drop targets accept this drag
@@ -4718,8 +4747,10 @@ function createActionElement(action) {
             document.body.classList.add('dragging-to-timeline');
         });
         item.addEventListener('dragend', () => {
-            item.classList.remove('action-item-dragging');
+            // Remove dragging class from all (handles both single and multi)
+            document.querySelectorAll('.action-item-dragging').forEach(el => el.classList.remove('action-item-dragging'));
             window._draggedAction = null;
+            window._draggedActionIds = null;
             // Clean up project tree drag state
             dragState.draggedId = null;
             dragState.dropTarget = null;
