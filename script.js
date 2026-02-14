@@ -279,6 +279,7 @@ function renderAll() {
 
     renderHorizonTower();
     updateContextLabels();
+    updateDateNav();
     // Defer heavy renders so the tower updates visually first
     requestAnimationFrame(() => {
         renderProjects();

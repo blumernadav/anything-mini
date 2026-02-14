@@ -16,7 +16,7 @@
   },
   "selectedItemId": "",
   "onBreak": null,
-  "timelineViewDate": "2026-02-13T12:45:34.937Z",
+  "timelineViewDate": "2026-02-14T12:48:22.254Z",
   "scheduleFilter": "scheduled+unscheduled",
   "collapsedGroups": [
     86,
@@ -46,7 +46,7 @@
     167,
     303
   ],
-  "viewHorizon": "session",
+  "viewHorizon": "day",
   "weekCollapsedDays": {
     "2026-02-08": true,
     "2026-02-09": true,
@@ -79,23 +79,11 @@
     ],
     "weekGroups_2026-02-14": []
   },
-  "focusStack": [
-    {
-      "startMs": 1771020000000,
-      "endMs": 1771027920000,
-      "label": "Free Time",
-      "type": "free",
-      "icon": "✨",
-      "tier": "session",
-      "segmentKey": "2026-02-13@00:00-02:12",
-      "entryId": null,
-      "itemId": null
-    }
-  ],
+  "focusStack": [],
   "projectTreeScrollTop": 0,
   "darkMode": "light",
   "skinFamily": "duolingo",
-  "sessionIndex": 9,
+  "sessionIndex": 2,
   "epochFilter": "ongoing",
   "ongoingPastWeeks": 0,
   "ongoingFutureWeeks": 2,
