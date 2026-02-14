@@ -2958,7 +2958,37 @@
       "id": 370,
       "timestamp": 1771072214905,
       "manual": true
+    },
+    {
+      "text": "Worked on: fix the 2 insert markers - one works one not (12m)",
+      "projectName": "anything › bugs",
+      "type": "work",
+      "startTime": 1771072548705,
+      "endTime": 1771073320254,
+      "targetEndTime": 1771073148705,
+      "itemId": 294,
+      "id": 371,
+      "timestamp": 1771072548705,
+      "manual": true
+    },
+    {
+      "text": "Done: fix the 2 insert markers - one works one not",
+      "projectName": "anything › bugs",
+      "type": "completion",
+      "id": 372,
+      "timestamp": 1771073327345
+    },
+    {
+      "text": "Worked on: anything (2m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1771073320254,
+      "endTime": 1771073468301,
+      "itemId": 9,
+      "id": 373,
+      "timestamp": 1771073320254,
+      "manual": true
     }
   ],
-  "nextId": 371
+  "nextId": 374
 }

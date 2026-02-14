@@ -7,16 +7,10 @@
     "right": 394
   },
   "hidePastEntries": true,
-  "workingOn": {
-    "itemId": 294,
-    "itemName": "fix the 2 insert markers - one works one not",
-    "projectName": "anything › bugs",
-    "startTime": 1771072548705,
-    "targetEndTime": 1771073148705
-  },
+  "workingOn": null,
   "selectedItemId": "",
   "onBreak": null,
-  "timelineViewDate": "2026-02-14T12:48:22.254Z",
+  "timelineViewDate": "2026-02-14T12:51:07.293Z",
   "scheduleFilter": "scheduled+unscheduled",
   "collapsedGroups": [
     86,
@@ -39,14 +33,12 @@
     293,
     92,
     145,
-    17,
-    248,
     28,
     137,
     167,
     303
   ],
-  "viewHorizon": "day",
+  "viewHorizon": "session",
   "weekCollapsedDays": {
     "2026-02-08": true,
     "2026-02-09": true,
@@ -79,11 +71,23 @@
     ],
     "weekGroups_2026-02-14": []
   },
-  "focusStack": [],
+  "focusStack": [
+    {
+      "startMs": 1771063200000,
+      "endMs": 1771108200000,
+      "label": "Free Time",
+      "type": "free",
+      "icon": "✨",
+      "tier": "session",
+      "segmentKey": "2026-02-14@12:00-00:30",
+      "entryId": null,
+      "itemId": null
+    }
+  ],
   "projectTreeScrollTop": 0,
   "darkMode": "light",
   "skinFamily": "duolingo",
-  "sessionIndex": 2,
+  "sessionIndex": 0,
   "epochFilter": "ongoing",
   "ongoingPastWeeks": 0,
   "ongoingFutureWeeks": 2,

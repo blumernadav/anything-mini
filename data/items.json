@@ -142,7 +142,9 @@
           "createdAt": 1770736677309,
           "done": false,
           "timeContexts": [
-            "ongoing"
+            "ongoing",
+            "2026-02-14",
+            "2026-02-14@12:00-00:30"
           ],
           "contextDurations": {
             "2026-02-12": 15
@@ -441,7 +443,8 @@
           "done": false,
           "timeContexts": [
             "ongoing"
-          ]
+          ],
+          "contextDurations": {}
         },
         {
           "id": 397,
@@ -762,9 +765,7 @@
                 "2026-02-14",
                 "2026-02-14@12:00-00:30"
               ],
-              "contextDurations": {
-                "2026-02-14@13:09-00:30": 60
-              }
+              "contextDurations": {}
             },
             {
               "id": 363,
@@ -2048,7 +2049,7 @@
               "children": [],
               "expanded": false,
               "createdAt": 1770811440975,
-              "done": false,
+              "done": true,
               "timeContexts": [
                 "2026-02-14@13:52-00:30"
               ],
@@ -4296,5 +4297,5 @@
       ]
     }
   ],
-  "nextId": 433
+  "nextId": 439
 }

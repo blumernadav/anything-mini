@@ -2068,6 +2068,7 @@ function navigateSession(direction) {
     savePref('sessionIndex', state.sessionIndex);
     const activeSegments = buildPlanSegments();
     _syncSessionToFocusStack(activeSegments[state.sessionIndex]);
+    state._animateActions = true;
     renderAll();
 }
 
@@ -3832,6 +3833,7 @@ function renderProjectLevel(items, parent, depth, query = '', matchingIds = new 
             if (row.querySelector('.rename-inline-input')) return;
             state.selectedItemId = state.selectedItemId === item.id ? null : item.id;
             savePref('selectedItemId', state.selectedItemId || '');
+            state._animateActions = true;
             renderAll();
         });
 
@@ -4282,9 +4284,9 @@ function renderActions(opts) {
     container.appendChild(fragment);
 
     // ── Staggered fade-in animation ──
-    const shouldSkipAnimation = (opts && opts.collapseOnly) || state._skipActionsAnimation;
-    state._skipActionsAnimation = false;
-    if (!shouldSkipAnimation) {
+    const shouldAnimate = (state._animateActions || (opts && opts.expandedGroupId)) && !(opts && opts.collapseOnly);
+    state._animateActions = false;
+    if (shouldAnimate) {
         const expandedGroup = opts && opts.expandedGroupId;
         let animTargets;
         if (expandedGroup) {
@@ -5814,18 +5816,30 @@ function renderHorizonTower() {
             if (sessionLabel) sessionLabel.textContent = seg.label;
         }
 
+        const sessionPrevBtn = document.getElementById('session-nav-prev');
+        const sessionNextBtn = document.getElementById('session-nav-next');
+        const sessionNowBtn = document.getElementById('session-nav-now-btn');
+
         if (currentLevel === 'session') {
             // Show nav buttons
-            const prevBtn = document.getElementById('session-nav-prev');
-            const nextBtn = document.getElementById('session-nav-next');
-            if (prevBtn) prevBtn.style.display = '';
-            if (nextBtn) nextBtn.style.display = '';
+            if (sessionPrevBtn) sessionPrevBtn.style.display = '';
+            if (sessionNextBtn) sessionNextBtn.style.display = '';
+
+            // Show 'Now' button if not viewing the current session on today
+            if (sessionNowBtn) {
+                const todayKey = getDateKey(getLogicalToday());
+                const viewKey = getDateKey(state.timelineViewDate);
+                const isToday = viewKey === todayKey;
+                const todaySegments = isToday ? segments : buildPlanSegments(getLogicalToday());
+                const currentIdx = getCurrentSessionIndex(todaySegments);
+                const isOnCurrentSession = isToday && state.sessionIndex === currentIdx;
+                sessionNowBtn.style.display = isOnCurrentSession ? 'none' : '';
+            }
         } else {
-            // Dim mode: hide nav buttons
-            const prevBtn = document.getElementById('session-nav-prev');
-            const nextBtn = document.getElementById('session-nav-next');
-            if (prevBtn) prevBtn.style.display = 'none';
-            if (nextBtn) nextBtn.style.display = 'none';
+            // Dim mode: hide nav buttons and Now button
+            if (sessionPrevBtn) sessionPrevBtn.style.display = 'none';
+            if (sessionNextBtn) sessionNextBtn.style.display = 'none';
+            if (sessionNowBtn) sessionNowBtn.style.display = 'none';
         }
     }
 }
@@ -11441,6 +11455,26 @@ function updateDateNav() {
     const dateEl = document.getElementById('date-nav-date');
     const todayBtn = document.getElementById('date-nav-today-btn');
     const pickerEl = document.getElementById('date-nav-picker');
+    const weekTodayBtn = document.getElementById('week-nav-today-btn');
+
+    // Hide 'This Week' unless we're in week horizon
+    if (state.viewHorizon !== 'week') {
+        if (weekTodayBtn) weekTodayBtn.style.display = 'none';
+    }
+
+    if (state.viewHorizon === 'epoch' || state.viewHorizon === 'session') {
+        // Non-day horizons: hide day-level Today button and picker
+        if (todayBtn) todayBtn.style.display = 'none';
+        if (pickerEl) pickerEl.style.display = 'none';
+        // Still update the date text so it shows current date when dimmed
+        const options = { weekday: 'short', month: 'short', day: 'numeric' };
+        let dateText = viewDate.toLocaleDateString('en-US', options);
+        if (viewDate.getFullYear() !== now.getFullYear()) {
+            dateText += `, ${viewDate.getFullYear()}`;
+        }
+        if (dateEl) dateEl.textContent = dateText;
+        return;
+    }
 
     if (state.viewHorizon === 'week') {
         // Week mode: show week range
@@ -11471,7 +11505,6 @@ function updateDateNav() {
         }
         // Update This Week button visibility
         const currentWeek = getWeekKey(getLogicalToday());
-        const weekTodayBtn = document.getElementById('week-nav-today-btn');
         if (weekTodayBtn) {
             weekTodayBtn.style.display = weekKey === currentWeek ? 'none' : '';
         }
@@ -11501,6 +11534,7 @@ function updateDateNav() {
         todayBtn.textContent = 'Today';
     }
     if (pickerEl) {
+        pickerEl.style.display = '';
         const y = viewDate.getFullYear();
         const m = String(viewDate.getMonth() + 1).padStart(2, '0');
         const d = String(viewDate.getDate()).padStart(2, '0');
@@ -12546,7 +12580,6 @@ async function startWorking(itemId, itemName, projectName, targetEndTime) {
         targetEndTime: targetEndTime || null,
     };
     savePref('workingOn', state.workingOn);
-    state._skipActionsAnimation = true;
     renderAll();
 }
 
@@ -12577,7 +12610,6 @@ async function stopWorking() {
     // Clear working state
     state.workingOn = null;
     savePref('workingOn', null);
-    state._skipActionsAnimation = true;
     renderAll();
 }
 
@@ -12624,7 +12656,6 @@ async function stopBreak() {
     // Clear break state
     state.onBreak = null;
     savePref('onBreak', null);
-    state._skipActionsAnimation = true;
     renderAll();
 }
 
@@ -14371,6 +14402,7 @@ document.addEventListener('DOMContentLoaded', () => {
         savePref('showDone', state.showDone);
         hideDoneBtn.classList.toggle('active', state.showDone);
         hideDoneBtn.title = state.showDone ? 'Hide done' : 'Show done';
+        state._animateActions = true;
         renderAll();
     });
 
@@ -14395,7 +14427,7 @@ document.addEventListener('DOMContentLoaded', () => {
         state.timelineViewDate = d;
         clearFocusStack();
         savePref('timelineViewDate', d.toISOString());
-        animateNavTransition('right', () => renderAll());
+        animateNavTransition('right', () => { state._animateActions = true; renderAll(); });
     });
     document.getElementById('date-nav-next').addEventListener('click', () => {
         const d = new Date(state.timelineViewDate);
@@ -14404,7 +14436,7 @@ document.addEventListener('DOMContentLoaded', () => {
         state.timelineViewDate = d;
         clearFocusStack();
         savePref('timelineViewDate', d.toISOString());
-        animateNavTransition('left', () => renderAll());
+        animateNavTransition('left', () => { state._animateActions = true; renderAll(); });
     });
     // Click on date text to open native date picker
     const dateNavPicker = document.getElementById('date-nav-picker');
@@ -14572,6 +14604,7 @@ document.addEventListener('DOMContentLoaded', () => {
         clearFocusStack();
         state.viewHorizon = 'epoch';
         savePref('viewHorizon', 'epoch');
+        state._animateActions = true;
         renderAll();
     });
 
@@ -14626,6 +14659,7 @@ document.addEventListener('DOMContentLoaded', () => {
         clearFocusStack();
         state.viewHorizon = 'week';
         savePref('viewHorizon', 'week');
+        state._animateActions = true;
         renderAll();
     });
     // Week nav arrow buttons
@@ -14635,7 +14669,7 @@ document.addEventListener('DOMContentLoaded', () => {
         clearFocusStack();
         savePref('timelineViewDate', state.timelineViewDate.toISOString());
         _updateWeekNavLabel();
-        animateNavTransition('right', () => renderAll());
+        animateNavTransition('right', () => { state._animateActions = true; renderAll(); });
     });
     document.getElementById('week-nav-next').addEventListener('click', (e) => {
         e.stopPropagation();
@@ -14643,7 +14677,7 @@ document.addEventListener('DOMContentLoaded', () => {
         clearFocusStack();
         savePref('timelineViewDate', state.timelineViewDate.toISOString());
         _updateWeekNavLabel();
-        animateNavTransition('left', () => renderAll());
+        animateNavTransition('left', () => { state._animateActions = true; renderAll(); });
     });
     // Week label click -> open date picker
     const weekNavPicker = document.getElementById('week-nav-picker');
@@ -14721,6 +14755,7 @@ document.addEventListener('DOMContentLoaded', () => {
             state.viewHorizon = 'day';
             savePref('viewHorizon', 'day');
             clearFocusStack();
+            state._animateActions = true;
             renderAll();
             return;
         }
@@ -14728,6 +14763,7 @@ document.addEventListener('DOMContentLoaded', () => {
         clearFocusStack();
         state.viewHorizon = 'day';
         savePref('viewHorizon', 'day');
+        state._animateActions = true;
         renderAll();
     });
     dayLayer.addEventListener('dragover', (e) => {
@@ -14775,7 +14811,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const sessionLayer = document.getElementById('horizon-session-layer');
     if (sessionLayer) {
         sessionLayer.addEventListener('click', (e) => {
-            if (e.target.closest('.session-nav-btn')) return;
+            if (e.target.closest('.session-nav-btn, .date-nav-today-btn')) return;
             if (state.viewHorizon === 'session') return; // already active
             // Enter session horizon — auto-select current segment
             const segments = buildPlanSegments();
@@ -14784,6 +14820,7 @@ document.addEventListener('DOMContentLoaded', () => {
             savePref('viewHorizon', 'session');
             savePref('sessionIndex', state.sessionIndex);
             _syncSessionToFocusStack(segments[state.sessionIndex]);
+            state._animateActions = true;
             renderAll();
         });
         document.getElementById('session-nav-prev').addEventListener('click', (e) => {
@@ -14793,6 +14830,17 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('session-nav-next').addEventListener('click', (e) => {
             e.stopPropagation();
             navigateSession(+1);
+        });
+        document.getElementById('session-nav-now-btn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            // Jump to today's current session
+            state.timelineViewDate = getLogicalToday();
+            savePref('timelineViewDate', state.timelineViewDate.toISOString());
+            const segments = buildPlanSegments();
+            state.sessionIndex = getCurrentSessionIndex(segments);
+            savePref('sessionIndex', state.sessionIndex);
+            _syncSessionToFocusStack(segments[state.sessionIndex]);
+            renderAll();
         });
         sessionLayer.addEventListener('dragover', (e) => {
             if (!window._draggedAction && !e.dataTransfer.types.includes('application/x-segment-item-id')) return;
