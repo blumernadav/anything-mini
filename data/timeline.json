@@ -3304,7 +3304,278 @@
       "targetEndTime": 1771105352229,
       "id": 405,
       "timestamp": 1771104452230
+    },
+    {
+      "text": "Worked on: anything (43m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1771106070770,
+      "endTime": 1771108680137,
+      "itemId": 9,
+      "id": 406,
+      "timestamp": 1771106070770,
+      "manual": true
+    },
+    {
+      "text": "Worked on: anything (0m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1771108689512,
+      "endTime": 1771108707787,
+      "itemId": 9,
+      "id": 407,
+      "timestamp": 1771108689512,
+      "manual": true
+    },
+    {
+      "text": "Worked on: live logging (1m)",
+      "projectName": "anything › core",
+      "type": "work",
+      "startTime": 1771108760352,
+      "endTime": 1771108825686,
+      "targetEndTime": 1771109660352,
+      "itemId": 417,
+      "id": 408,
+      "timestamp": 1771108760352,
+      "manual": true
+    },
+    {
+      "text": "Worked on: live logging (9m)",
+      "projectName": "anything › core",
+      "type": "work",
+      "startTime": 1771108834844,
+      "endTime": 1771109424543,
+      "itemId": 417,
+      "id": 409,
+      "timestamp": 1771108834844,
+      "manual": true
+    },
+    {
+      "text": "Worked on: live logging (4m)",
+      "projectName": "anything › core",
+      "type": "work",
+      "startTime": 1771109444480,
+      "endTime": 1771109704785,
+      "itemId": 417,
+      "id": 410,
+      "timestamp": 1771109444480,
+      "manual": true
+    },
+    {
+      "text": "Worked on: live logging (3m)",
+      "projectName": "anything › core",
+      "type": "work",
+      "startTime": 1771109744826,
+      "endTime": 1771109955699,
+      "targetEndTime": 1771112444826,
+      "itemId": 417,
+      "id": 411,
+      "timestamp": 1771109744826,
+      "manual": true
+    },
+    {
+      "text": "Break (0m)",
+      "type": "break",
+      "startTime": 1771109964316,
+      "endTime": 1771110010374,
+      "targetEndTime": 1771110564315,
+      "id": 412,
+      "timestamp": 1771109964316
+    },
+    {
+      "text": "Worked on: live logging (15m)",
+      "projectName": "anything › core",
+      "type": "work",
+      "startTime": 1771110062858,
+      "endTime": 1771110971754,
+      "itemId": 417,
+      "id": 413,
+      "timestamp": 1771110062858,
+      "manual": true
+    },
+    {
+      "text": "Worked on: live logs vs plans - under which to put intentions? (0m)",
+      "projectName": "anything",
+      "type": "work",
+      "startTime": 1771110971786,
+      "endTime": 1771110991571,
+      "itemId": 412,
+      "id": 414,
+      "timestamp": 1771110971786,
+      "manual": true
+    },
+    {
+      "text": "Worked on: what appears under live work / break / idle? what's planned or is it its own time context? (0m)",
+      "projectName": "anything",
+      "type": "work",
+      "startTime": 1771110991610,
+      "endTime": 1771111038984,
+      "itemId": 390,
+      "id": 415,
+      "timestamp": 1771110991610,
+      "manual": true
+    },
+    {
+      "text": "Worked on: live logs vs plans - under which to put intentions? (0m)",
+      "projectName": "anything",
+      "type": "work",
+      "startTime": 1771111047327,
+      "endTime": 1771111099950,
+      "itemId": 412,
+      "id": 416,
+      "timestamp": 1771111047327,
+      "manual": true
+    },
+    {
+      "text": "Worked on: deploy and restart (5m)",
+      "projectName": "kolwrite › fix burn captions",
+      "type": "work",
+      "startTime": 1771111218180,
+      "endTime": 1771111519882,
+      "targetEndTime": 1771111518180,
+      "itemId": 471,
+      "id": 417,
+      "timestamp": 1771111218180,
+      "manual": true
+    },
+    {
+      "text": "Done: test burn captions fixes including cancel",
+      "projectName": "kolwrite",
+      "type": "completion",
+      "id": 418,
+      "timestamp": 1771111579453
+    },
+    {
+      "text": "Done: deploy and restart",
+      "projectName": "kolwrite › fix burn captions",
+      "type": "completion",
+      "id": 420,
+      "timestamp": 1771111636743
+    },
+    {
+      "text": "Break (17m)",
+      "type": "break",
+      "startTime": 1771111758462,
+      "endTime": 1771112785327,
+      "targetEndTime": 1771112658461,
+      "id": 421,
+      "timestamp": 1771111758462
+    },
+    {
+      "text": "Worked on: session layer nav bug for cross date sessions (4m)",
+      "projectName": "anything › bugs",
+      "type": "work",
+      "startTime": 1771113157717,
+      "endTime": 1771113436703,
+      "itemId": 474,
+      "id": 422,
+      "timestamp": 1771113157717,
+      "manual": true
+    },
+    {
+      "text": "Done: session layer nav bug for cross date sessions",
+      "projectName": "anything › bugs",
+      "type": "completion",
+      "id": 423,
+      "timestamp": 1771113487903
+    },
+    {
+      "text": "Done: week horizon",
+      "projectName": "anything › core",
+      "type": "completion",
+      "id": 424,
+      "timestamp": 1771113600338
+    },
+    {
+      "text": "Done: tes",
+      "projectName": "anything › core",
+      "type": "completion",
+      "id": 425,
+      "timestamp": 1771113658192
+    },
+    {
+      "text": "Done: tes",
+      "projectName": "anything › core",
+      "type": "completion",
+      "id": 426,
+      "timestamp": 1771113749637
+    },
+    {
+      "text": "Done: tes",
+      "projectName": "anything › core",
+      "type": "completion",
+      "id": 427,
+      "timestamp": 1771113770931
+    },
+    {
+      "text": "Done: resolve helper",
+      "projectName": "anything › core",
+      "type": "completion",
+      "id": 428,
+      "timestamp": 1771113828162
+    },
+    {
+      "text": "Done: fix divergence rendering",
+      "projectName": "anything › core",
+      "type": "completion",
+      "id": 429,
+      "timestamp": 1771113834636
+    },
+    {
+      "text": "Done: test",
+      "projectName": "anything › core › tes",
+      "type": "completion",
+      "id": 430,
+      "timestamp": 1771113879534
+    },
+    {
+      "text": "Done: past and collisions",
+      "projectName": "anything › core",
+      "type": "completion",
+      "id": 431,
+      "timestamp": 1771113923302
+    },
+    {
+      "text": "Worked on: core (7m)",
+      "projectName": "anything",
+      "type": "work",
+      "startTime": 1771113641576,
+      "endTime": 1771114085865,
+      "itemId": 365,
+      "id": 432,
+      "timestamp": 1771113641576,
+      "manual": true
+    },
+    {
+      "text": "Worked on: anything (1m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1771142859812,
+      "endTime": 1771142949388,
+      "targetEndTime": 1771146459803,
+      "itemId": 9,
+      "id": 433,
+      "timestamp": 1771142859812,
+      "manual": true
+    },
+    {
+      "text": "Worked on: idea - see in actions \"how much out of how much is scheduled\" (esp. for week/month but also day) (44m)",
+      "projectName": "anything",
+      "type": "work",
+      "startTime": 1771142949418,
+      "endTime": 1771145622570,
+      "itemId": 397,
+      "id": 434,
+      "timestamp": 1771142949418,
+      "manual": true
+    },
+    {
+      "text": "Done: idea - see in actions \"how much out of how much is scheduled\" (esp. for week/month but also day)",
+      "projectName": "anything › core › top level planning",
+      "type": "completion",
+      "id": 435,
+      "timestamp": 1771145625280
     }
   ],
-  "nextId": 406
+  "nextId": 436
 }

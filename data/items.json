@@ -12,8 +12,11 @@
           "createdAt": 1771102657815,
           "done": false,
           "timeContexts": [
-            "2026-02-15"
-          ]
+            "2026-02-15@09:00-13:00"
+          ],
+          "contextDurations": {
+            "2026-02-15@09:00-13:00": 5
+          }
         },
         {
           "id": 457,
@@ -118,6 +121,20 @@
       ]
     },
     {
+      "id": 475,
+      "name": "לתכנן את השבוע",
+      "children": [],
+      "expanded": false,
+      "createdAt": 1771111945370,
+      "done": false,
+      "timeContexts": [
+        "2026-02-15@08:30-13:00"
+      ],
+      "contextDurations": {
+        "2026-02-15@08:30-13:00": 25
+      }
+    },
+    {
       "id": 293,
       "name": "למצוא חברה",
       "children": [
@@ -129,11 +146,11 @@
           "createdAt": 1770951370710,
           "done": false,
           "timeContexts": [
-            "2026-02-14@19:07-00:30"
+            "week:2026-02-15"
           ],
           "contextLeadTimes": {},
           "contextDurations": {
-            "2026-02-14@19:07-00:30": 15
+            "2026-02-14": 15
           }
         }
       ],
@@ -196,12 +213,9 @@
           "createdAt": 1770812039041,
           "done": true,
           "timeContexts": [
-            "2026-02-14",
-            "2026-02-14@12:00-00:30"
+            "week:2026-02-15"
           ],
-          "contextDurations": {
-            "2026-02-14@12:00-00:30": 60
-          }
+          "contextDurations": {}
         },
         {
           "id": 272,
@@ -258,7 +272,7 @@
           }
         }
       ],
-      "expanded": true,
+      "expanded": false,
       "createdAt": 1770773753107,
       "done": false,
       "timeContexts": [
@@ -281,10 +295,10 @@
               "createdAt": 1770730496059,
               "done": false,
               "timeContexts": [
-                "2026-02-14"
+                "2026-02-15"
               ],
               "contextDurations": {
-                "2026-02-14": 30
+                "2026-02-15": 30
               }
             }
           ],
@@ -367,7 +381,9 @@
               "expanded": false,
               "createdAt": 1771067299908,
               "done": false,
-              "timeContexts": [],
+              "timeContexts": [
+                "ongoing"
+              ],
               "contextDurations": {}
             }
           ],
@@ -438,10 +454,10 @@
           "createdAt": 1770609710103,
           "done": false,
           "timeContexts": [
-            "2026-02-14"
+            "2026-02-15"
           ],
           "contextDurations": {
-            "2026-02-14": 15
+            "2026-02-15": 15
           }
         },
         {
@@ -452,10 +468,10 @@
           "createdAt": 1770808570871,
           "done": false,
           "timeContexts": [
-            "2026-02-14"
+            "2026-02-15"
           ],
           "contextDurations": {
-            "2026-02-14": 5
+            "2026-02-15": 5
           }
         },
         {
@@ -473,7 +489,7 @@
           }
         }
       ],
-      "expanded": true,
+      "expanded": false,
       "createdAt": 1770609703744,
       "done": false,
       "timeContexts": [
@@ -492,11 +508,10 @@
           "createdAt": 1771092520191,
           "done": false,
           "timeContexts": [
-            "2026-02-14",
-            "2026-02-14@12:00-00:30"
+            "2026-02-15@13:30-18:00"
           ],
           "contextDurations": {
-            "2026-02-14@12:00-00:30": 60
+            "2026-02-15@13:30-18:00": 60
           }
         },
         {
@@ -507,11 +522,10 @@
           "createdAt": 1771092514309,
           "done": false,
           "timeContexts": [
-            "2026-02-14",
-            "2026-02-14@12:00-00:30"
+            "2026-02-15@13:30-18:00"
           ],
           "contextDurations": {
-            "2026-02-14@12:00-00:30": 60
+            "2026-02-15@13:30-18:00": 90
           }
         },
         {
@@ -527,14 +541,14 @@
           ]
         }
       ],
-      "expanded": true,
+      "expanded": false,
       "createdAt": 1770648790566,
       "done": false,
       "timeContexts": [
-        "2026-02-14@19:07-00:30"
+        "2026-02-15"
       ],
       "contextDurations": {
-        "2026-02-14@19:07-00:30": 60
+        "2026-02-15": 180
       }
     },
     {
@@ -603,6 +617,127 @@
           "id": 365,
           "name": "core",
           "children": [
+            {
+              "id": 460,
+              "name": "top level planning",
+              "children": [
+                {
+                  "id": 483,
+                  "name": "fix d&d between contexts (move vs copy)",
+                  "children": [],
+                  "expanded": false,
+                  "createdAt": 1771145639768,
+                  "done": false,
+                  "timeContexts": [
+                    "ongoing",
+                    "2026-02-15",
+                    "2026-02-15@10:00-13:00"
+                  ],
+                  "contextDurations": {
+                    "2026-02-15@10:00-13:00": 60
+                  }
+                },
+                {
+                  "id": 482,
+                  "name": "make all capacity bars 3 color? after trying this",
+                  "children": [],
+                  "expanded": false,
+                  "createdAt": 1771144333722,
+                  "done": false,
+                  "timeContexts": [
+                    "ongoing"
+                  ]
+                },
+                {
+                  "id": 374,
+                  "name": "prep time should be occupied time",
+                  "children": [],
+                  "expanded": false,
+                  "createdAt": 1770943488414,
+                  "done": false,
+                  "timeContexts": [
+                    "ongoing"
+                  ],
+                  "contextDurations": {
+                    "ongoing": 30
+                  }
+                },
+                {
+                  "id": 386,
+                  "name": "differentiate focus sessions from appointments",
+                  "children": [
+                    {
+                      "id": 388,
+                      "name": "maybe focus sessions are sliding window (\"package\" intention)",
+                      "children": [],
+                      "expanded": false,
+                      "createdAt": 1770973172517,
+                      "done": false,
+                      "timeContexts": [
+                        "ongoing"
+                      ],
+                      "contextDurations": {
+                        "ongoing": 30
+                      }
+                    }
+                  ],
+                  "expanded": false,
+                  "createdAt": 1770972497996,
+                  "done": false,
+                  "timeContexts": [
+                    "ongoing"
+                  ],
+                  "contextDurations": {
+                    "ongoing": 60
+                  }
+                },
+                {
+                  "id": 461,
+                  "name": "whole day plans",
+                  "children": [],
+                  "expanded": false,
+                  "createdAt": 1771089270215,
+                  "done": false,
+                  "timeContexts": [
+                    "ongoing"
+                  ],
+                  "contextDurations": {
+                    "ongoing": 25
+                  }
+                },
+                {
+                  "id": 397,
+                  "name": "idea - see in actions \"how much out of how much is scheduled\" (esp. for week/month but also day)",
+                  "children": [],
+                  "expanded": false,
+                  "createdAt": 1770981831207,
+                  "done": true,
+                  "timeContexts": [
+                    "ongoing"
+                  ],
+                  "contextDurations": {
+                    "ongoing": 120
+                  }
+                },
+                {
+                  "id": 484,
+                  "name": "deadlines and lead time - quantify in hours",
+                  "children": [],
+                  "expanded": false,
+                  "createdAt": 1771147140340,
+                  "done": false,
+                  "timeContexts": [
+                    "ongoing"
+                  ]
+                }
+              ],
+              "expanded": true,
+              "createdAt": 1771089143334,
+              "done": false,
+              "timeContexts": [
+                "ongoing"
+              ]
+            },
             {
               "id": 416,
               "name": "showing past logs",
@@ -743,13 +878,13 @@
                 },
                 {
                   "id": 412,
-                  "name": "live logs vs plans - under which to put intentions?",
+                  "name": "live logging queues (brilly mode)",
                   "children": [],
                   "expanded": false,
                   "createdAt": 1770998637870,
                   "done": false,
                   "timeContexts": [
-                    "ongoing"
+                    "2026-02-15"
                   ],
                   "contextDurations": {}
                 },
@@ -793,12 +928,13 @@
                   }
                 }
               ],
-              "expanded": true,
+              "expanded": false,
               "createdAt": 1771026926358,
               "done": false,
               "timeContexts": [
                 "ongoing"
-              ]
+              ],
+              "contextDurations": {}
             },
             {
               "id": 393,
@@ -822,94 +958,9 @@
               "createdAt": 1770913093639,
               "done": true,
               "timeContexts": [
-                "2026-02-14@17:49-00:30"
+                "week:2026-02-15"
               ],
-              "contextDurations": {
-                "2026-02-14@17:49-00:30": 45
-              }
-            },
-            {
-              "id": 460,
-              "name": "top level planning",
-              "children": [
-                {
-                  "id": 374,
-                  "name": "prep time should be occupied time",
-                  "children": [],
-                  "expanded": false,
-                  "createdAt": 1770943488414,
-                  "done": false,
-                  "timeContexts": [
-                    "ongoing"
-                  ],
-                  "contextDurations": {
-                    "ongoing": 30
-                  }
-                },
-                {
-                  "id": 386,
-                  "name": "differentiate focus sessions from appointments",
-                  "children": [
-                    {
-                      "id": 388,
-                      "name": "maybe focus sessions are sliding window (\"package\" intention)",
-                      "children": [],
-                      "expanded": false,
-                      "createdAt": 1770973172517,
-                      "done": false,
-                      "timeContexts": [
-                        "ongoing"
-                      ],
-                      "contextDurations": {
-                        "ongoing": 30
-                      }
-                    }
-                  ],
-                  "expanded": false,
-                  "createdAt": 1770972497996,
-                  "done": false,
-                  "timeContexts": [
-                    "ongoing"
-                  ],
-                  "contextDurations": {
-                    "ongoing": 60
-                  }
-                },
-                {
-                  "id": 461,
-                  "name": "whole day plans",
-                  "children": [],
-                  "expanded": false,
-                  "createdAt": 1771089270215,
-                  "done": false,
-                  "timeContexts": [
-                    "ongoing"
-                  ],
-                  "contextDurations": {
-                    "ongoing": 25
-                  }
-                },
-                {
-                  "id": 397,
-                  "name": "idea - see in actions \"how much out of how much is scheduled\" (esp. for week/month but also day)",
-                  "children": [],
-                  "expanded": false,
-                  "createdAt": 1770981831207,
-                  "done": false,
-                  "timeContexts": [
-                    "ongoing"
-                  ],
-                  "contextDurations": {
-                    "ongoing": 120
-                  }
-                }
-              ],
-              "expanded": true,
-              "createdAt": 1771089143334,
-              "done": false,
-              "timeContexts": [
-                "ongoing"
-              ]
+              "contextDurations": {}
             },
             {
               "id": 452,
@@ -990,7 +1041,7 @@
                   }
                 }
               ],
-              "expanded": true,
+              "expanded": false,
               "createdAt": 1770988289520,
               "done": false,
               "timeContexts": [
@@ -1004,6 +1055,29 @@
               "children": [],
               "expanded": false,
               "createdAt": 1770720806010,
+              "done": true,
+              "timeContexts": [
+                "ongoing"
+              ]
+            },
+            {
+              "id": 476,
+              "name": "tes",
+              "children": [
+                {
+                  "id": 478,
+                  "name": "test",
+                  "children": [],
+                  "expanded": false,
+                  "createdAt": 1771113761973,
+                  "done": true,
+                  "timeContexts": [
+                    "week:2026-02-08"
+                  ]
+                }
+              ],
+              "expanded": true,
+              "createdAt": 1771113653709,
               "done": true,
               "timeContexts": [
                 "ongoing"
@@ -1070,7 +1144,7 @@
                   }
                 }
               ],
-              "expanded": false,
+              "expanded": true,
               "createdAt": 1770832301356,
               "done": true,
               "timeContexts": [
@@ -1208,7 +1282,7 @@
               "children": [],
               "expanded": false,
               "createdAt": 1770657322191,
-              "done": false,
+              "done": true,
               "timeContexts": [
                 "ongoing"
               ],
@@ -1244,7 +1318,7 @@
               "children": [],
               "expanded": false,
               "createdAt": 1770767029355,
-              "done": false,
+              "done": true,
               "timeContexts": [
                 "ongoing"
               ]
@@ -1310,17 +1384,6 @@
               }
             },
             {
-              "id": 203,
-              "name": "due statuses",
-              "children": [],
-              "expanded": false,
-              "createdAt": 1770721314816,
-              "done": false,
-              "timeContexts": [
-                "ongoing"
-              ]
-            },
-            {
               "id": 130,
               "name": "preparations",
               "children": [],
@@ -1337,7 +1400,7 @@
               "children": [],
               "expanded": false,
               "createdAt": 1770604006283,
-              "done": false,
+              "done": true,
               "timeContexts": [
                 "ongoing"
               ]
@@ -1365,6 +1428,17 @@
               ]
             },
             {
+              "id": 480,
+              "name": "close day custom time",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1771114224388,
+              "done": false,
+              "timeContexts": [
+                "ongoing"
+              ]
+            },
+            {
               "id": 70,
               "name": "time block statuses",
               "children": [
@@ -1374,6 +1448,17 @@
                   "children": [],
                   "expanded": false,
                   "createdAt": 1770603549975,
+                  "done": false,
+                  "timeContexts": [
+                    "ongoing"
+                  ]
+                },
+                {
+                  "id": 203,
+                  "name": "due statuses",
+                  "children": [],
+                  "expanded": false,
+                  "createdAt": 1770721314816,
                   "done": false,
                   "timeContexts": [
                     "ongoing"
@@ -1448,7 +1533,7 @@
               ]
             }
           ],
-          "expanded": false,
+          "expanded": true,
           "createdAt": 1770939013487,
           "done": false,
           "timeContexts": [
@@ -2179,11 +2264,9 @@
               "createdAt": 1771067242157,
               "done": true,
               "timeContexts": [
-                "2026-02-14@13:08-00:30"
+                "week:2026-02-15"
               ],
-              "contextDurations": {
-                "2026-02-14@13:08-00:30": 30
-              }
+              "contextDurations": {}
             }
           ],
           "expanded": false,
@@ -2197,6 +2280,18 @@
           "id": 364,
           "name": "bugs",
           "children": [
+            {
+              "id": 474,
+              "name": "session layer nav bug for cross date sessions",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1771107229116,
+              "done": true,
+              "timeContexts": [
+                "2026-02-15"
+              ],
+              "contextDurations": {}
+            },
             {
               "id": 462,
               "name": "flicker of green in horizon layers animation",
@@ -2241,11 +2336,9 @@
               "createdAt": 1770811440975,
               "done": true,
               "timeContexts": [
-                "2026-02-14@13:52-00:30"
+                "week:2026-02-15"
               ],
-              "contextDurations": {
-                "2026-02-14@13:52-00:30": 10
-              }
+              "contextDurations": {}
             },
             {
               "id": 215,
@@ -2296,7 +2389,7 @@
               }
             }
           ],
-          "expanded": true,
+          "expanded": false,
           "createdAt": 1770938999434,
           "done": false,
           "timeContexts": [
@@ -2677,6 +2770,20 @@
           "expanded": false,
           "createdAt": 1770802101929,
           "done": true,
+          "timeContexts": [
+            "ongoing"
+          ]
+        },
+        {
+          "id": 479,
+          "name": "alpha release",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771113980890,
+          "done": false,
+          "contextLeadTimes": {
+            "2026-05-01": 6652800
+          },
           "timeContexts": [
             "ongoing"
           ]
@@ -3583,7 +3690,7 @@
       ],
       "estimatedDuration": 60,
       "contextDurations": {
-        "ongoing": 60
+        "ongoing": 6000
       }
     },
     {
@@ -3609,11 +3716,11 @@
           "createdAt": 1770633310924,
           "done": false,
           "timeContexts": [
-            "2026-02-14"
+            "2026-02-15"
           ],
           "estimatedDuration": null,
           "contextDurations": {
-            "2026-02-14": 15
+            "2026-02-15": 15
           }
         }
       ],
@@ -3894,7 +4001,7 @@
           "contextDurations": {}
         }
       ],
-      "expanded": true,
+      "expanded": false,
       "createdAt": 1770812573309,
       "done": false,
       "timeContexts": [
@@ -3906,15 +4013,28 @@
       "name": "kolwrite",
       "children": [
         {
+          "id": 481,
+          "name": "לבדוק קובץ ליאורה",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771144195580,
+          "done": false,
+          "timeContexts": [
+            "2026-02-15"
+          ],
+          "contextDurations": {
+            "2026-02-15": 15
+          }
+        },
+        {
           "id": 473,
           "name": "test burn captions fixes including cancel",
           "children": [],
           "expanded": false,
           "createdAt": 1771104193941,
-          "done": false,
+          "done": true,
           "timeContexts": [
-            "2026-02-14",
-            "2026-02-14@12:00-01:30"
+            "week:2026-02-15"
           ],
           "contextDurations": {
             "2026-02-14@12:00-01:30": 5
@@ -3963,13 +4083,12 @@
               "children": [],
               "expanded": false,
               "createdAt": 1771100462557,
-              "done": false,
+              "done": true,
               "timeContexts": [
-                "2026-02-14",
-                "2026-02-14@12:00-00:30"
+                "week:2026-02-15"
               ],
               "contextDurations": {
-                "2026-02-14@12:00-00:30": 5
+                "2026-02-14": 5
               }
             }
           ],
@@ -3989,7 +4108,7 @@
           "createdAt": 1770912286750,
           "done": true,
           "timeContexts": [
-            "2026-02-14"
+            "week:2026-02-15"
           ],
           "contextDurations": {
             "2026-02-14": 10
@@ -4003,10 +4122,10 @@
           "createdAt": 1770832037368,
           "done": false,
           "timeContexts": [
-            "2026-02-14"
+            "2026-02-15"
           ],
           "contextDurations": {
-            "2026-02-14": 60
+            "2026-02-15": 60
           }
         },
         {
@@ -4033,10 +4152,10 @@
               "createdAt": 1770810830525,
               "done": false,
               "timeContexts": [
-                "2026-02-14@19:08-00:30"
+                "2026-02-15@21:00-00:30"
               ],
               "contextDurations": {
-                "2026-02-14@19:08-00:30": 30
+                "2026-02-15@21:00-00:30": 60
               }
             }
           ],
@@ -4181,12 +4300,15 @@
           ]
         }
       ],
-      "expanded": true,
+      "expanded": false,
       "createdAt": 1770603206837,
       "done": false,
       "timeContexts": [
         "ongoing"
-      ]
+      ],
+      "contextDurations": {
+        "month:2026-02": 6000
+      }
     },
     {
       "id": 29,
@@ -4230,10 +4352,10 @@
       "createdAt": 1770639234396,
       "done": false,
       "timeContexts": [
-        "2026-02-14"
+        "2026-02-15"
       ],
       "contextDurations": {
-        "2026-02-14": 30
+        "2026-02-15": 30
       }
     },
     {
@@ -4248,11 +4370,9 @@
           "createdAt": 1771091337506,
           "done": true,
           "timeContexts": [
-            "2026-02-14@19:49-00:30"
+            "week:2026-02-15"
           ],
-          "contextDurations": {
-            "2026-02-14@19:49-00:30": 2
-          }
+          "contextDurations": {}
         },
         {
           "id": 464,
@@ -4274,10 +4394,10 @@
           "createdAt": 1771081449310,
           "done": false,
           "timeContexts": [
-            "2026-02-15"
+            "2026-02-16"
           ],
           "contextDurations": {
-            "2026-02-15": 5
+            "2026-02-16": 5
           }
         },
         {
@@ -4428,8 +4548,9 @@
       "createdAt": 1770648773227,
       "done": false,
       "timeContexts": [
-        "2026-02-14"
-      ]
+        "2026-02-15"
+      ],
+      "contextDurations": {}
     },
     {
       "id": 155,
@@ -4450,7 +4571,7 @@
           }
         }
       ],
-      "expanded": true,
+      "expanded": false,
       "createdAt": 1770651242811,
       "done": false,
       "timeContexts": [
@@ -4665,7 +4786,7 @@
           }
         }
       ],
-      "expanded": true,
+      "expanded": false,
       "createdAt": 1770847791956,
       "done": false,
       "timeContexts": [
@@ -4673,5 +4794,5 @@
       ]
     }
   ],
-  "nextId": 474
+  "nextId": 485
 }

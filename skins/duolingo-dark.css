@@ -1557,6 +1557,97 @@ body {
     }
 }
 
+/* ─── Investment Badge (Tri-State Progress Bar) ─── */
+.action-investment-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    cursor: pointer;
+    transition: all var(--dur) var(--ease);
+    padding: 2px 0;
+}
+
+.investment-bar {
+    width: 50px;
+    height: 6px;
+    background: var(--duo-bg);
+    border-radius: 20px;
+    overflow: hidden;
+    border: 2px solid var(--duo-border);
+    display: flex;
+    flex-shrink: 0;
+}
+
+.investment-fill-invested {
+    height: 100%;
+    background: var(--duo-green);
+    border-radius: 20px 0 0 20px;
+    transition: width 0.3s ease;
+    flex-shrink: 0;
+}
+
+.investment-fill-planned {
+    height: 100%;
+    background: var(--duo-blue);
+    border-radius: 0;
+    transition: width 0.3s ease;
+    flex-shrink: 0;
+}
+
+.investment-fill-invested:last-child {
+    border-radius: 20px;
+}
+
+.investment-fill-planned:last-child {
+    border-radius: 0 20px 20px 0;
+}
+
+.investment-label {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--duo-text-faint);
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+    transition: opacity 120ms ease, filter 120ms ease, transform 120ms ease;
+}
+
+.investment-label.investment-label-out {
+    opacity: 0;
+    transform: translateX(-8px);
+}
+
+.investment-label.investment-label-in {
+    opacity: 0;
+    transform: translateX(8px);
+    transition: none;
+}
+
+.action-investment-badge:hover .investment-bar {
+    border-color: var(--duo-blue);
+}
+
+.action-investment-badge:hover .investment-label {
+    color: var(--duo-blue);
+}
+
+.action-investment-badge.investment-over .investment-bar {
+    border-color: var(--duo-red);
+}
+
+.action-investment-badge.investment-over .investment-label {
+    color: var(--duo-red);
+}
+
+/* Group header investment bar */
+.action-group-header .action-investment-badge {
+    padding: 0;
+}
+
+.action-group-header .investment-bar {
+    width: 40px;
+    height: 5px;
+}
+
 /* ─── Deep View Context Badge ─── */
 .action-context-badge {
     font-size: 10px;
@@ -2905,6 +2996,48 @@ body {
 
 .live-session-indicator-idle {
     border-left: 4px solid var(--duo-text-faint);
+}
+
+.live-session-indicator-sleep {
+    border-left: 4px solid #a78bfa;
+    background: rgba(167, 139, 250, 0.08);
+}
+
+.live-session-indicator-sleep:hover {
+    border-color: #8b5cf6;
+    transform: translateY(-1px);
+}
+
+.sleep-close-day-btn {
+    margin-left: 4px;
+    padding: 3px 10px;
+    border: 2px solid #a78bfa;
+    border-radius: 10px;
+    background: rgba(167, 139, 250, 0.1);
+    color: #8b5cf6;
+    font-size: 10px;
+    font-weight: 800;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all var(--dur) var(--ease);
+    box-shadow: 0 2px 0 #a78bfa;
+    white-space: nowrap;
+    text-transform: uppercase;
+}
+
+.sleep-close-day-btn:hover {
+    background: #8b5cf6;
+    color: white;
+    transform: translateY(-1px);
+}
+
+.sleep-close-day-btn:active {
+    transform: translateY(1px);
+    box-shadow: none;
+}
+
+.modal-field-toggle {
+    flex-wrap: wrap;
 }
 
 .live-session-indicator-icon {
@@ -5749,6 +5882,99 @@ select.schedule-leadtime-input {
     opacity: 0.8;
 }
 
+/* ── Live Horizon Layer ── */
+.horizon-layer-live {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--duo-text-faint);
+    transition: all var(--dur) var(--ease);
+}
+
+.horizon-layer-live:hover {
+    background: var(--duo-hover);
+    color: var(--duo-text);
+}
+
+.live-nav-display {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-width: 0;
+}
+
+.horizon-layer-live.horizon-layer-active {
+    justify-content: center;
+    padding: 8px 12px;
+    font-size: 15px;
+    color: var(--duo-green);
+    font-weight: 800;
+}
+
+.horizon-layer-live.horizon-layer-active .horizon-layer-icon {
+    font-size: 16px;
+}
+
+.horizon-layer-live.horizon-layer-active .horizon-layer-label {
+    font-size: 15px;
+    font-weight: 800;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.horizon-layer-live.horizon-layer-dim {
+    opacity: 0.5;
+    padding: 3px 12px;
+}
+
+.horizon-layer-live.horizon-layer-dim:hover {
+    opacity: 0.8;
+}
+
+/* Timer */
+.live-layer-timer {
+    font-variant-numeric: tabular-nums;
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--duo-text-faint);
+    margin-left: 4px;
+}
+
+.live-layer-timer-overtime {
+    color: #ef4444;
+}
+
+/* Stop button */
+.live-layer-stop-btn {
+    background: none;
+    border: 2px solid transparent;
+    color: var(--duo-text-faint);
+    cursor: pointer;
+    font-size: 12px;
+    padding: 2px 4px;
+    border-radius: var(--duo-radius-sm);
+    opacity: 0;
+    transition: opacity var(--dur) var(--ease), color var(--dur) var(--ease), border-color var(--dur) var(--ease);
+    margin-left: 4px;
+    font-weight: 800;
+}
+
+.horizon-layer-live:hover .live-layer-stop-btn {
+    opacity: 1;
+}
+
+.live-layer-stop-btn:hover {
+    color: #ef4444;
+    border-color: #ef4444;
+}
+
 /* ── Month Horizon Layer ── */
 .month-nav-display {
     flex: 1;
@@ -5771,8 +5997,8 @@ select.schedule-leadtime-input {
 }
 
 .horizon-layer-active #month-nav-label {
-    color: var(--text);
-    font-weight: 500;
+    color: var(--duo-text);
+    font-weight: 800;
     transition: color var(--dur) var(--ease);
 }
 
@@ -6080,6 +6306,83 @@ select.schedule-leadtime-input {
 
 .session-next-value {
     color: var(--duo-text);
+}
+
+/* ── Live Panel ── */
+.live-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 20px 16px;
+}
+
+.live-panel-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--duo-text);
+}
+
+.live-panel-icon {
+    font-size: 22px;
+}
+
+.live-panel-title {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.live-panel-timer-row {
+    font-size: 14px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--duo-text-faint);
+}
+
+.live-panel-overtime {
+    color: #ef4444;
+}
+
+.live-panel-path {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--duo-text-faint);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.live-panel-message {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--duo-text-faint);
+}
+
+.live-panel-actions {
+    padding-top: 4px;
+}
+
+.live-panel-stop-btn {
+    background: none;
+    border: 2px solid var(--duo-border);
+    color: var(--duo-text-faint);
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 800;
+    font-family: inherit;
+    padding: 6px 14px;
+    border-radius: var(--duo-radius-sm);
+    box-shadow: 0 2px 0 var(--duo-border);
+    transition: all var(--dur) var(--ease);
+}
+
+.live-panel-stop-btn:hover {
+    color: #ef4444;
+    border-color: #ef4444;
+    box-shadow: 0 2px 0 #ef4444;
 }
 
 .timeline-entry {
@@ -7333,6 +7636,34 @@ select.schedule-leadtime-input {
     font-size: 12px;
     font-weight: 700;
     color: var(--duo-text-faint, #afafaf);
+}
+
+.duration-picker-unit-toggle {
+    padding: 4px 8px;
+    border: 2px solid var(--duo-border, #e5e5e5);
+    border-radius: 8px;
+    background: var(--duo-white, #fff);
+    color: var(--duo-text-faint, #afafaf);
+    font-size: 12px;
+    font-weight: 800;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: inherit;
+    min-width: 32px;
+    text-align: center;
+    box-shadow: 0 2px 0 var(--duo-border, #e5e5e5);
+}
+
+.duration-picker-unit-toggle:hover {
+    border-color: var(--duo-green, #58cc02);
+    color: var(--duo-green-dark, #58a700);
+    background: var(--duo-green-dim, rgba(88, 204, 2, 0.1));
+    box-shadow: 0 2px 0 var(--duo-green, #58cc02);
+}
+
+.duration-picker-unit-toggle:active {
+    box-shadow: none;
+    transform: translateY(2px);
 }
 
 .duration-picker-start {

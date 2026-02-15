@@ -1541,6 +1541,94 @@ body {
     }
 }
 
+/* ─── Investment Badge (Tri-State Progress Bar) ─── */
+.action-investment-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    cursor: pointer;
+    transition: all var(--dur) var(--ease);
+    padding: 1px 0;
+}
+
+.investment-bar {
+    width: 50px;
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+    display: flex;
+    flex-shrink: 0;
+}
+
+.investment-fill-invested {
+    height: 100%;
+    background: #34d399;
+    border-radius: 2px 0 0 2px;
+    transition: width 0.3s ease;
+    flex-shrink: 0;
+}
+
+.investment-fill-planned {
+    height: 100%;
+    background: #a78bfa;
+    border-radius: 0;
+    transition: width 0.3s ease;
+    flex-shrink: 0;
+}
+
+.investment-fill-invested:last-child {
+    border-radius: 2px;
+}
+
+.investment-fill-planned:last-child {
+    border-radius: 0 2px 2px 0;
+}
+
+.investment-label {
+    font-size: 9px;
+    color: var(--text-faint);
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+    transition: opacity 120ms ease, filter 120ms ease, transform 120ms ease;
+}
+
+.investment-label.investment-label-out {
+    opacity: 0;
+    transform: translateX(-8px);
+}
+
+.investment-label.investment-label-in {
+    opacity: 0;
+    transform: translateX(8px);
+    transition: none;
+}
+
+.action-investment-badge:hover .investment-bar {
+    box-shadow: 0 0 0 1px var(--accent);
+}
+
+.action-investment-badge:hover .investment-label {
+    color: var(--accent);
+}
+
+.action-investment-badge.investment-over .investment-bar {
+    box-shadow: 0 0 0 1px var(--rose);
+}
+
+.action-investment-badge.investment-over .investment-label {
+    color: var(--rose);
+}
+
+.action-group-header .action-investment-badge {
+    padding: 0;
+}
+
+.action-group-header .investment-bar {
+    width: 40px;
+    height: 3px;
+}
+
 /* ─── Deep View Context Badge ─── */
 .action-context-badge {
     font-size: 10px;
@@ -5634,6 +5722,96 @@ select.schedule-leadtime-input {
     opacity: 0.8;
 }
 
+/* ── Live Horizon Layer ── */
+.horizon-layer-live {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    cursor: pointer;
+    font-size: 11px;
+    color: var(--text-faint);
+    transition: background var(--dur) var(--ease), color var(--dur) var(--ease), opacity var(--dur) var(--ease), padding var(--dur) var(--ease);
+}
+
+.horizon-layer-live:hover {
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text-dim);
+}
+
+.live-nav-display {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-width: 0;
+}
+
+.horizon-layer-live.horizon-layer-active {
+    justify-content: center;
+    padding: 6px 10px;
+    font-size: 13px;
+    color: var(--text);
+    font-weight: 600;
+}
+
+.horizon-layer-live.horizon-layer-active .horizon-layer-icon {
+    font-size: 14px;
+}
+
+.horizon-layer-live.horizon-layer-active .horizon-layer-label {
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.horizon-layer-live.horizon-layer-dim {
+    opacity: 0.5;
+    padding: 3px 10px;
+}
+
+.horizon-layer-live.horizon-layer-dim:hover {
+    opacity: 0.8;
+}
+
+/* Timer */
+.live-layer-timer {
+    font-variant-numeric: tabular-nums;
+    font-size: 10px;
+    color: var(--text-faint);
+    margin-left: 4px;
+}
+
+.live-layer-timer-overtime {
+    color: #ef4444;
+}
+
+/* Stop button */
+.live-layer-stop-btn {
+    background: none;
+    border: 1px solid transparent;
+    color: var(--text-faint);
+    cursor: pointer;
+    font-size: 12px;
+    padding: 2px 4px;
+    border-radius: var(--radius-sm);
+    opacity: 0;
+    transition: opacity var(--dur) var(--ease), color var(--dur) var(--ease), border-color var(--dur) var(--ease);
+    margin-left: 4px;
+}
+
+.horizon-layer-live:hover .live-layer-stop-btn {
+    opacity: 1;
+}
+
+.live-layer-stop-btn:hover {
+    color: #ef4444;
+    border-color: #ef4444;
+}
+
 /* ── Month Horizon Layer ── */
 .month-nav-display {
     flex: 1;
@@ -5657,7 +5835,7 @@ select.schedule-leadtime-input {
 
 .horizon-layer-active #month-nav-label {
     color: var(--text);
-    font-weight: 500;
+    font-weight: 600;
     transition: color var(--dur) var(--ease);
 }
 
@@ -5954,6 +6132,77 @@ select.schedule-leadtime-input {
 
 .session-next-value {
     color: var(--text-soft);
+}
+
+/* ── Live Panel ── */
+.live-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 20px 16px;
+}
+
+.live-panel-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.live-panel-icon {
+    font-size: 22px;
+}
+
+.live-panel-title {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.live-panel-timer-row {
+    font-size: 14px;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-soft);
+}
+
+.live-panel-overtime {
+    color: #ef4444;
+}
+
+.live-panel-path {
+    font-size: 12px;
+    color: var(--text-faint);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.live-panel-message {
+    font-size: 13px;
+    color: var(--text-faint);
+}
+
+.live-panel-actions {
+    padding-top: 4px;
+}
+
+.live-panel-stop-btn {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text-soft);
+    cursor: pointer;
+    font-size: 12px;
+    font-family: inherit;
+    padding: 6px 14px;
+    border-radius: var(--radius-sm);
+    transition: all var(--dur) var(--ease);
+}
+
+.live-panel-stop-btn:hover {
+    color: #ef4444;
+    border-color: #ef4444;
 }
 
 .timeline-entry {
@@ -7150,6 +7399,27 @@ select.schedule-leadtime-input {
 .duration-picker-min-label {
     font-size: 11px;
     color: var(--text-faint, #999);
+}
+
+.duration-picker-unit-toggle {
+    padding: 4px 8px;
+    border: 1px solid var(--border, rgba(0, 0, 0, 0.1));
+    border-radius: 6px;
+    background: var(--bg-primary, #f9f9f9);
+    color: var(--text-faint, #999);
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: inherit;
+    min-width: 30px;
+    text-align: center;
+}
+
+.duration-picker-unit-toggle:hover {
+    border-color: #22c55e;
+    color: #22c55e;
+    background: rgba(34, 197, 94, 0.08);
 }
 
 .duration-picker-start {

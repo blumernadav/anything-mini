@@ -1429,6 +1429,91 @@ body {
     }
 }
 
+/* ─── Investment Badge (Tri-State Progress Bar) ─── */
+.action-investment-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+    transition: all var(--dur) var(--ease);
+    padding: 1px 0;
+}
+
+.investment-bar {
+    width: 45px;
+    height: 4px;
+    background: var(--pencil-ghost);
+    border-radius: 2px;
+    overflow: hidden;
+    display: flex;
+    flex-shrink: 0;
+    opacity: 0.7;
+}
+
+.investment-fill-invested {
+    height: 100%;
+    background: var(--pencil);
+    border-radius: 2px 0 0 2px;
+    transition: width 0.3s ease;
+    flex-shrink: 0;
+}
+
+.investment-fill-planned {
+    height: 100%;
+    background: var(--blue-pen);
+    border-radius: 0;
+    transition: width 0.3s ease;
+    flex-shrink: 0;
+}
+
+.investment-fill-invested:last-child {
+    border-radius: 2px;
+}
+
+.investment-fill-planned:last-child {
+    border-radius: 0 2px 2px 0;
+}
+
+.investment-label {
+    font-size: 12px;
+    font-family: 'Caveat', cursive;
+    color: var(--pencil-faint);
+    white-space: nowrap;
+    transition: opacity 120ms ease, filter 120ms ease, transform 120ms ease;
+}
+
+.investment-label.investment-label-out {
+    opacity: 0;
+    transform: translateX(-8px);
+}
+
+.investment-label.investment-label-in {
+    opacity: 0;
+    transform: translateX(8px);
+    transition: none;
+}
+
+.action-investment-badge:hover .investment-bar {
+    opacity: 1;
+}
+
+.action-investment-badge:hover .investment-label {
+    color: var(--blue-pen);
+}
+
+.action-investment-badge.investment-over .investment-label {
+    color: var(--red-pen);
+}
+
+.action-group-header .action-investment-badge {
+    padding: 0;
+}
+
+.action-group-header .investment-bar {
+    width: 35px;
+    height: 3px;
+}
+
 /* ─── Deep View Context Badge ─── */
 .action-context-badge {
     font-size: 10px;
@@ -5476,6 +5561,98 @@ select.schedule-leadtime-input {
     opacity: 0.8;
 }
 
+/* ── Live Horizon Layer ── */
+.horizon-layer-live {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    cursor: pointer;
+    font-size: 13px;
+    font-family: 'Caveat', cursive;
+    color: var(--pencil-faint);
+    transition: all var(--dur) var(--ease);
+}
+
+.horizon-layer-live:hover {
+    background: rgba(0, 0, 0, 0.03);
+    color: var(--pencil);
+}
+
+.live-nav-display {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-width: 0;
+}
+
+.horizon-layer-live.horizon-layer-active {
+    justify-content: center;
+    padding: 5px 10px;
+    font-size: 16px;
+    color: var(--pencil);
+    font-weight: 700;
+}
+
+.horizon-layer-live.horizon-layer-active .horizon-layer-icon {
+    font-size: 15px;
+}
+
+.horizon-layer-live.horizon-layer-active .horizon-layer-label {
+    font-size: 16px;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.horizon-layer-live.horizon-layer-dim {
+    opacity: 0.5;
+    padding: 3px 10px;
+}
+
+.horizon-layer-live.horizon-layer-dim:hover {
+    opacity: 0.8;
+}
+
+/* Timer */
+.live-layer-timer {
+    font-variant-numeric: tabular-nums;
+    font-size: 12px;
+    font-family: 'Caveat', cursive;
+    color: var(--pencil-faint);
+    margin-left: 4px;
+}
+
+.live-layer-timer-overtime {
+    color: #c44;
+}
+
+/* Stop button */
+.live-layer-stop-btn {
+    background: none;
+    border: 1px dashed transparent;
+    color: var(--pencil-faint);
+    cursor: pointer;
+    font-size: 12px;
+    padding: 2px 4px;
+    border-radius: var(--radius);
+    opacity: 0;
+    transition: opacity var(--dur) var(--ease), color var(--dur) var(--ease);
+    margin-left: 4px;
+}
+
+.horizon-layer-live:hover .live-layer-stop-btn {
+    opacity: 1;
+}
+
+.live-layer-stop-btn:hover {
+    color: #c44;
+    border-color: #c44;
+}
+
 /* ── Month Horizon Layer ── */
 .month-nav-display {
     flex: 1;
@@ -5795,6 +5972,81 @@ select.schedule-leadtime-input {
 
 .session-next-value {
     color: var(--pencil-soft);
+}
+
+/* ── Live Panel ── */
+.live-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px 14px;
+}
+
+.live-panel-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 20px;
+    font-family: 'Caveat', cursive;
+    color: var(--pencil);
+}
+
+.live-panel-icon {
+    font-size: 20px;
+}
+
+.live-panel-title {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.live-panel-timer-row {
+    font-size: 16px;
+    font-family: 'Caveat', cursive;
+    font-variant-numeric: tabular-nums;
+    color: var(--pencil-faint);
+}
+
+.live-panel-overtime {
+    color: #c44;
+}
+
+.live-panel-path {
+    font-size: 14px;
+    font-family: 'Caveat', cursive;
+    color: var(--pencil-ghost);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.live-panel-message {
+    font-size: 15px;
+    font-family: 'Caveat', cursive;
+    color: var(--pencil-faint);
+}
+
+.live-panel-actions {
+    padding-top: 4px;
+}
+
+.live-panel-stop-btn {
+    background: none;
+    border: 1px dashed var(--pencil-ghost);
+    color: var(--pencil-faint);
+    cursor: pointer;
+    font-size: 14px;
+    font-family: 'Caveat', cursive;
+    padding: 4px 12px;
+    border-radius: var(--radius);
+    transition: all var(--dur) var(--ease);
+}
+
+.live-panel-stop-btn:hover {
+    color: #c44;
+    border-color: #c44;
+    border-style: solid;
 }
 
 .timeline-entry {
@@ -6976,6 +7228,27 @@ select.schedule-leadtime-input {
     font-size: 13px;
     color: var(--pencil-faint, #aaa);
     font-family: 'Caveat', cursive;
+}
+
+.duration-picker-unit-toggle {
+    padding: 3px 8px;
+    border: 1px dashed var(--pencil-ghost, #ccc);
+    border-radius: 4px;
+    background: transparent;
+    color: var(--pencil-soft, #777);
+    font-size: 14px;
+    font-family: 'Caveat', cursive;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+    min-width: 30px;
+    text-align: center;
+}
+
+.duration-picker-unit-toggle:hover {
+    border-style: solid;
+    border-color: #5eab5e;
+    color: #5eab5e;
 }
 
 .duration-picker-start {

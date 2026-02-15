@@ -4,19 +4,19 @@
   "showUnscheduled": true,
   "panels": {
     "left": 500,
-    "right": 434
+    "right": 431
   },
   "hidePastEntries": true,
   "workingOn": {
     "itemId": 9,
     "itemName": "anything",
     "projectName": null,
-    "startTime": 1771106070770,
+    "startTime": 1771146728258,
     "targetEndTime": null
   },
-  "selectedItemId": 9,
+  "selectedItemId": "",
   "onBreak": null,
-  "timelineViewDate": "2026-02-14T21:59:12.296Z",
+  "timelineViewDate": "2026-02-15T08:08:44.890Z",
   "scheduleFilter": "scheduled+unscheduled",
   "collapsedGroups": [
     86,
@@ -28,16 +28,29 @@
     242,
     164,
     303,
-    0,
     416,
     460,
     405,
     282,
     256,
     70,
-    261
+    261,
+    144,
+    137,
+    300,
+    92,
+    0,
+    145,
+    9,
+    423,
+    28,
+    62,
+    122,
+    167,
+    199,
+    319
   ],
-  "viewHorizon": "session",
+  "viewHorizon": "day",
   "weekCollapsedDays": {
     "2026-02-08": true,
     "2026-02-09": true,
@@ -45,7 +58,7 @@
     "2026-02-11": true,
     "2026-02-12": true,
     "2026-02-13": true,
-    "2026-02-14": false,
+    "2026-02-14": true,
     "2026-04-15": false,
     "2026-03-15": true,
     "2026-03-16": true,
@@ -54,7 +67,8 @@
     "2026-03-19": true,
     "2026-03-20": true,
     "2026-03-21": true,
-    "2026-02-02": true
+    "2026-02-02": true,
+    "2026-02-22": true
   },
   "showSleepTimes": true,
   "weekExpandedGroups": {
@@ -70,20 +84,8 @@
     ],
     "weekGroups_2026-02-14": []
   },
-  "focusStack": [
-    {
-      "startMs": 1771063200000,
-      "endMs": 1771111800000,
-      "label": "Free Time",
-      "type": "free",
-      "icon": "✨",
-      "tier": "session",
-      "segmentKey": "2026-02-14@12:00-01:30",
-      "entryId": null,
-      "itemId": null
-    }
-  ],
-  "projectTreeScrollTop": 1194.4444580078125,
+  "focusStack": [],
+  "projectTreeScrollTop": 127.77777862548828,
   "darkMode": "dark",
   "skinFamily": "duolingo",
   "sessionIndex": 0,
@@ -97,5 +99,5 @@
     314
   ],
   "pastDisplayMode": "hide",
-  "deepView": true
+  "deepView": false
 }

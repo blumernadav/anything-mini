@@ -1270,6 +1270,83 @@ body {
     opacity: 0.8;
 }
 
+/* ─── Investment Badge (Tri-State Progress Bar) ─── */
+.action-investment-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+    padding: 1px 0;
+}
+
+.investment-bar {
+    width: 50px;
+    height: 10px;
+    background: var(--w-field);
+    border: 2px solid;
+    border-color: var(--w-dark) var(--w-white) var(--w-white) var(--w-dark);
+    overflow: hidden;
+    display: flex;
+    flex-shrink: 0;
+}
+
+.investment-fill-invested {
+    height: 100%;
+    background: #008000;
+    flex-shrink: 0;
+}
+
+.investment-fill-planned {
+    height: 100%;
+    background: var(--w-title);
+    flex-shrink: 0;
+}
+
+.investment-label {
+    font-size: 10px;
+    color: var(--w-dark);
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+    transition: opacity 120ms ease, filter 120ms ease, transform 120ms ease;
+}
+
+.investment-label.investment-label-out {
+    opacity: 0;
+    transform: translateX(-8px);
+}
+
+.investment-label.investment-label-in {
+    opacity: 0;
+    transform: translateX(8px);
+    transition: none;
+}
+
+.action-investment-badge:hover .investment-label {
+    color: var(--w-title);
+}
+
+.action-investment-badge.investment-over .investment-label {
+    color: #cc0000;
+}
+
+.action-investment-badge.investment-over .investment-bar {
+    border-color: #cc0000 var(--w-white) var(--w-white) #cc0000;
+}
+
+.action-group-header .action-investment-badge {
+    padding: 0;
+}
+
+.action-group-header .investment-bar {
+    width: 40px;
+    height: 8px;
+}
+
+.action-item.selected .action-investment-badge .investment-label {
+    color: var(--w-white);
+    opacity: 0.8;
+}
+
 /* ─── Deep View Context Badge ─── */
 .action-context-badge {
     font-size: 10px;
@@ -4947,6 +5024,96 @@ select.schedule-leadtime-input {
     opacity: 0.8;
 }
 
+/* ── Live Horizon Layer ── */
+.horizon-layer-live {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 6px;
+    cursor: pointer;
+    font-size: 11px;
+    color: var(--w-dark);
+    background: var(--w-bg);
+}
+
+.horizon-layer-live:hover {
+    background: var(--w-title);
+    color: var(--w-white);
+}
+
+.live-nav-display {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    min-width: 0;
+}
+
+.horizon-layer-live.horizon-layer-active {
+    justify-content: center;
+    padding: 3px 6px;
+    background: var(--w-title);
+    color: var(--w-white);
+    font-weight: bold;
+    font-size: 12px;
+}
+
+.horizon-layer-live.horizon-layer-active .horizon-layer-icon {
+    font-size: 12px;
+}
+
+.horizon-layer-live.horizon-layer-active .horizon-layer-label {
+    font-size: 12px;
+    font-weight: bold;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.horizon-layer-live.horizon-layer-dim {
+    opacity: 0.5;
+    padding: 1px 6px;
+}
+
+.horizon-layer-live.horizon-layer-dim:hover {
+    opacity: 0.8;
+}
+
+/* Timer */
+.live-layer-timer {
+    font-variant-numeric: tabular-nums;
+    font-size: 10px;
+    color: var(--w-dark);
+    margin-left: 4px;
+}
+
+.live-layer-timer-overtime {
+    color: #cc0000;
+}
+
+/* Stop button */
+.live-layer-stop-btn {
+    background: var(--w-bg);
+    border: 2px solid;
+    border-color: var(--w-white) var(--w-darker) var(--w-darker) var(--w-white);
+    color: var(--w-dark);
+    cursor: pointer;
+    font-size: 10px;
+    padding: 1px 3px;
+    border-radius: 0;
+    opacity: 0;
+    margin-left: 4px;
+}
+
+.horizon-layer-live:hover .live-layer-stop-btn {
+    opacity: 1;
+}
+
+.live-layer-stop-btn:active {
+    border-color: var(--w-darker) var(--w-white) var(--w-white) var(--w-darker);
+}
+
 /* ── Month Horizon Layer ── */
 .month-nav-display {
     flex: 1;
@@ -4969,8 +5136,8 @@ select.schedule-leadtime-input {
 }
 
 .horizon-layer-active #month-nav-label {
-    color: var(--text);
-    font-weight: 500;
+    color: var(--w-text);
+    font-weight: 700;
     transition: color var(--dur) var(--ease);
 }
 
@@ -5261,6 +5428,82 @@ select.schedule-leadtime-input {
 
 .session-next-value {
     color: var(--w-text);
+}
+
+/* ── Live Panel ── */
+.live-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 8px;
+}
+
+.live-panel-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    font-weight: bold;
+    color: var(--w-text);
+    padding: 3px 6px;
+    background: var(--w-title);
+    color: var(--w-white);
+}
+
+.live-panel-icon {
+    font-size: 14px;
+}
+
+.live-panel-title {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.live-panel-timer-row {
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    color: var(--w-text);
+    padding: 2px 6px;
+}
+
+.live-panel-overtime {
+    color: #cc0000;
+}
+
+.live-panel-path {
+    font-size: 11px;
+    color: var(--w-dark);
+    padding: 0 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.live-panel-message {
+    font-size: 12px;
+    color: var(--w-dark);
+    padding: 2px 6px;
+}
+
+.live-panel-actions {
+    padding: 4px 6px;
+}
+
+.live-panel-stop-btn {
+    background: var(--w-bg);
+    border: 2px solid;
+    border-color: var(--w-white) var(--w-darker) var(--w-darker) var(--w-white);
+    color: var(--w-text);
+    cursor: pointer;
+    font-size: 12px;
+    font-family: inherit;
+    padding: 3px 10px;
+    border-radius: 0;
+}
+
+.live-panel-stop-btn:active {
+    border-color: var(--w-darker) var(--w-white) var(--w-white) var(--w-darker);
 }
 
 .timeline-entry {
@@ -6467,6 +6710,29 @@ select.schedule-leadtime-input {
 .duration-picker-min-label {
     font-size: 11px;
     color: var(--w-dark, #222);
+}
+
+.duration-picker-unit-toggle {
+    padding: 2px 6px;
+    border: 2px solid;
+    border-color: var(--w-white, #fff) var(--w-darker, #404040) var(--w-darker, #404040) var(--w-white, #fff);
+    background: var(--w-silver, #c0c0c0);
+    color: var(--w-dark, #222);
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    min-width: 28px;
+    text-align: center;
+}
+
+.duration-picker-unit-toggle:hover {
+    background: var(--w-highlight, #000080);
+    color: white;
+}
+
+.duration-picker-unit-toggle:active {
+    border-color: var(--w-darker, #404040) var(--w-white, #fff) var(--w-white, #fff) var(--w-darker, #404040);
 }
 
 .duration-picker-start {

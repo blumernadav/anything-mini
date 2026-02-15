@@ -17,7 +17,7 @@ const state = {
     pastCardStyle: 'compact', // 'compact' | 'full' — card style for past entries (configured in Settings)
     showDone: false, // when true, done items are visible in actions and project tree
     scheduleFilter: 'scheduled+unscheduled', // 'scheduled' | 'scheduled+unscheduled' | 'all'
-    viewHorizon: 'day', // 'day' | 'month' | 'week' | 'epoch' | 'session' — horizon level for timeline navigation
+    viewHorizon: 'day', // 'day' | 'month' | 'week' | 'epoch' | 'session' | 'live' — horizon level for timeline navigation
     epochFilter: 'ongoing', // 'past' | 'ongoing' | 'future' — which sub-epoch is active at epoch horizon
     ongoingPastWeeks: 1, // how many weeks back from current week Ongoing extends
     ongoingFutureWeeks: 4, // how many weeks forward from current week Ongoing extends
@@ -33,6 +33,7 @@ const state = {
     divergenceBannerExpanded: false, // whether the top-level banner summary is expanded
     divergencePlansExpanded: new Set(), // set of plan entry IDs whose segments are expanded
     deepView: false, // when true, actions show items from all layers at or below current horizon
+    showInvestmentBadge: true, // when true, show tri-state investment bar instead of simple duration badge
     settings: {
         dayStartHour: 8,
         dayStartMinute: 0,
@@ -144,7 +145,7 @@ async function loadAll() {
     state.showDone = prefs.showDone === true;
     const validFilters = ['scheduled', 'scheduled+unscheduled', 'all'];
     state.scheduleFilter = validFilters.includes(prefs.scheduleFilter) ? prefs.scheduleFilter : 'scheduled+unscheduled';
-    const validHorizons = ['day', 'month', 'week', 'epoch', 'session'];
+    const validHorizons = ['day', 'month', 'week', 'epoch', 'session', 'live'];
     state.viewHorizon = validHorizons.includes(prefs.viewHorizon) ? prefs.viewHorizon : 'day';
     const validEpochs = ['past', 'ongoing', 'future'];
     state.epochFilter = validEpochs.includes(prefs.epochFilter) ? prefs.epochFilter : 'ongoing';
@@ -165,6 +166,7 @@ async function loadAll() {
     state.divergenceBannerExpanded = prefs.divergenceBannerExpanded || false;
     state.divergencePlansExpanded = new Set(prefs.divergencePlansExpanded || []);
     state.deepView = prefs.deepView === true;
+    state.showInvestmentBadge = prefs.showInvestmentBadge !== false; // default true
     // Restore project tree scroll position
     if (typeof prefs.projectTreeScrollTop === 'number') {
         state._pendingProjectTreeScroll = prefs.projectTreeScrollTop;
@@ -296,7 +298,7 @@ function renderAll() {
         } else {
             renderTimeline();
         }
-        renderTimeContext();
+
     });
 }
 
@@ -2310,6 +2312,12 @@ function isItemUnscheduled(itemOrAction) {
 // Return the default timeContexts array for newly-created items,
 // based on the current view horizon / focused session.
 function getCurrentTimeContexts() {
+    if (state.viewHorizon === 'live') {
+        const dateKey = getDateKey(getLogicalToday());
+        if (state.workingOn) return [dateKey, `${dateKey}@work`];
+        if (state.onBreak) return [dateKey, `${dateKey}@break`];
+        return [dateKey]; // idle — items created go to the day
+    }
     if (state.viewHorizon === 'session') {
         // At session horizon, return the segment context for the active session
         const seg = getActiveSession();
@@ -2337,6 +2345,12 @@ function getCurrentTimeContexts() {
 // Return the single most-specific context string for the current view state.
 // Used by the duration picker / badge to read/write context-coupled durations.
 function getCurrentViewContext() {
+    if (state.viewHorizon === 'live') {
+        const dateKey = getDateKey(getLogicalToday());
+        if (state.workingOn) return `${dateKey}@work`;
+        if (state.onBreak) return `${dateKey}@break`;
+        return dateKey;
+    }
     const focused = state.focusStack.length > 0 ? state.focusStack[state.focusStack.length - 1] : null;
     if (focused && focused.segmentKey) return focused.segmentKey;
     if (focused && focused.liveType) return `${getDateKey(state.timelineViewDate)}@${focused.liveType}`;
@@ -2387,6 +2401,170 @@ function getContextDuration(item, ctx) {
         if (overlapping != null) return item.contextDurations[overlapping];
     }
     return item.estimatedDuration || 0;
+}
+
+// ─── Time Investment Computation ───
+// Tri-state badge: invested (tracked work), planned (descendant durations + planned entries), remaining.
+
+// Cached work entry lookup: itemId → [entries]. Rebuilt each render cycle.
+let _workEntryIndex = null;
+
+function _buildWorkEntryIndex() {
+    _workEntryIndex = new Map();
+    for (const e of state.timeline.entries) {
+        if (e.type === 'work' && e.itemId != null && e.startTime && e.endTime) {
+            if (!_workEntryIndex.has(e.itemId)) _workEntryIndex.set(e.itemId, []);
+            _workEntryIndex.get(e.itemId).push(e);
+        }
+    }
+}
+
+function _invalidateWorkEntryIndex() {
+    _workEntryIndex = null;
+}
+
+// Convert a context string to a time window { startMs, endMs }.
+function getTimeWindowForContext(ctx) {
+    if (!ctx) return null;
+    const parsed = parseTimeContext(ctx);
+    if (!parsed) return null;
+
+    // Epoch contexts → no bounded time window
+    if (parsed.epoch) return null;
+
+    // Month context
+    if (parsed.month) {
+        const monthKey = `month:${parsed.month}`;
+        const range = getMonthDateRange(monthKey);
+        if (!range) return null;
+        return { startMs: range.start.getTime(), endMs: range.end.getTime() + 86400000 }; // end is inclusive day
+    }
+
+    // Week context
+    if (parsed.week) {
+        const weekKey = `week:${parsed.week}`;
+        const range = getWeekDateRange(weekKey);
+        if (!range) return null;
+        return { startMs: range.start.getTime(), endMs: range.end.getTime() + 86400000 };
+    }
+
+    // Day context (possibly with segment)
+    if (parsed.date) {
+        if (parsed.segment) {
+            // Segment: build precise ms window
+            const [y, m, d] = parsed.date.split('-').map(Number);
+            const [sh, sm] = parsed.segment.start.split(':').map(Number);
+            const [eh, em] = parsed.segment.end.split(':').map(Number);
+            const startD = new Date(y, m - 1, d, sh, sm, 0, 0);
+            const endD = new Date(y, m - 1, d, eh, em, 0, 0);
+            if (endD <= startD) endD.setDate(endD.getDate() + 1); // overnight
+            return { startMs: startD.getTime(), endMs: endD.getTime() };
+        }
+        // Plain day
+        const [y, m, d] = parsed.date.split('-').map(Number);
+        const dayDate = new Date(y, m - 1, d);
+        const { dayStart, dayEnd } = getDayBoundaries(dayDate);
+        return { startMs: dayStart.getTime(), endMs: dayEnd.getTime() };
+    }
+
+    return null;
+}
+
+// Check if a context key falls within a time window.
+function _contextFallsInWindow(ctxKey, window) {
+    const ctxWindow = getTimeWindowForContext(ctxKey);
+    if (!ctxWindow) return false;
+    // Context overlaps window if they intersect
+    return ctxWindow.startMs < window.endMs && ctxWindow.endMs > window.startMs;
+}
+
+// Compute time investment breakdown for an item at the current view context.
+// Returns { budget, invested, planned, remaining } in minutes, or null if no data.
+function computeTimeInvestment(item, viewCtx) {
+    if (!item) return null;
+    if (!viewCtx) viewCtx = getCurrentViewContext();
+
+    // 1. Budget = this item's contextDuration at current context
+    const budget = getContextDuration(item, viewCtx);
+
+    // 2. Time window for filtering
+    const window = getTimeWindowForContext(viewCtx);
+
+    // 3. Collect descendant IDs (project axis)
+    const descIds = collectDescendantIds(item);
+    const descIdSet = new Set(descIds);
+
+    // 4. Invested = sum of work entry durations in window
+    if (!_workEntryIndex) _buildWorkEntryIndex();
+    let investedMs = 0;
+    for (const id of descIds) {
+        const entries = _workEntryIndex.get(id);
+        if (!entries) continue;
+        for (const e of entries) {
+            if (!window) {
+                // No window (epoch) — count all
+                investedMs += (e.endTime - e.startTime);
+            } else {
+                const s = Math.max(e.startTime, window.startMs);
+                const end = Math.min(e.endTime, window.endMs);
+                if (end > s) investedMs += (end - s);
+            }
+        }
+    }
+    const invested = Math.round(investedMs / 60000);
+
+    // 5. Planned = contextDurations at FINER levels (self + descendants) + planned timeline entries
+    let planned = 0;
+
+    // Hierarchy: epoch(4) > month(3) > week(2) > day(1) > segment(0)
+    function _contextLevel(ctx) {
+        const p = parseTimeContext(ctx);
+        if (!p) return -1;
+        if (p.epoch) return 4;
+        if (p.month) return 3;
+        if (p.week) return 2;
+        if (p.date && p.segment) return 0;
+        if (p.date) return 1;
+        return -1;
+    }
+    const viewLevel = _contextLevel(viewCtx);
+
+    // a) contextDurations from self (skip budget key) and descendants — only LOWER levels
+    for (const id of descIds) {
+        const desc = id === item.id ? item : findItemById(id);
+        if (!desc || desc.done) continue;
+        if (!desc.contextDurations) continue;
+        for (const [ctxKey, dur] of Object.entries(desc.contextDurations)) {
+            if (dur <= 0) continue;
+            // Skip the exact key that is the budget (self at current context)
+            if (id === item.id && ctxKey === viewCtx) continue;
+            // Only count contexts at a finer granularity than the view
+            if (_contextLevel(ctxKey) >= viewLevel) continue;
+            if (!window || _contextFallsInWindow(ctxKey, window)) {
+                planned += dur;
+            }
+        }
+    }
+
+    // b) Planned timeline entries
+    for (const e of state.timeline.entries) {
+        if (e.type !== 'planned') continue;
+        if (!descIdSet.has(e.itemId)) continue;
+        if (!window) {
+            planned += Math.round(((e.endTime || 0) - (e.startTime || 0)) / 60000);
+        } else {
+            const s = Math.max(e.startTime || 0, window.startMs);
+            const end = Math.min(e.endTime || 0, window.endMs);
+            if (end > s) planned += Math.round((end - s) / 60000);
+        }
+    }
+
+    // No data at all? return null
+    if (budget === 0 && invested === 0 && planned === 0) return null;
+
+    const remaining = budget > 0 ? Math.max(0, budget - invested - planned) : 0;
+
+    return { budget, invested, planned, remaining };
 }
 
 // ─── Backward Projection: contextLeadTimes ───
@@ -3691,8 +3869,13 @@ function renderProjectLevel(items, parent, depth, query = '', matchingIds = new 
         const leaf = isLeaf(item);
         const isInbox = !!item.isInbox;
 
-        // Skip done leaves entirely when not showing done (avoids orphaned insert markers)
-        if (!state.showDone && leaf && !isInbox && item.done) continue;
+        // Skip done items when not showing done
+        if (!state.showDone && !isInbox && item.done) {
+            if (leaf) continue;
+            // Branch: skip if ALL descendant leaves are done
+            const leaves = collectLeaves([item]);
+            if (leaves.length === 0 || leaves.every(l => l.done)) continue;
+        }
 
         // Skip items that don't match search (and have no matching descendants)
         if (isSearching && !matchingIds.has(item.id)) continue;
@@ -3842,7 +4025,7 @@ function renderProjectLevel(items, parent, depth, query = '', matchingIds = new 
         // Name (with search highlighting)
         const name = document.createElement('span');
         name.className = 'project-name';
-        if (leaf && !isInbox && item.done) name.classList.add('project-leaf-done');
+        if (!isInbox && item.done) name.classList.add('project-leaf-done');
 
         if (isSearching && item.name.toLowerCase().includes(query)) {
             // Highlight matching portion
@@ -4150,6 +4333,9 @@ function renderActions(opts) {
     // ── Ground indicator (live session) — always visible at top of Actions ──
     _renderLiveSessionIndicator();
 
+    // Invalidate work entry index for fresh investment data
+    _invalidateWorkEntryIndex();
+
     // ── Sleep mode: show "Good Night" instead of actions ──
     if (isInSleepRange() && !state.workingOn && !state.onBreak) {
         container.querySelectorAll('.action-item, .action-group-header').forEach(el => el.remove());
@@ -4345,17 +4531,74 @@ function renderActions(opts) {
             countEl.textContent = group.actions.length;
             header.appendChild(countEl);
 
-            const groupTotalMins = group.actions.reduce((sum, a) => {
-                const item = findItemById(a.id);
-                return sum + getContextDuration(item);
-            }, 0);
-            if (groupTotalMins > 0) {
-                const durEl = document.createElement('span');
-                durEl.className = 'action-group-duration';
-                durEl.textContent = groupTotalMins >= 60
-                    ? `${Math.floor(groupTotalMins / 60)}h${groupTotalMins % 60 ? groupTotalMins % 60 + 'm' : ''}`
-                    : `${groupTotalMins}m`;
-                header.appendChild(durEl);
+            if (state.showInvestmentBadge) {
+                // Aggregate investment data across group items
+                let gInvested = 0, gPlanned = 0, gBudget = 0;
+                for (const a of group.actions) {
+                    const itm = findItemById(a.id);
+                    const inv = computeTimeInvestment(itm);
+                    if (inv) {
+                        gInvested += inv.invested;
+                        gPlanned += inv.planned;
+                        gBudget += inv.budget;
+                    }
+                }
+                if (gInvested > 0 || gPlanned > 0 || gBudget > 0) {
+                    const total = gBudget > 0 ? gBudget : (gInvested + gPlanned);
+                    const invPct = total > 0 ? Math.min(100, (gInvested / total) * 100) : 0;
+                    const planPct = total > 0 ? Math.min(100 - invPct, (gPlanned / total) * 100) : 0;
+                    const invBadge = document.createElement('div');
+                    invBadge.className = 'action-investment-badge';
+                    const parts = [];
+                    if (gInvested > 0) parts.push(`${_formatDuration(gInvested)} invested`);
+                    if (gPlanned > 0) parts.push(`${_formatDuration(gPlanned)} planned`);
+                    if (gBudget > 0) {
+                        const rem = Math.max(0, gBudget - gInvested - gPlanned);
+                        parts.push(`${_formatDuration(rem)} remaining`);
+                    }
+                    const hoverText = parts.join(' / ');
+                    const bar = document.createElement('div');
+                    bar.className = 'investment-bar';
+                    const fillInv = document.createElement('div');
+                    fillInv.className = 'investment-fill-invested';
+                    fillInv.style.width = `${invPct}%`;
+                    bar.appendChild(fillInv);
+                    const fillPlan = document.createElement('div');
+                    fillPlan.className = 'investment-fill-planned';
+                    fillPlan.style.width = `${planPct}%`;
+                    bar.appendChild(fillPlan);
+                    invBadge.appendChild(bar);
+                    const lbl = document.createElement('span');
+                    lbl.className = 'investment-label';
+                    const defaultText = _formatDuration(total);
+                    lbl.textContent = defaultText;
+                    invBadge.appendChild(lbl);
+                    function _swapLabel(text) {
+                        lbl.classList.add('investment-label-out');
+                        setTimeout(() => {
+                            lbl.textContent = text;
+                            lbl.classList.remove('investment-label-out');
+                            lbl.classList.add('investment-label-in');
+                            requestAnimationFrame(() => { requestAnimationFrame(() => { lbl.classList.remove('investment-label-in'); }); });
+                        }, 120);
+                    }
+                    invBadge.addEventListener('mouseenter', () => _swapLabel(hoverText));
+                    invBadge.addEventListener('mouseleave', () => _swapLabel(defaultText));
+                    header.appendChild(invBadge);
+                }
+            } else {
+                const groupTotalMins = group.actions.reduce((sum, a) => {
+                    const item = findItemById(a.id);
+                    return sum + getContextDuration(item);
+                }, 0);
+                if (groupTotalMins > 0) {
+                    const durEl = document.createElement('span');
+                    durEl.className = 'action-group-duration';
+                    durEl.textContent = groupTotalMins >= 60
+                        ? `${Math.floor(groupTotalMins / 60)}h${groupTotalMins % 60 ? groupTotalMins % 60 + 'm' : ''}`
+                        : `${groupTotalMins}m`;
+                    header.appendChild(durEl);
+                }
             }
 
             header.addEventListener('click', () => {
@@ -4451,6 +4694,21 @@ function getFilteredActions() {
         // Show only items with the current week context (no specific day)
         const weekKey = getWeekKey(state.timelineViewDate);
         allLeaves = allLeaves.filter(a => isItemInWeek(a, weekKey));
+    } else if (state.viewHorizon === 'live') {
+        // Live horizon: show items assigned to the current live time context
+        const todayKey = getDateKey(getLogicalToday());
+        if (state.workingOn) {
+            const workId = state.workingOn.itemId;
+            allLeaves = allLeaves.filter(a => a.id === workId);
+        } else if (state.onBreak) {
+            const liveCtx = `${todayKey}@break`;
+            allLeaves = allLeaves.filter(a => {
+                const item = findItemById(a.id);
+                return item?.timeContexts?.includes(liveCtx);
+            });
+        } else {
+            allLeaves = []; // idle/sleep — no items in live context
+        }
     } else {
         allLeaves = allLeaves.filter(a => itemMatchesTimeContext(a, currentDateKey));
     }
@@ -4577,7 +4835,7 @@ function getFilteredActions() {
     // Exclude items with segment-level contexts — they belong to the timeline, not Actions.
     // They only appear when their specific session is focused (handled above),
     // OR when deep view is active (shows all lower layers).
-    if (!state.deepView) {
+    if (!state.deepView && state.viewHorizon !== 'live') {
         allLeaves = allLeaves.filter(a => {
             const item = findItemById(a.id);
             return !hasSegmentContext(item, currentDateKey);
@@ -5221,24 +5479,99 @@ function createActionElement(action) {
         }
     }
 
-    // Duration estimate badge (context-aware)
+    // Duration / Investment badge (context-aware)
     const estimateItem = findItemById(action.id);
     if (!action.done) {
-        const estimateBadge = document.createElement('span');
-        estimateBadge.className = 'action-estimate-badge';
-        const est = getContextDuration(estimateItem);
-        if (est) {
-            estimateBadge.textContent = est >= 60 ? `${Math.floor(est / 60)}h${est % 60 ? ` ${est % 60}m` : ''}` : `${est}m`;
-            estimateBadge.classList.add('has-estimate');
+        if (state.showInvestmentBadge) {
+            const inv = computeTimeInvestment(estimateItem);
+            if (inv) {
+                // Tri-state investment bar
+                const invBadge = document.createElement('div');
+                invBadge.className = 'action-investment-badge';
+                const total = inv.budget > 0 ? inv.budget : (inv.invested + inv.planned);
+                const invPct = total > 0 ? Math.min(100, (inv.invested / total) * 100) : 0;
+                const planPct = total > 0 ? Math.min(100 - invPct, (inv.planned / total) * 100) : 0;
+                // Hover tooltip
+                const parts = [];
+                if (inv.invested > 0) parts.push(`${_formatDuration(inv.invested)} invested`);
+                if (inv.planned > 0) parts.push(`${_formatDuration(inv.planned)} planned`);
+                if (inv.budget > 0) {
+                    parts.push(`${_formatDuration(inv.remaining)} remaining`);
+                }
+                const hoverText = parts.join(' / ');
+                // Over-commitment visual cue
+                if (inv.budget > 0 && inv.invested + inv.planned > inv.budget) {
+                    invBadge.classList.add('investment-over');
+                }
+                const bar = document.createElement('div');
+                bar.className = 'investment-bar';
+                const fillInv = document.createElement('div');
+                fillInv.className = 'investment-fill-invested';
+                fillInv.style.width = `${invPct}%`;
+                bar.appendChild(fillInv);
+                const fillPlan = document.createElement('div');
+                fillPlan.className = 'investment-fill-planned';
+                fillPlan.style.width = `${planPct}%`;
+                bar.appendChild(fillPlan);
+                invBadge.appendChild(bar);
+                const lbl = document.createElement('span');
+                lbl.className = 'investment-label';
+                const defaultText = _formatDuration(total);
+                lbl.textContent = defaultText;
+                invBadge.appendChild(lbl);
+                function _swapLabel2(text) {
+                    lbl.classList.add('investment-label-out');
+                    setTimeout(() => {
+                        lbl.textContent = text;
+                        lbl.classList.remove('investment-label-out');
+                        lbl.classList.add('investment-label-in');
+                        requestAnimationFrame(() => { requestAnimationFrame(() => { lbl.classList.remove('investment-label-in'); }); });
+                    }, 120);
+                }
+                invBadge.addEventListener('mouseenter', () => _swapLabel2(hoverText));
+                invBadge.addEventListener('mouseleave', () => _swapLabel2(defaultText));
+                // Click to edit duration still works
+                invBadge.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    showEstimatePicker(invBadge, action.id);
+                });
+                badgesRow.appendChild(invBadge);
+            } else {
+                // No investment data — show simple estimate badge
+                const estimateBadge = document.createElement('span');
+                estimateBadge.className = 'action-estimate-badge';
+                const est = getContextDuration(estimateItem);
+                if (est) {
+                    estimateBadge.textContent = _formatDuration(est);
+                    estimateBadge.classList.add('has-estimate');
+                } else {
+                    estimateBadge.textContent = '⏱';
+                    estimateBadge.classList.add('no-estimate');
+                }
+                estimateBadge.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    showEstimatePicker(estimateBadge, action.id);
+                });
+                badgesRow.appendChild(estimateBadge);
+            }
         } else {
-            estimateBadge.textContent = '⏱';
-            estimateBadge.classList.add('no-estimate');
+            // Classic estimate badge (showInvestmentBadge off)
+            const estimateBadge = document.createElement('span');
+            estimateBadge.className = 'action-estimate-badge';
+            const est = getContextDuration(estimateItem);
+            if (est) {
+                estimateBadge.textContent = _formatDuration(est);
+                estimateBadge.classList.add('has-estimate');
+            } else {
+                estimateBadge.textContent = '⏱';
+                estimateBadge.classList.add('no-estimate');
+            }
+            estimateBadge.addEventListener('click', (e) => {
+                e.stopPropagation();
+                showEstimatePicker(estimateBadge, action.id);
+            });
+            badgesRow.appendChild(estimateBadge);
         }
-        estimateBadge.addEventListener('click', (e) => {
-            e.stopPropagation();
-            showEstimatePicker(estimateBadge, action.id);
-        });
-        badgesRow.appendChild(estimateBadge);
     }
 
     // Deep view context badge — show the item's actual horizon level when deep view is on
@@ -6036,24 +6369,43 @@ function _updateWeekNavLabel() {
     }
 }
 
+// Format live timer display: countdown if target set, elapsed otherwise
+function _fmtLiveTimer(nowMs, startMs, targetEndTime) {
+    const _fmt = (ms) => {
+        const h = Math.floor(ms / 3600000);
+        const m = Math.floor((ms % 3600000) / 60000);
+        const s = Math.floor((ms % 60000) / 1000);
+        if (h > 0) return `${h}h ${m}m ${s}s`;
+        if (m > 0) return `${m}m ${s}s`;
+        return `${s}s`;
+    };
+    if (targetEndTime) {
+        const rem = targetEndTime - nowMs;
+        if (rem > 0) return _fmt(rem) + ' left';
+        return '+' + _fmt(Math.abs(rem)) + ' over';
+    }
+    return _fmt(Math.max(0, nowMs - startMs));
+}
+
 function renderHorizonTower() {
     const epochLayer = document.getElementById('horizon-epoch-layer');
     const monthLayer = document.getElementById('horizon-month-layer');
     const weekLayer = document.getElementById('horizon-week-layer');
     const dayLayer = document.getElementById('horizon-day-layer');
     const sessionLayer = document.getElementById('horizon-session-layer');
+    const liveLayer = document.getElementById('horizon-live-layer');
     if (!epochLayer || !monthLayer || !weekLayer || !dayLayer) return;
 
     const currentLevel = state.viewHorizon;
 
     // ── Visibility: show max 3 layers around the active one ──
     // Bottom → 2 above; Top → 2 below; Middle → 1 above + 1 below
-    const _layers = ['epoch', 'month', 'week', 'day', 'session'];
+    const _layers = ['epoch', 'month', 'week', 'day', 'session', 'live'];
     const _activeIdx = Math.max(0, _layers.indexOf(currentLevel));
     const _minVis = Math.max(0, Math.min(_activeIdx - 1, _layers.length - 3));
     const _maxVis = _minVis + 2;
     // Skip hiding layers that are mid-drag-animation
-    const _allLayers = [epochLayer, monthLayer, weekLayer, dayLayer, sessionLayer].filter(Boolean);
+    const _allLayers = [epochLayer, monthLayer, weekLayer, dayLayer, sessionLayer, liveLayer].filter(Boolean);
     _allLayers.forEach((layer, i) => {
         const isDragAnimating = layer.classList.contains('horizon-drag-reveal') || layer.classList.contains('horizon-drag-hide');
         if (!isDragAnimating) {
@@ -6196,6 +6548,57 @@ function renderHorizonTower() {
             if (sessionNowBtn) sessionNowBtn.style.display = 'none';
         }
     }
+
+    // Live layer: always reflects current reality (work/break/idle/sleep)
+    if (liveLayer) {
+        liveLayer.classList.toggle('horizon-layer-active', currentLevel === 'live');
+        liveLayer.classList.toggle('horizon-layer-dim', currentLevel !== 'live');
+
+
+        const liveIcon = document.getElementById('live-layer-icon');
+        const liveLabel = document.getElementById('live-nav-label');
+        const liveTimer = document.getElementById('live-layer-timer');
+        const liveStopBtn = document.getElementById('live-layer-stop-btn');
+
+        const nowMs = Date.now();
+        if (state.workingOn) {
+            if (liveIcon) liveIcon.textContent = '🔥';
+            if (liveLabel) liveLabel.textContent = state.workingOn.itemName || 'Working';
+            if (liveTimer) {
+                liveTimer.dataset.sessionStart = state.workingOn.startTime;
+                liveTimer.dataset.targetEnd = state.workingOn.targetEndTime || '';
+                liveTimer.textContent = _fmtLiveTimer(nowMs, state.workingOn.startTime, state.workingOn.targetEndTime);
+            }
+            if (liveStopBtn) liveStopBtn.style.display = '';
+        } else if (state.onBreak) {
+            if (liveIcon) liveIcon.textContent = '☕';
+            if (liveLabel) liveLabel.textContent = 'Break';
+            if (liveTimer) {
+                liveTimer.dataset.sessionStart = state.onBreak.startTime;
+                liveTimer.dataset.targetEnd = state.onBreak.targetEndTime || '';
+                liveTimer.textContent = _fmtLiveTimer(nowMs, state.onBreak.startTime, state.onBreak.targetEndTime);
+            }
+            if (liveStopBtn) liveStopBtn.style.display = '';
+        } else if (isInSleepRange()) {
+            if (liveIcon) liveIcon.textContent = '🌙';
+            if (liveLabel) liveLabel.textContent = 'Sleep';
+            if (liveTimer) {
+                liveTimer.dataset.sessionStart = '';
+                liveTimer.dataset.targetEnd = '';
+                liveTimer.textContent = '';
+            }
+            if (liveStopBtn) liveStopBtn.style.display = 'none';
+        } else {
+            if (liveIcon) liveIcon.textContent = '💤';
+            if (liveLabel) liveLabel.textContent = 'Idle';
+            if (liveTimer) {
+                liveTimer.dataset.sessionStart = '';
+                liveTimer.dataset.targetEnd = '';
+                liveTimer.textContent = '';
+            }
+            if (liveStopBtn) liveStopBtn.style.display = 'none';
+        }
+    }
 }
 
 // ─── Drag-Reveal: show all horizon layers during drag ───
@@ -6214,6 +6617,7 @@ function _showAllHorizonLayers() {
         document.getElementById('horizon-week-layer'),
         document.getElementById('horizon-day-layer'),
         document.getElementById('horizon-session-layer'),
+        document.getElementById('horizon-live-layer'),
     ].filter(Boolean);
 
     for (const layer of layers) {
@@ -6240,11 +6644,12 @@ function _restoreHorizonLayers() {
         document.getElementById('horizon-week-layer'),
         document.getElementById('horizon-day-layer'),
         document.getElementById('horizon-session-layer'),
+        document.getElementById('horizon-live-layer'),
     ].filter(Boolean);
 
     // Determine which layers should be hidden per normal 3-layer window
     const currentLevel = state.viewHorizon;
-    const _layerKeys = ['epoch', 'month', 'week', 'day', 'session'];
+    const _layerKeys = ['epoch', 'month', 'week', 'day', 'session', 'live'];
     const _activeIdx = Math.max(0, _layerKeys.indexOf(currentLevel));
     const _minVis = Math.max(0, Math.min(_activeIdx - 1, _layerKeys.length - 3));
     const _maxVis = _minVis + 2;
@@ -6313,67 +6718,84 @@ function toggleSessionFocus(session) {
     });
 }
 
-// Render the time-context bar: date nav (unfocused) or session info (focused)
-function renderTimeContext() {
-    const container = document.getElementById('time-context');
-    if (!container) return;
-
-    const top = state.focusStack.length > 0 ? state.focusStack[state.focusStack.length - 1] : null;
-
-    if (!top) {
-        // Unfocused: show normal date nav
-        container.classList.remove('time-context-focused');
-        container.className = container.className.replace(/\btime-context-type-\S+/g, '').trim();
-        // Note: layer visibility and nav buttons are managed by renderHorizonTower
-        container.querySelectorAll('.time-context-session').forEach(el => el.remove());
-    } else {
-
-        // Focused: transform the bar — keep horizon layers visible (dimmed by renderHorizonTower)
-        container.classList.add('time-context-focused');
-        // Set type class for skin-specific styling
-        container.className = container.className.replace(/\btime-context-type-\S+/g, '').trim();
-        container.classList.add(`time-context-type-${top.type}`);
-
-        // Keep date-nav visibility as set by renderHorizonTower
-        container.querySelectorAll('.time-context-session').forEach(el => el.remove());
-
-        const sessionEl = document.createElement('div');
-        sessionEl.className = `time-context-session time-context-session-${top.type} horizon-layer horizon-layer-active`;
-
-        // ── Duration helpers ──
-        const nowMs = Date.now();
-        const durationMs = top.endMs - top.startMs;
-        const _fmtDur = (ms) => {
-            const h = Math.floor(ms / 3600000);
-            const m = Math.floor((ms % 3600000) / 60000);
-            const s = Math.floor((ms % 60000) / 1000);
-            if (h > 0) return `${h}h ${m}m ${s}s`;
-            if (m > 0) return `${m}m ${s}s`;
-            return `${s}s`;
-        };
-
-        // ── Render per-type content ──
-        if (top.type === 'working' || top.type === 'work') {
-            _renderWorkSession(sessionEl, top, nowMs, durationMs, _fmtDur);
-        } else if (top.type === 'planned') {
-            _renderPlannedSession(sessionEl, top, nowMs, durationMs, _fmtDur);
-        } else if (top.type === 'free') {
-            _renderFreeSession(sessionEl, top, nowMs, durationMs, _fmtDur);
-        } else if (top.type === 'break') {
-            _renderBreakSession(sessionEl, top, nowMs, durationMs, _fmtDur);
-        }
-
-        // ── Action count (shared) ──
-        const visibleActions = state._visibleActionIds || [];
-        const countRow = document.createElement('div');
-        countRow.className = 'time-context-row time-context-action-count';
-        countRow.textContent = `📋 ${visibleActions.length} related action${visibleActions.length !== 1 ? 's' : ''}`;
-        sessionEl.appendChild(countRow);
-
-        container.appendChild(sessionEl);
+// Toggle focus on live horizon (enter/exit live view)
+function toggleLiveFocus() {
+    if (state.viewHorizon === 'live') {
+        // Already on live → pop back to day
+        state.viewHorizon = 'day';
+        savePref('viewHorizon', 'day');
+        clearFocusStack();
+        renderAll();
+        return;
     }
-
+    animateLayerTransition('up', () => {
+        state.viewHorizon = 'live';
+        savePref('viewHorizon', 'live');
+        clearFocusStack();
+        state._animateActions = true;
+        renderAll();
+    });
 }
+
+// Wire live layer click + stop button
+(function _initLiveLayerHandlers() {
+    document.addEventListener('DOMContentLoaded', () => {
+        const liveLayer = document.getElementById('horizon-live-layer');
+        if (liveLayer) {
+            liveLayer.addEventListener('click', (e) => {
+                // Don't toggle if clicking the stop button
+                if (e.target.closest('.live-layer-stop-btn')) return;
+                toggleLiveFocus();
+            });
+
+            // ── DnD: drop onto live layer → start working on the item ──
+            liveLayer.addEventListener('dragover', (e) => {
+                if (!window._draggedAction && !e.dataTransfer.types.includes('application/x-segment-item-id')) return;
+                e.preventDefault();
+                e.stopPropagation();
+                e.dataTransfer.dropEffect = 'move';
+                liveLayer.classList.add('horizon-layer-drag-over');
+            });
+            liveLayer.addEventListener('dragleave', (e) => {
+                e.stopPropagation();
+                liveLayer.classList.remove('horizon-layer-drag-over');
+            });
+            liveLayer.addEventListener('drop', async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                liveLayer.classList.remove('horizon-layer-drag-over');
+
+                // Resolve item ID from segment drag or action drag
+                let itemId;
+                if (e.dataTransfer.types.includes('application/x-segment-item-id')) {
+                    itemId = Number(e.dataTransfer.getData('application/x-segment-item-id'));
+                } else {
+                    const dragIds = getMultiDragIds(e);
+                    if (dragIds.length === 0) return;
+                    itemId = dragIds[0]; // Start working on the first item
+                }
+                if (!itemId) return;
+
+                const item = findItemById(itemId);
+                if (!item) return;
+
+                const ancestors = getAncestorPath(itemId);
+                const projectName = (ancestors && ancestors.length > 0) ? ancestors[0].name : '';
+
+                await startWorking(itemId, item.name, projectName);
+            });
+        }
+        const stopBtn = document.getElementById('live-layer-stop-btn');
+        if (stopBtn) {
+            stopBtn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                if (state.workingOn) await stopWorking();
+                else if (state.onBreak) await stopBreak();
+            });
+        }
+    });
+})();
+
 
 // ── Live Indicator DnD Helper ──
 // Attaches dragover/dragleave/drop listeners to a live-indicator element.
@@ -6512,22 +6934,11 @@ function _renderLiveSessionIndicator() {
         indicator.appendChild(label);
         indicator.appendChild(timer);
 
-        // Click: navigate to today + focus the free/idle block in the timeline
+        // Click: focus the live horizon layer
         indicator.addEventListener('click', () => {
             state.timelineViewDate = getLogicalToday();
             savePref('timelineViewDate', state.timelineViewDate.toISOString());
-            state.viewHorizon = 'day';
-            savePref('viewHorizon', 'day');
-            state.focusStack = [{
-                startMs: idleStartMs,
-                endMs: nowMs,
-                label: 'Free Time',
-                type: 'free',
-                icon: '✨',
-                tier: 'session',
-            }];
-            saveFocusStack();
-            renderAll();
+            toggleLiveFocus();
         });
 
         // DnD: drop onto idle → schedule to today
@@ -6606,42 +7017,21 @@ function _renderLiveSessionIndicator() {
     });
     indicator.appendChild(stopBtn);
 
-    // Click: navigate back to today + focus the running session + select project
+    // Click: navigate to today + focus the live horizon + select project
     indicator.addEventListener('click', () => {
         // 1. Navigate to today
         state.timelineViewDate = getLogicalToday();
         savePref('timelineViewDate', state.timelineViewDate.toISOString());
-        // 2. Switch to day horizon
-        state.viewHorizon = 'day';
-        savePref('viewHorizon', 'day');
-        // 3. Focus the running session
-        const endMs = isWork
-            ? Math.max(nowMs, state.workingOn.targetEndTime || nowMs)
-            : Math.max(nowMs, state.onBreak.targetEndTime || nowMs);
-        const sessionLabel = isWork ? (state.workingOn.itemName || 'Working') : 'Break';
-        state.focusStack = [{
-            startMs: liveSession.startTime,
-            endMs,
-            label: sessionLabel,
-            type: isWork ? 'working' : 'break',
-            icon: isWork ? '🔥' : '☕',
-            projectName: isWork ? state.workingOn.projectName : null,
-            itemId: isWork ? state.workingOn.itemId : null,
-            targetEndTime: liveSession.targetEndTime || null,
-            liveType: isWork ? 'work' : 'break',
-            tier: 'session',
-        }];
-        saveFocusStack();
-        // 4. Focus the related project in the sidebar
+        // 2. Focus the related project in the sidebar
         if (isWork && state.workingOn.itemId) {
             const ancestors = getAncestorPath(state.workingOn.itemId);
-            // Top-level item has no ancestors — use itemId itself
             const projectId = (ancestors && ancestors.length > 0) ? ancestors[0].id : state.workingOn.itemId;
             state.selectedItemId = projectId;
             savePref('selectedItemId', projectId);
         }
-        renderAll();
-        // 5. Scroll to & highlight the project in the sidebar tree
+        // 3. Focus the live horizon layer
+        toggleLiveFocus();
+        // 4. Scroll to & highlight the project in the sidebar tree
         scrollToSelectedItem();
     });
 
@@ -6790,416 +7180,6 @@ function _createAdjustBtns() {
     return wrap;
 }
 
-// ── Work Session Header ──
-function _renderWorkSession(sessionEl, top, nowMs, durationMs, _fmtDur) {
-    const isLive = top.type === 'working';
-
-    // Icon + label
-    const headerRow = document.createElement('div');
-    headerRow.className = 'time-context-row time-context-session-header';
-    const icon = document.createElement('span');
-    icon.className = 'time-context-session-icon';
-    icon.textContent = isLive ? '🔥' : '🔥';
-    const label = document.createElement('span');
-    label.className = 'time-context-session-label';
-    label.textContent = top.label;
-    headerRow.appendChild(icon);
-    headerRow.appendChild(label);
-    sessionEl.appendChild(headerRow);
-
-    // Project breadcrumb
-    if (top.projectName) {
-        const breadcrumb = document.createElement('div');
-        breadcrumb.className = 'time-context-row session-breadcrumb';
-        breadcrumb.textContent = top.projectName;
-        sessionEl.appendChild(breadcrumb);
-    }
-
-    // Time range
-    const metaRow = document.createElement('div');
-    metaRow.className = 'time-context-row time-context-meta';
-    const targetEnd = top.targetEndTime || (isLive && state.workingOn ? state.workingOn.targetEndTime : null);
-    if (isLive && targetEnd) {
-        metaRow.textContent = `${formatTime(top.startMs)} → ${formatTime(targetEnd)}`;
-    } else {
-        metaRow.textContent = `${formatTime(top.startMs)} – ${formatTime(top.endMs)}`;
-    }
-    sessionEl.appendChild(metaRow);
-
-    // Live timer display
-    if (isLive) {
-        const timerRow = document.createElement('div');
-        timerRow.className = 'time-context-row session-timer-row';
-
-        const elapsed = Math.max(0, nowMs - top.startMs);
-        const timerEl = document.createElement('span');
-        timerEl.className = 'session-timer';
-        timerEl.dataset.sessionStart = top.startMs;
-
-        if (targetEnd) {
-            const remainMs = targetEnd - nowMs;
-            timerEl.dataset.targetEnd = targetEnd;
-            if (remainMs > 0) {
-                timerEl.textContent = _fmtDur(remainMs) + ' left';
-                timerEl.classList.add('session-timer-remaining');
-            } else {
-                timerEl.textContent = '+' + _fmtDur(Math.abs(remainMs)) + ' over';
-                timerEl.classList.add('session-timer-overtime');
-            }
-        } else {
-            timerEl.textContent = _fmtDur(elapsed);
-            timerEl.classList.add('session-timer-elapsed');
-        }
-        timerRow.appendChild(timerEl);
-        if (targetEnd) timerRow.appendChild(_createAdjustBtns());
-        sessionEl.appendChild(timerRow);
-
-        // Progress bar
-        if (targetEnd) {
-            const total = targetEnd - top.startMs;
-            const pct = total > 0 ? Math.min(100, (elapsed / total) * 100) : 0;
-            const progressRow = document.createElement('div');
-            progressRow.className = 'time-context-row time-context-progress-row';
-            const progressWrap = document.createElement('div');
-            progressWrap.className = 'time-context-progress';
-            const progressFill = document.createElement('div');
-            progressFill.className = 'time-context-progress-fill';
-            if (pct >= 100) progressFill.classList.add('over');
-            progressFill.style.width = `${Math.min(pct, 100)}%`;
-            progressWrap.appendChild(progressFill);
-            const progressLabel = document.createElement('span');
-            progressLabel.className = 'time-context-progress-label';
-            progressLabel.textContent = `${Math.round(pct)}%`;
-            progressRow.appendChild(progressWrap);
-            progressRow.appendChild(progressLabel);
-            sessionEl.appendChild(progressRow);
-        }
-
-        // Stop button
-        const ctaRow = document.createElement('div');
-        ctaRow.className = 'time-context-row session-cta-row';
-        const stopBtn = document.createElement('button');
-        stopBtn.className = 'session-cta session-cta-stop';
-        stopBtn.textContent = '⏹ Stop';
-        stopBtn.addEventListener('click', async () => {
-            clearFocusStack();
-            await stopWorking();
-        });
-        ctaRow.appendChild(stopBtn);
-        sessionEl.appendChild(ctaRow);
-    } else {
-        // Past work: just show duration
-        const durRow = document.createElement('div');
-        durRow.className = 'time-context-row session-timer-row';
-        const durEl = document.createElement('span');
-        durEl.className = 'session-timer session-timer-elapsed';
-        durEl.textContent = _fmtDur(durationMs);
-        durRow.appendChild(durEl);
-        sessionEl.appendChild(durRow);
-    }
-
-    // Intention count — items linked via @work/@break or @entry:ID context
-    const _workCtxStr = top.liveType
-        ? `${getDateKey(state.timelineViewDate)}@${top.liveType}`
-        : top.entryId ? `${getDateKey(state.timelineViewDate)}@entry:${top.entryId}` : null;
-    if (_workCtxStr) {
-        const allItems = collectAllItems(state.items.items);
-        const intentionCount = allItems.filter(item =>
-            item.timeContexts && item.timeContexts.includes(_workCtxStr)
-        ).length;
-        if (intentionCount > 0) {
-            const intentRow = document.createElement('div');
-            intentRow.className = 'time-context-row session-unsched-count';
-            intentRow.textContent = `📋 ${intentionCount} intention${intentionCount !== 1 ? 's' : ''} planned`;
-            sessionEl.appendChild(intentRow);
-        }
-    }
-}
-
-// ── Planned Session Header ──
-function _renderPlannedSession(sessionEl, top, nowMs, durationMs, _fmtDur) {
-    // Icon + label
-    const headerRow = document.createElement('div');
-    headerRow.className = 'time-context-row time-context-session-header';
-    const icon = document.createElement('span');
-    icon.className = 'time-context-session-icon';
-    icon.textContent = '📌';
-    const label = document.createElement('span');
-    label.className = 'time-context-session-label';
-    label.textContent = top.label;
-    headerRow.appendChild(icon);
-    headerRow.appendChild(label);
-    sessionEl.appendChild(headerRow);
-
-    // Project breadcrumb
-    if (top.projectName) {
-        const breadcrumb = document.createElement('div');
-        breadcrumb.className = 'time-context-row session-breadcrumb';
-        breadcrumb.textContent = top.projectName;
-        sessionEl.appendChild(breadcrumb);
-    }
-
-    // Time range + duration
-    const metaRow = document.createElement('div');
-    metaRow.className = 'time-context-row time-context-meta';
-    metaRow.textContent = `${formatTime(top.startMs)} – ${formatTime(top.endMs)}  ·  ${_fmtDur(durationMs)}`;
-    sessionEl.appendChild(metaRow);
-
-    // Relative time: "Starts in X" / "Started X ago" / "Ended X ago"
-    const relRow = document.createElement('div');
-    relRow.className = 'time-context-row session-relative-time';
-    if (nowMs < top.startMs) {
-        relRow.textContent = `⏳ Starts in ${_fmtDur(top.startMs - nowMs)}`;
-    } else if (nowMs >= top.startMs && nowMs < top.endMs) {
-        relRow.textContent = `▶ Started ${_fmtDur(nowMs - top.startMs)} ago`;
-    } else {
-        relRow.textContent = `✓ Ended ${_fmtDur(nowMs - top.endMs)} ago`;
-    }
-    sessionEl.appendChild(relRow);
-
-    // Intention count — items linked via @work/@break or @entry:ID context
-    const _breakCtxStr = top.liveType
-        ? `${getDateKey(state.timelineViewDate)}@${top.liveType}`
-        : top.entryId ? `${getDateKey(state.timelineViewDate)}@entry:${top.entryId}` : null;
-    if (_breakCtxStr) {
-        const allItems = collectAllItems(state.items.items);
-        const intentionCount = allItems.filter(item =>
-            item.timeContexts && item.timeContexts.includes(_breakCtxStr)
-        ).length;
-        if (intentionCount > 0) {
-            const intentRow = document.createElement('div');
-            intentRow.className = 'time-context-row session-unsched-count';
-            intentRow.textContent = `📋 ${intentionCount} intention${intentionCount !== 1 ? 's' : ''} planned`;
-            sessionEl.appendChild(intentRow);
-        }
-    }
-
-    // CTA row
-    const ctaRow = document.createElement('div');
-    ctaRow.className = 'time-context-row session-cta-row';
-
-    // Start Working CTA (if plan hasn't passed yet and has an item)
-    if (top.itemId && nowMs < top.endMs) {
-        const startBtn = document.createElement('button');
-        startBtn.className = 'session-cta session-cta-start';
-        startBtn.textContent = '▶ Start Working';
-        startBtn.addEventListener('click', async () => {
-            await startWorking(top.itemId, top.label, top.projectName, top.endMs);
-        });
-        ctaRow.appendChild(startBtn);
-    }
-
-    // Plan an action CTA
-    const planBtn = document.createElement('button');
-    planBtn.className = 'session-cta session-cta-plan';
-    planBtn.textContent = '+ Plan an action';
-    planBtn.addEventListener('click', () => {
-        // Find the planned block in the timeline to anchor the plan editor
-        const plannedBlock = top.entryId
-            ? document.querySelector(`.time-block-planned[data-id="${top.entryId}"]`)
-            : null;
-        openPlanEditor(plannedBlock || document.querySelector('.time-context-view'), top.startMs, top.endMs, null, top.entryId, top.itemId);
-    });
-    ctaRow.appendChild(planBtn);
-    sessionEl.appendChild(ctaRow);
-}
-
-// ── Free Time Session Header ──
-function _renderFreeSession(sessionEl, top, nowMs, durationMs, _fmtDur) {
-    // Icon + label
-    const headerRow = document.createElement('div');
-    headerRow.className = 'time-context-row time-context-session-header';
-    const icon = document.createElement('span');
-    icon.className = 'time-context-session-icon';
-    icon.textContent = '✨';
-    const label = document.createElement('span');
-    label.className = 'time-context-session-label';
-    label.textContent = 'Free Time';
-    headerRow.appendChild(icon);
-    headerRow.appendChild(label);
-    sessionEl.appendChild(headerRow);
-
-    // Time range
-    const metaRow = document.createElement('div');
-    metaRow.className = 'time-context-row time-context-meta';
-    metaRow.textContent = `${formatTime(top.startMs)} – ${formatTime(top.endMs)}`;
-    sessionEl.appendChild(metaRow);
-
-    // Available duration (counts down from now if inside the block)
-    const availMs = Math.max(0, top.endMs - Math.max(nowMs, top.startMs));
-    const availRow = document.createElement('div');
-    availRow.className = 'time-context-row session-avail-duration';
-    availRow.dataset.endMs = top.endMs;
-    availRow.textContent = `⏱ ${_fmtDur(availMs)} available`;
-    sessionEl.appendChild(availRow);
-
-    // Next up: find the next block after this free time
-    const { dayEnd } = getDayBoundaries(state.timelineViewDate);
-    const allEntries = state.timeline.entries
-        .filter(e => e.endTime && (e.type === 'work' || e.type === 'break' || e.type === 'planned'))
-        .sort((a, b) => a.timestamp - b.timestamp);
-    const nextBlock = allEntries.find(e => e.timestamp >= top.endMs);
-    if (nextBlock) {
-        const nextRow = document.createElement('div');
-        nextRow.className = 'time-context-row session-next-up';
-        const nextLabel = nextBlock.text || (nextBlock.type === 'break' ? 'Break' : 'Block');
-        nextRow.textContent = `Next: ${nextLabel} at ${formatTime(nextBlock.timestamp)}`;
-        sessionEl.appendChild(nextRow);
-    } else {
-        // Day end is next
-        const nextRow = document.createElement('div');
-        nextRow.className = 'time-context-row session-next-up';
-        nextRow.textContent = `Next: Day End at ${formatTime(dayEnd.getTime())}`;
-        sessionEl.appendChild(nextRow);
-    }
-
-    // Unscheduled action count — use the same logic as the day timeline
-    const currentDateKey = getDateKey(state.timelineViewDate);
-    let allLeaves = collectLeaves();
-    if (!state.showDone) allLeaves = allLeaves.filter(a => !a.done);
-    // Filter to items matching this day's time context (same as getFilteredActions)
-    allLeaves = allLeaves.filter(a => itemMatchesTimeContext(a, currentDateKey));
-    // Only unscheduled items
-    const unscheduledCount = allLeaves.filter(a => isItemUnscheduled(a)).length;
-
-    if (unscheduledCount > 0) {
-        const unschedRow = document.createElement('div');
-        unschedRow.className = 'time-context-row session-unsched-count';
-        unschedRow.textContent = `📋 ${unscheduledCount} unscheduled action${unscheduledCount !== 1 ? 's' : ''} available`;
-        sessionEl.appendChild(unschedRow);
-    }
-
-    // Plan button
-    const ctaRow = document.createElement('div');
-    ctaRow.className = 'time-context-row session-cta-row';
-    const planBtn = document.createElement('button');
-    planBtn.className = 'session-cta session-cta-plan';
-    planBtn.textContent = '+ Plan an action';
-    planBtn.addEventListener('click', () => {
-        // Find the free time block in the timeline to anchor the plan editor
-        const freeBlock = document.querySelector(`.time-block-free[data-start-time="${top.startMs}"]`);
-        openPlanEditor(freeBlock || null, top.startMs, top.endMs);
-    });
-    ctaRow.appendChild(planBtn);
-    sessionEl.appendChild(ctaRow);
-}
-
-// ── Break Session Header ──
-function _renderBreakSession(sessionEl, top, nowMs, durationMs, _fmtDur) {
-    const isLive = !!state.onBreak;
-
-    // Icon + label
-    const headerRow = document.createElement('div');
-    headerRow.className = 'time-context-row time-context-session-header';
-    const icon = document.createElement('span');
-    icon.className = 'time-context-session-icon';
-    icon.textContent = '☕';
-    const label = document.createElement('span');
-    label.className = 'time-context-session-label';
-    label.textContent = top.label || 'Break';
-    headerRow.appendChild(icon);
-    headerRow.appendChild(label);
-    sessionEl.appendChild(headerRow);
-
-    // Time range
-    const metaRow = document.createElement('div');
-    metaRow.className = 'time-context-row time-context-meta';
-    const targetEnd = top.targetEndTime || (isLive && state.onBreak ? state.onBreak.targetEndTime : null);
-    if (isLive && targetEnd) {
-        metaRow.textContent = `${formatTime(top.startMs)} → ${formatTime(targetEnd)}`;
-    } else {
-        metaRow.textContent = `${formatTime(top.startMs)} – ${formatTime(top.endMs)}`;
-    }
-    sessionEl.appendChild(metaRow);
-
-    // Live timer
-    if (isLive) {
-        const timerRow = document.createElement('div');
-        timerRow.className = 'time-context-row session-timer-row';
-
-        const elapsed = Math.max(0, nowMs - top.startMs);
-        const timerEl = document.createElement('span');
-        timerEl.className = 'session-timer session-timer-break';
-        timerEl.dataset.sessionStart = top.startMs;
-
-        if (targetEnd) {
-            const remainMs = targetEnd - nowMs;
-            timerEl.dataset.targetEnd = targetEnd;
-            if (remainMs > 0) {
-                timerEl.textContent = _fmtDur(remainMs) + ' left';
-                timerEl.classList.add('session-timer-remaining');
-            } else {
-                timerEl.textContent = '+' + _fmtDur(Math.abs(remainMs)) + ' over';
-                timerEl.classList.add('session-timer-overtime');
-            }
-        } else {
-            timerEl.textContent = _fmtDur(elapsed);
-            timerEl.classList.add('session-timer-elapsed');
-        }
-        timerRow.appendChild(timerEl);
-        if (targetEnd) timerRow.appendChild(_createAdjustBtns());
-        sessionEl.appendChild(timerRow);
-
-        // Progress bar (if timed)
-        if (targetEnd) {
-            const total = targetEnd - top.startMs;
-            const pct = total > 0 ? Math.min(100, (elapsed / total) * 100) : 0;
-            const progressRow = document.createElement('div');
-            progressRow.className = 'time-context-row time-context-progress-row';
-            const progressWrap = document.createElement('div');
-            progressWrap.className = 'time-context-progress';
-            const progressFill = document.createElement('div');
-            progressFill.className = 'time-context-progress-fill session-progress-break';
-            if (pct >= 100) progressFill.classList.add('over');
-            progressFill.style.width = `${Math.min(pct, 100)}%`;
-            progressWrap.appendChild(progressFill);
-            const progressLabel = document.createElement('span');
-            progressLabel.className = 'time-context-progress-label';
-            progressLabel.textContent = `${Math.round(pct)}%`;
-            progressRow.appendChild(progressWrap);
-            progressRow.appendChild(progressLabel);
-            sessionEl.appendChild(progressRow);
-        }
-
-        // End Break button
-        const ctaRow = document.createElement('div');
-        ctaRow.className = 'time-context-row session-cta-row';
-        const stopBtn = document.createElement('button');
-        stopBtn.className = 'session-cta session-cta-endbreak';
-        stopBtn.textContent = '⏹ End Break';
-        stopBtn.addEventListener('click', async () => {
-            clearFocusStack();
-            await stopBreak();
-        });
-        ctaRow.appendChild(stopBtn);
-        sessionEl.appendChild(ctaRow);
-    } else {
-        // Past break: just show duration
-        const durRow = document.createElement('div');
-        durRow.className = 'time-context-row session-timer-row';
-        const durEl = document.createElement('span');
-        durEl.className = 'session-timer session-timer-break session-timer-elapsed';
-        durEl.textContent = _fmtDur(durationMs);
-        durRow.appendChild(durEl);
-        sessionEl.appendChild(durRow);
-    }
-
-    // Intention count — items linked via @entry:ID context
-    if (top.entryId) {
-        const currentDateKey = getDateKey(state.timelineViewDate);
-        const entryCtx = `${currentDateKey}@entry:${top.entryId}`;
-        const allItems = collectAllItems(state.items.items);
-        const intentionCount = allItems.filter(item =>
-            item.timeContexts && item.timeContexts.includes(entryCtx)
-        ).length;
-        if (intentionCount > 0) {
-            const intentRow = document.createElement('div');
-            intentRow.className = 'time-context-row session-unsched-count';
-            intentRow.textContent = `📋 ${intentionCount} intention${intentionCount !== 1 ? 's' : ''} planned`;
-            sessionEl.appendChild(intentRow);
-        }
-    }
-}
 
 // ─── Week View Rendering ───
 function renderWeekView(container) {
@@ -8158,7 +8138,7 @@ function renderTimeline() {
     const quickLog = document.querySelector('.quick-log');
 
     // Clear all rendered blocks (including breadcrumb)
-    container.querySelectorAll('.time-block, .timeline-entry, .epoch-placeholder, .epoch-week-overview, .month-view, .week-view, .session-panel, .week-sleep-divider, .divergence-prompt, .divergence-banner, .compact-past-entry, .compact-project-wrapper').forEach(el => el.remove());
+    container.querySelectorAll('.time-block, .timeline-entry, .epoch-placeholder, .epoch-week-overview, .month-view, .week-view, .session-panel, .live-panel, .week-sleep-divider, .divergence-prompt, .divergence-banner, .compact-past-entry, .compact-project-wrapper').forEach(el => el.remove());
 
     // ── Month horizon: show month view with week cards + day pips ──
     if (state.viewHorizon === 'month') {
@@ -8311,6 +8291,143 @@ function renderTimeline() {
         // Also clear any week-view leftovers
         container.querySelectorAll('.week-view').forEach(el => el.remove());
         renderWeekView(container);
+        return;
+    }
+
+    // ── Live horizon: replace timeline with live activity panel ──
+    if (state.viewHorizon === 'live') {
+        empty.style.display = 'none';
+        if (quickLog) quickLog.style.display = 'none';
+        container.querySelectorAll('.live-panel').forEach(el => el.remove());
+
+        const panel = document.createElement('div');
+        panel.className = 'live-panel';
+
+        const nowMs = Date.now();
+        const _fmtDur = (ms) => {
+            const h = Math.floor(ms / 3600000);
+            const m = Math.floor((ms % 3600000) / 60000);
+            const s = Math.floor((ms % 60000) / 1000);
+            if (h > 0) return `${h}h ${m}m ${s}s`;
+            if (m > 0) return `${m}m ${s}s`;
+            return `${s}s`;
+        };
+
+        if (state.workingOn) {
+            // ── Working state ──
+            const icon = '🔥';
+            const itemName = state.workingOn.itemName || 'Working';
+            const elapsed = nowMs - state.workingOn.startTime;
+
+            // Header
+            const header = document.createElement('div');
+            header.className = 'live-panel-header live-panel-work';
+            header.innerHTML = `<span class="live-panel-icon">${icon}</span> <span class="live-panel-title">${itemName}</span>`;
+            panel.appendChild(header);
+
+            // Timer row
+            const timerRow = document.createElement('div');
+            timerRow.className = 'live-panel-timer-row';
+            timerRow.id = 'live-panel-timer';
+            timerRow.dataset.sessionStart = String(state.workingOn.startTime);
+            if (state.workingOn.targetEndTime) timerRow.dataset.targetEnd = String(state.workingOn.targetEndTime);
+            if (state.workingOn.targetEndTime) {
+                const rem = state.workingOn.targetEndTime - nowMs;
+                if (rem > 0) {
+                    timerRow.textContent = `⏱️ ${_fmtDur(rem)} remaining`;
+                } else {
+                    timerRow.textContent = `⏱️ +${_fmtDur(Math.abs(rem))} overtime`;
+                    timerRow.classList.add('live-panel-overtime');
+                }
+            } else {
+                timerRow.textContent = `⏱️ ${_fmtDur(elapsed)} elapsed`;
+            }
+            panel.appendChild(timerRow);
+
+            // Ancestor path
+            const item = findItemById(state.workingOn.itemId);
+            if (item) {
+                const path = getAncestorPath(item.id);
+                if (path && path.length > 0) {
+                    const pathRow = document.createElement('div');
+                    pathRow.className = 'live-panel-path';
+                    pathRow.textContent = '📂 ' + path.map(a => a.name).join(' › ');
+                    panel.appendChild(pathRow);
+                }
+            }
+
+            // Stop button
+            const stopRow = document.createElement('div');
+            stopRow.className = 'live-panel-actions';
+            const stopBtn = document.createElement('button');
+            stopBtn.className = 'live-panel-stop-btn';
+            stopBtn.textContent = '⏹ Stop Working';
+            stopBtn.addEventListener('click', () => stopWorking());
+            stopRow.appendChild(stopBtn);
+            panel.appendChild(stopRow);
+
+        } else if (state.onBreak) {
+            // ── Break state ──
+            const elapsed = nowMs - state.onBreak.startTime;
+
+            const header = document.createElement('div');
+            header.className = 'live-panel-header live-panel-break';
+            header.innerHTML = `<span class="live-panel-icon">☕</span> <span class="live-panel-title">Break</span>`;
+            panel.appendChild(header);
+
+            const timerRow = document.createElement('div');
+            timerRow.className = 'live-panel-timer-row';
+            timerRow.id = 'live-panel-timer';
+            timerRow.dataset.sessionStart = String(state.onBreak.startTime);
+            if (state.onBreak.targetEndTime) timerRow.dataset.targetEnd = String(state.onBreak.targetEndTime);
+            if (state.onBreak.targetEndTime) {
+                const rem = state.onBreak.targetEndTime - nowMs;
+                if (rem > 0) {
+                    timerRow.textContent = `⏱️ ${_fmtDur(rem)} remaining`;
+                } else {
+                    timerRow.textContent = `⏱️ +${_fmtDur(Math.abs(rem))} overtime`;
+                    timerRow.classList.add('live-panel-overtime');
+                }
+            } else {
+                timerRow.textContent = `⏱️ ${_fmtDur(elapsed)} elapsed`;
+            }
+            panel.appendChild(timerRow);
+
+            const stopRow = document.createElement('div');
+            stopRow.className = 'live-panel-actions';
+            const stopBtn = document.createElement('button');
+            stopBtn.className = 'live-panel-stop-btn';
+            stopBtn.textContent = '⏹ End Break';
+            stopBtn.addEventListener('click', () => stopBreak());
+            stopRow.appendChild(stopBtn);
+            panel.appendChild(stopRow);
+
+        } else if (isInSleepRange()) {
+            // ── Sleep state ──
+            const header = document.createElement('div');
+            header.className = 'live-panel-header live-panel-sleep';
+            header.innerHTML = `<span class="live-panel-icon">🌙</span> <span class="live-panel-title">Sleep</span>`;
+            panel.appendChild(header);
+
+            const msg = document.createElement('div');
+            msg.className = 'live-panel-message';
+            msg.textContent = 'Outside work hours.';
+            panel.appendChild(msg);
+
+        } else {
+            // ── Idle state ──
+            const header = document.createElement('div');
+            header.className = 'live-panel-header live-panel-idle';
+            header.innerHTML = `<span class="live-panel-icon">💤</span> <span class="live-panel-title">Idle</span>`;
+            panel.appendChild(header);
+
+            const msg = document.createElement('div');
+            msg.className = 'live-panel-message';
+            msg.textContent = 'No active work or break session.';
+            panel.appendChild(msg);
+        }
+
+        container.appendChild(panel);
         return;
     }
 
@@ -10112,13 +10229,7 @@ function createWorkingTimeBlock(startMs, endMs) {
     el.dataset.endTime = endMs;
     el.style.cursor = 'pointer';
     const itemName = state.workingOn ? state.workingOn.itemName : 'Working';
-    el.addEventListener('click', () => toggleSessionFocus({
-        startMs, endMs, label: itemName, type: 'working', icon: '⚡',
-        projectName: state.workingOn ? state.workingOn.projectName : null,
-        itemId: state.workingOn ? state.workingOn.itemId : null,
-        targetEndTime: targetEnd,
-        liveType: 'work',
-    }));
+    el.addEventListener('click', () => toggleLiveFocus());
 
     const targetEnd = state.workingOn ? state.workingOn.targetEndTime : null;
     if (targetEnd) el.dataset.targetEndTime = targetEnd;
@@ -10238,11 +10349,7 @@ function createBreakTimeBlock(startMs, endMs) {
     el.dataset.startTime = startMs;
     el.dataset.endTime = endMs;
     el.style.cursor = 'pointer';
-    el.addEventListener('click', () => toggleSessionFocus({
-        startMs, endMs, label: 'Break', type: 'break', icon: '☕',
-        targetEndTime: targetEnd,
-        liveType: 'break',
-    }));
+    el.addEventListener('click', () => toggleLiveFocus());
 
     const targetEnd = state.onBreak ? state.onBreak.targetEndTime : null;
     if (targetEnd) el.dataset.targetEndTime = targetEnd;
@@ -10397,6 +10504,48 @@ function startIdleUpdater() {
                 }
             } else {
                 indicatorTimer.textContent = _fmtI(iNow - iStart);
+            }
+        }
+
+        // ── Update live horizon layer timer ──
+        const layerTimer = document.getElementById('live-layer-timer');
+        if (layerTimer && layerTimer.dataset.sessionStart) {
+            const lStart = parseInt(layerTimer.dataset.sessionStart, 10);
+            const lTarget = layerTimer.dataset.targetEnd ? parseInt(layerTimer.dataset.targetEnd, 10) : null;
+            const lNow = Date.now();
+            layerTimer.textContent = _fmtLiveTimer(lNow, lStart, lTarget);
+            if (lTarget && lTarget < lNow) {
+                layerTimer.classList.add('live-layer-timer-overtime');
+            } else {
+                layerTimer.classList.remove('live-layer-timer-overtime');
+            }
+        }
+
+        // ── Update live panel timer (timeline area) ──
+        const panelTimer = document.getElementById('live-panel-timer');
+        if (panelTimer && panelTimer.dataset.sessionStart) {
+            const pStart = parseInt(panelTimer.dataset.sessionStart, 10);
+            const pTarget = panelTimer.dataset.targetEnd ? parseInt(panelTimer.dataset.targetEnd, 10) : null;
+            const pNow = Date.now();
+            const _fmtP = (ms) => {
+                const h = Math.floor(ms / 3600000);
+                const m = Math.floor((ms % 3600000) / 60000);
+                const s = Math.floor((ms % 60000) / 1000);
+                if (h > 0) return `${h}h ${m}m ${s}s`;
+                if (m > 0) return `${m}m ${s}s`;
+                return `${s}s`;
+            };
+            if (pTarget) {
+                const rem = pTarget - pNow;
+                if (rem > 0) {
+                    panelTimer.textContent = `⏱️ ${_fmtP(rem)} remaining`;
+                    panelTimer.classList.remove('live-panel-overtime');
+                } else {
+                    panelTimer.textContent = `⏱️ +${_fmtP(Math.abs(rem))} overtime`;
+                    panelTimer.classList.add('live-panel-overtime');
+                }
+            } else {
+                panelTimer.textContent = `⏱️ ${_fmtP(pNow - pStart)} elapsed`;
             }
         }
 
@@ -12307,6 +12456,20 @@ function updateContextLabels() {
         weekSeg.className = 'breadcrumb-segment breadcrumb-current';
         weekSeg.textContent = label;
         whenContainer.appendChild(weekSeg);
+    } else if (state.viewHorizon === 'live') {
+        // Live horizon — show current reality
+        const liveSeg = document.createElement('span');
+        liveSeg.className = 'breadcrumb-segment breadcrumb-current';
+        if (state.workingOn) {
+            liveSeg.textContent = `🔥 ${state.workingOn.itemName || 'Working'}`;
+        } else if (state.onBreak) {
+            liveSeg.textContent = '☕ Break';
+        } else if (isInSleepRange()) {
+            liveSeg.textContent = '🌙 Sleep';
+        } else {
+            liveSeg.textContent = '💤 Idle';
+        }
+        whenContainer.appendChild(liveSeg);
     } else {
         // No session focused — just show the date
         const dateSeg = document.createElement('span');
@@ -12555,28 +12718,57 @@ function showEstimatePicker(anchorEl, itemId) {
     const input = document.createElement('input');
     input.type = 'number';
     input.className = 'duration-picker-input';
-    input.placeholder = 'min';
     input.min = '1';
-    input.max = '480';
+
+    // Unit toggle state: 'min' or 'hr'
+    let unit = 'min';
 
     // Pre-fill with existing context-aware estimate
     const existingItem = findItemById(itemId);
     const existingEst = getContextDuration(existingItem, currentCtx);
     if (existingEst) {
-        input.value = existingEst;
+        if (existingEst >= 60 && existingEst % 60 === 0) {
+            unit = 'hr';
+            input.value = existingEst / 60;
+        } else {
+            input.value = existingEst;
+        }
     }
 
-    const minLabel = document.createElement('span');
-    minLabel.className = 'duration-picker-min-label';
-    minLabel.textContent = 'min';
+    input.placeholder = unit === 'hr' ? 'hr' : 'min';
+    input.max = unit === 'hr' ? '8' : '480';
+
+    // Unit toggle button (min ↔ hr)
+    const unitToggle = document.createElement('button');
+    unitToggle.className = 'duration-picker-unit-toggle';
+    unitToggle.textContent = unit;
+    unitToggle.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const curVal = parseFloat(input.value);
+        if (unit === 'min') {
+            unit = 'hr';
+            unitToggle.textContent = 'hr';
+            input.placeholder = 'hr';
+            input.max = '8';
+            if (curVal > 0) input.value = Math.round((curVal / 60) * 10) / 10;
+        } else {
+            unit = 'min';
+            unitToggle.textContent = 'min';
+            input.placeholder = 'min';
+            input.max = '480';
+            if (curVal > 0) input.value = Math.round(curVal * 60);
+        }
+        input.focus();
+    });
 
     const setBtn = document.createElement('button');
     setBtn.className = 'duration-picker-start';
     setBtn.textContent = 'Set';
     setBtn.addEventListener('click', async (e) => {
         e.stopPropagation();
-        const mins = parseInt(input.value, 10);
-        if (!mins || mins <= 0) return;
+        const rawVal = parseFloat(input.value);
+        if (!rawVal || rawVal <= 0) return;
+        const mins = unit === 'hr' ? Math.round(rawVal * 60) : Math.round(rawVal);
         dismissDurationPicker();
         await setEstimate(itemId, mins);
     });
@@ -12587,7 +12779,7 @@ function showEstimatePicker(anchorEl, itemId) {
     });
 
     customRow.appendChild(input);
-    customRow.appendChild(minLabel);
+    customRow.appendChild(unitToggle);
     customRow.appendChild(setBtn);
     picker.appendChild(customRow);
 
@@ -15112,6 +15304,20 @@ function animateNavTransition(direction, updateFn) {
     // Actions use staggered fade-in from renderActions() — no directional slide
     const targets = [timeline];
 
+    // Also animate the active horizon layer's display (label area) in sync
+    const _layerDisplayMap = {
+        epoch: 'horizon-epoch-layer', month: 'horizon-month-layer',
+        week: 'horizon-week-layer', day: 'horizon-day-layer',
+        session: 'horizon-session-layer'
+    };
+    const layerId = _layerDisplayMap[state.viewHorizon];
+    if (layerId) {
+        const layerDisplay = document.getElementById(layerId)?.querySelector(
+            '.epoch-nav-display, .month-nav-display, .week-nav-display, .date-nav-display, .session-nav-display'
+        );
+        if (layerDisplay) targets.push(layerDisplay);
+    }
+
     // Cancel any in-flight animation
     for (const el of targets) {
         el.classList.remove('nav-slide-out-left', 'nav-slide-out-right', 'nav-slide-in-left', 'nav-slide-in-right');
@@ -15122,7 +15328,10 @@ function animateNavTransition(direction, updateFn) {
     const outClass = direction === 'left' ? 'nav-slide-out-left' : 'nav-slide-out-right';
     for (const el of targets) el.classList.add(outClass);
 
+    let _slideOutDone = false;
     const onSlideOutDone = () => {
+        if (_slideOutDone) return;
+        _slideOutDone = true;
         for (const el of targets) el.classList.remove(outClass);
 
         // Phase 2: update state + re-render
@@ -15153,13 +15362,19 @@ function animateNavTransition(direction, updateFn) {
 // direction: 'up' = zooming in (epoch→day), 'down' = zooming out (day→epoch)
 function animateLayerTransition(direction, updateFn) {
     const timeline = document.getElementById('timeline-list');
+    const timeContext = document.getElementById('time-context');
     const targets = [timeline];
     const allClasses = ['nav-slide-out-up', 'nav-slide-out-down', 'nav-slide-in-up', 'nav-slide-in-down'];
+    const towerClasses = ['tower-slide-out-up', 'tower-slide-out-down', 'tower-slide-in-up', 'tower-slide-in-down'];
 
     // Cancel any in-flight animation
     for (const el of targets) {
         allClasses.forEach(c => el.classList.remove(c));
         el.getAnimations().forEach(a => a.cancel());
+    }
+    if (timeContext) {
+        towerClasses.forEach(c => timeContext.classList.remove(c));
+        timeContext.getAnimations().forEach(a => a.cancel());
     }
 
     let outDone = false;
@@ -15167,24 +15382,30 @@ function animateLayerTransition(direction, updateFn) {
 
     // Phase 1: slide old content out
     const outClass = direction === 'up' ? 'nav-slide-out-up' : 'nav-slide-out-down';
+    const towerOutClass = direction === 'up' ? 'tower-slide-out-up' : 'tower-slide-out-down';
     for (const el of targets) el.classList.add(outClass);
+    if (timeContext) timeContext.classList.add(towerOutClass);
 
     const onSlideOutDone = () => {
         if (outDone) return;
         outDone = true;
         for (const el of targets) el.classList.remove(outClass);
+        if (timeContext) timeContext.classList.remove(towerOutClass);
 
         // Phase 2: update state + re-render
         updateFn();
 
         // Phase 3: slide new content in
         const inClass = direction === 'up' ? 'nav-slide-in-up' : 'nav-slide-in-down';
+        const towerInClass = direction === 'up' ? 'tower-slide-in-up' : 'tower-slide-in-down';
         for (const el of targets) el.classList.add(inClass);
+        if (timeContext) timeContext.classList.add(towerInClass);
 
         const cleanup = () => {
             if (inDone) return;
             inDone = true;
             for (const el of targets) el.classList.remove(inClass);
+            if (timeContext) timeContext.classList.remove(towerInClass);
             _navAnimating = false;
         };
         timeline.addEventListener('animationend', (e) => {
@@ -15827,6 +16048,91 @@ document.addEventListener('DOMContentLoaded', () => {
             for (const id of dragIds) { await addSegmentContext(id, seg.segmentKey); }
             if (dragIds.length > 0) clearActionSelection();
         });
+    }
+
+    // ─── Wheel navigation on the horizon tower ───
+    // Vertical scroll: switch between horizon layers
+    // Horizontal scroll: prev/next within the current layer
+    {
+        const timeContext = document.getElementById('time-context');
+        let _horizonWheelCooldown = false;
+
+        timeContext.addEventListener('wheel', (e) => {
+            // Only act if we have meaningful delta
+            const absX = Math.abs(e.deltaX);
+            const absY = Math.abs(e.deltaY);
+            if (absX < 5 && absY < 5) return;
+
+            // Debounce to prevent rapid-fire
+            if (_horizonWheelCooldown) return;
+            _horizonWheelCooldown = true;
+            setTimeout(() => { _horizonWheelCooldown = false; }, 300);
+
+            e.preventDefault();
+
+            const isHorizontal = absX > absY;
+
+            if (isHorizontal) {
+                // ── Horizontal: prev/next within the current layer ──
+                const dir = e.deltaX > 0 ? 1 : -1; // right = next, left = prev
+                switch (state.viewHorizon) {
+                    case 'epoch':
+                        cycleEpoch(dir);
+                        break;
+                    case 'month':
+                        document.getElementById(dir > 0 ? 'month-nav-next' : 'month-nav-prev')?.click();
+                        break;
+                    case 'week':
+                        document.getElementById(dir > 0 ? 'week-nav-next' : 'week-nav-prev')?.click();
+                        break;
+                    case 'day':
+                        document.getElementById(dir > 0 ? 'date-nav-next' : 'date-nav-prev')?.click();
+                        break;
+                    case 'session':
+                        navigateSession(dir);
+                        break;
+                    // 'live' has no prev/next
+                }
+            } else {
+                // ── Vertical: switch between horizon layers ──
+                const _layerOrder = ['epoch', 'month', 'week', 'day', 'session', 'live'];
+                const curIdx = _layerOrder.indexOf(state.viewHorizon);
+                const newIdx = e.deltaY > 0
+                    ? Math.min(curIdx + 1, _layerOrder.length - 1)
+                    : Math.max(curIdx - 1, 0);
+                if (newIdx === curIdx) return;
+
+                const targetLayer = _layerOrder[newIdx];
+                const dir = newIdx > curIdx ? 'up' : 'down';
+
+                // Use the same logic as clicking each layer
+                if (targetLayer === 'live') {
+                    toggleLiveFocus();
+                } else if (targetLayer === 'session') {
+                    animateLayerTransition('up', () => {
+                        const segments = buildPlanSegments();
+                        state.sessionIndex = getCurrentSessionIndex(segments);
+                        state.viewHorizon = 'session';
+                        savePref('viewHorizon', 'session');
+                        savePref('sessionIndex', state.sessionIndex);
+                        _syncSessionToFocusStack(segments[state.sessionIndex]);
+                        state._animateActions = true;
+                        renderAll();
+                    });
+                } else {
+                    animateLayerTransition(dir, () => {
+                        clearFocusStack();
+                        if (targetLayer === 'week') {
+                            state._weekScrollTarget = getDateKey(state.timelineViewDate);
+                        }
+                        state.viewHorizon = targetLayer;
+                        savePref('viewHorizon', targetLayer);
+                        state._animateActions = true;
+                        renderAll();
+                    });
+                }
+            }
+        }, { passive: false });
     }
 
     // Hide-past toggle (default: OFF = past entries visible)
