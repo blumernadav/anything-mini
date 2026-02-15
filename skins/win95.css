@@ -6886,6 +6886,71 @@ select.schedule-leadtime-input {
     animation: nav-slide-in-down 180ms ease-in-out forwards;
 }
 
+/* ── Tower vertical slide (translateY for horizon layers) ── */
+@keyframes tower-slide-out-up {
+    from {
+        transform: translateY(0);
+        opacity: 1;
+    }
+
+    to {
+        transform: translateY(-15px);
+        opacity: 0;
+    }
+}
+
+@keyframes tower-slide-out-down {
+    from {
+        transform: translateY(0);
+        opacity: 1;
+    }
+
+    to {
+        transform: translateY(15px);
+        opacity: 0;
+    }
+}
+
+@keyframes tower-slide-in-up {
+    from {
+        transform: translateY(15px);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+@keyframes tower-slide-in-down {
+    from {
+        transform: translateY(-15px);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.tower-slide-out-up {
+    animation: tower-slide-out-up 180ms ease-in-out forwards;
+}
+
+.tower-slide-out-down {
+    animation: tower-slide-out-down 180ms ease-in-out forwards;
+}
+
+.tower-slide-in-up {
+    animation: tower-slide-in-up 180ms ease-in-out forwards;
+}
+
+.tower-slide-in-down {
+    animation: tower-slide-in-down 180ms ease-in-out forwards;
+}
+
 /* ── Action enter animation (staggered fade-in) ── */
 @keyframes action-enter {
     from {

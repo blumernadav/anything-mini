@@ -3575,7 +3575,81 @@
       "type": "completion",
       "id": 435,
       "timestamp": 1771145625280
+    },
+    {
+      "text": "Worked on: anything (13m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1771146728258,
+      "endTime": 1771147549947,
+      "itemId": 9,
+      "id": 436,
+      "timestamp": 1771146728258,
+      "manual": true
+    },
+    {
+      "text": "Worked on: fix d&d between contexts (move vs copy) (5m)",
+      "projectName": "anything › core › top level planning",
+      "type": "work",
+      "startTime": 1771147622781,
+      "endTime": 1771147930739,
+      "targetEndTime": 1771149422781,
+      "itemId": 483,
+      "id": 437,
+      "timestamp": 1771147622781,
+      "manual": true
+    },
+    {
+      "text": "Worked on: מיילים ודברים של כסף, ביטוח לאומי וכו׳ (8m)",
+      "projectName": "כסף",
+      "type": "work",
+      "startTime": 1771147930745,
+      "endTime": 1771148446459,
+      "targetEndTime": 1771148230730,
+      "itemId": 463,
+      "id": 438,
+      "timestamp": 1771147930745,
+      "manual": true
+    },
+    {
+      "text": "Done: fix d&d between contexts (move vs copy)",
+      "projectName": "anything › core › top level planning",
+      "type": "completion",
+      "id": 439,
+      "timestamp": 1771148552551
+    },
+    {
+      "text": "Worked on: אופיר מרצה (3h 16m)",
+      "projectName": "משפחה",
+      "type": "work",
+      "startTime": 1771148678062,
+      "endTime": 1771160444306,
+      "targetEndTime": 1771149278062,
+      "itemId": 305,
+      "id": 440,
+      "timestamp": 1771148678062,
+      "manual": true
+    },
+    {
+      "text": "מסיבת מרשמלו",
+      "projectName": null,
+      "type": "planned",
+      "startTime": 1771437600000,
+      "endTime": 1771448400000,
+      "itemId": 487,
+      "id": 441,
+      "timestamp": 1771437600000
+    },
+    {
+      "text": "ג׳אז בחצר",
+      "projectName": "פרויקטי מוזיקה",
+      "type": "planned",
+      "startTime": 1771585200000,
+      "endTime": 1771596000000,
+      "itemId": 311,
+      "id": 442,
+      "timestamp": 1771585200000
     }
   ],
-  "nextId": 436
+  "nextId": 443
 }

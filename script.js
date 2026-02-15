@@ -2361,6 +2361,42 @@ function getCurrentViewContext() {
     return getDateKey(state.timelineViewDate);
 }
 
+// ─── D&D Move vs Copy Helpers ───
+
+// Determine if a drag-and-drop operation is a "copy" (keep source context) or "move" (remove source).
+// Projects → always copy. Ctrl/Cmd held → always copy. Otherwise → move.
+function _isDragCopy(e) {
+    const src = e.dataTransfer.getData('application/x-drag-source');
+    if (src === 'project') return true; // always copy from projects
+    return e.ctrlKey || e.metaKey; // Ctrl/Cmd = force copy
+}
+
+// Remove only the source time context from an item (for "move" semantics).
+// Unlike sendToEpoch/sendToWeek etc., this does NOT replace all contexts — it removes just the one.
+async function removeSourceContext(itemId, sourceContext) {
+    itemId = Number(itemId);
+    const item = findItemById(itemId);
+    if (!item || !item.timeContexts) return;
+    if (!sourceContext) return;
+    // Remove the source context
+    const before = item.timeContexts.length;
+    item.timeContexts = item.timeContexts.filter(tc => tc !== sourceContext);
+    // Clean up duration for removed context
+    if (item.contextDurations && sourceContext in item.contextDurations) {
+        delete item.contextDurations[sourceContext];
+    }
+    // If no contexts remain, fall back to 'ongoing'
+    if (item.timeContexts.length === 0) {
+        item.timeContexts.push('ongoing');
+    }
+    // Only persist if something changed
+    if (item.timeContexts.length !== before || before !== item.timeContexts.length) {
+        const patch = { timeContexts: item.timeContexts };
+        if (item.contextDurations) patch.contextDurations = item.contextDurations;
+        await api.patch(`/items/${itemId}`, patch);
+    }
+}
+
 // Find a key in contextDurations whose segment overlaps the given context string.
 // Returns the matching key or null.
 function findOverlappingContextKey(contextDurations, ctx) {
@@ -3913,6 +3949,7 @@ function renderProjectLevel(items, parent, depth, query = '', matchingIds = new 
                 dragState.draggedId = item.id;
                 e.dataTransfer.effectAllowed = 'move';
                 e.dataTransfer.setData('application/x-action-id', String(item.id));
+                e.dataTransfer.setData('application/x-drag-source', 'project');
                 window._draggedAction = item;
                 // Multi-select: if this item is selected and part of multi-selection
                 const idStr = String(item.id);
@@ -5337,6 +5374,8 @@ function createActionElement(action) {
         item.draggable = true;
         item.addEventListener('dragstart', (e) => {
             e.dataTransfer.setData('application/x-action-id', String(action.id));
+            e.dataTransfer.setData('application/x-drag-source', 'actions');
+            e.dataTransfer.setData('application/x-source-context', getCurrentViewContext());
             e.dataTransfer.effectAllowed = 'copyMove';
             // Multi-select: if this item is part of a selection ≥ 2, carry all selected IDs
             const isMulti = state.selectedActionIds.has(actionIdStr) && state.selectedActionIds.size >= 2;
@@ -6822,6 +6861,7 @@ function _attachLiveIndicatorDnD(indicator, liveType) {
         if (actionsSection) actionsSection.classList.remove('actions-drag-over');
 
         const todayKey = getDateKey(getLogicalToday());
+        const isCopy = _isDragCopy(e);
 
         // Resolve item ID from either drag source
         let itemId;
@@ -6830,23 +6870,21 @@ function _attachLiveIndicatorDnD(indicator, liveType) {
             itemId = e.dataTransfer.getData('application/x-segment-item-id');
             segCtx = e.dataTransfer.getData('application/x-segment-context');
             if (!itemId) return;
-            // Strip old segment context before re-assigning
-            if (segCtx) {
-                const item = findItemById(Number(itemId));
-                if (item) {
-                    if (item.timeContexts) item.timeContexts = item.timeContexts.filter(tc => tc !== segCtx);
-                    if (item.contextDurations) delete item.contextDurations[segCtx];
-                }
+            // Strip old segment context before re-assigning (move only)
+            if (!isCopy && segCtx) {
+                await removeSourceContext(Number(itemId), segCtx);
             }
         } else {
             // Regular action drag (multi-select aware)
             const dragIds = getMultiDragIds(e);
             if (dragIds.length === 0) return;
+            const sourceCtx = e.dataTransfer.getData('application/x-source-context');
             for (const itemId of dragIds) {
+                if (!isCopy && sourceCtx) { await removeSourceContext(itemId, sourceCtx); }
                 if (liveType === 'idle') {
-                    await rescheduleToDate(itemId, todayKey);
+                    await addTimeContext(itemId, todayKey);
                 } else {
-                    await addSegmentContext(itemId, `${todayKey}@${liveType}`);
+                    await addSegmentContext(itemId, `${todayKey}@${liveType}`, undefined, { move: false });
                     // Move item under the active project when dropping onto work indicator
                     if (liveType === 'work' && state.workingOn && state.workingOn.itemId) {
                         const ancestors = getAncestorPath(state.workingOn.itemId);
@@ -7549,6 +7587,8 @@ function renderWeekView(container) {
                 e.stopPropagation();
                 e.dataTransfer.setData('application/x-action-id', String(item.id));
                 e.dataTransfer.setData('application/x-week-source-date', dateKey);
+                e.dataTransfer.setData('application/x-drag-source', 'timeline');
+                e.dataTransfer.setData('application/x-source-context', getWeekKey(new Date(dateKey + 'T00:00:00')));
                 e.dataTransfer.effectAllowed = 'move';
                 chip.classList.add('week-item-dragging');
                 window._draggedAction = true;
@@ -7768,23 +7808,24 @@ function renderWeekView(container) {
             const segItemId = e.dataTransfer.getData('application/x-segment-item-id');
             if (segItemId) {
                 const segCtx = e.dataTransfer.getData('application/x-segment-context');
-                const item = findItemById(Number(segItemId));
-                if (item && segCtx) {
-                    // Remove segment context
-                    const segDur = item.contextDurations?.[segCtx];
-                    if (item.timeContexts) {
-                        item.timeContexts = item.timeContexts.filter(tc => tc !== segCtx);
+                const isCopy = _isDragCopy(e);
+                if (segCtx) {
+                    if (!isCopy) {
+                        await removeSourceContext(Number(segItemId), segCtx);
                     }
-                    if (item.contextDurations) delete item.contextDurations[segCtx];
-                    // Reschedule to target date
-                    await rescheduleToDate(Number(segItemId), dateKey);
+                    await addTimeContext(Number(segItemId), dateKey);
                 }
                 return;
             }
 
             // Regular action item (multi-select aware)
+            const isCopy2 = _isDragCopy(e);
             const dragIds = getMultiDragIds(e);
-            for (const id of dragIds) { await rescheduleToDate(id, dateKey); }
+            const sourceCtx = e.dataTransfer.getData('application/x-source-context');
+            for (const id of dragIds) {
+                if (!isCopy2 && sourceCtx) { await removeSourceContext(id, sourceCtx); }
+                await addTimeContext(id, dateKey);
+            }
             if (dragIds.length > 0) clearActionSelection();
         });
 
@@ -8101,21 +8142,20 @@ function renderMonthView(container) {
                 const itemId = e.dataTransfer.getData('application/x-segment-item-id');
                 const segCtx = e.dataTransfer.getData('application/x-segment-context');
                 if (!itemId) return;
-                let segDur;
-                if (segCtx) {
-                    const item = findItemById(Number(itemId));
-                    if (item) {
-                        segDur = item.contextDurations?.[segCtx];
-                        if (item.timeContexts) item.timeContexts = item.timeContexts.filter(tc => tc !== segCtx);
-                        if (item.contextDurations) delete item.contextDurations[segCtx];
-                    }
+                const isCopy = _isDragCopy(e);
+                if (!isCopy && segCtx) {
+                    await removeSourceContext(Number(itemId), segCtx);
                 }
-                await sendToWeek(parseInt(itemId, 10), targetWeekKey, segDur);
+                await addTimeContext(parseInt(itemId, 10), targetWeekKey);
                 return;
             }
             // Regular action/project drag (multi-select aware)
             const dragIds = getMultiDragIds(e);
-            for (const id of dragIds) { await sendToWeek(id, targetWeekKey); }
+            const sourceCtx = e.dataTransfer.getData('application/x-source-context');
+            for (const id of dragIds) {
+                if (!_isDragCopy(e) && sourceCtx) { await removeSourceContext(id, sourceCtx); }
+                await addTimeContext(id, targetWeekKey);
+            }
             if (dragIds.length > 0) clearActionSelection();
         });
 
@@ -9030,7 +9070,7 @@ function createFreeTimeBlock(startMs, endMs) {
         if (e.relatedTarget && el.contains(e.relatedTarget)) return;
         el.classList.remove('time-block-drag-over');
     });
-    el.addEventListener('drop', (e) => {
+    el.addEventListener('drop', async (e) => {
         console.log('[FREE-BLOCK] drop event, types:', [...e.dataTransfer.types]);
         if (!_acceptsDrag(e)) { console.log('[FREE-BLOCK] drop rejected by _acceptsDrag'); return; }
         e.preventDefault();
@@ -9056,12 +9096,15 @@ function createFreeTimeBlock(startMs, endMs) {
         }
 
         // Normal drag from Actions panel (multi-select aware)
+        const isCopy = _isDragCopy(e);
         const dragIds = getMultiDragIds(e);
         if (dragIds.length === 0) return;
         window._draggedAction = null;
+        const sourceCtx = e.dataTransfer.getData('application/x-source-context');
         for (const id of dragIds) {
+            if (!isCopy && sourceCtx) { await removeSourceContext(id, sourceCtx); }
             const srcDur = getContextDuration(findItemById(id));
-            addSegmentContext(id, newSegCtx, srcDur || undefined);
+            await addSegmentContext(id, newSegCtx, srcDur || undefined, { move: false });
         }
         clearActionSelection();
     });
@@ -9187,6 +9230,7 @@ function createFreeTimeBlock(startMs, endMs) {
                 e.dataTransfer.setData('application/x-segment-item-id', String(action.id));
                 console.log('[SEG-DRAG] context set:', itemSegCtx);
                 e.dataTransfer.setData('application/x-segment-context', itemSegCtx);
+                e.dataTransfer.setData('application/x-drag-source', 'timeline');
                 e.dataTransfer.effectAllowed = 'move';
                 row.classList.add('segment-item-dragging');
                 document.body.classList.add('dragging-to-timeline');
@@ -10045,7 +10089,7 @@ function _attachEntryDropAndQueue(el, contextStr, deadlineMs) {
         if (e.relatedTarget && el.contains(e.relatedTarget)) return;
         el.classList.remove('time-block-drag-over');
     });
-    el.addEventListener('drop', (e) => {
+    el.addEventListener('drop', async (e) => {
         if (!_acceptsDrag(e)) return;
         e.preventDefault();
         el.classList.remove('time-block-drag-over');
@@ -10064,10 +10108,15 @@ function _attachEntryDropAndQueue(el, contextStr, deadlineMs) {
         }
 
         // Normal drag from Actions panel (multi-select aware)
+        const isCopy = _isDragCopy(e);
         const dragIds = getMultiDragIds(e);
         if (dragIds.length === 0) return;
         window._draggedAction = null;
-        for (const id of dragIds) { addSegmentContext(id, contextStr); }
+        const sourceCtx = e.dataTransfer.getData('application/x-source-context');
+        for (const id of dragIds) {
+            if (!isCopy && sourceCtx) { await removeSourceContext(id, sourceCtx); }
+            await addSegmentContext(Number(id), contextStr, undefined, { move: false });
+        }
         clearActionSelection();
     });
 
@@ -10100,6 +10149,7 @@ function _attachEntryDropAndQueue(el, contextStr, deadlineMs) {
                 e.stopPropagation();
                 e.dataTransfer.setData('application/x-segment-item-id', String(action.id));
                 e.dataTransfer.setData('application/x-segment-context', contextStr);
+                e.dataTransfer.setData('application/x-drag-source', 'timeline');
                 e.dataTransfer.effectAllowed = 'move';
                 row.classList.add('segment-item-dragging');
                 _showAllHorizonLayers();
@@ -11681,7 +11731,7 @@ function createPlannedTimeBlock(entry, isPhantom = false) {
         if (e.relatedTarget && el.contains(e.relatedTarget)) return;
         el.classList.remove('time-block-drag-over');
     });
-    el.addEventListener('drop', (e) => {
+    el.addEventListener('drop', async (e) => {
         if (!_acceptsDrag(e)) return;
         e.preventDefault();
         el.classList.remove('time-block-drag-over');
@@ -11702,14 +11752,17 @@ function createPlannedTimeBlock(entry, isPhantom = false) {
         }
 
         // Normal drag from Actions panel (multi-select aware)
+        const isCopy = _isDragCopy(e);
         const dragIds = getMultiDragIds(e);
         if (dragIds.length === 0) return;
         window._draggedAction = null;
+        const sourceCtx = e.dataTransfer.getData('application/x-source-context');
         for (const id of dragIds) {
             // Validate descendant constraint for item-bound sessions
             if (planDescendantIds && !planDescendantIds.has(id)) continue;
+            if (!isCopy && sourceCtx) { await removeSourceContext(id, sourceCtx); }
             const srcDur = getContextDuration(findItemById(id));
-            addSegmentContext(id, entryCtx, srcDur || undefined);
+            await addSegmentContext(id, entryCtx, srcDur || undefined, { move: false });
         }
         clearActionSelection();
     });
@@ -11761,6 +11814,7 @@ function createPlannedTimeBlock(entry, isPhantom = false) {
                 e.stopPropagation();
                 e.dataTransfer.setData('application/x-segment-item-id', String(action.id));
                 e.dataTransfer.setData('application/x-segment-context', entryCtx);
+                e.dataTransfer.setData('application/x-drag-source', 'timeline');
                 e.dataTransfer.effectAllowed = 'move';
                 row.classList.add('segment-item-dragging');
                 _showAllHorizonLayers();
@@ -15362,19 +15416,23 @@ function animateNavTransition(direction, updateFn) {
 // direction: 'up' = zooming in (epoch→day), 'down' = zooming out (day→epoch)
 function animateLayerTransition(direction, updateFn) {
     const timeline = document.getElementById('timeline-list');
-    const timeContext = document.getElementById('time-context');
     const targets = [timeline];
     const allClasses = ['nav-slide-out-up', 'nav-slide-out-down', 'nav-slide-in-up', 'nav-slide-in-down'];
     const towerClasses = ['tower-slide-out-up', 'tower-slide-out-down', 'tower-slide-in-up', 'tower-slide-in-down'];
+
+    // Animate only the display/label areas inside each layer (not the arrow buttons)
+    const towerDisplays = [...document.querySelectorAll(
+        '.epoch-nav-display, .month-nav-display, .week-nav-display, .date-nav-display, .session-nav-display, .live-nav-display'
+    )];
 
     // Cancel any in-flight animation
     for (const el of targets) {
         allClasses.forEach(c => el.classList.remove(c));
         el.getAnimations().forEach(a => a.cancel());
     }
-    if (timeContext) {
-        towerClasses.forEach(c => timeContext.classList.remove(c));
-        timeContext.getAnimations().forEach(a => a.cancel());
+    for (const el of towerDisplays) {
+        towerClasses.forEach(c => el.classList.remove(c));
+        el.getAnimations().forEach(a => a.cancel());
     }
 
     let outDone = false;
@@ -15384,28 +15442,31 @@ function animateLayerTransition(direction, updateFn) {
     const outClass = direction === 'up' ? 'nav-slide-out-up' : 'nav-slide-out-down';
     const towerOutClass = direction === 'up' ? 'tower-slide-out-up' : 'tower-slide-out-down';
     for (const el of targets) el.classList.add(outClass);
-    if (timeContext) timeContext.classList.add(towerOutClass);
+    for (const el of towerDisplays) el.classList.add(towerOutClass);
 
     const onSlideOutDone = () => {
         if (outDone) return;
         outDone = true;
         for (const el of targets) el.classList.remove(outClass);
-        if (timeContext) timeContext.classList.remove(towerOutClass);
+        for (const el of towerDisplays) el.classList.remove(towerOutClass);
 
         // Phase 2: update state + re-render
         updateFn();
 
-        // Phase 3: slide new content in
+        // Phase 3: slide new content in (re-query displays since DOM may have changed)
+        const freshDisplays = [...document.querySelectorAll(
+            '.epoch-nav-display, .month-nav-display, .week-nav-display, .date-nav-display, .session-nav-display, .live-nav-display'
+        )];
         const inClass = direction === 'up' ? 'nav-slide-in-up' : 'nav-slide-in-down';
         const towerInClass = direction === 'up' ? 'tower-slide-in-up' : 'tower-slide-in-down';
         for (const el of targets) el.classList.add(inClass);
-        if (timeContext) timeContext.classList.add(towerInClass);
+        for (const el of freshDisplays) el.classList.add(towerInClass);
 
         const cleanup = () => {
             if (inDone) return;
             inDone = true;
             for (const el of targets) el.classList.remove(inClass);
-            if (timeContext) timeContext.classList.remove(towerInClass);
+            for (const el of freshDisplays) el.classList.remove(towerInClass);
             _navAnimating = false;
         };
         timeline.addEventListener('animationend', (e) => {
@@ -15570,25 +15631,24 @@ document.addEventListener('DOMContentLoaded', () => {
             d.setDate(d.getDate() + dayOffset);
             const targetDateKey = getDateKey(d);
             // Segment queue item (intention) drag
+            const isCopy = _isDragCopy(e);
             if (e.dataTransfer.types.includes('application/x-segment-item-id')) {
                 const itemId = e.dataTransfer.getData('application/x-segment-item-id');
                 const segCtx = e.dataTransfer.getData('application/x-segment-context');
                 if (!itemId) return;
-                let segDur;
-                if (segCtx) {
-                    const item = findItemById(Number(itemId));
-                    if (item) {
-                        segDur = item.contextDurations?.[segCtx];
-                        if (item.timeContexts) item.timeContexts = item.timeContexts.filter(tc => tc !== segCtx);
-                        if (item.contextDurations) delete item.contextDurations[segCtx];
-                    }
+                if (!isCopy && segCtx) {
+                    await removeSourceContext(Number(itemId), segCtx);
                 }
-                await rescheduleToDate(parseInt(itemId, 10), targetDateKey);
+                await addTimeContext(parseInt(itemId, 10), targetDateKey);
                 return;
             }
             // Regular action/project drag (multi-select aware)
             const dragIds = getMultiDragIds(e);
-            for (const id of dragIds) { await rescheduleToDate(id, targetDateKey); }
+            const sourceCtx = e.dataTransfer.getData('application/x-source-context');
+            for (const id of dragIds) {
+                if (!isCopy && sourceCtx) { await removeSourceContext(id, sourceCtx); }
+                await addTimeContext(id, targetDateKey);
+            }
             if (dragIds.length > 0) clearActionSelection();
         });
     }
@@ -15617,25 +15677,24 @@ document.addEventListener('DOMContentLoaded', () => {
             d.setDate(d.getDate() + weekOffset * 7);
             const targetWeekKey = getWeekKey(d);
             // Segment queue item (intention) drag
+            const isCopy = _isDragCopy(e);
             if (e.dataTransfer.types.includes('application/x-segment-item-id')) {
                 const itemId = e.dataTransfer.getData('application/x-segment-item-id');
                 const segCtx = e.dataTransfer.getData('application/x-segment-context');
                 if (!itemId) return;
-                let segDur;
-                if (segCtx) {
-                    const item = findItemById(Number(itemId));
-                    if (item) {
-                        segDur = item.contextDurations?.[segCtx];
-                        if (item.timeContexts) item.timeContexts = item.timeContexts.filter(tc => tc !== segCtx);
-                        if (item.contextDurations) delete item.contextDurations[segCtx];
-                    }
+                if (!isCopy && segCtx) {
+                    await removeSourceContext(Number(itemId), segCtx);
                 }
-                await sendToWeek(parseInt(itemId, 10), targetWeekKey, segDur);
+                await addTimeContext(parseInt(itemId, 10), targetWeekKey);
                 return;
             }
             // Regular action/project drag (multi-select aware)
             const dragIds = getMultiDragIds(e);
-            for (const id of dragIds) { await sendToWeek(id, targetWeekKey); }
+            const sourceCtx = e.dataTransfer.getData('application/x-source-context');
+            for (const id of dragIds) {
+                if (!isCopy && sourceCtx) { await removeSourceContext(id, sourceCtx); }
+                await addTimeContext(id, targetWeekKey);
+            }
             if (dragIds.length > 0) clearActionSelection();
         });
     }
@@ -15714,27 +15773,26 @@ document.addEventListener('DOMContentLoaded', () => {
         epochLayer.classList.remove('horizon-layer-drag-over');
         const targetEpoch = state.epochFilter;
         if (targetEpoch === 'past') return;
+        const isCopy = _isDragCopy(e);
         // Segment queue item (intention) drag
         if (e.dataTransfer.types.includes('application/x-segment-item-id')) {
             const itemId = e.dataTransfer.getData('application/x-segment-item-id');
             const segCtx = e.dataTransfer.getData('application/x-segment-context');
             if (!itemId) return;
-            let segDur;
-            if (segCtx) {
-                const item = findItemById(Number(itemId));
-                if (item) {
-                    segDur = item.contextDurations?.[segCtx];
-                    if (item.timeContexts) item.timeContexts = item.timeContexts.filter(tc => tc !== segCtx);
-                    if (item.contextDurations) delete item.contextDurations[segCtx];
-                }
+            if (!isCopy && segCtx) {
+                await removeSourceContext(Number(itemId), segCtx);
             }
-            await sendToEpoch(parseInt(itemId, 10), targetEpoch, segDur);
+            await addTimeContext(parseInt(itemId, 10), targetEpoch);
             return;
         }
         // Regular action/project drag
         // Multi-select aware
         const dragIds = getMultiDragIds(e);
-        for (const id of dragIds) { await sendToEpoch(id, targetEpoch); }
+        const sourceCtx = e.dataTransfer.getData('application/x-source-context');
+        for (const id of dragIds) {
+            if (!isCopy && sourceCtx) { await removeSourceContext(id, sourceCtx); }
+            await addTimeContext(id, targetEpoch);
+        }
         if (dragIds.length > 0) clearActionSelection();
     });
 
@@ -15791,26 +15849,25 @@ document.addEventListener('DOMContentLoaded', () => {
         e.preventDefault();
         monthLayer.classList.remove('horizon-layer-drag-over');
         const targetMonthKey = getMonthKey(state.timelineViewDate);
+        const isCopy = _isDragCopy(e);
         // Segment queue item drag
         if (e.dataTransfer.types.includes('application/x-segment-item-id')) {
             const itemId = e.dataTransfer.getData('application/x-segment-item-id');
             const segCtx = e.dataTransfer.getData('application/x-segment-context');
             if (!itemId) return;
-            let segDur;
-            if (segCtx) {
-                const item = findItemById(Number(itemId));
-                if (item) {
-                    segDur = item.contextDurations?.[segCtx];
-                    if (item.timeContexts) item.timeContexts = item.timeContexts.filter(tc => tc !== segCtx);
-                    if (item.contextDurations) delete item.contextDurations[segCtx];
-                }
+            if (!isCopy && segCtx) {
+                await removeSourceContext(Number(itemId), segCtx);
             }
-            await sendToMonth(parseInt(itemId, 10), targetMonthKey, segDur);
+            await addTimeContext(parseInt(itemId, 10), targetMonthKey);
             return;
         }
         // Regular action/project drag (multi-select aware)
         const dragIds = getMultiDragIds(e);
-        for (const id of dragIds) { await sendToMonth(id, targetMonthKey); }
+        const sourceCtx = e.dataTransfer.getData('application/x-source-context');
+        for (const id of dragIds) {
+            if (!isCopy && sourceCtx) { await removeSourceContext(id, sourceCtx); }
+            await addTimeContext(id, targetMonthKey);
+        }
         if (dragIds.length > 0) clearActionSelection();
     });
 
@@ -15889,27 +15946,26 @@ document.addEventListener('DOMContentLoaded', () => {
         e.preventDefault();
         weekLayer.classList.remove('horizon-layer-drag-over');
         const weekKey = getWeekKey(state.timelineViewDate);
+        const isCopy = _isDragCopy(e);
         // Segment queue item drag
         if (e.dataTransfer.types.includes('application/x-segment-item-id')) {
             const itemId = e.dataTransfer.getData('application/x-segment-item-id');
             const segCtx = e.dataTransfer.getData('application/x-segment-context');
             if (!itemId) return;
-            let segDur;
-            if (segCtx) {
-                const item = findItemById(Number(itemId));
-                if (item) {
-                    segDur = item.contextDurations?.[segCtx];
-                    if (item.timeContexts) item.timeContexts = item.timeContexts.filter(tc => tc !== segCtx);
-                    if (item.contextDurations) delete item.contextDurations[segCtx];
-                }
+            if (!isCopy && segCtx) {
+                await removeSourceContext(Number(itemId), segCtx);
             }
-            await sendToWeek(parseInt(itemId, 10), weekKey, segDur);
+            await addTimeContext(parseInt(itemId, 10), weekKey);
             return;
         }
         // Regular action/project drag
         // Multi-select aware
         const dragIds = getMultiDragIds(e);
-        for (const id of dragIds) { await sendToWeek(id, weekKey); }
+        const sourceCtx = e.dataTransfer.getData('application/x-source-context');
+        for (const id of dragIds) {
+            if (!isCopy && sourceCtx) { await removeSourceContext(id, sourceCtx); }
+            await addTimeContext(id, weekKey);
+        }
         if (dragIds.length > 0) clearActionSelection();
     });
 
@@ -15943,32 +15999,27 @@ document.addEventListener('DOMContentLoaded', () => {
     dayLayer.addEventListener('drop', async (e) => {
         e.preventDefault();
         dayLayer.classList.remove('horizon-layer-drag-over');
+        const isCopy = _isDragCopy(e);
+        const dateKey = getDateKey(state.timelineViewDate);
         // Segment queue item (intention) drag
         if (e.dataTransfer.types.includes('application/x-segment-item-id')) {
             const itemId = e.dataTransfer.getData('application/x-segment-item-id');
             const segCtx = e.dataTransfer.getData('application/x-segment-context');
             if (!itemId) return;
-            // Capture segment duration before removing, then migrate to day
-            let segDur;
-            if (segCtx) {
-                const item = findItemById(Number(itemId));
-                if (item) {
-                    segDur = item.contextDurations?.[segCtx];
-                    if (item.timeContexts) {
-                        item.timeContexts = item.timeContexts.filter(tc => tc !== segCtx);
-                    }
-                    if (item.contextDurations) delete item.contextDurations[segCtx];
-                }
+            if (!isCopy && segCtx) {
+                await removeSourceContext(Number(itemId), segCtx);
             }
-            const dateKey = getDateKey(state.timelineViewDate);
-            await promoteFromOngoing(parseInt(itemId, 10), dateKey, segDur);
+            await addTimeContext(parseInt(itemId, 10), dateKey);
             return;
         }
         // Regular action/project drag
         // Multi-select aware
         const dragIds = getMultiDragIds(e);
-        const dateKey = getDateKey(state.timelineViewDate);
-        for (const id of dragIds) { await promoteFromOngoing(id, dateKey); }
+        const sourceCtx = e.dataTransfer.getData('application/x-source-context');
+        for (const id of dragIds) {
+            if (!isCopy && sourceCtx) { await removeSourceContext(id, sourceCtx); }
+            await addTimeContext(id, dateKey);
+        }
         if (dragIds.length > 0) clearActionSelection();
     });
 
@@ -16025,27 +16076,27 @@ document.addEventListener('DOMContentLoaded', () => {
             // Get active session segment for context
             const seg = getActiveSession();
             if (!seg) return;
+            const isCopy = _isDragCopy(e);
             // Segment queue item drag
             if (e.dataTransfer.types.includes('application/x-segment-item-id')) {
                 const itemId = e.dataTransfer.getData('application/x-segment-item-id');
                 const segCtx = e.dataTransfer.getData('application/x-segment-context');
                 if (!itemId) return;
-                // Remove old segment context
-                if (segCtx) {
-                    const item = findItemById(Number(itemId));
-                    if (item) {
-                        if (item.timeContexts) item.timeContexts = item.timeContexts.filter(tc => tc !== segCtx);
-                        if (item.contextDurations) delete item.contextDurations[segCtx];
-                    }
+                if (!isCopy && segCtx) {
+                    await removeSourceContext(Number(itemId), segCtx);
                 }
                 // Add to the active session's segment
-                await addSegmentContext(parseInt(itemId, 10), seg.segmentKey);
+                await addSegmentContext(parseInt(itemId, 10), seg.segmentKey, undefined, { move: false });
                 return;
             }
             // Regular action drag
             // Multi-select aware
             const dragIds = getMultiDragIds(e);
-            for (const id of dragIds) { await addSegmentContext(id, seg.segmentKey); }
+            const sourceCtx = e.dataTransfer.getData('application/x-source-context');
+            for (const id of dragIds) {
+                if (!isCopy && sourceCtx) { await removeSourceContext(id, sourceCtx); }
+                await addSegmentContext(id, seg.segmentKey, undefined, { move: false });
+            }
             if (dragIds.length > 0) clearActionSelection();
         });
     }
