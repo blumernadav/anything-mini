@@ -24,6 +24,7 @@
                 <button class="top-bar-btn top-bar-toggle" id="deep-view-btn" title="Show all layers">🔽</button>
                 <button class="top-bar-btn top-bar-toggle" id="show-unscheduled-btn" title="Show unscheduled"
                     style="display:none">📅</button>
+                <button class="top-bar-btn top-bar-toggle" id="bookmarks-btn" title="Bookmarks">⭐</button>
                 <button class="top-bar-btn project-search-toggle" id="project-search-toggle"
                     title="Search projects">🔍</button>
                 <button class="top-bar-btn" id="settings-btn" title="Settings">⚙</button>
@@ -68,8 +69,18 @@
                         <div class="header-breadcrumb-when" id="header-breadcrumb-when"></div>
                         <div class="header-status-cluster">
                             <div class="pressure-bar" id="pressure-bar">
-                                <div class="pressure-bar-fill" id="pressure-bar-fill"></div>
+                                <div class="pressure-bar-track">
+                                    <div class="pressure-bar-segment pressure-bar-done" id="pressure-bar-done"></div>
+                                    <div class="pressure-bar-segment pressure-bar-planned" id="pressure-bar-planned">
+                                    </div>
+                                    <div class="pressure-bar-segment pressure-bar-idle" id="pressure-bar-idle"></div>
+                                </div>
                                 <span class="pressure-bar-label" id="pressure-bar-label"></span>
+                                <span class="pressure-bar-chevron" id="pressure-bar-chevron">▾</span>
+                            </div>
+                            <div class="reflection-panel" id="reflection-panel" style="display:none">
+                                <div class="reflection-stats" id="reflection-stats"></div>
+                                <div class="reflection-tree" id="reflection-tree"></div>
                             </div>
                         </div>
                     </div>
@@ -79,6 +90,9 @@
                     <input class="action-input" id="action-input" placeholder="What's on your mind?" type="text"
                         autocomplete="off">
                     <button class="action-input-btn" id="action-input-btn" title="Add">→</button>
+                    <button class="queue-all-btn" id="queue-all-btn" title="Add all visible actions to queue"
+                        style="display:none"><span class="queue-all-icon">▶</span><span class="queue-all-label">Queue
+                            All</span></button>
                 </div>
                 <div class="actions-list" id="actions-list">
                     <div class="empty-state" id="actions-empty">

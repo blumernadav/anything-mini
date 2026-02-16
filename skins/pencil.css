@@ -1526,7 +1526,7 @@ body {
     letter-spacing: 0.02em;
 }
 
-/* ─── Pressure Bar ─── */
+/* ─── Pressure Bar (Four-Segment) ─── */
 .pressure-bar {
     position: relative;
     width: 80px;
@@ -1535,17 +1535,43 @@ body {
     border-radius: 2px;
     flex-shrink: 0;
     opacity: 0.7;
+    transition: box-shadow 0.3s ease;
 }
 
-.pressure-bar-fill {
+.pressure-bar.over-capacity {
+    box-shadow: 0 0 0 1px var(--red-pen);
+    opacity: 1;
+}
+
+.pressure-bar-track {
+    display: flex;
+    width: 100%;
     height: 100%;
-    background: var(--pencil);
     border-radius: 2px;
-    transition: width 0.3s ease;
+    overflow: hidden;
 }
 
-.pressure-bar-fill.over-capacity {
-    background: var(--red-pen);
+.pressure-bar-segment {
+    height: 100%;
+    transition: width 0.3s ease;
+    flex-shrink: 0;
+}
+
+.pressure-bar-done {
+    background: var(--pencil);
+}
+
+.pressure-bar-idle {
+    background: repeating-linear-gradient(-45deg,
+            rgba(0, 0, 0, 0.15),
+            rgba(0, 0, 0, 0.15) 2px,
+            rgba(0, 0, 0, 0.05) 2px,
+            rgba(0, 0, 0, 0.05) 4px);
+}
+
+.pressure-bar-planned {
+    background: #b8860b;
+    opacity: 0.5;
 }
 
 .pressure-bar-label {
@@ -1572,7 +1598,7 @@ body {
     width: auto;
 }
 
-.pressure-bar.pressure-bar-text-only .pressure-bar-fill {
+.pressure-bar.pressure-bar-text-only .pressure-bar-track {
     display: none;
 }
 
@@ -1584,6 +1610,198 @@ body {
     font-family: 'Caveat', cursive;
 }
 
+
+/* ─── Pressure Bar Chevron ─── */
+.pressure-bar-chevron {
+    position: absolute;
+    right: -14px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 8px;
+    color: var(--pencil-faint);
+    opacity: 0;
+    transition: opacity 0.15s ease, transform 0.2s ease;
+    pointer-events: none;
+    line-height: 1;
+}
+
+.pressure-bar:hover .pressure-bar-chevron {
+    opacity: 0.6;
+}
+
+.pressure-bar-chevron.open {
+    transform: translateY(-50%) rotate(180deg);
+    opacity: 0.8;
+}
+
+/* ─── Reflection Panel ─── */
+.reflection-panel {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    margin-top: 6px;
+    min-width: 200px;
+    max-width: 320px;
+    background: var(--cream);
+    border: 1px dashed var(--pencil-ghost);
+    border-radius: var(--radius);
+    padding: 6px 0;
+    z-index: 100;
+    box-shadow: 2px 3px 0 rgba(0, 0, 0, 0.06);
+    animation: reflection-panel-in 0.15s ease both;
+}
+
+@keyframes reflection-panel-in {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.reflection-stats {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 13px;
+    font-family: 'Caveat', cursive;
+    color: var(--pencil-soft);
+    padding: 2px 10px 5px;
+    border-bottom: 1px dashed var(--pencil-ghost);
+}
+
+.reflection-sort-toggle {
+    cursor: pointer;
+    font-size: 13px;
+    opacity: 0.5;
+    transition: opacity 0.15s ease;
+    padding: 1px 4px;
+    user-select: none;
+}
+
+.reflection-sort-toggle:hover {
+    opacity: 1;
+    color: var(--blue-pen);
+}
+
+.reflection-tree {
+    max-height: 50vh;
+    overflow-y: auto;
+    padding: 4px 0;
+}
+
+.reflection-tree-empty {
+    font-size: 14px;
+    font-family: 'Caveat', cursive;
+    color: var(--pencil-faint);
+    padding: 8px 10px;
+    text-align: center;
+}
+
+.reflection-tree-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 6px;
+    min-height: 22px;
+    cursor: default;
+    transition: background 0.1s ease;
+}
+
+.reflection-tree-row:hover {
+    background: var(--highlight);
+}
+
+.reflection-tree-toggle {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 8px;
+    color: var(--pencil-faint);
+    cursor: pointer;
+    transition: transform 0.15s ease, color 0.15s ease;
+}
+
+.reflection-tree-toggle:hover {
+    color: var(--blue-pen);
+}
+
+.reflection-tree-toggle.expanded {
+    transform: rotate(90deg);
+}
+
+.reflection-tree-toggle.leaf {
+    opacity: 0.3;
+    cursor: default;
+    font-size: 4px;
+}
+
+.reflection-tree-toggle.leaf:hover {
+    color: var(--pencil-faint);
+}
+
+.reflection-tree-name {
+    flex: 1;
+    min-width: 0;
+    font-size: 15px;
+    font-family: 'Patrick Hand', 'Caveat', cursive;
+    color: var(--pencil);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.reflection-tree-name.done {
+    color: var(--erased);
+    text-decoration: line-through;
+    text-decoration-thickness: 2px;
+    text-decoration-color: var(--pencil-soft);
+}
+
+.reflection-tree-duration {
+    font-size: 12px;
+    font-family: 'Caveat', cursive;
+    color: var(--pencil-soft);
+    flex-shrink: 0;
+    padding: 0 4px;
+    border: 1px dashed var(--pencil-ghost);
+    border-radius: var(--radius);
+}
+
+.reflection-tree-done-badge {
+    font-size: 12px;
+    font-family: 'Caveat', cursive;
+    color: #2b7a4b;
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+.reflection-tree-duration.clickable {
+    cursor: pointer;
+}
+
+.reflection-tree-duration.clickable:hover {
+    color: var(--blue-pen);
+    border-color: var(--blue-pen);
+}
+
+.reflection-history {
+    padding: 2px 0 4px;
+}
+
+.reflection-history-entry {
+    font-size: 11px;
+    font-family: 'Caveat', cursive;
+    color: var(--pencil-faint);
+    padding: 1px 6px;
+}
 
 /* ─── Missing Duration Indicator ─── */
 .pressure-bar-missing {
@@ -2144,6 +2362,61 @@ body {
 .action-input-btn:hover {
     border-color: var(--pencil);
     color: var(--pencil);
+}
+
+/* ─── Queue All Button ─── */
+.queue-all-btn {
+    height: 30px;
+    border: 1px dashed var(--pencil-ghost);
+    background: transparent;
+    color: var(--pencil-soft);
+    border-radius: var(--radius);
+    cursor: pointer;
+    font-size: 14px;
+    font-family: 'Caveat', cursive;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    padding: 0 8px;
+    transition: all 0.3s var(--ease);
+    flex-shrink: 0;
+    overflow: hidden;
+    white-space: nowrap;
+}
+
+.queue-all-icon {
+    font-size: 12px;
+    flex-shrink: 0;
+    transition: transform 0.3s var(--ease);
+}
+
+.queue-all-label {
+    max-width: 0;
+    opacity: 0;
+    overflow: hidden;
+    transition: max-width 0.3s var(--ease), opacity 0.2s var(--ease), margin 0.3s var(--ease);
+    font-size: 13px;
+    font-family: 'Caveat', cursive;
+    margin-left: 0;
+}
+
+.queue-all-btn:hover {
+    border-style: solid;
+    border-color: var(--blue-pen);
+    color: var(--blue-pen);
+    background: var(--blue-dim);
+    gap: 4px;
+}
+
+.queue-all-btn:hover .queue-all-icon {
+    transform: scale(1.1);
+}
+
+.queue-all-btn:hover .queue-all-label {
+    max-width: 80px;
+    opacity: 1;
+    margin-left: 2px;
 }
 
 /* ─── @ Autocomplete Dropdown ─── */
@@ -3908,6 +4181,8 @@ select.schedule-leadtime-input {
 .time-block {
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
+    min-width: 0;
     gap: 8px;
     padding: 8px 8px;
     margin: 4px 6px;
@@ -4725,6 +5000,40 @@ select.schedule-leadtime-input {
 
 .compact-past-entry+.compact-past-entry {
     margin-top: 0;
+}
+
+.compact-past-edit-btn,
+.compact-past-delete-btn {
+    opacity: 0;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-size: 12px;
+    padding: 0 3px;
+    flex-shrink: 0;
+    transition: all var(--dur) var(--ease);
+    line-height: 1;
+    font-family: inherit;
+}
+
+.compact-past-entry:hover .compact-past-edit-btn,
+.compact-past-entry:hover .compact-past-delete-btn {
+    opacity: 0.7;
+}
+
+.compact-past-edit-btn:hover {
+    opacity: 1 !important;
+}
+
+.compact-past-delete-btn {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--pencil-faint);
+}
+
+.compact-past-delete-btn:hover {
+    opacity: 1 !important;
+    color: var(--red-pen);
 }
 
 /* ── Compact Project Groups ── */
@@ -6049,6 +6358,201 @@ select.schedule-leadtime-input {
     border-style: solid;
 }
 
+.live-panel-next-btn,
+.live-panel-start-btn {
+    background: transparent;
+    border: 1px dashed var(--blue-pen);
+    color: var(--blue-pen);
+    cursor: pointer;
+    font-size: 14px;
+    font-family: 'Caveat', cursive;
+    padding: 4px 12px;
+    border-radius: var(--radius);
+    transition: all var(--dur) var(--ease);
+    margin-left: 8px;
+}
+
+.live-panel-next-btn:hover,
+.live-panel-start-btn:hover {
+    border-style: solid;
+    background: rgba(43, 87, 154, 0.08);
+}
+
+.live-panel-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding-top: 4px;
+}
+
+/* ── Focus Queue ── */
+.live-queue-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 0 4px;
+    border-top: 1px dashed var(--pencil-ghost);
+    margin-top: 6px;
+}
+
+.live-queue-title {
+    font-size: 14px;
+    font-family: 'Caveat', cursive;
+    color: var(--pencil-faint);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.live-queue-clear-btn {
+    background: none;
+    border: none;
+    color: var(--pencil-ghost);
+    font-size: 13px;
+    font-family: 'Caveat', cursive;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: var(--radius);
+    transition: color var(--dur) var(--ease);
+}
+
+.live-queue-clear-btn:hover {
+    color: #c44;
+}
+
+.live-queue-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.live-queue-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 6px;
+    border-radius: var(--radius);
+    background: rgba(255, 243, 168, 0.1);
+    border: 1px dashed transparent;
+    transition: all var(--dur) var(--ease);
+    cursor: default;
+}
+
+.live-queue-item:hover {
+    border-color: var(--pencil-ghost);
+}
+
+.queue-drag-handle {
+    color: var(--pencil-ghost);
+    cursor: grab;
+    font-size: 12px;
+    opacity: 0.4;
+    transition: opacity var(--dur) var(--ease);
+    flex-shrink: 0;
+}
+
+.live-queue-item:hover .queue-drag-handle {
+    opacity: 1;
+}
+
+.queue-item-number {
+    font-size: 13px;
+    font-family: 'Caveat', cursive;
+    color: var(--pencil-faint);
+    flex-shrink: 0;
+    width: 18px;
+    text-align: right;
+}
+
+.queue-item-name {
+    font-size: 15px;
+    color: var(--pencil);
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.queue-item-duration {
+    font-size: 12px;
+    font-family: 'Caveat', cursive;
+    color: var(--pencil-faint);
+    flex-shrink: 0;
+}
+
+.queue-skip-btn,
+.queue-remove-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 11px;
+    padding: 2px 4px;
+    border-radius: var(--radius);
+    opacity: 0;
+    transition: all var(--dur) var(--ease);
+    flex-shrink: 0;
+    font-family: inherit;
+}
+
+.live-queue-item:hover .queue-skip-btn,
+.live-queue-item:hover .queue-remove-btn {
+    opacity: 0.5;
+}
+
+.queue-skip-btn:hover {
+    opacity: 1 !important;
+    color: var(--blue-pen);
+    background: rgba(43, 87, 154, 0.06);
+}
+
+.queue-remove-btn:hover {
+    opacity: 1 !important;
+    color: #c44;
+    background: rgba(204, 68, 68, 0.08);
+}
+
+.queue-item-dragging {
+    opacity: 0.3;
+}
+
+.queue-item-dragover {
+    border-color: var(--blue-pen) !important;
+    border-style: solid !important;
+    background: rgba(43, 87, 154, 0.06) !important;
+}
+
+.live-queue-settings {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 4px 0;
+    font-size: 13px;
+    font-family: 'Caveat', cursive;
+    color: var(--pencil-faint);
+}
+
+.queue-setting-label {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+}
+
+.queue-setting-label input[type="checkbox"] {
+    accent-color: var(--blue-pen);
+}
+
+.queue-break-select {
+    background: transparent;
+    border: 1px dashed var(--pencil-ghost);
+    border-radius: var(--radius);
+    color: var(--pencil);
+    font-size: 13px;
+    font-family: 'Caveat', cursive;
+    padding: 2px 6px;
+    cursor: pointer;
+}
+
 .timeline-entry {
     display: flex;
     gap: 8px;
@@ -6496,6 +7000,31 @@ select.schedule-leadtime-input {
     gap: 6px;
 }
 
+.plan-editor-dynamic-toggle {
+    padding: 2px 6px;
+    border: 1px dashed var(--pencil-ghost);
+    border-radius: var(--radius);
+    background: transparent;
+    color: var(--pencil-ghost);
+    font-size: 14px;
+    cursor: pointer;
+    transition: all var(--dur) var(--ease);
+    flex-shrink: 0;
+    line-height: 1;
+}
+
+.plan-editor-dynamic-toggle:hover {
+    border-color: #7c3aed;
+    color: #7c3aed;
+}
+
+.plan-editor-dynamic-toggle.active {
+    border-style: solid;
+    border-color: #7c3aed;
+    color: #7c3aed;
+    background: rgba(124, 58, 237, 0.04);
+}
+
 .plan-editor-time {
     width: 80px;
     padding: 2px 4px;
@@ -6743,6 +7272,71 @@ select.schedule-leadtime-input {
 
 .time-block-planned .time-block-status {
     color: var(--blue-pen);
+}
+
+/* ── Dynamic Start: Focus Session ── */
+.time-block-dynamic {
+    border-left-color: #7c3aed;
+    background: rgba(124, 58, 237, 0.03);
+}
+
+.time-block-dynamic:hover {
+    background: rgba(124, 58, 237, 0.06);
+}
+
+.time-block-dynamic .time-block-label {
+    color: #7c3aed;
+}
+
+.time-block-dynamic .time-block-icon {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    color: #7c3aed;
+    font-family: 'Caveat', cursive;
+}
+
+.time-block-dynamic .time-block-status {
+    color: #7c3aed;
+}
+
+.time-block-expiring {
+    opacity: 0.5;
+    background: repeating-linear-gradient(-45deg,
+            transparent,
+            transparent 4px,
+            rgba(124, 58, 237, 0.03) 4px,
+            rgba(124, 58, 237, 0.03) 8px);
+    border-left-color: #c4880a;
+}
+
+.time-block-expiring .time-block-status {
+    color: #c4880a;
+}
+
+.time-block-expired {
+    opacity: 0.3;
+    filter: grayscale(0.5);
+}
+
+/* ── Start All (session queue launcher) ── */
+.segment-queue-start-all {
+    width: 100%;
+    padding: 4px 12px;
+    margin-top: 4px;
+    border: 1px dashed #5eab5e;
+    border-radius: var(--radius);
+    background: transparent;
+    color: #5eab5e;
+    font-size: 15px;
+    font-family: 'Caveat', cursive;
+    cursor: pointer;
+    transition: all var(--dur) var(--ease);
+}
+
+.segment-queue-start-all:hover {
+    border-style: solid;
+    background: rgba(94, 171, 94, 0.08);
 }
 
 /* ── Divergence Resolution Prompt ── */
@@ -7127,6 +7721,92 @@ select.schedule-leadtime-input {
     color: var(--red-pen);
 }
 
+/* ─── Bookmarks Dropdown ─── */
+.bookmarks-dropdown {
+    position: fixed;
+    z-index: 99999;
+    min-width: 180px;
+    max-width: 300px;
+    max-height: 400px;
+    overflow-y: auto;
+    background: var(--paper);
+    border: 1px dashed var(--pencil-ghost);
+    border-radius: var(--radius);
+    box-shadow: 2px 3px 6px rgba(0, 0, 0, 0.06);
+    padding: 4px;
+}
+
+.bookmarks-dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: all var(--dur) var(--ease);
+    user-select: none;
+}
+
+.bookmarks-dropdown-item:hover {
+    background: rgba(255, 243, 168, 0.3);
+}
+
+.bookmarks-dropdown-item.selected {
+    background: rgba(255, 243, 168, 0.5);
+}
+
+.bookmarks-item-name {
+    font-size: 15px;
+    font-family: 'Caveat', cursive;
+    color: var(--pencil);
+    font-weight: 600;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.bookmarks-item-crumb {
+    font-size: 13px;
+    font-family: 'Caveat', cursive;
+    color: var(--pencil-ghost);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 120px;
+}
+
+.bookmarks-item-remove {
+    opacity: 0;
+    border: none;
+    background: none;
+    color: var(--pencil-ghost);
+    font-size: 14px;
+    cursor: pointer;
+    padding: 0 2px;
+    line-height: 1;
+    transition: all var(--dur) var(--ease);
+    flex-shrink: 0;
+}
+
+.bookmarks-dropdown-item:hover .bookmarks-item-remove {
+    opacity: 0.6;
+}
+
+.bookmarks-item-remove:hover {
+    opacity: 1 !important;
+    color: var(--red-pen);
+}
+
+.bookmarks-empty {
+    padding: 16px 12px;
+    text-align: center;
+    color: var(--pencil-ghost);
+    font-size: 15px;
+    font-family: 'Caveat', cursive;
+}
+
 @media (max-width: 900px) {
     .app-layout {
         grid-template-columns: 1fr;
@@ -7480,6 +8160,39 @@ select.schedule-leadtime-input {
 
 .action-enter {
     animation: action-enter 200ms ease-out both;
+}
+
+/* ── Actions zoom-out (breadcrumb navigate up) ── */
+@keyframes actions-zoom-out {
+    from {
+        transform: scale(1);
+        opacity: 1;
+    }
+
+    to {
+        transform: scale(0.97);
+        opacity: 0;
+    }
+}
+
+.actions-zoom-out {
+    animation: actions-zoom-out 150ms ease-in forwards;
+}
+
+@keyframes actions-zoom-in {
+    from {
+        transform: scale(1);
+        opacity: 1;
+    }
+
+    to {
+        transform: scale(1.03);
+        opacity: 0;
+    }
+}
+
+.actions-zoom-in {
+    animation: actions-zoom-in 150ms ease-in forwards;
 }
 
 /* ── Epoch Tab Styles ── */

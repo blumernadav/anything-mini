@@ -198,7 +198,8 @@
       "endTime": 1770635247780,
       "itemId": 9,
       "id": 48,
-      "timestamp": 1770634821894
+      "timestamp": 1770634821894,
+      "manual": true
     },
     {
       "text": "Done: log idle",
@@ -215,7 +216,8 @@
       "endTime": 1770636076496,
       "itemId": 9,
       "id": 50,
-      "timestamp": 1770635450322
+      "timestamp": 1770635450322,
+      "manual": true
     },
     {
       "text": "Worked on: time context (23m)",
@@ -225,7 +227,8 @@
       "endTime": 1770637609636,
       "itemId": 19,
       "id": 51,
-      "timestamp": 1770636190154
+      "timestamp": 1770636190154,
+      "manual": true
     },
     {
       "text": "Worked on: search (17m)",
@@ -235,7 +238,8 @@
       "endTime": 1770638686021,
       "itemId": 109,
       "id": 52,
-      "timestamp": 1770637614438
+      "timestamp": 1770637614438,
+      "manual": true
     },
     {
       "text": "Done: search",
@@ -259,7 +263,8 @@
       "endTime": 1770638910608,
       "itemId": 116,
       "id": 55,
-      "timestamp": 1770638850404
+      "timestamp": 1770638850404,
+      "manual": true
     },
     {
       "text": "Done: persistent selected",
@@ -283,7 +288,8 @@
       "endTime": 1770639561003,
       "itemId": 57,
       "id": 58,
-      "timestamp": 1770639115636
+      "timestamp": 1770639115636,
+      "manual": true
     },
     {
       "text": "Break (6m)",
@@ -301,7 +307,8 @@
       "endTime": 1770640012365,
       "itemId": 62,
       "id": 60,
-      "timestamp": 1770639979410
+      "timestamp": 1770639979410,
+      "manual": true
     },
     {
       "text": "Worked on: unify past logs and planned logs (5m)",
@@ -311,7 +318,8 @@
       "endTime": 1770641172822,
       "itemId": 108,
       "id": 61,
-      "timestamp": 1770640819419
+      "timestamp": 1770640819419,
+      "manual": true
     },
     {
       "text": "Done: unify past logs and planned logs",
@@ -328,7 +336,8 @@
       "endTime": 1770641575564,
       "itemId": 9,
       "id": 63,
-      "timestamp": 1770641345045
+      "timestamp": 1770641345045,
+      "manual": true
     },
     {
       "text": "Break (9m)",
@@ -353,7 +362,8 @@
       "endTime": 1770647427652,
       "itemId": 26,
       "id": 68,
-      "timestamp": 1770642119719
+      "timestamp": 1770642119719,
+      "manual": true
     },
     {
       "text": "Done: done goals, time goals",
@@ -370,7 +380,8 @@
       "endTime": 1770648570767,
       "itemId": 9,
       "id": 70,
-      "timestamp": 1770648565484
+      "timestamp": 1770648565484,
+      "manual": true
     },
     {
       "text": "Worked on: scroll to selected in projects (4m)",
@@ -380,7 +391,8 @@
       "endTime": 1770648883433,
       "itemId": 121,
       "id": 71,
-      "timestamp": 1770648600376
+      "timestamp": 1770648600376,
+      "manual": true
     },
     {
       "text": "Done: scroll to selected in projects",
@@ -397,7 +409,8 @@
       "endTime": 1770649231936,
       "itemId": 143,
       "id": 73,
-      "timestamp": 1770649032325
+      "timestamp": 1770649032325,
+      "manual": true
     },
     {
       "text": "Worked on: edit past logs and entries (0m)",
@@ -407,7 +420,8 @@
       "endTime": 1770649242635,
       "itemId": 129,
       "id": 74,
-      "timestamp": 1770649231960
+      "timestamp": 1770649231960,
+      "manual": true
     },
     {
       "text": "Done: starting a new item while one is in progress",
@@ -439,7 +453,8 @@
       "endTime": 1770650417635,
       "itemId": 147,
       "id": 78,
-      "timestamp": 1770649783437
+      "timestamp": 1770649783437,
+      "manual": true
     },
     {
       "text": "Worked on: anything (1m)",
@@ -449,7 +464,8 @@
       "endTime": 1770650640365,
       "itemId": 9,
       "id": 79,
-      "timestamp": 1770650546890
+      "timestamp": 1770650546890,
+      "manual": true
     },
     {
       "text": "Worked on: missed (locked in past time contexts) (3m)",
@@ -459,7 +475,8 @@
       "endTime": 1770650872135,
       "itemId": 148,
       "id": 80,
-      "timestamp": 1770650640387
+      "timestamp": 1770650640387,
+      "manual": true
     },
     {
       "text": "Worked on: multiselect (10m)",
@@ -469,7 +486,8 @@
       "endTime": 1770651499735,
       "itemId": 107,
       "id": 81,
-      "timestamp": 1770650899735
+      "timestamp": 1770650899735,
+      "manual": true
     },
     {
       "text": "Worked on: א. ערב (21m)",
@@ -479,7 +497,8 @@
       "endTime": 1770652800000,
       "itemId": 157,
       "id": 82,
-      "timestamp": 1770651499735
+      "timestamp": 1770651499735,
+      "manual": true
     },
     {
       "text": "Done: maybe - show/don't show unscheduled",
@@ -517,7 +536,8 @@
       "endTime": 1770654602909,
       "itemId": 9,
       "id": 87,
-      "timestamp": 1770652800000
+      "timestamp": 1770652800000,
+      "manual": true
     },
     {
       "text": "Done: maybe - show/don't show unscheduled",
@@ -534,7 +554,8 @@
       "endTime": 1770655377855,
       "itemId": 9,
       "id": 89,
-      "timestamp": 1770654616777
+      "timestamp": 1770654616777,
+      "manual": true
     },
     {
       "text": "Done: missed (locked in past time contexts)",
@@ -559,7 +580,8 @@
       "endTime": 1770655637916,
       "itemId": 125,
       "id": 92,
-      "timestamp": 1770655637901
+      "timestamp": 1770655637901,
+      "manual": true
     },
     {
       "text": "Worked on: clarify timers and stopwatches difference - maybe even on a bigger scale (2m)",
@@ -569,7 +591,8 @@
       "endTime": 1770655765467,
       "itemId": 125,
       "id": 93,
-      "timestamp": 1770655637916
+      "timestamp": 1770655637916,
+      "manual": true
     },
     {
       "text": "Worked on: clarify timers and stopwatches difference - maybe even on a bigger scale (0m)",
@@ -579,7 +602,8 @@
       "endTime": 1770656954412,
       "itemId": 125,
       "id": 103,
-      "timestamp": 1770656949771
+      "timestamp": 1770656949771,
+      "manual": true
     },
     {
       "text": "Worked on: clarify timers and stopwatches difference - maybe even on a bigger scale (27m)",
@@ -589,7 +613,8 @@
       "endTime": 1770658711221,
       "itemId": 125,
       "id": 108,
-      "timestamp": 1770657044925
+      "timestamp": 1770657044925,
+      "manual": true
     },
     {
       "text": "Worked on: clarify timers and stopwatches difference - maybe even on a bigger scale (6m)",
@@ -599,7 +624,8 @@
       "endTime": 1770659895115,
       "itemId": 125,
       "id": 109,
-      "timestamp": 1770659528935
+      "timestamp": 1770659528935,
+      "manual": true
     },
     {
       "text": "Worked on: clarify timers and stopwatches difference - maybe even on a bigger scale (13m)",
@@ -610,7 +636,8 @@
       "targetEndTime": 1770661695132,
       "itemId": 125,
       "id": 112,
-      "timestamp": 1770660185956
+      "timestamp": 1770660185956,
+      "manual": true
     },
     {
       "text": "Worked on: clarify timers and stopwatches difference - maybe even on a bigger scale (0m)",
@@ -621,7 +648,8 @@
       "targetEndTime": 1770661919359,
       "itemId": 125,
       "id": 113,
-      "timestamp": 1770661019359
+      "timestamp": 1770661019359,
+      "manual": true
     },
     {
       "text": "Worked on: clarify timers and stopwatches difference - maybe even on a bigger scale (2m)",
@@ -631,7 +659,8 @@
       "endTime": 1770661655397,
       "itemId": 125,
       "id": 114,
-      "timestamp": 1770661487702
+      "timestamp": 1770661487702,
+      "manual": true
     },
     {
       "text": "Break (0m)",
@@ -651,7 +680,8 @@
       "targetEndTime": 1770697681684,
       "itemId": 125,
       "id": 116,
-      "timestamp": 1770661681684
+      "timestamp": 1770661681684,
+      "manual": true
     },
     {
       "text": "Worked on: clarify timers and stopwatches difference - maybe even on a bigger scale (0m)",
@@ -662,7 +692,8 @@
       "targetEndTime": 1770697864152,
       "itemId": 125,
       "id": 117,
-      "timestamp": 1770661864153
+      "timestamp": 1770661864153,
+      "manual": true
     },
     {
       "text": "Worked on: clarify timers and stopwatches difference - maybe even on a bigger scale (0m)",
@@ -673,7 +704,8 @@
       "targetEndTime": 1770698040529,
       "itemId": 125,
       "id": 118,
-      "timestamp": 1770662040530
+      "timestamp": 1770662040530,
+      "manual": true
     },
     {
       "text": "Worked on: clarify timers and stopwatches difference - maybe even on a bigger scale (3m)",
@@ -684,7 +716,8 @@
       "targetEndTime": 1770664762598,
       "itemId": 125,
       "id": 119,
-      "timestamp": 1770662062598
+      "timestamp": 1770662062598,
+      "manual": true
     },
     {
       "text": "Worked on: clarify timers and stopwatches difference - maybe even on a bigger scale (9m)",
@@ -695,7 +728,8 @@
       "targetEndTime": 1770698264931,
       "itemId": 125,
       "id": 120,
-      "timestamp": 1770662264931
+      "timestamp": 1770662264931,
+      "manual": true
     },
     {
       "text": "Worked on: clarify timers and stopwatches difference - maybe even on a bigger scale (0m)",
@@ -706,7 +740,8 @@
       "targetEndTime": 1770698849429,
       "itemId": 125,
       "id": 121,
-      "timestamp": 1770662849429
+      "timestamp": 1770662849429,
+      "manual": true
     },
     {
       "text": "Worked on: clarify timers and stopwatches difference - maybe even on a bigger scale (0m)",
@@ -717,7 +752,8 @@
       "targetEndTime": 1770663831854,
       "itemId": 125,
       "id": 122,
-      "timestamp": 1770662931854
+      "timestamp": 1770662931854,
+      "manual": true
     },
     {
       "text": "Worked on: clarify timers and stopwatches difference - maybe even on a bigger scale (0m)",
@@ -728,7 +764,8 @@
       "targetEndTime": 1770664516757,
       "itemId": 125,
       "id": 123,
-      "timestamp": 1770663016758
+      "timestamp": 1770663016758,
+      "manual": true
     },
     {
       "text": "Done: clarify timers and stopwatches difference - maybe even on a bigger scale",
@@ -745,7 +782,8 @@
       "endTime": 1770663644092,
       "itemId": 9,
       "id": 125,
-      "timestamp": 1770663229961
+      "timestamp": 1770663229961,
+      "manual": true
     },
     {
       "text": "Break (0m)",
@@ -772,7 +810,8 @@
       "endTime": 1770664742867,
       "itemId": 177,
       "id": 128,
-      "timestamp": 1770663937781
+      "timestamp": 1770663937781,
+      "manual": true
     },
     {
       "text": "Done: מקלחת",
@@ -810,7 +849,8 @@
       "targetEndTime": 1770669685902,
       "itemId": 146,
       "id": 133,
-      "timestamp": 1770665421736
+      "timestamp": 1770665421736,
+      "manual": true
     },
     {
       "text": "Worked on: תיקוני באגים של ליאורה (29m)",
@@ -838,7 +878,8 @@
       "endTime": 1770674143753,
       "itemId": 146,
       "id": 136,
-      "timestamp": 1770674129573
+      "timestamp": 1770674129573,
+      "manual": true
     },
     {
       "text": "Done: דברים מגניבים למערך 14",
@@ -885,7 +926,8 @@
       "endTime": 1770676757615,
       "itemId": 9,
       "id": 142,
-      "timestamp": 1770676435469
+      "timestamp": 1770676435469,
+      "manual": true
     },
     {
       "text": "פמי",
@@ -922,10 +964,11 @@
       "projectName": "anything",
       "type": "work",
       "startTime": 1770676757624,
-      "endTime": 1770712808699,
+      "endTime": 1770683400000,
       "itemId": 115,
       "id": 147,
-      "timestamp": 1770676757624
+      "timestamp": 1770676757624,
+      "manual": true
     },
     {
       "text": "להתארגן לפמי",
@@ -957,7 +1000,8 @@
       "targetEndTime": 1770719400000,
       "itemId": 188,
       "id": 150,
-      "timestamp": 1770713901208
+      "timestamp": 1770713901208,
+      "manual": true
     },
     {
       "text": "Worked on: לענות לליאורה (25m)",
@@ -1070,7 +1114,8 @@
       "targetEndTime": 1770734293179,
       "itemId": 209,
       "id": 164,
-      "timestamp": 1770730693200
+      "timestamp": 1770730693200,
+      "manual": true
     },
     {
       "text": "Worked on: להתקלח (10m)",
@@ -1081,7 +1126,8 @@
       "targetEndTime": 1770737591349,
       "itemId": 234,
       "id": 165,
-      "timestamp": 1770736691354
+      "timestamp": 1770736691354,
+      "manual": true
     },
     {
       "text": "Worked on: לסדר את הבית (15m)",
@@ -1092,7 +1138,8 @@
       "targetEndTime": 1770738538819,
       "itemId": 213,
       "id": 166,
-      "timestamp": 1770737338825
+      "timestamp": 1770737338825,
+      "manual": true
     },
     {
       "text": "Worked on: anything (11m)",
@@ -1102,7 +1149,8 @@
       "endTime": 1770739125471,
       "itemId": 9,
       "id": 167,
-      "timestamp": 1770738406175
+      "timestamp": 1770738406175,
+      "manual": true
     },
     {
       "text": "Worked on: סשן שלי (1h 35m)",
@@ -1201,7 +1249,8 @@
       "endTime": 1770772030894,
       "itemId": 9,
       "id": 177,
-      "timestamp": 1770771197490
+      "timestamp": 1770771197490,
+      "manual": true
     },
     {
       "text": "סשן איתי",
@@ -1221,7 +1270,8 @@
       "endTime": 1770802658202,
       "itemId": 250,
       "id": 179,
-      "timestamp": 1770802115194
+      "timestamp": 1770802115194,
+      "manual": true
     },
     {
       "text": "שבעה סבתא של ירין",
@@ -1269,7 +1319,8 @@
       "endTime": 1770807709027,
       "itemId": 9,
       "id": 187,
-      "timestamp": 1770804259540
+      "timestamp": 1770804259540,
+      "manual": true
     },
     {
       "text": "Worked on: anything (6m)",
@@ -1279,7 +1330,8 @@
       "endTime": 1770808137246,
       "itemId": 9,
       "id": 188,
-      "timestamp": 1770807718669
+      "timestamp": 1770807718669,
+      "manual": true
     },
     {
       "text": "Worked on: anything (0m)",
@@ -1289,7 +1341,8 @@
       "endTime": 1770808230737,
       "itemId": 9,
       "id": 189,
-      "timestamp": 1770808219441
+      "timestamp": 1770808219441,
+      "manual": true
     },
     {
       "text": "Worked on: change the running block intentions to not need an id - there's only one anyway, degrade when stopping",
@@ -1299,7 +1352,8 @@
       "endTime": 1770808230765,
       "itemId": 271,
       "id": 190,
-      "timestamp": 1770808230765
+      "timestamp": 1770808230765,
+      "manual": true
     },
     {
       "text": "Worked on: change the running block intentions to not need an id - there's only one anyway, degrade when stopping (13m)",
@@ -1309,7 +1363,8 @@
       "endTime": 1770809051830,
       "itemId": 271,
       "id": 191,
-      "timestamp": 1770808230765
+      "timestamp": 1770808230765,
+      "manual": true
     },
     {
       "text": "Worked on: fix non showing blocks (0m)",
@@ -1319,7 +1374,8 @@
       "endTime": 1770809325846,
       "itemId": 262,
       "id": 192,
-      "timestamp": 1770809292834
+      "timestamp": 1770809292834,
+      "manual": true
     },
     {
       "text": "Worked on: fix non showing blocks (4m)",
@@ -1329,7 +1385,8 @@
       "endTime": 1770809710648,
       "itemId": 262,
       "id": 193,
-      "timestamp": 1770809423483
+      "timestamp": 1770809423483,
+      "manual": true
     },
     {
       "text": "Done: fix non showing blocks",
@@ -1353,7 +1410,8 @@
       "endTime": 1770810152815,
       "itemId": 267,
       "id": 196,
-      "timestamp": 1770809737336
+      "timestamp": 1770809737336,
+      "manual": true
     },
     {
       "text": "Worked on: לבדוק עם גל סשן קונטרבס (2m)",
@@ -1364,7 +1422,8 @@
       "targetEndTime": 1770810456657,
       "itemId": 273,
       "id": 197,
-      "timestamp": 1770810156666
+      "timestamp": 1770810156666,
+      "manual": true
     },
     {
       "text": "Break (0m)",
@@ -1408,7 +1467,8 @@
       "endTime": 1770812618419,
       "itemId": 296,
       "id": 202,
-      "timestamp": 1770812592225
+      "timestamp": 1770812592225,
+      "manual": true
     },
     {
       "text": "לסדר טיפה את הבית",
@@ -1429,7 +1489,8 @@
       "targetEndTime": 1770813420000,
       "itemId": 296,
       "id": 204,
-      "timestamp": 1770812644294
+      "timestamp": 1770812644294,
+      "manual": true
     },
     {
       "text": "Worked on: לענות על הודעות (19m)",
@@ -1439,7 +1500,8 @@
       "endTime": 1770823740941,
       "itemId": 303,
       "id": 205,
-      "timestamp": 1770822563688
+      "timestamp": 1770822563688,
+      "manual": true
     },
     {
       "text": "חתונה של יונתן",
@@ -1540,7 +1602,8 @@
       "targetEndTime": 1770825240917,
       "itemId": 285,
       "id": 215,
-      "timestamp": 1770823740973
+      "timestamp": 1770823740973,
+      "manual": true
     },
     {
       "text": "Done: לעבור על תאריכים חשובים בחודשיים הקרובים ולהכניס לכאן",
@@ -1557,7 +1620,8 @@
       "endTime": 1770826556508,
       "itemId": 9,
       "id": 217,
-      "timestamp": 1770825541554
+      "timestamp": 1770825541554,
+      "manual": true
     },
     {
       "text": "Done: + in free time should be able to create both an intention and a time block",
@@ -1574,7 +1638,8 @@
       "endTime": 1770828532158,
       "itemId": 9,
       "id": 219,
-      "timestamp": 1770827875249
+      "timestamp": 1770827875249,
+      "manual": true
     },
     {
       "text": "Worked on: + in free time should be able to create both an intention and a time block (42m)",
@@ -1584,7 +1649,8 @@
       "endTime": 1770831064192,
       "itemId": 258,
       "id": 220,
-      "timestamp": 1770828532185
+      "timestamp": 1770828532185,
+      "manual": true
     },
     {
       "text": "Done: + in free time should be able to create both an intention and a time block",
@@ -1611,7 +1677,8 @@
       "endTime": 1770852572885,
       "itemId": 317,
       "id": 223,
-      "timestamp": 1770847886355
+      "timestamp": 1770847886355,
+      "manual": true
     },
     {
       "text": "Done: week horizon",
@@ -1635,7 +1702,8 @@
       "endTime": 1770855861322,
       "itemId": 324,
       "id": 226,
-      "timestamp": 1770852572921
+      "timestamp": 1770852572921,
+      "manual": true
     },
     {
       "text": "Done: more info when collapsed",
@@ -1652,7 +1720,8 @@
       "endTime": 1770858045552,
       "itemId": 325,
       "id": 228,
-      "timestamp": 1770855874541
+      "timestamp": 1770855874541,
+      "manual": true
     },
     {
       "text": "Done: aggregate",
@@ -1683,7 +1752,8 @@
       "endTime": 1770858611080,
       "itemId": 329,
       "id": 232,
-      "timestamp": 1770858197552
+      "timestamp": 1770858197552,
+      "manual": true
     },
     {
       "text": "Done: add to schedule modal",
@@ -1700,7 +1770,8 @@
       "endTime": 1770860513177,
       "itemId": 9,
       "id": 234,
-      "timestamp": 1770858611080
+      "timestamp": 1770858611080,
+      "manual": true
     },
     {
       "text": "Break (9m)",
@@ -1719,7 +1790,8 @@
       "endTime": 1770890252733,
       "itemId": 335,
       "id": 236,
-      "timestamp": 1770890043233
+      "timestamp": 1770890043233,
+      "manual": true
     },
     {
       "text": "Worked on: seconds timer for work in progress (0m)",
@@ -1729,7 +1801,8 @@
       "endTime": 1770890275841,
       "itemId": 328,
       "id": 237,
-      "timestamp": 1770890271266
+      "timestamp": 1770890271266,
+      "manual": true
     },
     {
       "text": "Worked on: seconds timer for work in progress (0m)",
@@ -1740,7 +1813,8 @@
       "targetEndTime": 1770890925026,
       "itemId": 328,
       "id": 238,
-      "timestamp": 1770890325026
+      "timestamp": 1770890325026,
+      "manual": true
     },
     {
       "text": "Worked on: anything (1h 32m)",
@@ -1750,7 +1824,8 @@
       "endTime": 1770895922795,
       "itemId": 9,
       "id": 239,
-      "timestamp": 1770890376014
+      "timestamp": 1770890376014,
+      "manual": true
     },
     {
       "text": "Worked on: kolwrite (11m)",
@@ -1760,7 +1835,8 @@
       "endTime": 1770896660444,
       "itemId": 62,
       "id": 240,
-      "timestamp": 1770895949620
+      "timestamp": 1770895949620,
+      "manual": true
     },
     {
       "text": "Worked on: kolwrite (1h 33m)",
@@ -1770,7 +1846,8 @@
       "endTime": 1770907491639,
       "itemId": 62,
       "id": 241,
-      "timestamp": 1770901864065
+      "timestamp": 1770901864065,
+      "manual": true
     },
     {
       "text": "Done: drag project to actions recursive bug",
@@ -1808,7 +1885,8 @@
       "endTime": 1770909708530,
       "itemId": 9,
       "id": 246,
-      "timestamp": 1770907534382
+      "timestamp": 1770907534382,
+      "manual": true
     },
     {
       "text": "Worked on: anything (48m)",
@@ -1818,7 +1896,8 @@
       "endTime": 1770913054552,
       "itemId": 9,
       "id": 247,
-      "timestamp": 1770910173154
+      "timestamp": 1770910173154,
+      "manual": true
     },
     {
       "text": "Worked on: anything (1m)",
@@ -1828,7 +1907,8 @@
       "endTime": 1770913121959,
       "itemId": 9,
       "id": 248,
-      "timestamp": 1770913061510
+      "timestamp": 1770913061510,
+      "manual": true
     },
     {
       "text": "Worked on: לדבר עם פרזון (3m)",
@@ -1838,7 +1918,8 @@
       "endTime": 1770913336609,
       "itemId": 320,
       "id": 249,
-      "timestamp": 1770913121992
+      "timestamp": 1770913121992,
+      "manual": true
     },
     {
       "text": "Worked on: preparations (project to past) also on large projects scale! (1h 34m)",
@@ -1849,7 +1930,8 @@
       "targetEndTime": 1770921954083,
       "itemId": 275,
       "id": 250,
-      "timestamp": 1770916554083
+      "timestamp": 1770916554083,
+      "manual": true
     },
     {
       "text": "Done: preparations (project to past) also on large projects scale!",
@@ -1866,7 +1948,8 @@
       "endTime": 1770924339199,
       "itemId": 353,
       "id": 252,
-      "timestamp": 1770923350122
+      "timestamp": 1770923350122,
+      "manual": true
     },
     {
       "text": "Worked on: anything (4m)",
@@ -1876,7 +1959,8 @@
       "endTime": 1770924600033,
       "itemId": 9,
       "id": 253,
-      "timestamp": 1770924339199
+      "timestamp": 1770924339199,
+      "manual": true
     },
     {
       "text": "Worked on: anything (12m)",
@@ -1886,7 +1970,8 @@
       "endTime": 1770925376276,
       "itemId": 9,
       "id": 254,
-      "timestamp": 1770924600033
+      "timestamp": 1770924600033,
+      "manual": true
     },
     {
       "text": "Worked on: anything (43m)",
@@ -1897,7 +1982,8 @@
       "targetEndTime": 1770928987901,
       "itemId": 9,
       "id": 255,
-      "timestamp": 1770925387909
+      "timestamp": 1770925387909,
+      "manual": true
     },
     {
       "text": "פמי",
@@ -1917,7 +2003,8 @@
       "endTime": 1770932127819,
       "itemId": 351,
       "id": 257,
-      "timestamp": 1770928000700
+      "timestamp": 1770928000700,
+      "manual": true
     },
     {
       "text": "Worked on: להתקלח (16m)",
@@ -1928,7 +2015,8 @@
       "targetEndTime": 1770933745612,
       "itemId": 234,
       "id": 258,
-      "timestamp": 1770932545618
+      "timestamp": 1770932545618,
+      "manual": true
     },
     {
       "text": "anything",
@@ -2138,7 +2226,8 @@
       "endTime": 1770943337733,
       "itemId": 9,
       "id": 286,
-      "timestamp": 1770942626497
+      "timestamp": 1770942626497,
+      "manual": true
     },
     {
       "text": "Worked on: anything (2m)",
@@ -2148,7 +2237,8 @@
       "endTime": 1770949163406,
       "itemId": 9,
       "id": 288,
-      "timestamp": 1770948992799
+      "timestamp": 1770948992799,
+      "manual": true
     },
     {
       "text": "Worked on: anything (0m)",
@@ -2158,7 +2248,8 @@
       "endTime": 1770949527601,
       "itemId": 9,
       "id": 289,
-      "timestamp": 1770949503126
+      "timestamp": 1770949503126,
+      "manual": true
     },
     {
       "text": "Done: dark mode",
@@ -3065,7 +3156,7 @@
       "projectName": "פרויקטי מוזיקה › ג׳אז בחצר",
       "type": "planned",
       "startTime": 1771171200000,
-      "endTime": 1771182000000,
+      "endTime": 1771185600000,
       "itemId": 447,
       "id": 381,
       "timestamp": 1771171200000
@@ -3644,12 +3735,979 @@
       "text": "ג׳אז בחצר",
       "projectName": "פרויקטי מוזיקה",
       "type": "planned",
-      "startTime": 1771585200000,
-      "endTime": 1771596000000,
+      "startTime": 1772190000000,
+      "endTime": 1772200800000,
       "itemId": 311,
       "id": 442,
-      "timestamp": 1771585200000
+      "timestamp": 1772190000000
+    },
+    {
+      "text": "יושב עם עופר",
+      "projectName": "עופר",
+      "type": "planned",
+      "startTime": 1771250400000,
+      "endTime": 1771254000000,
+      "itemId": 489,
+      "id": 443,
+      "timestamp": 1771250400000
+    },
+    {
+      "text": "Worked on: לענות להודעות (1h 0m)",
+      "projectName": "Inbox",
+      "type": "work",
+      "startTime": 1771160527744,
+      "endTime": 1771164166596,
+      "targetEndTime": 1771161427744,
+      "itemId": 444,
+      "id": 444,
+      "timestamp": 1771160527744,
+      "manual": true
+    },
+    {
+      "text": "Worked on: לענות למיילים (7m)",
+      "projectName": "kolwrite",
+      "type": "work",
+      "startTime": 1771164253024,
+      "endTime": 1771164678236,
+      "targetEndTime": 1771164853015,
+      "itemId": 492,
+      "id": 445,
+      "timestamp": 1771164253024,
+      "manual": true
+    },
+    {
+      "text": "Break (12m)",
+      "type": "break",
+      "startTime": 1771165126997,
+      "endTime": 1771165871327,
+      "targetEndTime": 1771166026996,
+      "id": 446,
+      "timestamp": 1771165126997
+    },
+    {
+      "text": "Worked on: make all capacity bars 3 color? after trying this (27m)",
+      "projectName": "anything › core › top level planning",
+      "type": "work",
+      "startTime": 1771165874181,
+      "endTime": 1771167517167,
+      "targetEndTime": 1771167374175,
+      "itemId": 482,
+      "id": 447,
+      "timestamp": 1771165874181,
+      "manual": true
+    },
+    {
+      "text": "Worked on: לבדוק זיפ (16m)",
+      "projectName": "kolwrite",
+      "type": "work",
+      "startTime": 1771167517182,
+      "endTime": 1771168492879,
+      "targetEndTime": 1771169617120,
+      "itemId": 491,
+      "id": 448,
+      "timestamp": 1771167517182,
+      "manual": true
+    },
+    {
+      "text": "Done: make all capacity bars 3 color? after trying this",
+      "projectName": "anything › core › top level planning",
+      "type": "completion",
+      "id": 449,
+      "timestamp": 1771169221168
+    },
+    {
+      "text": "Done: לענות ליעל עם הזיפ",
+      "projectName": "kolwrite",
+      "type": "completion",
+      "id": 450,
+      "timestamp": 1771169513812
+    },
+    {
+      "text": "Break (14m)",
+      "type": "break",
+      "startTime": 1771169689604,
+      "endTime": 1771170533137,
+      "id": 451,
+      "timestamp": 1771169689604
+    },
+    {
+      "text": "Worked on: חזרה לג׳אז (1m)",
+      "projectName": "פרויקטי מוזיקה › ג׳אז בחצר",
+      "type": "work",
+      "startTime": 1771170533137,
+      "endTime": 1771170647683,
+      "itemId": 447,
+      "id": 452,
+      "timestamp": 1771170533137,
+      "manual": true
+    },
+    {
+      "text": "Worked on: חזרה לג׳אז (4h)",
+      "projectName": "פרויקטי מוזיקה › ג׳אז בחצר",
+      "type": "work",
+      "manual": true,
+      "startTime": 1771171200000,
+      "endTime": 1771185600000,
+      "itemId": 447,
+      "id": 453,
+      "timestamp": 1771171200000
+    },
+    {
+      "text": "סשן לירון",
+      "projectName": "פרויקטי מוזיקה",
+      "type": "planned",
+      "startTime": 1771344000000,
+      "endTime": 1771351200000,
+      "itemId": 190,
+      "id": 454,
+      "timestamp": 1771344000000
+    },
+    {
+      "text": "סשן שלי",
+      "projectName": "פרויקטי מוזיקה",
+      "type": "planned",
+      "startTime": 1771351200000,
+      "endTime": 1771371000000,
+      "itemId": 193,
+      "id": 455,
+      "timestamp": 1771351200000
+    },
+    {
+      "text": "Worked on: לתכנן את השבוע (1m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1771186241525,
+      "endTime": 1771186314020,
+      "targetEndTime": 1771187741490,
+      "itemId": 475,
+      "id": 456,
+      "timestamp": 1771186241525,
+      "manual": true
+    },
+    {
+      "text": "Worked on: לתכנן את השבוע (9m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1771186377241,
+      "endTime": 1771186933826,
+      "targetEndTime": 1771187877241,
+      "itemId": 475,
+      "id": 458,
+      "timestamp": 1771186377241,
+      "manual": true
+    },
+    {
+      "text": "Worked on: להמשיך לשתף אלבומים (20m)",
+      "projectName": "משפחה",
+      "type": "work",
+      "startTime": 1771186947933,
+      "endTime": 1771188179044,
+      "targetEndTime": 1771188747903,
+      "itemId": 470,
+      "id": 459,
+      "timestamp": 1771186947933,
+      "manual": true
+    },
+    {
+      "text": "Worked on: zoom in/out animation on breacrumb nav on actions area (17m)",
+      "projectName": "anything",
+      "type": "work",
+      "startTime": 1771188434312,
+      "endTime": 1771189481599,
+      "targetEndTime": 1771188734307,
+      "itemId": 490,
+      "id": 460,
+      "timestamp": 1771188434312,
+      "manual": true
+    },
+    {
+      "text": "Worked on: לקבוע עם הרפז לתחילת שבוע הבא (3m)",
+      "projectName": "למצוא דירה",
+      "type": "work",
+      "startTime": 1771189516137,
+      "endTime": 1771189723531,
+      "targetEndTime": 1771190116137,
+      "itemId": 333,
+      "id": 461,
+      "timestamp": 1771189516137,
+      "manual": true
+    },
+    {
+      "text": "Done: zoom in/out animation on breacrumb nav on actions area",
+      "projectName": "anything",
+      "type": "completion",
+      "id": 462,
+      "timestamp": 1771189743189
+    },
+    {
+      "text": "Worked on: להתקין את הסודה סטרים (9m)",
+      "projectName": "בית",
+      "type": "work",
+      "startTime": 1771190146504,
+      "endTime": 1771190720476,
+      "targetEndTime": 1771191946504,
+      "itemId": 272,
+      "id": 463,
+      "timestamp": 1771190146504,
+      "manual": true
+    },
+    {
+      "text": "Done: להתקין את הסודה סטרים",
+      "projectName": "בית",
+      "type": "completion",
+      "id": 464,
+      "timestamp": 1771191640358
+    },
+    {
+      "text": "Done: חזרה לג׳אז",
+      "projectName": "פרויקטי מוזיקה › ג׳אז בחצר",
+      "type": "completion",
+      "id": 465,
+      "timestamp": 1771191680673
+    },
+    {
+      "text": "Worked on: anything (1m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1771194031979,
+      "endTime": 1771194110332,
+      "itemId": 9,
+      "id": 466,
+      "timestamp": 1771194031979,
+      "manual": true
+    },
+    {
+      "text": "Worked on: live queue (for brilly style) (22m)",
+      "projectName": "anything › core › live logging",
+      "type": "work",
+      "startTime": 1771194110341,
+      "endTime": 1771195467922,
+      "itemId": 468,
+      "id": 467,
+      "timestamp": 1771194110341,
+      "manual": true
+    },
+    {
+      "text": "Worked on: can start from a \"start all\", or session/free session (0m)",
+      "projectName": "anything › core › live logging › live queue (for brilly style)",
+      "type": "work",
+      "startTime": 1771195467933,
+      "endTime": 1771195480988,
+      "itemId": 469,
+      "id": 468,
+      "timestamp": 1771195467933,
+      "manual": true
+    },
+    {
+      "text": "Worked on: live queue (for brilly style) (7m)",
+      "projectName": "anything › core › live logging",
+      "type": "work",
+      "startTime": 1771195547171,
+      "endTime": 1771196015630,
+      "itemId": 468,
+      "id": 469,
+      "timestamp": 1771195547171,
+      "manual": true
+    },
+    {
+      "text": "Worked on: live queue (for brilly style) (2m)",
+      "projectName": "anything › core › live logging",
+      "type": "work",
+      "startTime": 1771196058080,
+      "endTime": 1771196208713,
+      "itemId": 468,
+      "id": 470,
+      "timestamp": 1771196058080,
+      "manual": true
+    },
+    {
+      "text": "Worked on: live queue (for brilly style) (0m)",
+      "projectName": "anything › core › live logging",
+      "type": "work",
+      "startTime": 1771196248504,
+      "endTime": 1771196267804,
+      "itemId": 468,
+      "id": 471,
+      "timestamp": 1771196248504,
+      "manual": true
+    },
+    {
+      "text": "Worked on: can start from a \"start all\", or session/free session (3m)",
+      "projectName": "anything › core › live logging › live queue (for brilly style)",
+      "type": "work",
+      "startTime": 1771196267813,
+      "endTime": 1771196481670,
+      "itemId": 469,
+      "id": 472,
+      "timestamp": 1771196267813,
+      "manual": true
+    },
+    {
+      "text": "Worked on: breaks should be actual items in the queue, support adding a break (with preset or custom duration) (0m)",
+      "projectName": "anything › core › live logging",
+      "type": "work",
+      "startTime": 1771196481682,
+      "endTime": 1771196495007,
+      "targetEndTime": 1771196781682,
+      "itemId": 507,
+      "id": 473,
+      "timestamp": 1771196481682,
+      "manual": true
+    },
+    {
+      "text": "Worked on: can start from a \"start all\", or session/free session (0m)",
+      "projectName": "anything › core › live logging › live queue (for brilly style)",
+      "type": "work",
+      "startTime": 1771196495014,
+      "endTime": 1771196508591,
+      "targetEndTime": 1771196795014,
+      "itemId": 469,
+      "id": 474,
+      "timestamp": 1771196495014,
+      "manual": true
+    },
+    {
+      "text": "Worked on: breaks should be actual items in the queue, support adding a break (with preset or custom duration) (6m)",
+      "projectName": "anything › core › live logging",
+      "type": "work",
+      "startTime": 1771196508598,
+      "endTime": 1771196907176,
+      "targetEndTime": 1771196795273,
+      "itemId": 507,
+      "id": 475,
+      "timestamp": 1771196508598,
+      "manual": true
+    },
+    {
+      "text": "Worked on: when entering a \"what's on your mind\" in live context, add to queue (0m)",
+      "projectName": "anything › core › live logging",
+      "type": "work",
+      "startTime": 1771196907186,
+      "endTime": 1771196921618,
+      "targetEndTime": 1771197207186,
+      "itemId": 506,
+      "id": 476,
+      "timestamp": 1771196907186,
+      "manual": true
+    },
+    {
+      "text": "Worked on: breaks should be actual items in the queue, support adding a break (with preset or custom duration) (0m)",
+      "projectName": "anything › core › live logging",
+      "type": "work",
+      "startTime": 1771196921633,
+      "endTime": 1771196936976,
+      "targetEndTime": 1771197041633,
+      "itemId": 507,
+      "id": 477,
+      "timestamp": 1771196921633,
+      "manual": true
+    },
+    {
+      "text": "Break (0m)",
+      "type": "break",
+      "startTime": 1771196936983,
+      "endTime": 1771196936984,
+      "targetEndTime": 1771197536983,
+      "id": 478,
+      "timestamp": 1771196936983
+    },
+    {
+      "text": "Worked on: when entering a \"what's on your mind\" in live context, add to queue (0m)",
+      "projectName": "anything › core › live logging",
+      "type": "work",
+      "startTime": 1771196937041,
+      "endTime": 1771196982880,
+      "targetEndTime": 1771197222552,
+      "itemId": 506,
+      "id": 479,
+      "timestamp": 1771196937041,
+      "manual": true
+    },
+    {
+      "text": "Worked on: breaks should be actual items in the queue, support adding a break (with preset or custom duration) (0m)",
+      "projectName": "anything › core › live logging",
+      "type": "work",
+      "startTime": 1771196982890,
+      "endTime": 1771196988071,
+      "itemId": 507,
+      "id": 480,
+      "timestamp": 1771196982890,
+      "manual": true
+    },
+    {
+      "text": "Break (0m)",
+      "type": "break",
+      "startTime": 1771196988080,
+      "endTime": 1771196988081,
+      "targetEndTime": 1771197288080,
+      "id": 481,
+      "timestamp": 1771196988080
+    },
+    {
+      "text": "Worked on: can start from a \"start all\", or session/free session (3m)",
+      "projectName": "anything › core › live logging › live queue (for brilly style)",
+      "type": "work",
+      "startTime": 1771196988140,
+      "endTime": 1771197191242,
+      "itemId": 469,
+      "id": 482,
+      "timestamp": 1771196988140,
+      "manual": true
+    },
+    {
+      "text": "Break (0m)",
+      "type": "break",
+      "startTime": 1771197191259,
+      "endTime": 1771197202871,
+      "targetEndTime": 1771197491259,
+      "id": 483,
+      "timestamp": 1771197191259
+    },
+    {
+      "text": "Worked on: breaks should be actual items in the queue, support adding a break (with preset or custom duration) (0m)",
+      "projectName": "anything › core › live logging",
+      "type": "work",
+      "startTime": 1771197202883,
+      "endTime": 1771197205354,
+      "targetEndTime": 1771197262882,
+      "itemId": 507,
+      "id": 484,
+      "timestamp": 1771197202883,
+      "manual": true
+    },
+    {
+      "text": "Done: live queue (for brilly style)",
+      "projectName": "anything › core › live logging",
+      "type": "completion",
+      "id": 485,
+      "timestamp": 1771197716062
+    },
+    {
+      "text": "Done: breaks should be actual items in the queue, support adding a break (with preset or custom duration)",
+      "projectName": "anything › core › live logging",
+      "type": "completion",
+      "id": 486,
+      "timestamp": 1771197722099
+    },
+    {
+      "text": "Worked on: can start from a \"start all\", or session/free session (11m)",
+      "projectName": "anything › core › live logging › live queue (for brilly style)",
+      "type": "work",
+      "startTime": 1771197205363,
+      "endTime": 1771197869664,
+      "itemId": 469,
+      "id": 487,
+      "timestamp": 1771197205363,
+      "manual": true
+    },
+    {
+      "text": "Worked on: when entering a \"what's on your mind\" in live context, add to queue (0m)",
+      "projectName": "anything › core › live logging",
+      "type": "work",
+      "startTime": 1771197905512,
+      "endTime": 1771197911587,
+      "itemId": 506,
+      "id": 488,
+      "timestamp": 1771197905512,
+      "manual": true
+    },
+    {
+      "text": "Worked on: can start from a \"start all\", or session/free session (3m)",
+      "projectName": "anything › core › live logging › live queue (for brilly style)",
+      "type": "work",
+      "startTime": 1771197911595,
+      "endTime": 1771198145036,
+      "itemId": 469,
+      "id": 489,
+      "timestamp": 1771197911595,
+      "manual": true
+    },
+    {
+      "text": "Worked on: when entering a \"what's on your mind\" in live context, add to queue (3m)",
+      "projectName": "anything › core › live logging",
+      "type": "work",
+      "startTime": 1771198145056,
+      "endTime": 1771198370697,
+      "itemId": 506,
+      "id": 490,
+      "timestamp": 1771198145056,
+      "manual": true
+    },
+    {
+      "text": "Break (0m)",
+      "type": "break",
+      "startTime": 1771198370723,
+      "endTime": 1771198370724,
+      "targetEndTime": 1771198670723,
+      "id": 491,
+      "timestamp": 1771198370723
+    },
+    {
+      "text": "Worked on: לענות להודעות (10m)",
+      "projectName": "Inbox",
+      "type": "work",
+      "startTime": 1771198370788,
+      "endTime": 1771198972989,
+      "itemId": 444,
+      "id": 492,
+      "timestamp": 1771198370788,
+      "manual": true
+    },
+    {
+      "text": "Break (4m)",
+      "type": "break",
+      "startTime": 1771198973019,
+      "endTime": 1771199231886,
+      "targetEndTime": 1771199273019,
+      "id": 493,
+      "timestamp": 1771198973019
+    },
+    {
+      "text": "Worked on: לענות להודעות (1m)",
+      "projectName": "Inbox",
+      "type": "work",
+      "startTime": 1771199231894,
+      "endTime": 1771199326526,
+      "itemId": 444,
+      "id": 494,
+      "timestamp": 1771199231894,
+      "manual": true
+    },
+    {
+      "text": "Worked on: לשלוח לדקלה (24m)",
+      "projectName": "פרויקטי מוזיקה",
+      "type": "work",
+      "startTime": 1771199326538,
+      "endTime": 1771200785283,
+      "targetEndTime": 1771199626538,
+      "itemId": 508,
+      "id": 495,
+      "timestamp": 1771199326538,
+      "manual": true
+    },
+    {
+      "text": "Worked on: לצחצח שיניים (8m)",
+      "projectName": "בית",
+      "type": "work",
+      "startTime": 1771200789285,
+      "endTime": 1771201326576,
+      "targetEndTime": 1771201085297,
+      "itemId": 510,
+      "id": 496,
+      "timestamp": 1771200789285,
+      "manual": true
+    },
+    {
+      "text": "Worked on: deploy zip (2m)",
+      "projectName": "kolwrite",
+      "type": "work",
+      "startTime": 1771201328319,
+      "endTime": 1771201449321,
+      "targetEndTime": 1771201626591,
+      "itemId": 497,
+      "id": 497,
+      "timestamp": 1771201328319,
+      "manual": true
+    },
+    {
+      "text": "Worked on: anything (4m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1771201449331,
+      "endTime": 1771201712223,
+      "itemId": 9,
+      "id": 498,
+      "timestamp": 1771201449331,
+      "manual": true
+    },
+    {
+      "text": "Worked on: deploy zip (2m)",
+      "projectName": "kolwrite",
+      "type": "work",
+      "startTime": 1771201713520,
+      "endTime": 1771201870298,
+      "targetEndTime": 1771201889511,
+      "itemId": 497,
+      "id": 499,
+      "timestamp": 1771201713520,
+      "manual": true
+    },
+    {
+      "text": "Worked on: plan recording (14m)",
+      "projectName": "kolwrite › recording",
+      "type": "work",
+      "startTime": 1771201871390,
+      "endTime": 1771202723536,
+      "targetEndTime": 1771203370312,
+      "itemId": 287,
+      "id": 500,
+      "timestamp": 1771201871390,
+      "manual": true
+    },
+    {
+      "text": "Worked on: anything (1m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1771202967562,
+      "endTime": 1771203070887,
+      "itemId": 9,
+      "id": 502,
+      "timestamp": 1771202967562,
+      "manual": true
+    },
+    {
+      "text": "Idle",
+      "type": "idle",
+      "manual": true,
+      "startTime": 1770713243085,
+      "endTime": 1770713337825,
+      "id": 503,
+      "timestamp": 1770713243085
+    },
+    {
+      "text": "Idle",
+      "type": "idle",
+      "manual": true,
+      "startTime": 1770713896225,
+      "endTime": 1770713901208,
+      "id": 504,
+      "timestamp": 1770713896225
+    },
+    {
+      "text": "Idle",
+      "type": "idle",
+      "manual": true,
+      "startTime": 1770720828513,
+      "endTime": 1770722403511,
+      "id": 505,
+      "timestamp": 1770720828513
+    },
+    {
+      "text": "Idle",
+      "type": "idle",
+      "manual": true,
+      "startTime": 1770739200000,
+      "endTime": 1770750000000,
+      "id": 506,
+      "timestamp": 1770739200000
+    },
+    {
+      "text": "Idle",
+      "type": "idle",
+      "manual": true,
+      "startTime": 1770750000000,
+      "endTime": 1770757855818,
+      "id": 507,
+      "timestamp": 1770750000000
+    },
+    {
+      "text": "Idle",
+      "type": "idle",
+      "manual": true,
+      "startTime": 1770763826047,
+      "endTime": 1770764268135,
+      "id": 508,
+      "timestamp": 1770763826047
+    },
+    {
+      "text": "Idle",
+      "type": "idle",
+      "manual": true,
+      "startTime": 1770765346527,
+      "endTime": 1770765835686,
+      "id": 509,
+      "timestamp": 1770765346527
+    },
+    {
+      "text": "Idle",
+      "type": "idle",
+      "manual": true,
+      "startTime": 1770765858451,
+      "endTime": 1770766078687,
+      "id": 510,
+      "timestamp": 1770765858451
+    },
+    {
+      "text": "Idle",
+      "type": "idle",
+      "manual": true,
+      "startTime": 1770766724690,
+      "endTime": 1770767006156,
+      "id": 511,
+      "timestamp": 1770766724690
+    },
+    {
+      "text": "Idle",
+      "type": "idle",
+      "manual": true,
+      "startTime": 1770671329709,
+      "endTime": 1770671352492,
+      "id": 512,
+      "timestamp": 1770671329709
+    },
+    {
+      "text": "Idle",
+      "type": "idle",
+      "manual": true,
+      "startTime": 1770673130142,
+      "endTime": 1770674129573,
+      "id": 513,
+      "timestamp": 1770673130142
+    },
+    {
+      "text": "Idle",
+      "type": "idle",
+      "manual": true,
+      "startTime": 1770674143753,
+      "endTime": 1770674185902,
+      "id": 514,
+      "timestamp": 1770674143753
+    },
+    {
+      "text": "Idle",
+      "type": "idle",
+      "manual": true,
+      "startTime": 1770832037381,
+      "endTime": 1770847620000,
+      "id": 515,
+      "timestamp": 1770832037381
+    },
+    {
+      "text": "Idle",
+      "type": "idle",
+      "manual": true,
+      "startTime": 1770895922795,
+      "endTime": 1770895949620,
+      "id": 516,
+      "timestamp": 1770895922795
+    },
+    {
+      "text": "Idle",
+      "type": "idle",
+      "manual": true,
+      "startTime": 1770896660444,
+      "endTime": 1770896700000,
+      "id": 517,
+      "timestamp": 1770896660444
+    },
+    {
+      "text": "Idle",
+      "type": "idle",
+      "manual": true,
+      "startTime": 1770933510175,
+      "endTime": 1770933593941,
+      "id": 518,
+      "timestamp": 1770933510175
+    },
+    {
+      "text": "Idle",
+      "type": "idle",
+      "manual": true,
+      "startTime": 1770934567710,
+      "endTime": 1770934936117,
+      "id": 519,
+      "timestamp": 1770934567710
+    },
+    {
+      "text": "Worked on: גדבום (13m)",
+      "projectName": "פרויקטי מוזיקה",
+      "type": "work",
+      "startTime": 1771203072426,
+      "endTime": 1771203865854,
+      "targetEndTime": 1771203970915,
+      "itemId": 93,
+      "id": 520,
+      "timestamp": 1771203072426,
+      "manual": true
+    },
+    {
+      "text": "Worked on: anything (7m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1771203866847,
+      "endTime": 1771204291591,
+      "itemId": 9,
+      "id": 521,
+      "timestamp": 1771203866847,
+      "manual": true
+    },
+    {
+      "text": "Done: לשלוח לדקלה",
+      "projectName": "פרויקטי מוזיקה",
+      "type": "completion",
+      "id": 522,
+      "timestamp": 1771204334363
+    },
+    {
+      "text": "Done: live logging queues (brilly mode)",
+      "projectName": "anything › core › live logging",
+      "type": "completion",
+      "id": 523,
+      "timestamp": 1771204373814
+    },
+    {
+      "text": "Done: can start from a \"start all\", or session/free session",
+      "projectName": "anything › core › live logging › live queue (for brilly style)",
+      "type": "completion",
+      "id": 524,
+      "timestamp": 1771204479375
+    },
+    {
+      "text": "Done: אופיר מרצה",
+      "projectName": "משפחה",
+      "type": "completion",
+      "id": 527,
+      "timestamp": 1771206819376
+    },
+    {
+      "text": "נפגש עם עידן",
+      "projectName": "חברים",
+      "type": "planned",
+      "startTime": 1771264800000,
+      "endTime": 1771268400000,
+      "itemId": 516,
+      "dynamicStart": true,
+      "id": 528,
+      "timestamp": 1771264800000
+    },
+    {
+      "text": "Worked on: maybe focus sessions are sliding window (\"package\" intention) (1h 5m)",
+      "projectName": "anything › core › top level planning › differentiate focus sessions from appointments",
+      "type": "work",
+      "startTime": 1771204521013,
+      "endTime": 1771208447383,
+      "itemId": 388,
+      "id": 529,
+      "timestamp": 1771204521013,
+      "manual": true
+    },
+    {
+      "text": "Worked on: special color for flex (1m)",
+      "projectName": "anything",
+      "type": "work",
+      "startTime": 1771208449128,
+      "endTime": 1771208544125,
+      "itemId": 514,
+      "id": 530,
+      "timestamp": 1771208449128,
+      "manual": true
+    },
+    {
+      "text": "Done: להחליף ולנקות פילטר מזרקה",
+      "projectName": "בית › צביקה",
+      "type": "completion",
+      "id": 532,
+      "timestamp": 1771232296866
+    },
+    {
+      "text": "Done: לצחצח שיניים",
+      "projectName": "בית",
+      "type": "completion",
+      "id": 533,
+      "timestamp": 1771232306580
+    },
+    {
+      "text": "Worked on: לענות לכולן באפליקציות (0m)",
+      "projectName": "למצוא חברה",
+      "type": "work",
+      "startTime": 1771232412241,
+      "endTime": 1771232416587,
+      "targetEndTime": 1771233312241,
+      "itemId": 383,
+      "id": 534,
+      "timestamp": 1771232412241,
+      "manual": true
+    },
+    {
+      "text": "Worked on: לדבר עם פרזון (5m)",
+      "projectName": "למצוא דירה",
+      "type": "work",
+      "startTime": 1771232416596,
+      "endTime": 1771232766015,
+      "targetEndTime": 1771234216596,
+      "itemId": 320,
+      "id": 535,
+      "timestamp": 1771232416596,
+      "manual": true
+    },
+    {
+      "text": "Done: לדבר עם פרזון",
+      "projectName": "למצוא דירה",
+      "type": "completion",
+      "id": 536,
+      "timestamp": 1771232784083
+    },
+    {
+      "text": "Worked on: לענות לכולן באפליקציות (4m)",
+      "projectName": "למצוא חברה",
+      "type": "work",
+      "startTime": 1771232766027,
+      "endTime": 1771233021913,
+      "targetEndTime": 1771233661679,
+      "itemId": 383,
+      "id": 537,
+      "timestamp": 1771232766027,
+      "manual": true
+    },
+    {
+      "text": "Worked on: להחליף ולנקות פילטר מזרקה (11m)",
+      "projectName": "בית › צביקה",
+      "type": "work",
+      "startTime": 1771233021929,
+      "endTime": 1771233685358,
+      "targetEndTime": 1771234821929,
+      "itemId": 499,
+      "id": 538,
+      "timestamp": 1771233021929,
+      "manual": true
+    },
+    {
+      "text": "Worked on: לענות למיילים (7m)",
+      "projectName": "kolwrite",
+      "type": "work",
+      "startTime": 1771233921202,
+      "endTime": 1771234377648,
+      "targetEndTime": 1771234521202,
+      "itemId": 524,
+      "id": 539,
+      "timestamp": 1771233921202,
+      "manual": true
+    },
+    {
+      "text": "Worked on: לקנות דברים לצביקה (30m)",
+      "projectName": "בית › צביקה",
+      "type": "work",
+      "startTime": 1771234391868,
+      "endTime": 1771236224572,
+      "targetEndTime": 1771235291857,
+      "itemId": 523,
+      "id": 540,
+      "timestamp": 1771234391868,
+      "manual": true
+    },
+    {
+      "text": "Worked on: להקליט לג׳ון (7m)",
+      "projectName": "kolwrite",
+      "type": "work",
+      "startTime": 1771236224572,
+      "endTime": 1771236660000,
+      "itemId": 522,
+      "id": 541,
+      "timestamp": 1771236224572,
+      "manual": true,
+      "dynamicStart": false
+    },
+    {
+      "text": "Worked on: anything (8m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1771237250629,
+      "endTime": 1771237774683,
+      "itemId": 9,
+      "id": 542,
+      "timestamp": 1771237250629,
+      "manual": true
     }
   ],
-  "nextId": 443
+  "nextId": 544
 }
