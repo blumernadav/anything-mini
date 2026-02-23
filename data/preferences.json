@@ -3,17 +3,22 @@
   "showDone": false,
   "showUnscheduled": true,
   "panels": {
-    "left": 500,
-    "right": 474
+    "left": 314,
+    "right": 412
   },
   "hidePastEntries": true,
-  "workingOn": null,
-  "selectedItemId": 9,
+  "workingOn": {
+    "itemId": 282,
+    "itemName": "idea - move \"done\" to be done under a context",
+    "projectName": "anything › core",
+    "startTime": 1771867208920,
+    "targetEndTime": 1771868708909
+  },
+  "selectedItemId": "",
   "onBreak": null,
-  "timelineViewDate": "2026-02-16T10:28:09.274Z",
+  "timelineViewDate": "2026-02-22T22:00:00.000Z",
   "scheduleFilter": "scheduled+unscheduled",
   "collapsedGroups": [
-    86,
     78,
     181,
     29,
@@ -29,17 +34,19 @@
     282,
     70,
     487,
-    423,
-    28,
     460,
     155,
     144,
-    9,
-    17,
-    293,
-    248,
+    137,
+    167,
+    319,
+    28,
+    675,
+    62,
     92,
     145,
+    9,
+    17,
     300
   ],
   "viewHorizon": "day",
@@ -60,14 +67,14 @@
     "2026-03-20": true,
     "2026-03-21": true,
     "2026-02-02": true,
-    "2026-02-22": true,
+    "2026-02-22": false,
     "2026-02-15": true,
     "2026-02-16": true,
     "2026-02-17": false,
     "2026-02-18": false,
     "2026-02-19": true,
     "2026-02-20": true,
-    "2026-02-21": true
+    "2026-02-21": false
   },
   "showSleepTimes": true,
   "weekExpandedGroups": {
@@ -84,7 +91,7 @@
     "weekGroups_2026-02-14": []
   },
   "focusStack": [],
-  "projectTreeScrollTop": 1439.4444580078125,
+  "projectTreeScrollTop": 0,
   "darkMode": "dark",
   "skinFamily": "duolingo",
   "sessionIndex": 0,
@@ -97,17 +104,27 @@
     297,
     314,
     207,
-    381
+    381,
+    454,
+    441,
+    639
   ],
   "pastDisplayMode": "hide",
   "deepView": false,
   "bookmarks": [
     9
   ],
-  "focusQueue": [],
+  "focusQueue": [
+    {
+      "itemId": 9,
+      "itemName": "anything",
+      "projectName": null,
+      "durationMs": 0
+    }
+  ],
   "focusQueueSettings": {
     "autoAdvance": false,
     "breakMinutes": 0
   },
-  "queueSessionStart": null
+  "queueSessionStart": 1771867208920
 }

@@ -55,19 +55,49 @@
     "2026-02-17": {
       "dayStartHour": 8,
       "dayStartMinute": 0,
-      "dayEndHour": 1,
+      "dayEndHour": 2,
       "dayEndMinute": 30
     },
     "2026-02-16": {
       "dayStartHour": 10,
       "dayStartMinute": 45,
+      "dayEndHour": 3,
+      "dayEndMinute": 0
+    },
+    "2026-02-18": {
+      "dayStartHour": 11,
+      "dayStartMinute": 0,
+      "dayEndHour": 2,
+      "dayEndMinute": 30
+    },
+    "2026-02-19": {
+      "dayStartHour": 9,
+      "dayStartMinute": 10,
+      "dayEndHour": 2,
+      "dayEndMinute": 30
+    },
+    "2026-02-20": {
+      "dayStartHour": 6,
+      "dayStartMinute": 0,
+      "dayEndHour": 0,
+      "dayEndMinute": 30
+    },
+    "2026-02-21": {
+      "dayStartHour": 8,
+      "dayStartMinute": 0,
+      "dayEndHour": 1,
+      "dayEndMinute": 0
+    },
+    "2026-02-22": {
+      "dayStartHour": 8,
+      "dayStartMinute": 30,
       "dayEndHour": 0,
       "dayEndMinute": 30
     }
   },
   "streak": {
-    "count": 9,
-    "lastCheckInDate": "2026-02-16",
+    "count": 1,
+    "lastCheckInDate": "2026-02-20",
     "longestStreak": 9
   },
   "weekStartDay": 0,

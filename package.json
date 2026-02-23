@@ -5,7 +5,8 @@
   "main": "script.js",
   "scripts": {
     "start": "node server.cjs",
-    "dev": "node server.cjs"
+    "dev": "node server.cjs",
+    "tunnel": "cloudflared tunnel --url http://localhost:3002"
   },
   "keywords": [],
   "author": "",

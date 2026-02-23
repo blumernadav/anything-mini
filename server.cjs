@@ -60,7 +60,7 @@ app.get('/api/items', (req, res) => {
 // Add a new item (optionally under a parent)
 app.post('/api/items', (req, res) => {
     const data = itemsStore.read();
-    const { name, parentId, timeContexts } = req.body;
+    const { name, parentId, timeContexts, contextDurations } = req.body;
 
     const newItem = {
         id: data.nextId++,
@@ -71,6 +71,11 @@ app.post('/api/items', (req, res) => {
         done: false,
         timeContexts: (timeContexts && timeContexts.length > 0) ? timeContexts : ['ongoing']
     };
+
+    // Attach contextDurations if provided
+    if (contextDurations && typeof contextDurations === 'object' && Object.keys(contextDurations).length > 0) {
+        newItem.contextDurations = contextDurations;
+    }
 
     if (parentId) {
         // Insert as child of parent

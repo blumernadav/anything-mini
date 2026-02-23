@@ -1527,11 +1527,14 @@
       "text": "סשן ירדן",
       "projectName": "פרויקטי מוזיקה",
       "type": "planned",
-      "startTime": 1772033400000,
-      "endTime": 1772044200000,
+      "startTime": 1772533800000,
+      "endTime": 1772544600000,
       "itemId": 306,
       "id": 208,
-      "timestamp": 1772033400000
+      "timestamp": 1772533800000,
+      "dynamicStart": false,
+      "prepDuration": 0,
+      "windDownDuration": 0
     },
     {
       "text": "גרב בזאפה",
@@ -3746,10 +3749,11 @@
       "projectName": "עופר",
       "type": "planned",
       "startTime": 1771250400000,
-      "endTime": 1771254000000,
+      "endTime": 1771253760000,
       "itemId": 489,
       "id": 443,
-      "timestamp": 1771250400000
+      "timestamp": 1771250400000,
+      "dynamicStart": false
     },
     {
       "text": "Worked on: לענות להודעות (1h 0m)",
@@ -3861,16 +3865,6 @@
       "itemId": 190,
       "id": 454,
       "timestamp": 1771344000000
-    },
-    {
-      "text": "סשן שלי",
-      "projectName": "פרויקטי מוזיקה",
-      "type": "planned",
-      "startTime": 1771351200000,
-      "endTime": 1771371000000,
-      "itemId": 193,
-      "id": 455,
-      "timestamp": 1771351200000
     },
     {
       "text": "Worked on: לתכנן את השבוע (1m)",
@@ -4560,17 +4554,6 @@
       "timestamp": 1771206819376
     },
     {
-      "text": "נפגש עם עידן",
-      "projectName": "חברים",
-      "type": "planned",
-      "startTime": 1771264800000,
-      "endTime": 1771268400000,
-      "itemId": 516,
-      "dynamicStart": true,
-      "id": 528,
-      "timestamp": 1771264800000
-    },
-    {
       "text": "Worked on: maybe focus sessions are sliding window (\"package\" intention) (1h 5m)",
       "projectName": "anything › core › top level planning › differentiate focus sessions from appointments",
       "type": "work",
@@ -4707,7 +4690,1771 @@
       "id": 542,
       "timestamp": 1771237250629,
       "manual": true
+    },
+    {
+      "text": "Worked on: anything (12m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1771237911637,
+      "endTime": 1771238635240,
+      "targetEndTime": 1771238511637,
+      "itemId": 9,
+      "id": 544,
+      "timestamp": 1771237911637,
+      "manual": true
+    },
+    {
+      "text": "Worked on: anything (3m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1771238867988,
+      "endTime": 1771239052674,
+      "targetEndTime": 1771239467988,
+      "itemId": 9,
+      "id": 546,
+      "timestamp": 1771238867988,
+      "manual": true
+    },
+    {
+      "text": "Worked on: kolwrite (0m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1771239065352,
+      "endTime": 1771239070476,
+      "itemId": 62,
+      "id": 547,
+      "timestamp": 1771239065352,
+      "manual": true
+    },
+    {
+      "text": "Worked on: לראות ש-azure GOAT עובד (10m)",
+      "projectName": "עופר",
+      "type": "work",
+      "startTime": 1771239217178,
+      "endTime": 1771239869693,
+      "targetEndTime": 1771246417169,
+      "itemId": 466,
+      "id": 548,
+      "timestamp": 1771239217178,
+      "manual": true
+    },
+    {
+      "text": "Worked on: anything (12m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1771239977703,
+      "endTime": 1771240749420,
+      "itemId": 9,
+      "id": 550,
+      "timestamp": 1771239977703,
+      "manual": true
+    },
+    {
+      "text": "Done: א. בוקר",
+      "projectName": "Inbox",
+      "type": "completion",
+      "id": 552,
+      "timestamp": 1771241351028
+    },
+    {
+      "text": "Worked on: לראות ש-azure GOAT עובד (19m)",
+      "projectName": "עופר",
+      "type": "work",
+      "startTime": 1771240763637,
+      "endTime": 1771241924678,
+      "targetEndTime": 1771247311113,
+      "itemId": 466,
+      "id": 553,
+      "timestamp": 1771240763637,
+      "manual": true
+    },
+    {
+      "text": "Worked on: limited deploy (poc) (4m)",
+      "projectName": "עופר › לראות ש-azure GOAT עובד",
+      "type": "work",
+      "startTime": 1771241924705,
+      "endTime": 1771242198486,
+      "itemId": 529,
+      "id": 554,
+      "timestamp": 1771241924705,
+      "manual": true
+    },
+    {
+      "text": "Worked on: לראות ש-azure GOAT עובד (4m)",
+      "projectName": "עופר",
+      "type": "work",
+      "startTime": 1771242198498,
+      "endTime": 1771242491926,
+      "targetEndTime": 1771247584933,
+      "itemId": 466,
+      "id": 555,
+      "timestamp": 1771242198498,
+      "manual": true
+    },
+    {
+      "text": "Worked on: anything (23m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1771242491944,
+      "endTime": 1771243903697,
+      "itemId": 9,
+      "id": 556,
+      "timestamp": 1771242491944,
+      "manual": true
+    },
+    {
+      "text": "Break (14m)",
+      "type": "break",
+      "startTime": 1771243903719,
+      "endTime": 1771244794177,
+      "targetEndTime": 1771244503719,
+      "id": 557,
+      "timestamp": 1771243903719
+    },
+    {
+      "text": "Worked on: לראות ש-azure GOAT עובד (11m)",
+      "projectName": "עופר",
+      "type": "work",
+      "startTime": 1771244794189,
+      "endTime": 1771245504380,
+      "targetEndTime": 1771249887195,
+      "itemId": 466,
+      "id": 558,
+      "timestamp": 1771244794189,
+      "manual": true
+    },
+    {
+      "text": "Worked on: limited deploy (poc) (5m)",
+      "projectName": "עופר › לראות ש-azure GOAT עובד",
+      "type": "work",
+      "startTime": 1771245504399,
+      "endTime": 1771245854378,
+      "itemId": 529,
+      "id": 559,
+      "timestamp": 1771245504399,
+      "manual": true
+    },
+    {
+      "text": "Worked on: חוטר על ה flow של התלמידים (0m)",
+      "projectName": "עופר › לראות ש-azure GOAT עובד › limited deploy (poc)",
+      "type": "work",
+      "startTime": 1771245854390,
+      "endTime": 1771245869779,
+      "targetEndTime": 1771246454390,
+      "itemId": 545,
+      "id": 560,
+      "timestamp": 1771245854390,
+      "manual": true
+    },
+    {
+      "text": "Break (40m)",
+      "type": "break",
+      "startTime": 1771245869814,
+      "endTime": 1771248286124,
+      "targetEndTime": 1771246769814,
+      "id": 561,
+      "timestamp": 1771245869814
+    },
+    {
+      "text": "Worked on: חוטר על ה flow של התלמידים (27m)",
+      "projectName": "עופר › לראות ש-azure GOAT עובד › limited deploy (poc)",
+      "type": "work",
+      "startTime": 1771248286136,
+      "endTime": 1771249913600,
+      "targetEndTime": 1771248870746,
+      "itemId": 545,
+      "id": 562,
+      "timestamp": 1771248286136,
+      "manual": true
+    },
+    {
+      "text": "Worked on: ש\"ב לעופר - סביב מה לתכנן את השיעור (0m)",
+      "projectName": "עופר",
+      "type": "work",
+      "startTime": 1771249913614,
+      "endTime": 1771249926192,
+      "itemId": 467,
+      "id": 563,
+      "timestamp": 1771249913614,
+      "manual": true
+    },
+    {
+      "text": "Worked on: test new duration feature (0m)",
+      "projectName": "עופר",
+      "type": "work",
+      "startTime": 1771249926203,
+      "endTime": 1771249935191,
+      "itemId": 532,
+      "id": 564,
+      "timestamp": 1771249926203,
+      "manual": true
+    },
+    {
+      "text": "Worked on: לחתום על הטפסיאדה של תל אביב (7m)",
+      "projectName": "kolwrite",
+      "type": "work",
+      "startTime": 1771250086294,
+      "endTime": 1771250549514,
+      "targetEndTime": 1771250686294,
+      "itemId": 527,
+      "id": 565,
+      "timestamp": 1771250086294,
+      "manual": true
+    },
+    {
+      "text": "Worked on: יושב עם עופר (54m)",
+      "projectName": "עופר",
+      "type": "work",
+      "manual": true,
+      "startTime": 1771250549514,
+      "endTime": 1771253760000,
+      "itemId": 489,
+      "id": 567,
+      "timestamp": 1771250549514
+    },
+    {
+      "text": "Worked on: kolwrite (9m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1771253960029,
+      "endTime": 1771254517756,
+      "itemId": 62,
+      "id": 568,
+      "timestamp": 1771253960029,
+      "manual": true
+    },
+    {
+      "text": "Worked on: סוכנים וכאלה (2h 25m)",
+      "projectName": "יעילות (לעשות את אותם הדברים אבל מהר)",
+      "type": "work",
+      "startTime": 1771254532639,
+      "endTime": 1771263249737,
+      "itemId": 98,
+      "id": 569,
+      "timestamp": 1771254532639,
+      "manual": true
+    },
+    {
+      "text": "Worked on: לענות על מיילים - שתהיה לו גישה (0m)",
+      "projectName": "יעילות (לעשות את אותם הדברים אבל מהר) › סוכנים וכאלה",
+      "type": "work",
+      "startTime": 1771263250164,
+      "endTime": 1771263255938,
+      "itemId": 548,
+      "id": 570,
+      "timestamp": 1771263250164,
+      "manual": true
+    },
+    {
+      "text": "Worked on: מקלחת (16m)",
+      "projectName": "Inbox",
+      "type": "work",
+      "startTime": 1771263734051,
+      "endTime": 1771264703994,
+      "itemId": 553,
+      "id": 571,
+      "timestamp": 1771263734051,
+      "manual": true
+    },
+    {
+      "text": "Worked on: להעביר את אנשי לאופוס (0m)",
+      "projectName": "יעילות (לעשות את אותם הדברים אבל מהר) › סוכנים וכאלה",
+      "type": "work",
+      "startTime": 1771264704201,
+      "endTime": 1771264708859,
+      "itemId": 552,
+      "id": 572,
+      "timestamp": 1771264704201,
+      "manual": true
+    },
+    {
+      "text": "Done: מקלחת",
+      "projectName": "Inbox",
+      "type": "completion",
+      "id": 573,
+      "timestamp": 1771264833270
+    },
+    {
+      "text": "Worked on: סוכנים וכאלה (7m)",
+      "projectName": "יעילות (לעשות את אותם הדברים אבל מהר)",
+      "type": "work",
+      "startTime": 1771269341432,
+      "endTime": 1771269808416,
+      "itemId": 98,
+      "id": 574,
+      "timestamp": 1771269341432,
+      "manual": true
+    },
+    {
+      "text": "Done: להחזיר לליאורה קרדיטים על 19 תמלולים",
+      "projectName": "kolwrite",
+      "type": "completion",
+      "id": 575,
+      "timestamp": 1771278068302
+    },
+    {
+      "text": "Worked on: להגדיר koluser מכל מקום (3h 6m)",
+      "projectName": "kolwrite",
+      "type": "work",
+      "startTime": 1771269808427,
+      "endTime": 1771281000000,
+      "targetEndTime": 1771270408416,
+      "itemId": 554,
+      "id": 576,
+      "timestamp": 1771269808427,
+      "manual": true
+    },
+    {
+      "text": "Done: להגדיר koluser מכל מקום",
+      "projectName": "kolwrite",
+      "type": "completion",
+      "id": 577,
+      "timestamp": 1771282829503
+    },
+    {
+      "text": "Done: deploy zip",
+      "projectName": "kolwrite",
+      "type": "completion",
+      "id": 579,
+      "timestamp": 1771318243574
+    },
+    {
+      "text": "Worked on: kolwrite (1h 45m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1771316057388,
+      "endTime": 1771322361052,
+      "itemId": 62,
+      "id": 580,
+      "timestamp": 1771316057388,
+      "manual": true
+    },
+    {
+      "text": "Worked on: לדחוף תיקון ולשלוח ליעל (0m)",
+      "projectName": "kolwrite",
+      "type": "work",
+      "startTime": 1771322361489,
+      "endTime": 1771322390418,
+      "targetEndTime": 1771323261489,
+      "itemId": 559,
+      "id": 581,
+      "timestamp": 1771322361489,
+      "manual": true
+    },
+    {
+      "text": "Worked on: לדחוף תיקון ל  list uploaded (1m)",
+      "projectName": "kolwrite",
+      "type": "work",
+      "startTime": 1771322390516,
+      "endTime": 1771322492982,
+      "itemId": 561,
+      "id": 582,
+      "timestamp": 1771322390516,
+      "manual": true
+    },
+    {
+      "text": "Worked on: מקלחת (14m)",
+      "projectName": "Inbox",
+      "type": "work",
+      "startTime": 1771322572841,
+      "endTime": 1771323418643,
+      "targetEndTime": 1771323472841,
+      "itemId": 562,
+      "id": 583,
+      "timestamp": 1771322572841,
+      "manual": true
+    },
+    {
+      "text": "Worked on: לאחד וידאו של משולש (14m)",
+      "projectName": "Inbox",
+      "type": "work",
+      "startTime": 1771323419043,
+      "endTime": 1771324273504,
+      "targetEndTime": 1771324319042,
+      "itemId": 563,
+      "id": 584,
+      "timestamp": 1771323419043,
+      "manual": true
+    },
+    {
+      "text": "Worked on: לדחוף תיקון ל  list uploaded (1h 7m)",
+      "projectName": "kolwrite",
+      "type": "work",
+      "startTime": 1771324275756,
+      "endTime": 1771328331722,
+      "targetEndTime": 1771325475756,
+      "itemId": 561,
+      "id": 585,
+      "timestamp": 1771324275756,
+      "manual": true
+    },
+    {
+      "text": "Worked on: לסיים להריץ תיקון durations (35m)",
+      "projectName": "Inbox",
+      "type": "work",
+      "startTime": 1771328331774,
+      "endTime": 1771330478982,
+      "targetEndTime": 1771329831774,
+      "itemId": 564,
+      "id": 586,
+      "timestamp": 1771328331774,
+      "manual": true
+    },
+    {
+      "text": "Worked on: לדחוף תיקון ל  list uploaded (0m)",
+      "projectName": "kolwrite",
+      "type": "work",
+      "startTime": 1771330479556,
+      "endTime": 1771330499466,
+      "itemId": 561,
+      "id": 587,
+      "timestamp": 1771330479556,
+      "manual": true
+    },
+    {
+      "text": "Worked on: ריסטרט בקאנד (0m)",
+      "projectName": "kolwrite › לדחוף תיקון ל  list uploaded",
+      "type": "work",
+      "startTime": 1771330500005,
+      "endTime": 1771330507676,
+      "itemId": 565,
+      "id": 588,
+      "timestamp": 1771330500005,
+      "manual": true
+    },
+    {
+      "text": "Worked on: לאחד וידאו של משולש (1m)",
+      "projectName": "Inbox",
+      "type": "work",
+      "startTime": 1771330507724,
+      "endTime": 1771330588944,
+      "targetEndTime": 1771330553262,
+      "itemId": 563,
+      "id": 589,
+      "timestamp": 1771330507724,
+      "manual": true
+    },
+    {
+      "text": "Done: לסיים להריץ תיקון durations",
+      "projectName": "Inbox",
+      "type": "completion",
+      "id": 590,
+      "timestamp": 1771330612410
+    },
+    {
+      "text": "Done: לאחד וידאו של משולש",
+      "projectName": "Inbox",
+      "type": "completion",
+      "id": 591,
+      "timestamp": 1771330970555
+    },
+    {
+      "text": "Done: מקלחת",
+      "projectName": "Inbox",
+      "type": "completion",
+      "id": 592,
+      "timestamp": 1771330973305
+    },
+    {
+      "text": "Done: לדחוף תיקון ל  list uploaded",
+      "projectName": "kolwrite",
+      "type": "completion",
+      "id": 593,
+      "timestamp": 1771331187058
+    },
+    {
+      "text": "Worked on: plan recording (1h 29m)",
+      "projectName": "kolwrite › recording",
+      "type": "work",
+      "startTime": 1771330588944,
+      "endTime": 1771335952791,
+      "itemId": 287,
+      "id": 595,
+      "timestamp": 1771330588944,
+      "manual": true
+    },
+    {
+      "text": "Worked on: plan recording (33m)",
+      "projectName": "kolwrite › recording",
+      "type": "work",
+      "startTime": 1771335966357,
+      "endTime": 1771337979324,
+      "targetEndTime": 1771343166357,
+      "itemId": 287,
+      "id": 596,
+      "timestamp": 1771335966357,
+      "manual": true
+    },
+    {
+      "text": "Worked on: להסתפר (1h 26m)",
+      "projectName": "תחזוקה",
+      "type": "work",
+      "startTime": 1771337979336,
+      "endTime": 1771343179171,
+      "targetEndTime": 1771339779324,
+      "itemId": 569,
+      "id": 597,
+      "timestamp": 1771337979336,
+      "manual": true
+    },
+    {
+      "text": "Done: ריסטרט בקאנד",
+      "projectName": "kolwrite › לדחוף תיקון ל  list uploaded",
+      "type": "completion",
+      "id": 598,
+      "timestamp": 1771343435187
+    },
+    {
+      "text": "Worked on: plan recording (6m)",
+      "projectName": "kolwrite › recording",
+      "type": "work",
+      "startTime": 1771343179192,
+      "endTime": 1771343544599,
+      "targetEndTime": 1771348366225,
+      "itemId": 287,
+      "id": 599,
+      "timestamp": 1771343179192,
+      "manual": true
+    },
+    {
+      "text": "Worked on: לענות לכולן באפליקציות (5m)",
+      "projectName": "למצוא חברה",
+      "type": "work",
+      "startTime": 1771343544622,
+      "endTime": 1771343895328,
+      "targetEndTime": 1771344444599,
+      "itemId": 383,
+      "id": 600,
+      "timestamp": 1771343544622,
+      "manual": true
+    },
+    {
+      "text": "Worked on: סשן לירון (3h 2m)",
+      "projectName": "פרויקטי מוזיקה",
+      "type": "work",
+      "startTime": 1771343895343,
+      "endTime": 1771354800328,
+      "targetEndTime": 1771348716969,
+      "itemId": 190,
+      "id": 601,
+      "timestamp": 1771343895343,
+      "manual": true
+    },
+    {
+      "text": "Worked on: recording (13m)",
+      "projectName": "kolwrite",
+      "type": "work",
+      "startTime": 1771354836671,
+      "endTime": 1771355645471,
+      "itemId": 283,
+      "id": 602,
+      "timestamp": 1771354836671,
+      "manual": true
+    },
+    {
+      "text": "Done: להסתפר",
+      "projectName": "תחזוקה",
+      "type": "completion",
+      "id": 603,
+      "timestamp": 1771365031886
+    },
+    {
+      "text": "Done: סשן לירון",
+      "projectName": "פרויקטי מוזיקה",
+      "type": "completion",
+      "id": 604,
+      "timestamp": 1771365034385
+    },
+    {
+      "text": "Worked on: when starting an item - start with REMAINING time, not PLANNEd time (4m)",
+      "projectName": "anything",
+      "type": "work",
+      "startTime": 1771365231979,
+      "endTime": 1771365523312,
+      "itemId": 567,
+      "id": 605,
+      "timestamp": 1771365231979,
+      "manual": true
+    },
+    {
+      "text": "Done: when starting an item - start with REMAINING time, not PLANNEd time",
+      "projectName": "anything",
+      "type": "completion",
+      "id": 607,
+      "timestamp": 1771365545579
+    },
+    {
+      "text": "Worked on: when starting an item - start with REMAINING time, not PLANNEd time (0m)",
+      "projectName": "anything",
+      "type": "work",
+      "startTime": 1771365532998,
+      "endTime": 1771365546958,
+      "itemId": 567,
+      "id": 608,
+      "timestamp": 1771365532998,
+      "manual": true
+    },
+    {
+      "text": "Worked on: time block statuses (3m)",
+      "projectName": "anything › core",
+      "type": "work",
+      "startTime": 1771365890975,
+      "endTime": 1771366127249,
+      "targetEndTime": 1771366490975,
+      "itemId": 70,
+      "id": 609,
+      "timestamp": 1771365890975,
+      "manual": true
+    },
+    {
+      "text": "Worked on: mismatch in running (32m)",
+      "projectName": "anything › bugs",
+      "type": "work",
+      "startTime": 1771366344982,
+      "endTime": 1771368292619,
+      "itemId": 299,
+      "id": 611,
+      "timestamp": 1771366344982,
+      "manual": true
+    },
+    {
+      "text": "Done: לדחוף תיקון ולשלוח ליעל",
+      "projectName": "kolwrite",
+      "type": "completion",
+      "id": 612,
+      "timestamp": 1771369039113
+    },
+    {
+      "text": "Break (0m)",
+      "type": "break",
+      "startTime": 1771369277902,
+      "endTime": 1771369279391,
+      "id": 613,
+      "timestamp": 1771369277902
+    },
+    {
+      "text": "Break (19m)",
+      "type": "break",
+      "startTime": 1771369281424,
+      "endTime": 1771370462589,
+      "targetEndTime": 1771370181424,
+      "id": 614,
+      "timestamp": 1771369281424
+    },
+    {
+      "text": "Worked on: לתקן את הדוברים אם צריך (1h 4m)",
+      "projectName": "kolwrite",
+      "type": "work",
+      "startTime": 1771370490517,
+      "endTime": 1771374364986,
+      "targetEndTime": 1771371990517,
+      "itemId": 560,
+      "id": 615,
+      "timestamp": 1771370490517
+    },
+    {
+      "text": "Worked on: animations (1h 20m)",
+      "projectName": "anything › nice to have",
+      "type": "work",
+      "startTime": 1771409487029,
+      "endTime": 1771414306746,
+      "targetEndTime": 1771410687023,
+      "itemId": 278,
+      "id": 618,
+      "timestamp": 1771409487029,
+      "manual": true,
+      "dynamicStart": false
+    },
+    {
+      "text": "Worked on: anything (26m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1771414306746,
+      "endTime": 1771415905482,
+      "itemId": 9,
+      "id": 619,
+      "timestamp": 1771414306746,
+      "manual": true
+    },
+    {
+      "text": "Worked on: לענות להודעות (11m)",
+      "projectName": "Inbox",
+      "type": "work",
+      "startTime": 1771422754865,
+      "endTime": 1771423415501,
+      "targetEndTime": 1771423654865,
+      "itemId": 444,
+      "id": 620,
+      "timestamp": 1771422754865,
+      "manual": true
+    },
+    {
+      "text": "Done: start from idle",
+      "projectName": "anything",
+      "type": "completion",
+      "id": 621,
+      "timestamp": 1771430863532
+    },
+    {
+      "text": "Done: ש\"ב לעופר - סביב מה לתכנן את השיעור",
+      "projectName": "עופר",
+      "type": "completion",
+      "id": 622,
+      "timestamp": 1771430931338
+    },
+    {
+      "text": "Worked on: קניות (18m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1771429877850,
+      "endTime": 1771430975809,
+      "itemId": 144,
+      "id": 623,
+      "timestamp": 1771429877850,
+      "manual": true
+    },
+    {
+      "text": "Worked on: animations (10m)",
+      "projectName": "anything › nice to have",
+      "type": "work",
+      "startTime": 1771430990834,
+      "endTime": 1771431603524,
+      "targetEndTime": 1771431590834,
+      "itemId": 278,
+      "id": 624,
+      "timestamp": 1771430990834,
+      "manual": true
+    },
+    {
+      "text": "Done: due statuses",
+      "projectName": "anything › core › time block statuses",
+      "type": "completion",
+      "id": 625,
+      "timestamp": 1771431913040
+    },
+    {
+      "text": "Worked on: מסיבת מרשמלו (3h)",
+      "projectName": null,
+      "type": "work",
+      "manual": true,
+      "startTime": 1771437600000,
+      "endTime": 1771448400000,
+      "itemId": 487,
+      "id": 626,
+      "timestamp": 1771437600000
+    },
+    {
+      "text": "טיסה לאתונה",
+      "projectName": null,
+      "type": "planned",
+      "startTime": 1771574700000,
+      "endTime": 1771582500000,
+      "itemId": null,
+      "id": 627,
+      "timestamp": 1771574700000,
+      "dynamicStart": false,
+      "prepDuration": 14700,
+      "windDownDuration": 0
+    },
+    {
+      "text": "Done: מסיבת מרשמלו",
+      "projectName": null,
+      "type": "completion",
+      "id": 628,
+      "timestamp": 1771454027188
+    },
+    {
+      "text": "Prep: טיסה לאתונה",
+      "type": "planned",
+      "startTime": 1771560000000,
+      "endTime": 1771574700000,
+      "itemId": null,
+      "bufferForEntryId": 627,
+      "bufferType": "prep",
+      "id": 630,
+      "timestamp": 1771560000000
+    },
+    {
+      "text": "Worked on: prep time - need to think through the concept (49m)",
+      "projectName": "anything › core",
+      "type": "work",
+      "startTime": 1771454121144,
+      "endTime": 1771457080641,
+      "targetEndTime": 1771455621144,
+      "itemId": 405,
+      "id": 632,
+      "timestamp": 1771454121144,
+      "manual": true
+    },
+    {
+      "text": "Done: drag into prep time",
+      "projectName": "anything › core › prep time - need to think through the concept",
+      "type": "completion",
+      "id": 633,
+      "timestamp": 1771457092547
+    },
+    {
+      "text": "Done: prep time should be occupied time",
+      "projectName": "anything › core › top level planning",
+      "type": "completion",
+      "id": 634,
+      "timestamp": 1771457709836
+    },
+    {
+      "text": "Done: shortcut for duration when entering",
+      "projectName": "anything",
+      "type": "completion",
+      "id": 635,
+      "timestamp": 1771458640373
+    },
+    {
+      "text": "Worked on: \"done/followup\" from intentions (5m)",
+      "projectName": "anything",
+      "type": "work",
+      "startTime": 1771458385016,
+      "endTime": 1771458691549,
+      "targetEndTime": 1771459885015,
+      "itemId": 579,
+      "id": 636,
+      "timestamp": 1771458385016,
+      "manual": true
+    },
+    {
+      "text": "Worked on: fix edit/remove/add past logs (7h 17m)",
+      "projectName": "anything › core › showing past logs",
+      "type": "work",
+      "startTime": 1771458755120,
+      "endTime": 1771461000000,
+      "targetEndTime": 1771459655120,
+      "itemId": 585,
+      "id": 637,
+      "timestamp": 1771458755120,
+      "manual": true
+    },
+    {
+      "text": "Worked on: לענות ליעל (7m)",
+      "projectName": "kolwrite",
+      "type": "work",
+      "startTime": 1771487987175,
+      "endTime": 1771488418536,
+      "targetEndTime": 1771488287170,
+      "itemId": 603,
+      "id": 638,
+      "timestamp": 1771487987175,
+      "manual": true
+    },
+    {
+      "text": "סשן יותם",
+      "projectName": "פרויקטי מוזיקה",
+      "type": "planned",
+      "startTime": 1771497600000,
+      "endTime": 1771504800000,
+      "itemId": 608,
+      "prepDuration": 0,
+      "id": 639,
+      "timestamp": 1771497600000,
+      "dynamicStart": false,
+      "windDownDuration": 0
+    },
+    {
+      "text": "Worked on: anything (9m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1771493910752,
+      "endTime": 1771494451784,
+      "targetEndTime": 1771494510738,
+      "itemId": 9,
+      "id": 642,
+      "timestamp": 1771493910752,
+      "manual": true
+    },
+    {
+      "text": "Worked on: א. בוקר (8m)",
+      "projectName": "Inbox",
+      "type": "work",
+      "startTime": 1771494451822,
+      "endTime": 1771494965952,
+      "targetEndTime": 1771495144342,
+      "itemId": 609,
+      "id": 643,
+      "timestamp": 1771494451822,
+      "manual": true
+    },
+    {
+      "text": "Worked on: לענות להודעות (22m)",
+      "projectName": "Inbox",
+      "type": "work",
+      "startTime": 1771495019854,
+      "endTime": 1771496373487,
+      "targetEndTime": 1771495619854,
+      "itemId": 444,
+      "id": 644,
+      "timestamp": 1771495019854,
+      "manual": true
+    },
+    {
+      "text": "Done: א. בוקר",
+      "projectName": "Inbox",
+      "type": "completion",
+      "id": 645,
+      "timestamp": 1771496507553
+    },
+    {
+      "text": "Done: לענות להודעות",
+      "projectName": "Inbox",
+      "type": "completion",
+      "id": 646,
+      "timestamp": 1771496509245
+    },
+    {
+      "text": "Worked on: merge export files (18m)",
+      "projectName": "kolwrite",
+      "type": "work",
+      "startTime": 1771496512690,
+      "endTime": 1771497652515,
+      "targetEndTime": 1771497712686,
+      "itemId": 604,
+      "id": 647,
+      "timestamp": 1771496512690,
+      "manual": true
+    },
+    {
+      "text": "Worked on: סשן יותם (1h 59m)",
+      "projectName": "פרויקטי מוזיקה",
+      "type": "work",
+      "manual": true,
+      "startTime": 1771497652515,
+      "endTime": 1771504800000,
+      "itemId": 608,
+      "id": 648,
+      "timestamp": 1771497652515
+    },
+    {
+      "text": "Worked on: merge export files (34m)",
+      "projectName": "kolwrite",
+      "type": "work",
+      "startTime": 1771506716780,
+      "endTime": 1771508766862,
+      "targetEndTime": 1771508216768,
+      "itemId": 604,
+      "id": 650,
+      "timestamp": 1771506716780,
+      "manual": true
+    },
+    {
+      "text": "Worked on: check why \"job failed\" - handle dots filenames (17m)",
+      "projectName": "kolwrite",
+      "type": "work",
+      "startTime": 1771508766881,
+      "endTime": 1771509832350,
+      "targetEndTime": 1771511449780,
+      "itemId": 606,
+      "id": 651,
+      "timestamp": 1771508766881,
+      "manual": true
+    },
+    {
+      "text": "Worked on: test locale (0m)",
+      "projectName": "Inbox",
+      "type": "work",
+      "startTime": 1771509832375,
+      "endTime": 1771509839566,
+      "itemId": 612,
+      "id": 652,
+      "timestamp": 1771509832375,
+      "manual": true
+    },
+    {
+      "text": "Worked on: restart backend (0m)",
+      "projectName": "Inbox",
+      "type": "work",
+      "startTime": 1771509839578,
+      "endTime": 1771509871430,
+      "itemId": 613,
+      "id": 653,
+      "timestamp": 1771509839578,
+      "manual": true
+    },
+    {
+      "text": "Break (8m)",
+      "type": "break",
+      "startTime": 1771509871438,
+      "endTime": 1771510388490,
+      "targetEndTime": 1771510591438,
+      "id": 654,
+      "timestamp": 1771509871438
+    },
+    {
+      "text": "Worked on: restart backend (0m)",
+      "projectName": "Inbox",
+      "type": "work",
+      "startTime": 1771510388504,
+      "endTime": 1771510391886,
+      "itemId": 613,
+      "id": 655,
+      "timestamp": 1771510388504,
+      "manual": true
+    },
+    {
+      "text": "Done: test locale",
+      "projectName": "Inbox",
+      "type": "completion",
+      "id": 656,
+      "timestamp": 1771510607033
+    },
+    {
+      "text": "Break (2m)",
+      "type": "break",
+      "startTime": 1771511670067,
+      "endTime": 1771511793065,
+      "targetEndTime": 1771512570067,
+      "id": 658,
+      "timestamp": 1771511670067
+    },
+    {
+      "text": "Worked on: fix yael files OR send email (26m)",
+      "projectName": "Inbox",
+      "type": "work",
+      "startTime": 1771516015174,
+      "endTime": 1771517595382,
+      "targetEndTime": 1771518715174,
+      "itemId": 618,
+      "id": 661,
+      "timestamp": 1771516015174,
+      "manual": true
+    },
+    {
+      "text": "Worked on: check db updates (14m)",
+      "projectName": "Inbox",
+      "type": "work",
+      "startTime": 1771517595397,
+      "endTime": 1771518476716,
+      "itemId": 621,
+      "id": 662,
+      "timestamp": 1771517595397,
+      "manual": true
+    },
+    {
+      "text": "Done: check yael failed duration files",
+      "projectName": "Inbox",
+      "type": "completion",
+      "id": 663,
+      "timestamp": 1771518487705
+    },
+    {
+      "text": "Break (1h 8m)",
+      "type": "break",
+      "startTime": 1771518496585,
+      "endTime": 1771522632907,
+      "targetEndTime": 1771520296584,
+      "id": 664,
+      "timestamp": 1771518496585
+    },
+    {
+      "text": "דברים של קולרייט",
+      "projectName": null,
+      "type": "planned",
+      "startTime": 1771525343651,
+      "endTime": 1771527143651,
+      "itemId": null,
+      "id": 665,
+      "timestamp": 1771525343651
+    },
+    {
+      "text": "Done: check db updates",
+      "projectName": "kolwrite",
+      "type": "completion",
+      "id": 666,
+      "timestamp": 1771523575966
+    },
+    {
+      "text": "Done: fix yael files OR send email",
+      "projectName": "Inbox",
+      "type": "completion",
+      "id": 667,
+      "timestamp": 1771523585899
+    },
+    {
+      "text": "Done: finalizing upload gets stuck problem - also on prod!",
+      "projectName": "kolwrite",
+      "type": "completion",
+      "id": 668,
+      "timestamp": 1771523591683
+    },
+    {
+      "text": "Worked on: finalizing upload gets stuck problem - also on prod! (58m)",
+      "projectName": "kolwrite",
+      "type": "work",
+      "startTime": 1771522643651,
+      "endTime": 1771526182189,
+      "targetEndTime": 1771525343651,
+      "itemId": 616,
+      "id": 669,
+      "timestamp": 1771522643651,
+      "manual": true
+    },
+    {
+      "text": "Done: מקלחת",
+      "projectName": "Inbox",
+      "type": "completion",
+      "id": 670,
+      "timestamp": 1771526190149
+    },
+    {
+      "text": "Idle",
+      "type": "idle",
+      "manual": true,
+      "startTime": 1771526182189,
+      "endTime": 1771527143651,
+      "id": 671,
+      "timestamp": 1771526182189
+    },
+    {
+      "text": "Worked on: להכין דברים לטיסה (2h 22m)",
+      "projectName": "Inbox",
+      "type": "work",
+      "startTime": 1771527430235,
+      "endTime": 1771536007942,
+      "targetEndTime": 1771530130226,
+      "itemId": 617,
+      "id": 672,
+      "timestamp": 1771527430235,
+      "manual": true
+    },
+    {
+      "text": "Worked on: לשטוף כלים (2h 12m)",
+      "projectName": "בית",
+      "type": "work",
+      "startTime": 1771536029022,
+      "endTime": 1771543983276,
+      "targetEndTime": 1771538729014,
+      "itemId": 598,
+      "id": 673,
+      "timestamp": 1771536029022,
+      "manual": true
+    },
+    {
+      "text": "Worked on: כביסה (5m)",
+      "projectName": "Inbox",
+      "type": "work",
+      "startTime": 1771543989094,
+      "endTime": 1771544343566,
+      "targetEndTime": 1771544589087,
+      "itemId": 624,
+      "id": 674,
+      "timestamp": 1771543989094,
+      "manual": true
+    },
+    {
+      "text": "Worked on: restart backend (11h 29m)",
+      "projectName": "Inbox",
+      "type": "work",
+      "startTime": 1771544351750,
+      "endTime": 1771547400000,
+      "targetEndTime": 1771546151742,
+      "itemId": 613,
+      "id": 675,
+      "timestamp": 1771544351750,
+      "manual": true
+    },
+    {
+      "text": "Idle",
+      "type": "idle",
+      "manual": true,
+      "startTime": 1771574700000,
+      "endTime": 1771582500000,
+      "id": 676,
+      "timestamp": 1771574700000
+    },
+    {
+      "text": "טיסה לאתונה",
+      "type": "planned",
+      "startTime": 1771589400000,
+      "endTime": 1771597200000,
+      "itemId": null,
+      "projectName": null,
+      "id": 677,
+      "timestamp": 1771589400000,
+      "dynamicStart": false,
+      "prepDuration": 0,
+      "windDownDuration": 0
+    },
+    {
+      "text": "Idle",
+      "type": "idle",
+      "manual": true,
+      "startTime": 1771560000000,
+      "endTime": 1771574700000,
+      "id": 679,
+      "timestamp": 1771560000000
+    },
+    {
+      "text": "Worked on: אקורדים לאיתי (17m)",
+      "projectName": "פרויקטי מוזיקה › סשן איתי",
+      "type": "work",
+      "startTime": 1771585856881,
+      "endTime": 1771586923315,
+      "targetEndTime": 1771586756880,
+      "itemId": 626,
+      "id": 680,
+      "timestamp": 1771585856881,
+      "manual": true
+    },
+    {
+      "text": "Worked on: טיסה לאתונה (2h 10m)",
+      "projectName": null,
+      "type": "work",
+      "manual": true,
+      "startTime": 1771589400000,
+      "endTime": 1771597200000,
+      "itemId": null,
+      "id": 681,
+      "timestamp": 1771589400000
+    },
+    {
+      "text": "Done: סים",
+      "projectName": "Inbox",
+      "type": "completion",
+      "id": 682,
+      "timestamp": 1771623202084
+    },
+    {
+      "text": "Done: ביטוח נסיעות",
+      "projectName": "Inbox",
+      "type": "completion",
+      "id": 683,
+      "timestamp": 1771623203180
+    },
+    {
+      "text": "Done: מעיל",
+      "projectName": null,
+      "type": "completion",
+      "id": 684,
+      "timestamp": 1771623203823
+    },
+    {
+      "text": "Done: תיק",
+      "projectName": null,
+      "type": "completion",
+      "id": 685,
+      "timestamp": 1771623204356
+    },
+    {
+      "text": "Done: דרכון",
+      "projectName": null,
+      "type": "completion",
+      "id": 686,
+      "timestamp": 1771623205150
+    },
+    {
+      "text": "Done: אקורדים לאיתי",
+      "projectName": "פרויקטי מוזיקה › סשן איתי",
+      "type": "completion",
+      "id": 687,
+      "timestamp": 1771623206562
+    },
+    {
+      "text": "Worked on: anything (2m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1771685578333,
+      "endTime": 1771685709445,
+      "targetEndTime": 1771686478333,
+      "itemId": 9,
+      "id": 688,
+      "timestamp": 1771685578333,
+      "manual": true
+    },
+    {
+      "text": "Worked on: לענות להודעות (6m)",
+      "projectName": "Inbox",
+      "type": "work",
+      "startTime": 1771685709478,
+      "endTime": 1771686128986,
+      "targetEndTime": 1771686009445,
+      "itemId": 611,
+      "id": 689,
+      "timestamp": 1771685709478,
+      "manual": true
+    },
+    {
+      "text": "Worked on: anything (21m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1771686129002,
+      "endTime": 1771687400271,
+      "targetEndTime": 1771686897890,
+      "itemId": 9,
+      "id": 690,
+      "timestamp": 1771686129002,
+      "manual": true
+    },
+    {
+      "text": "Worked on: anything (24m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1771694033265,
+      "endTime": 1771695519366,
+      "targetEndTime": 1771695473265,
+      "itemId": 9,
+      "id": 691,
+      "timestamp": 1771694033265,
+      "manual": true
+    },
+    {
+      "text": "Done: restore kolwrite",
+      "projectName": "Inbox",
+      "type": "completion",
+      "id": 692,
+      "timestamp": 1771695823712
+    },
+    {
+      "text": "Worked on: restore kolwrite (5m)",
+      "projectName": "Inbox",
+      "type": "work",
+      "startTime": 1771695523520,
+      "endTime": 1771695824989,
+      "targetEndTime": 1771695823519,
+      "itemId": 639,
+      "id": 693,
+      "timestamp": 1771695523520,
+      "manual": true
+    },
+    {
+      "text": "א. ערב",
+      "projectName": null,
+      "type": "planned",
+      "startTime": 1771700040000,
+      "endTime": 1771704540000,
+      "itemId": 157,
+      "id": 694,
+      "timestamp": 1771700040000,
+      "dynamicStart": false,
+      "prepDuration": 0,
+      "windDownDuration": 0
+    },
+    {
+      "text": "Worked on: א. ערב (2h 49m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1771700709390,
+      "endTime": 1771710872273,
+      "targetEndTime": 1771704540000,
+      "itemId": 157,
+      "id": 695,
+      "timestamp": 1771700709390
+    },
+    {
+      "text": "Done: א. בוקר",
+      "projectName": "Inbox",
+      "type": "completion",
+      "id": 696,
+      "timestamp": 1771751642454
+    },
+    {
+      "text": "Worked on: א. בוקר (14m)",
+      "projectName": "Inbox",
+      "type": "work",
+      "startTime": 1771751651872,
+      "endTime": 1771752520015,
+      "targetEndTime": 1771753151872,
+      "itemId": 651,
+      "id": 697,
+      "timestamp": 1771751651872,
+      "manual": true
+    },
+    {
+      "text": "Worked on: לענות על מיילים (3h 4m)",
+      "projectName": "kolwrite",
+      "type": "work",
+      "startTime": 1771753183990,
+      "endTime": 1771764244820,
+      "targetEndTime": 1771754683982,
+      "itemId": 652,
+      "id": 698,
+      "timestamp": 1771753183990,
+      "manual": true
+    },
+    {
+      "text": "Done: להתקשר לירדן",
+      "projectName": "פרויקטי מוזיקה › סשן ירדן",
+      "type": "completion",
+      "id": 699,
+      "timestamp": 1771765163579
+    },
+    {
+      "text": "Break (1h 7m)",
+      "type": "break",
+      "startTime": 1771764379053,
+      "endTime": 1771768408651,
+      "targetEndTime": 1771767019053,
+      "id": 700,
+      "timestamp": 1771764379053
+    },
+    {
+      "text": "Worked on: kolwrite (35m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1771768408661,
+      "endTime": 1771770565097,
+      "targetEndTime": 1771770208644,
+      "itemId": 62,
+      "id": 701,
+      "timestamp": 1771768408661,
+      "manual": true
+    },
+    {
+      "text": "Break (17m)",
+      "type": "break",
+      "startTime": 1771770569432,
+      "endTime": 1771771613469,
+      "targetEndTime": 1771771169431,
+      "id": 702,
+      "timestamp": 1771770569432
+    },
+    {
+      "text": "Worked on: להכין תרגילי Azure Goat (23m)",
+      "projectName": "עופר",
+      "type": "work",
+      "startTime": 1771771613478,
+      "endTime": 1771773003048,
+      "targetEndTime": 1771778813459,
+      "itemId": 601,
+      "id": 703,
+      "timestamp": 1771771613478,
+      "manual": true
+    },
+    {
+      "text": "Worked on: להמשיך לתכנן את השבוע (21m)",
+      "projectName": "Inbox",
+      "type": "work",
+      "startTime": 1771773003058,
+      "endTime": 1771774275905,
+      "targetEndTime": 1771774803030,
+      "itemId": 646,
+      "id": 704,
+      "timestamp": 1771773003058,
+      "manual": true
+    },
+    {
+      "text": "Worked on: מרק (3m)",
+      "projectName": "Inbox",
+      "type": "work",
+      "startTime": 1771774275921,
+      "endTime": 1771774502495,
+      "itemId": 665,
+      "id": 705,
+      "timestamp": 1771774275921,
+      "manual": true
+    },
+    {
+      "text": "Worked on: להמשיך לתכנן את השבוע (0m)",
+      "projectName": "Inbox",
+      "type": "work",
+      "startTime": 1771774502506,
+      "endTime": 1771774513490,
+      "targetEndTime": 1771775029632,
+      "itemId": 646,
+      "id": 706,
+      "timestamp": 1771774502506,
+      "manual": true
+    },
+    {
+      "text": "Worked on: anything (24m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1771774513499,
+      "endTime": 1771775974190,
+      "targetEndTime": 1771775413490,
+      "itemId": 9,
+      "id": 707,
+      "timestamp": 1771774513499,
+      "manual": true
+    },
+    {
+      "text": "Worked on: להמשיך לתכנן את השבוע (0m)",
+      "projectName": "Inbox",
+      "type": "work",
+      "startTime": 1771775974199,
+      "endTime": 1771775979649,
+      "targetEndTime": 1771776490341,
+      "itemId": 646,
+      "id": 708,
+      "timestamp": 1771775974199,
+      "manual": true
+    },
+    {
+      "text": "Worked on: מרק (4h 15m)",
+      "projectName": "Inbox",
+      "type": "work",
+      "startTime": 1771775979656,
+      "endTime": 1771791318701,
+      "itemId": 665,
+      "id": 709,
+      "timestamp": 1771775979656,
+      "manual": true
+    },
+    {
+      "text": "Done: א. ערב",
+      "projectName": null,
+      "type": "completion",
+      "id": 711,
+      "timestamp": 1771791828314
+    },
+    {
+      "text": "Done: מרק",
+      "projectName": "Inbox",
+      "type": "completion",
+      "id": 712,
+      "timestamp": 1771798969057
+    },
+    {
+      "text": "Done: א. בוקר",
+      "projectName": "Inbox",
+      "type": "completion",
+      "id": 713,
+      "timestamp": 1771798970468
+    },
+    {
+      "text": "Worked on: make \"ghost\" (lead time) real (by just hiding it if a real context is scheduled) (1h 22m)",
+      "projectName": "anything",
+      "type": "work",
+      "startTime": 1771794086285,
+      "endTime": 1771799017714,
+      "targetEndTime": 1771794986277,
+      "itemId": 659,
+      "id": 714,
+      "timestamp": 1771794086285
+    },
+    {
+      "type": "work",
+      "startTime": 1771830000000,
+      "endTime": 1771837200000,
+      "itemId": 145,
+      "projectName": null,
+      "text": "Worked on: עופר (2h 0m)",
+      "id": 715,
+      "timestamp": 1771830000000,
+      "manual": true
+    },
+    {
+      "text": "Break (42m)",
+      "type": "break",
+      "startTime": 1771837389516,
+      "endTime": 1771839927792,
+      "targetEndTime": 1771837689515,
+      "id": 716,
+      "timestamp": 1771837389516
+    },
+    {
+      "text": "Done: חיוב כפול אורן",
+      "projectName": "kolwrite",
+      "type": "completion",
+      "id": 717,
+      "timestamp": 1771841855512
+    },
+    {
+      "text": "Done: נקודות לדיפלוימנט - צריך טלפון, כתובת וכרטיס אשראי לחשבון חינם",
+      "projectName": "עופר › להכין תרגילי Azure Goat",
+      "type": "completion",
+      "id": 718,
+      "timestamp": 1771841973962
+    },
+    {
+      "text": "Worked on: capacity bar - is it project recursive? (33m)",
+      "projectName": "anything",
+      "type": "work",
+      "startTime": 1771839951814,
+      "endTime": 1771841988095,
+      "targetEndTime": 1771840551813,
+      "itemId": 683,
+      "id": 719,
+      "timestamp": 1771839951814,
+      "manual": true
+    },
+    {
+      "text": "Done: capacity bar - is it project recursive?",
+      "projectName": "anything",
+      "type": "completion",
+      "id": 720,
+      "timestamp": 1771841994481
+    },
+    {
+      "text": "Break (27m)",
+      "type": "break",
+      "startTime": 1771842032309,
+      "endTime": 1771843687826,
+      "targetEndTime": 1771842632309,
+      "id": 721,
+      "timestamp": 1771842032309
+    },
+    {
+      "text": "Worked on: לענות על מיילים (8m)",
+      "projectName": "kolwrite",
+      "type": "work",
+      "startTime": 1771843697103,
+      "endTime": 1771844200329,
+      "targetEndTime": 1771844897091,
+      "itemId": 652,
+      "id": 723,
+      "timestamp": 1771843697103,
+      "manual": true
+    },
+    {
+      "text": "Done: לבדוק עם הג׳אז",
+      "projectName": "Inbox",
+      "type": "completion",
+      "id": 724,
+      "timestamp": 1771844278677
+    },
+    {
+      "text": "Worked on: לענות על הודעות (3m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1771844200507,
+      "endTime": 1771844433147,
+      "targetEndTime": 1771845095741,
+      "itemId": 303,
+      "id": 726,
+      "timestamp": 1771844200507,
+      "manual": true
+    },
+    {
+      "text": "Worked on: restore the renderAll (4m)",
+      "projectName": "anything",
+      "type": "work",
+      "startTime": 1771844458454,
+      "endTime": 1771844728838,
+      "targetEndTime": 1771845058454,
+      "itemId": 681,
+      "id": 727,
+      "timestamp": 1771844458454,
+      "manual": true
+    },
+    {
+      "text": "Break (22m)",
+      "type": "break",
+      "startTime": 1771844728855,
+      "endTime": 1771846092711,
+      "targetEndTime": 1771845328855,
+      "id": 728,
+      "timestamp": 1771844728855
+    },
+    {
+      "text": "Done: restore the renderAll",
+      "projectName": "anything",
+      "type": "completion",
+      "id": 729,
+      "timestamp": 1771846236565
+    },
+    {
+      "text": "Worked on: לענות על הודעות (1m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1771846155642,
+      "endTime": 1771846244932,
+      "itemId": 303,
+      "id": 730,
+      "timestamp": 1771846155642,
+      "manual": true
+    },
+    {
+      "text": "Worked on: לענות על הודעות (1m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1771846244938,
+      "endTime": 1771846350785,
+      "targetEndTime": 1771847084924,
+      "itemId": 303,
+      "id": 731,
+      "timestamp": 1771846244938,
+      "manual": true
+    },
+    {
+      "text": "Done: buy more runpods",
+      "projectName": "kolwrite",
+      "type": "completion",
+      "id": 732,
+      "timestamp": 1771846636029
+    },
+    {
+      "text": "Done: לשאול את ניר",
+      "projectName": "kolwrite",
+      "type": "completion",
+      "id": 733,
+      "timestamp": 1771846657472
+    },
+    {
+      "text": "Worked on: runpod buy (4m)",
+      "projectName": "kolwrite",
+      "type": "work",
+      "startTime": 1771846374325,
+      "endTime": 1771846661521,
+      "targetEndTime": 1771846674318,
+      "itemId": 689,
+      "id": 734,
+      "timestamp": 1771846374325,
+      "manual": true
+    },
+    {
+      "text": "Worked on: kolwrite (1h 28m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1771846661521,
+      "endTime": 1771851960640,
+      "targetEndTime": 1771850171113,
+      "itemId": 62,
+      "id": 735,
+      "timestamp": 1771846661521,
+      "manual": true
+    },
+    {
+      "text": "Worked on: לצאת לסיבוב בעיר (3h 11m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1771852173571,
+      "endTime": 1771863644745,
+      "targetEndTime": 1771857573562,
+      "itemId": 685,
+      "id": 736,
+      "timestamp": 1771852173571,
+      "manual": true
+    },
+    {
+      "text": "Worked on: anything (14m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1771865305682,
+      "endTime": 1771866181169,
+      "targetEndTime": 1771866085682,
+      "itemId": 9,
+      "id": 737,
+      "timestamp": 1771865305682,
+      "manual": true
+    },
+    {
+      "text": "Worked on: מקלחת (15m)",
+      "projectName": "בית",
+      "type": "work",
+      "startTime": 1771866181180,
+      "endTime": 1771867114560,
+      "targetEndTime": 1771867081169,
+      "itemId": 696,
+      "id": 738,
+      "timestamp": 1771866181180,
+      "manual": true
+    },
+    {
+      "text": "Worked on: anything (1m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1771867114574,
+      "endTime": 1771867208909,
+      "itemId": 9,
+      "id": 739,
+      "timestamp": 1771867114574,
+      "manual": true
     }
   ],
-  "nextId": 544
+  "nextId": 740
 }

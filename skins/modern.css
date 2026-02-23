@@ -633,6 +633,22 @@ body {
     color: var(--text-soft);
 }
 
+.project-action-btn-play {
+    font-size: 8px;
+}
+
+.project-action-btn-play:hover {
+    color: #22c55e;
+}
+
+.project-action-btn-done {
+    font-size: 10px;
+}
+
+.project-action-btn-done:hover {
+    color: #22c55e;
+}
+
 /* ─── Inline Rename Input ─── */
 .rename-inline-input {
     width: 100%;
@@ -903,6 +919,28 @@ body {
     position: relative;
 }
 
+/* ── Dynamic stacked layout (when elements overlap) ── */
+.section-header-stacked {
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+
+.section-header-stacked .header-breadcrumb-what {
+    max-width: 100%;
+}
+
+.section-header-stacked .header-live-slot {
+    position: static;
+    transform: none;
+    justify-content: center;
+}
+
+.section-header-stacked .header-right-cluster {
+    align-items: center;
+    margin-left: 0;
+}
+
 /* ── Consolidated toolbar sub-containers ── */
 .header-breadcrumb-what {
     display: flex;
@@ -1072,12 +1110,16 @@ body {
 }
 
 .action-group-chevron {
-    font-size: 10px;
+    font-size: 8px;
     color: var(--text-faint);
     width: 12px;
     text-align: center;
     flex-shrink: 0;
-    transition: color var(--dur) var(--ease);
+    transition: transform 150ms ease, color var(--dur) var(--ease);
+}
+
+.action-group-chevron.expanded {
+    transform: rotate(90deg);
 }
 
 .action-group-header:hover .action-group-chevron {
@@ -1123,6 +1165,73 @@ body {
 
 .action-group-header.collapsed:hover {
     opacity: 1;
+}
+
+/* ── Action buttons on group headers (hover-reveal) ── */
+.action-group-buttons {
+    display: flex;
+    gap: 4px;
+    opacity: 0;
+    flex-shrink: 0;
+    margin-left: auto;
+    transition: opacity var(--dur) var(--ease);
+}
+
+.action-group-header:hover .action-group-buttons {
+    opacity: 1;
+}
+
+.action-group-header .action-estimate-badge.no-estimate {
+    display: none;
+}
+
+.action-group-header:hover .action-estimate-badge.no-estimate {
+    display: inline-block;
+    opacity: 0.4;
+}
+
+/* ── Grouped children nesting indicator ── */
+.action-group-children {
+    padding-left: 12px;
+    margin-left: 10px;
+    border-left: 2px solid var(--border);
+}
+
+/* ── Expand/collapse animation for group children ── */
+@keyframes action-group-expand {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.action-group-expand {
+    animation: action-group-expand 180ms ease both;
+}
+
+@keyframes action-group-collapse {
+    from {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    to {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+}
+
+.action-group-collapse {
+    animation: action-group-collapse 150ms ease both;
+}
+
+.action-group-children .action-group-children {
+    border-left-color: color-mix(in srgb, var(--border) 50%, transparent);
 }
 
 .action-item {
@@ -1429,7 +1538,8 @@ body {
 
 .action-item:hover .action-locate-btn,
 .segment-queue-item:hover .action-locate-btn,
-.time-block-label.action-name-row:hover>.action-locate-btn {
+.time-block-label.action-name-row:hover>.action-locate-btn,
+.overflow-item:hover .action-locate-btn {
     max-width: 20px;
     opacity: 0.4;
     margin-right: 4px;
@@ -1676,10 +1786,10 @@ body {
 
 .pressure-bar-idle {
     background: repeating-linear-gradient(-45deg,
-            rgba(255, 255, 255, 0.15),
-            rgba(255, 255, 255, 0.15) 2px,
-            rgba(255, 255, 255, 0.06) 2px,
-            rgba(255, 255, 255, 0.06) 4px);
+            rgba(251, 191, 36, 0.3),
+            rgba(251, 191, 36, 0.3) 2px,
+            rgba(251, 191, 36, 0.12) 2px,
+            rgba(251, 191, 36, 0.12) 4px);
 }
 
 .pressure-bar-planned {
@@ -2135,7 +2245,244 @@ body {
     opacity: 1;
 }
 
-/* ─── Live Working Indicator ─── */
+/* Ghost action buttons (Schedule / Dismiss) */
+.ghost-action-buttons {
+    display: flex;
+    gap: 2px;
+    align-items: center;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+}
+
+.action-item-shadow:hover .ghost-action-buttons {
+    opacity: 1;
+}
+
+.ghost-action-schedule,
+.ghost-action-dismiss {
+    font-size: 10px;
+    line-height: 1;
+}
+
+.ghost-action-schedule:hover {
+    color: var(--accent) !important;
+}
+
+.ghost-action-dismiss:hover {
+    color: var(--rose, #f43f5e) !important;
+}
+
+/* ─── Overflow Preview (ghost zone for next-horizon items) ─── */
+.overflow-preview {
+    margin: 4px 10px 8px;
+    padding: 8px 10px;
+    border: 1px dashed var(--border);
+    border-radius: var(--radius);
+    opacity: 0.65;
+    transition: opacity 0.2s ease;
+    animation: overflow-fade-in 0.3s ease both;
+}
+
+.overflow-preview:hover {
+    opacity: 0.9;
+}
+
+@keyframes overflow-fade-in {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+
+    to {
+        opacity: 0.65;
+        transform: translateY(0);
+    }
+}
+
+.overflow-preview-header {
+    font-size: 10px;
+    color: var(--text-faint);
+    margin-bottom: 6px;
+    letter-spacing: 0.03em;
+    user-select: none;
+}
+
+.overflow-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 6px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: background 0.15s ease, opacity 0.15s ease;
+    font-size: 12px;
+    color: var(--text-soft);
+    position: relative;
+}
+
+.overflow-item:hover {
+    background: var(--bg-hover);
+    color: var(--text);
+    opacity: 1;
+}
+
+.overflow-pull-icon {
+    font-size: 10px;
+    color: var(--accent);
+    opacity: 0;
+    transition: opacity 0.15s ease;
+    flex-shrink: 0;
+    width: 12px;
+    text-align: center;
+}
+
+.overflow-item:hover .overflow-pull-icon {
+    opacity: 1;
+}
+
+.overflow-item-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.overflow-item-breadcrumb {
+    font-size: 10px;
+    color: var(--text-faint);
+    flex-shrink: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 120px;
+}
+
+.overflow-item-duration {
+    font-size: 10px;
+    color: var(--text-faint);
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    padding: 0 5px;
+    border-radius: 8px;
+    flex-shrink: 0;
+    font-variant-numeric: tabular-nums;
+}
+
+.overflow-item-dragging {
+    opacity: 0.4;
+}
+
+.overflow-item-investment {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    max-width: 0;
+    overflow: hidden;
+    transition: opacity 0.2s ease, max-width 0.25s ease;
+}
+
+.overflow-item:hover .overflow-item-investment {
+    opacity: 1;
+    max-width: 120px;
+}
+
+.overflow-item-investment .investment-bar {
+    width: 40px;
+}
+
+.overflow-item-investment .investment-label {
+    font-size: 9px;
+}
+
+.overflow-toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding-top: 4px;
+}
+
+.overflow-toggle-row .overflow-toggle+.overflow-toggle::before {
+    content: '·';
+    margin-right: 8px;
+    color: var(--text-faint);
+    opacity: 0.5;
+}
+
+.overflow-toggle {
+    font-size: 10px;
+    color: var(--text-faint);
+    text-align: center;
+    padding: 2px 0;
+    cursor: pointer;
+    user-select: none;
+    transition: color 0.15s ease;
+    letter-spacing: 0.02em;
+}
+
+.overflow-toggle:hover {
+    color: var(--accent);
+}
+
+.overflow-item-entering {
+    animation: overflow-item-in 0.25s ease both;
+}
+
+@keyframes overflow-item-in {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.overflow-item-exiting {
+    animation: overflow-item-out 0.2s ease forwards;
+}
+
+@keyframes overflow-item-out {
+    to {
+        opacity: 0;
+        transform: translateY(-6px);
+    }
+}
+
+.overflow-toggle-entering {
+    animation: overflow-toggle-in 0.25s ease both;
+}
+
+@keyframes overflow-toggle-in {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.overflow-toggle-exiting {
+    animation: overflow-toggle-out 0.2s ease forwards;
+}
+
+@keyframes overflow-toggle-out {
+    to {
+        opacity: 0;
+        transform: translateY(4px);
+    }
+}
+
 .action-item.action-item-working {
     border-left: 2px solid #22c55e;
     padding-left: 6px;
@@ -2481,60 +2828,52 @@ body {
     color: var(--bg);
 }
 
-/* ─── Queue All Button ─── */
-.queue-all-btn {
-    height: 30px;
-    border: 1px solid var(--border);
-    background: var(--bg-surface);
-    color: var(--text-soft);
-    border-radius: var(--radius-sm);
-    cursor: pointer;
-    font-size: 12px;
-    font-family: inherit;
-    display: flex;
+/* ─── Start Button ─── */
+.action-start-btn {
+    background: rgba(34, 197, 94, 0.12);
+    color: #22c55e;
+}
+
+.action-start-btn:hover {
+    background: #22c55e;
+    color: var(--bg);
+}
+
+/* ─── Queue All (in live indicator) ─── */
+.live-queue-all-btn {
+    display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 0;
-    padding: 0 8px;
-    transition: all 0.3s var(--ease);
-    flex-shrink: 0;
-    overflow: hidden;
-    white-space: nowrap;
-}
-
-.queue-all-icon {
-    font-size: 11px;
-    flex-shrink: 0;
-    transition: transform 0.3s var(--ease);
-}
-
-.queue-all-label {
     max-width: 0;
+    height: 18px;
     opacity: 0;
     overflow: hidden;
-    transition: max-width 0.3s var(--ease), opacity 0.2s var(--ease), margin 0.3s var(--ease);
-    font-size: 10px;
-    font-weight: 500;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    margin-left: 0;
-}
-
-.queue-all-btn:hover {
-    border-color: var(--accent);
+    border: none;
     background: var(--accent-dim);
     color: var(--accent);
-    gap: 4px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 10px;
+    font-weight: 600;
+    font-family: inherit;
+    line-height: 1;
+    padding: 0;
+    flex-shrink: 0;
+    margin-left: 0;
+    white-space: nowrap;
+    transition: max-width 0.2s var(--ease), opacity 0.2s var(--ease), margin 0.2s var(--ease), background 0.15s var(--ease), color 0.15s var(--ease), padding 0.2s var(--ease);
 }
 
-.queue-all-btn:hover .queue-all-icon {
-    transform: scale(1.1);
-}
-
-.queue-all-btn:hover .queue-all-label {
-    max-width: 80px;
+.live-session-indicator:hover .live-queue-all-btn {
+    max-width: 120px;
     opacity: 1;
-    margin-left: 2px;
+    margin-left: 4px;
+    padding: 0 8px;
+}
+
+.live-queue-all-btn:hover {
+    background: var(--accent);
+    color: var(--bg);
 }
 
 /* ─── @ Autocomplete Dropdown ─── */
@@ -2613,6 +2952,36 @@ body {
     font-size: 11px;
     font-weight: 500;
     color: hsl(35, 90%, 55%);
+    white-space: nowrap;
+    width: 100%;
+    margin-top: 2px;
+}
+
+.action-input-duration-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    background: hsla(187, 80%, 45%, 0.12);
+    font-size: 11px;
+    font-weight: 500;
+    color: hsl(187, 80%, 45%);
+    white-space: nowrap;
+    width: 100%;
+    margin-top: 2px;
+}
+
+.action-input-existing-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    background: hsla(142, 70%, 45%, 0.12);
+    font-size: 11px;
+    font-weight: 500;
+    color: hsl(142, 70%, 45%);
     white-space: nowrap;
     width: 100%;
     margin-top: 2px;
@@ -3269,6 +3638,26 @@ body {
 .live-session-stop-btn:hover {
     background: #ef4444;
     color: white;
+}
+
+.live-session-next-btn {
+    background: rgba(99, 102, 241, 0.12);
+    color: var(--accent);
+}
+
+.live-session-next-btn:hover {
+    background: var(--accent) !important;
+    color: white !important;
+}
+
+.live-session-pause-btn {
+    background: rgba(148, 163, 184, 0.12);
+    color: var(--text-soft);
+}
+
+.live-session-pause-btn:hover {
+    background: var(--text-soft) !important;
+    color: white !important;
 }
 
 @keyframes live-pulse {
@@ -4484,19 +4873,7 @@ select.schedule-leadtime-input {
     background: rgba(52, 211, 153, 0.08);
 }
 
-.segment-queue-phantom {
-    opacity: 0.65;
-    cursor: default;
-    border-left: 2px dashed rgba(251, 191, 36, 0.4);
-}
-
-.segment-queue-phantom .segment-queue-name {
-    color: #fbbf24;
-}
-
-.segment-queue-phantom .segment-queue-est {
-    color: rgba(251, 191, 36, 0.7);
-}
+/* (segment-queue-phantom removed — replaced by buffer entries) */
 
 .segment-queue-bullet {
     font-size: 10px;
@@ -4549,6 +4926,35 @@ select.schedule-leadtime-input {
 .segment-queue-start:hover {
     background: rgba(52, 211, 153, 0.18);
     border-color: #34d399;
+    transform: scale(1.05);
+}
+
+.segment-queue-done {
+    opacity: 0;
+    border: 1px solid rgba(139, 92, 246, 0.3);
+    background: rgba(139, 92, 246, 0.08);
+    color: #a78bfa;
+    cursor: pointer;
+    font-size: 10px;
+    width: 20px;
+    height: 20px;
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--dur) var(--ease);
+    flex-shrink: 0;
+    line-height: 1;
+    padding: 0;
+}
+
+.segment-queue-item:hover .segment-queue-done {
+    opacity: 1;
+}
+
+.segment-queue-done:hover {
+    background: rgba(139, 92, 246, 0.18);
+    border-color: #8b5cf6;
     transform: scale(1.05);
 }
 
@@ -4845,6 +5251,30 @@ select.schedule-leadtime-input {
     border-color: var(--rose);
 }
 
+.time-block-next-btn {
+    border-color: var(--accent);
+    background: var(--accent-dim);
+    color: var(--accent);
+}
+
+.time-block-next-btn:hover {
+    background: var(--accent) !important;
+    color: var(--bg) !important;
+    border-color: var(--accent) !important;
+}
+
+.time-block-pause-btn {
+    border-color: var(--border);
+    background: var(--bg-hover);
+    color: var(--text-soft);
+}
+
+.time-block-pause-btn:hover {
+    background: var(--text-soft) !important;
+    color: var(--bg) !important;
+    border-color: var(--text-soft) !important;
+}
+
 @keyframes working-pulse {
 
     0%,
@@ -4994,6 +5424,58 @@ select.schedule-leadtime-input {
     transform: scale(1.05);
 }
 
+/* Start button on idle block */
+.idle-start-btn {
+    opacity: 0;
+    border: 1px solid rgba(34, 197, 94, 0.3);
+    background: rgba(34, 197, 94, 0.08);
+    color: #22c55e;
+    cursor: pointer;
+    font-size: 12px;
+    width: 26px;
+    height: 26px;
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--dur) var(--ease);
+    flex-shrink: 0;
+    line-height: 1;
+}
+
+.time-block-idle:hover .idle-start-btn {
+    opacity: 1;
+}
+
+.idle-start-btn:hover {
+    background: rgba(34, 197, 94, 0.18);
+    border-color: #22c55e;
+    transform: scale(1.05);
+}
+
+/* Idle start picker */
+.idle-start-picker {
+    border-left: 3px solid #22c55e;
+    background: var(--bg-surface);
+    opacity: 1 !important;
+}
+
+/* Live panel idle start picker section */
+.live-panel-start-picker-section {
+    padding: 8px 12px;
+}
+
+.live-panel-picker-label {
+    font-size: 11px;
+    color: var(--text-faint);
+    margin-bottom: 6px;
+    font-weight: 500;
+}
+
+.live-panel-autocomplete {
+    width: 100%;
+}
+
 /* Past Break Entry block */
 .time-block-break-entry {
     border-left: 3px solid #38bdf8;
@@ -5054,6 +5536,13 @@ select.schedule-leadtime-input {
 
 .time-block-past:hover {
     opacity: 0.8;
+}
+
+/* Current session block highlight */
+.time-block-current {
+    border-color: var(--accent);
+    background: rgba(96, 165, 250, 0.06);
+    opacity: 1;
 }
 
 /* ── Compact Past Entries ── */
@@ -5255,6 +5744,103 @@ select.schedule-leadtime-input {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+/* ── Past Insert Markers ── */
+.past-insert-marker {
+    height: 4px;
+    position: relative;
+    cursor: pointer;
+    transition: height 0.15s ease, opacity 0.15s ease;
+    opacity: 0;
+    margin: 0 10px;
+}
+
+.past-insert-marker:hover {
+    height: 20px;
+    opacity: 1;
+}
+
+.past-insert-marker-line {
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: var(--accent);
+    opacity: 0.3;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 0.15s ease;
+}
+
+.past-insert-marker:hover .past-insert-marker-line {
+    opacity: 0.6;
+}
+
+.past-insert-marker-btn {
+    position: relative;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 1px solid var(--accent);
+    background: var(--bg-surface);
+    color: var(--accent);
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    transition: background 0.15s ease, transform 0.15s ease;
+    z-index: 1;
+    opacity: 0;
+    transform: scale(0.6);
+}
+
+.past-insert-marker:hover .past-insert-marker-btn {
+    opacity: 1;
+    transform: scale(1);
+}
+
+.past-insert-marker-btn:hover {
+    background: var(--accent);
+    color: var(--bg);
+    transform: scale(1.1);
+}
+
+/* ── Past Entry Type Toggle Pills ── */
+.past-entry-type-row {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 4px;
+}
+
+.past-entry-type-pill {
+    padding: 3px 10px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-faint);
+    font-size: 11px;
+    cursor: pointer;
+    transition: all var(--dur) var(--ease);
+    font-family: inherit;
+}
+
+.past-entry-type-pill:hover {
+    border-color: var(--accent);
+    color: var(--text-soft);
+}
+
+.past-entry-type-pill.active {
+    border-color: var(--accent);
+    background: rgba(96, 165, 250, 0.1);
+    color: var(--accent);
+    font-weight: 500;
 }
 
 .time-block-time-editable {
@@ -6122,6 +6708,16 @@ select.schedule-leadtime-input {
 .live-layer-stop-btn:hover {
     color: #ef4444;
     border-color: #ef4444;
+}
+
+.live-layer-next-btn:hover {
+    color: var(--accent);
+    border-color: var(--accent);
+}
+
+.live-layer-pause-btn:hover {
+    color: var(--text-soft);
+    border-color: var(--text-soft);
 }
 
 /* ── Month Horizon Layer ── */
@@ -7720,28 +8316,142 @@ select.schedule-leadtime-input {
     }
 }
 
-/* Phantom prep block: lead-time preparation block before a planned entry */
-.time-block-phantom {
-    opacity: 0.7;
+/* ── Buffer blocks: prep (🎒) and wind-down (🧹) ── */
+.time-block-buffer {
+    opacity: 0.75;
     border-left-style: dashed;
     border-style: dashed;
+}
+
+.time-block-buffer:hover {
+    opacity: 0.9;
+}
+
+.time-block-buffer-prep {
     background: rgba(251, 191, 36, 0.06);
     border-color: rgba(251, 191, 36, 0.25);
     border-left-color: #fbbf24;
 }
 
-.time-block-phantom:hover {
-    opacity: 0.9;
+.time-block-buffer-prep:hover {
     background: rgba(251, 191, 36, 0.1);
 }
 
-.time-block-phantom .time-block-label {
+.time-block-buffer-prep .time-block-label {
     color: #fbbf24;
 }
 
-.time-block-phantom .time-block-status {
+.time-block-buffer-prep .time-block-status {
     color: #fbbf24;
     opacity: 0.8;
+}
+
+.time-block-buffer-winddown {
+    background: rgba(45, 212, 191, 0.06);
+    border-color: rgba(45, 212, 191, 0.25);
+    border-left-color: #2dd4bf;
+}
+
+.time-block-buffer-winddown:hover {
+    background: rgba(45, 212, 191, 0.1);
+}
+
+.time-block-buffer-winddown .time-block-label {
+    color: #2dd4bf;
+}
+
+.time-block-buffer-winddown .time-block-status {
+    color: #2dd4bf;
+    opacity: 0.8;
+}
+
+/* Visual connector: remove gap between adjacent buffer + parent blocks */
+.time-block-buffer+.time-block-planned:not(.time-block-buffer),
+.time-block-planned:not(.time-block-buffer)+.time-block-buffer {
+    margin-top: -1px;
+}
+
+/* Buffer pill toggles (inline on time row) */
+.buffer-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 2px 6px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.04);
+    color: rgba(255, 255, 255, 0.35);
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    line-height: 1.2;
+    flex-shrink: 0;
+}
+
+.buffer-pill:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.2);
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.buffer-pill-active {
+    border-color: rgba(251, 191, 36, 0.4);
+    background: rgba(251, 191, 36, 0.1);
+    color: #fbbf24;
+}
+
+.buffer-pill-active.buffer-pill-wd {
+    border-color: rgba(45, 212, 191, 0.4);
+    background: rgba(45, 212, 191, 0.1);
+    color: #2dd4bf;
+}
+
+.buffer-pill-active:hover {
+    background: rgba(251, 191, 36, 0.18);
+}
+
+.buffer-pill-active.buffer-pill-wd:hover {
+    background: rgba(45, 212, 191, 0.18);
+}
+
+.buffer-pill-row {
+    gap: 8px;
+    align-items: center;
+    min-height: 22px;
+}
+
+.buffer-pill-emoji {
+    cursor: pointer;
+    user-select: none;
+    line-height: 1;
+}
+
+.buffer-pill-input {
+    width: 36px;
+    padding: 0 2px;
+    border: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+    background: transparent;
+    color: inherit;
+    font-size: 11px;
+    text-align: center;
+    outline: none;
+    -moz-appearance: textfield;
+}
+
+.buffer-pill-input::-webkit-inner-spin-button,
+.buffer-pill-input::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.buffer-pill-input:focus {
+    border-bottom-color: rgba(255, 255, 255, 0.4);
+}
+
+.buffer-pill-unit {
+    font-size: 10px;
+    opacity: 0.6;
 }
 
 
@@ -7982,16 +8692,279 @@ select.schedule-leadtime-input {
     font-size: 12px;
 }
 
+/* ─── Top bar overflow (desktop: inline, mobile: dropdown) ─── */
+.top-bar-overflow-wrap {
+    display: contents;
+    /* on desktop, wrapper is invisible */
+}
+
+.top-bar-overflow-btn {
+    display: none;
+    /* hidden on desktop */
+}
+
+.top-bar-overflow-menu {
+    display: contents;
+    /* on desktop, buttons render inline */
+}
+
+/* ─── Mobile Tab Bar (hidden on desktop) ─── */
+.mobile-tab-bar {
+    display: none;
+}
+
 /* ─── Responsive ─── */
 @media (max-width: 900px) {
-    .app-layout {
-        grid-template-columns: 1fr;
+
+    /* Increase base font size for mobile readability */
+    body {
+        font-size: 15px;
     }
 
+    .app-layout {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto 1fr auto;
+    }
+
+    /* All 3 panels stack in grid row 2, only one visible at a time */
     .sidebar-left,
-    .sidebar-right,
+    .main-content,
+    .sidebar-right {
+        grid-column: 1;
+        grid-row: 2;
+        /* Add safe area insets for notched devices */
+        padding-left: max(0px, env(safe-area-inset-left));
+        padding-right: max(0px, env(safe-area-inset-right));
+    }
+
+    /* Hide inactive panels — JS toggles .mobile-active */
+    .sidebar-left,
+    .sidebar-right {
+        display: none;
+    }
+
+    .sidebar-left.mobile-active,
+    .sidebar-right.mobile-active {
+        display: flex;
+    }
+
+    .main-content.mobile-hidden {
+        display: none;
+    }
+
     .panel-divider {
         display: none;
+    }
+
+    /* ── Top bar compact ── */
+    .top-bar {
+        padding: 8px 16px;
+        gap: 10px;
+        justify-content: flex-start;
+        flex-wrap: wrap;
+    }
+
+    .top-bar-right {
+        gap: 12px;
+    }
+
+    .top-bar-btn {
+        width: 44px;
+        height: 44px;
+        font-size: 18px;
+        /* Minimum touch target size for mobile */
+    }
+
+    .streak-widget {
+        margin-right: 6px;
+    }
+
+    .greeting-time {
+        display: none;
+    }
+
+    /* ── Overflow menu ── */
+    .top-bar-overflow-wrap {
+        display: flex;
+        position: relative;
+    }
+
+    .top-bar-overflow-btn {
+        display: flex !important;
+    }
+
+    .top-bar-overflow-menu {
+        display: none;
+        position: absolute;
+        top: 100%;
+        right: 0;
+        margin-top: 6px;
+        background: var(--bg-panel);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 6px;
+        gap: 4px;
+        z-index: 999;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+        flex-wrap: wrap;
+        min-width: 140px;
+        justify-content: center;
+    }
+
+    .top-bar-overflow-menu.open {
+        display: flex;
+    }
+
+    /* ── Actions header: stack breadcrumbs + live indicator ── */
+    .section-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 4px;
+        padding: 8px 12px 6px;
+    }
+
+    .header-breadcrumb-what {
+        max-width: 100%;
+        font-size: 12px;
+    }
+
+    .header-live-slot {
+        position: static;
+        transform: none;
+        justify-content: flex-start;
+    }
+
+    .header-right-cluster {
+        align-items: flex-start;
+        margin-left: 0;
+    }
+
+    /* ── Bottom tab bar ── */
+    .mobile-tab-bar {
+        display: flex;
+        grid-column: 1;
+        grid-row: 3;
+        justify-content: space-around;
+        align-items: center;
+        padding: 6px 0 max(6px, env(safe-area-inset-bottom));
+        border-top: 1px solid var(--border);
+        background: var(--bg-panel);
+    }
+
+    .mobile-tab {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2px;
+        background: none;
+        border: none;
+        color: var(--text-faint);
+        cursor: pointer;
+        padding: 4px 16px;
+        font-family: inherit;
+        transition: color var(--dur) var(--ease);
+    }
+
+    .mobile-tab.active {
+        color: var(--accent);
+    }
+
+    .mobile-tab-icon {
+        font-size: 20px;
+        line-height: 1;
+    }
+
+    .mobile-tab-label {
+        font-size: 11px;
+        font-weight: 600;
+    }
+
+    /* ── Fix horizon tower scrolling on mobile ── */
+    .time-context {
+        display: flex;
+        flex-direction: row;
+        /* Make layers horizontal */
+        flex-wrap: nowrap;
+        /* Don't wrap to next line */
+        overflow-x: auto;
+        overflow-y: visible;
+        -webkit-overflow-scrolling: touch;
+        /* Enable smooth momentum scrolling on iOS */
+        scrollbar-width: none;
+        /* Hide scrollbar on Firefox */
+        -ms-overflow-style: none;
+        /* Hide scrollbar on IE/Edge */
+        gap: 0;
+        /* No gaps between layers */
+        padding: 0;
+        /* Remove padding to maximize swipe area */
+    }
+
+    .time-context::-webkit-scrollbar {
+        display: none;
+        /* Hide scrollbar on Chrome/Safari */
+    }
+
+    /* Make horizon layers larger and easier to tap */
+    .horizon-layer {
+        padding: 10px 14px;
+        font-size: 14px;
+        min-height: 44px;
+        /* Minimum touch target */
+        flex-shrink: 0;
+        /* Don't shrink layers */
+        min-width: 100%;
+        /* Each layer takes full width */
+        scroll-snap-align: start;
+        /* Snap to each layer */
+    }
+
+    /* Add snap scrolling for better UX */
+    .time-context {
+        scroll-snap-type: x mandatory;
+        /* Snap to layers when scrolling */
+    }
+
+    .horizon-layer-icon {
+        font-size: 18px !important;
+    }
+
+    .horizon-layer-label {
+        font-size: 14px !important;
+    }
+
+    /* Date navigation buttons on mobile */
+    .date-nav-btn {
+        width: 44px;
+        height: 44px;
+        font-size: 20px;
+    }
+
+    /* Increase spacing in inputs */
+    .action-input,
+    .quick-log-input {
+        padding: 14px 16px;
+        font-size: 16px;
+        /* Prevent iOS zoom on focus */
+        line-height: 1.4;
+    }
+
+    /* Better spacing for action items */
+    .action-card {
+        padding: 14px 16px;
+        margin-bottom: 10px;
+    }
+
+    /* Timeline items spacing */
+    .timeline-item {
+        padding: 14px 16px;
+        margin-bottom: 10px;
+    }
+
+    /* Project tree items */
+    .project-item {
+        padding: 12px 16px;
+        min-height: 44px;
     }
 }
 

@@ -5,32 +5,357 @@
       "name": "Inbox",
       "children": [
         {
+          "id": 665,
+          "name": "מרק",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771774271113,
+          "done": true,
+          "timeContexts": [
+            "week:2026-02-22"
+          ]
+        },
+        {
+          "id": 654,
+          "name": "לבדוק עם הג׳אז",
+          "children": [],
+          "expanded": true,
+          "createdAt": 1771766691764,
+          "done": true,
+          "timeContexts": [
+            "ongoing",
+            "2026-02-23"
+          ],
+          "contextDurations": {
+            "2026-02-23": 10
+          }
+        },
+        {
+          "id": 651,
+          "name": "א. בוקר",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771751639970,
+          "done": true,
+          "timeContexts": [
+            "week:2026-02-22"
+          ]
+        },
+        {
+          "id": 646,
+          "name": "להמשיך לתכנן את השבוע",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771696283249,
+          "done": false,
+          "timeContexts": [
+            "ongoing"
+          ],
+          "contextDurations": {
+            "week:2026-02-15": 30,
+            "2026-02-21@19:51-00:30": 30
+          }
+        },
+        {
+          "id": 639,
+          "name": "restore kolwrite",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771695404317,
+          "done": true,
+          "timeContexts": [
+            "week:2026-02-22"
+          ]
+        },
+        {
+          "id": 630,
+          "name": "לדבר עם אייל",
+          "children": [
+            {
+              "id": 647,
+              "name": "לדגום את אייל",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1771699093323,
+              "done": false,
+              "timeContexts": [
+                "ongoing",
+                "2026-02-23"
+              ],
+              "contextDurations": {
+                "2026-02-23": 5
+              }
+            }
+          ],
+          "expanded": false,
+          "createdAt": 1771626059130,
+          "done": false,
+          "timeContexts": [
+            "ongoing",
+            "2026-02-23"
+          ]
+        },
+        {
+          "id": 628,
+          "name": "טלפון",
+          "children": [
+            {
+              "id": 649,
+              "name": "להתקשר שוב",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1771699142331,
+              "done": false,
+              "timeContexts": [
+                "ongoing",
+                "2026-02-23"
+              ],
+              "contextDurations": {
+                "2026-02-23": 2
+              }
+            },
+            {
+              "id": 648,
+              "name": "לבדוק שוב עם המוניות",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1771699139986,
+              "done": false,
+              "timeContexts": [
+                "ongoing",
+                "2026-02-23"
+              ],
+              "contextDurations": {
+                "2026-02-23": 10
+              }
+            }
+          ],
+          "expanded": false,
+          "createdAt": 1771623308231,
+          "done": false,
+          "timeContexts": [
+            "ongoing",
+            "2026-02-23"
+          ]
+        },
+        {
+          "id": 627,
+          "name": "קניות",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771623306537,
+          "done": false,
+          "timeContexts": [
+            "ongoing",
+            "2026-02-24"
+          ]
+        },
+        {
+          "id": 624,
+          "name": "כביסה",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771523911967,
+          "done": false,
+          "timeContexts": [
+            "ongoing"
+          ],
+          "contextDurations": {}
+        },
+        {
+          "id": 623,
+          "name": "מקלחת",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771523902178,
+          "done": true,
+          "timeContexts": [
+            "ongoing"
+          ],
+          "contextDurations": {
+            "2026-02-19@20:52-02:30": 15
+          }
+        },
+        {
+          "id": 619,
+          "name": "fix runpod 404",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771515997792,
+          "done": false,
+          "timeContexts": [
+            "week:2026-02-15"
+          ],
+          "contextDurations": {}
+        },
+        {
+          "id": 618,
+          "name": "fix yael files OR send email",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771511674651,
+          "done": true,
+          "timeContexts": [
+            "week:2026-02-15"
+          ],
+          "contextDurations": {
+            "2026-02-19@20:52-02:30": 0,
+            "week:2026-02-15": 0
+          }
+        },
+        {
+          "id": 617,
+          "name": "להכין דברים לטיסה",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771511423944,
+          "done": false,
+          "timeContexts": [
+            "ongoing"
+          ],
+          "contextDurations": {}
+        },
+        {
+          "id": 614,
+          "name": "check yael failed duration files",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771508798867,
+          "done": true,
+          "timeContexts": [
+            "ongoing"
+          ],
+          "contextDurations": {
+            "2026-02-19@16:29-02:30": 0
+          }
+        },
+        {
+          "id": 613,
+          "name": "restart backend",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771508788587,
+          "done": false,
+          "timeContexts": [
+            "ongoing"
+          ],
+          "contextDurations": {}
+        },
+        {
+          "id": 612,
+          "name": "test locale",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771508780519,
+          "done": true,
+          "timeContexts": [
+            "week:2026-02-15"
+          ],
+          "contextDurations": {
+            "week:2026-02-15": 0
+          }
+        },
+        {
+          "id": 609,
+          "name": "א. בוקר",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771493631655,
+          "done": true,
+          "timeContexts": [
+            "ongoing"
+          ],
+          "contextDurations": {}
+        },
+        {
+          "id": 595,
+          "name": "סים",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771457115805,
+          "done": true,
+          "timeContexts": [
+            "ongoing"
+          ],
+          "contextDurations": {}
+        },
+        {
+          "id": 594,
+          "name": "ביטוח נסיעות",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771457109593,
+          "done": true,
+          "timeContexts": [
+            "ongoing"
+          ],
+          "contextDurations": {}
+        },
+        {
+          "id": 564,
+          "name": "לסיים להריץ תיקון durations",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771328322202,
+          "done": true,
+          "timeContexts": [
+            "week:2026-02-15"
+          ]
+        },
+        {
+          "id": 563,
+          "name": "לאחד וידאו של משולש",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771322522351,
+          "done": true,
+          "timeContexts": [
+            "week:2026-02-15"
+          ],
+          "contextDurations": {
+            "2026-02-17": 15,
+            "week:2026-02-15": 15
+          }
+        },
+        {
+          "id": 562,
+          "name": "מקלחת",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771322508493,
+          "done": true,
+          "timeContexts": [
+            "week:2026-02-15"
+          ],
+          "contextDurations": {
+            "2026-02-17": 15,
+            "week:2026-02-15": 15
+          }
+        },
+        {
+          "id": 553,
+          "name": "מקלחת",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771263733607,
+          "done": true,
+          "timeContexts": [
+            "week:2026-02-15"
+          ]
+        },
+        {
           "id": 485,
           "name": "א. בוקר",
           "children": [],
           "expanded": false,
           "createdAt": 1771148668332,
-          "done": false,
+          "done": true,
           "timeContexts": [
-            "ongoing",
-            "2026-02-16"
+            "ongoing"
           ],
           "contextDurations": {
             "2026-02-16": 15
           }
-        },
-        {
-          "id": 472,
-          "name": "לכתוב ליוסי על הדירה",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1771102657815,
-          "done": false,
-          "timeContexts": [
-            "ongoing",
-            "2026-02-16"
-          ],
-          "contextDurations": {}
         },
         {
           "id": 457,
@@ -71,11 +396,13 @@
           "children": [],
           "expanded": false,
           "createdAt": 1771081425864,
-          "done": false,
+          "done": true,
           "timeContexts": [
             "ongoing"
           ],
-          "contextDurations": {}
+          "contextDurations": {
+            "2026-02-18": 15
+          }
         },
         {
           "id": 361,
@@ -85,10 +412,13 @@
           "createdAt": 1770932403465,
           "done": false,
           "timeContexts": [
-            "week:2026-02-15"
+            "ongoing",
+            "2026-02-23"
           ],
           "contextDurations": {
-            "week:2026-02-15": 10
+            "2026-02-17": 10,
+            "2026-02-22": 15,
+            "2026-02-23": 15
           }
         },
         {
@@ -131,8 +461,57 @@
       "done": false,
       "isInbox": true,
       "timeContexts": [
-        "ongoing"
+        "ongoing",
+        "2026-02-23"
       ]
+    },
+    {
+      "id": 685,
+      "name": "לצאת לסיבוב בעיר",
+      "children": [],
+      "expanded": false,
+      "createdAt": 1771840105291,
+      "done": false,
+      "timeContexts": [
+        "ongoing"
+      ],
+      "contextDurations": {}
+    },
+    {
+      "id": 593,
+      "name": "מעיל",
+      "children": [],
+      "expanded": false,
+      "createdAt": 1771457007814,
+      "done": true,
+      "timeContexts": [
+        "week:2026-02-15"
+      ],
+      "contextDurations": {}
+    },
+    {
+      "id": 592,
+      "name": "תיק",
+      "children": [],
+      "expanded": false,
+      "createdAt": 1771456991145,
+      "done": true,
+      "timeContexts": [
+        "week:2026-02-15"
+      ],
+      "contextDurations": {}
+    },
+    {
+      "id": 591,
+      "name": "דרכון",
+      "children": [],
+      "expanded": false,
+      "createdAt": 1771456957455,
+      "done": true,
+      "timeContexts": [
+        "week:2026-02-15"
+      ],
+      "contextDurations": {}
     },
     {
       "id": 487,
@@ -140,13 +519,11 @@
       "children": [],
       "expanded": false,
       "createdAt": 1771160633223,
-      "done": false,
+      "done": true,
       "timeContexts": [
-        "2026-02-18@entry:441"
+        "week:2026-02-15"
       ],
-      "contextDurations": {
-        "2026-02-18@entry:441": 0
-      }
+      "contextDurations": {}
     },
     {
       "id": 475,
@@ -174,13 +551,12 @@
           "createdAt": 1770951370710,
           "done": false,
           "timeContexts": [
-            "week:2026-02-15",
-            "2026-02-16"
+            "ongoing"
           ],
           "contextLeadTimes": {},
           "contextDurations": {
             "2026-02-14": 15,
-            "week:2026-02-15": 15
+            "2026-02-19": 15
           }
         }
       ],
@@ -219,13 +595,26 @@
           "createdAt": 1770847807010,
           "done": true,
           "timeContexts": [
-            "ongoing",
-            "2026-02-16"
+            "ongoing"
           ],
           "contextDurations": {}
+        },
+        {
+          "id": 472,
+          "name": "לכתוב ליוסי על הדירה",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771102657815,
+          "done": false,
+          "timeContexts": [
+            "ongoing"
+          ],
+          "contextDurations": {
+            "2026-02-16": 12
+          }
         }
       ],
-      "expanded": true,
+      "expanded": false,
       "createdAt": 1770847791956,
       "done": false,
       "timeContexts": [
@@ -237,6 +626,46 @@
       "name": "בית",
       "children": [
         {
+          "id": 695,
+          "name": "א. ערב",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771864987518,
+          "done": false,
+          "timeContexts": [
+            "2026-02-23"
+          ],
+          "contextDurations": {
+            "2026-02-23": 45
+          }
+        },
+        {
+          "id": 599,
+          "name": "לסדר את החדר",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771458314155,
+          "done": false,
+          "timeContexts": [
+            "ongoing"
+          ],
+          "contextDurations": {
+            "2026-02-19@15:00-02:30": 45
+          }
+        },
+        {
+          "id": 551,
+          "name": "להשיג מחדש את האייפד שלי איפה שלא יהיה",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771260777532,
+          "done": false,
+          "timeContexts": [
+            "ongoing",
+            "week:2026-03-01"
+          ]
+        },
+        {
           "id": 510,
           "name": "לצחצח שיניים",
           "children": [],
@@ -244,8 +673,7 @@
           "createdAt": 1771200775273,
           "done": true,
           "timeContexts": [
-            "ongoing",
-            "2026-02-16"
+            "ongoing"
           ],
           "contextDurations": {}
         },
@@ -285,8 +713,7 @@
               "createdAt": 1771170068705,
               "done": false,
               "timeContexts": [
-                "ongoing",
-                "2026-02-16"
+                "ongoing"
               ],
               "contextDurations": {}
             }
@@ -389,19 +816,121 @@
           "contextDurations": {
             "2026-02-13": 30
           }
+        },
+        {
+          "id": 598,
+          "name": "לשטוף כלים",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771458269873,
+          "done": false,
+          "timeContexts": [
+            "ongoing"
+          ],
+          "contextDurations": {}
+        },
+        {
+          "id": 696,
+          "name": "מקלחת",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771865157767,
+          "done": false,
+          "timeContexts": [
+            "2026-02-23"
+          ],
+          "contextDurations": {
+            "2026-02-23": 15
+          }
         }
       ],
-      "expanded": true,
+      "expanded": false,
       "createdAt": 1770773753107,
       "done": false,
       "timeContexts": [
-        "ongoing"
-      ]
+        "ongoing",
+        "2026-02-23"
+      ],
+      "contextDurations": {
+        "2026-02-23": 90
+      }
     },
     {
       "id": 92,
       "name": "פרויקטי מוזיקה",
       "children": [
+        {
+          "id": 632,
+          "name": "לכתוב לאנשים",
+          "children": [
+            {
+              "id": 635,
+              "name": "דני",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1771627776882,
+              "done": false,
+              "timeContexts": [
+                "ongoing",
+                "month:2026-02"
+              ]
+            },
+            {
+              "id": 634,
+              "name": "יוני",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1771627775202,
+              "done": false,
+              "timeContexts": [
+                "ongoing",
+                "month:2026-02"
+              ]
+            },
+            {
+              "id": 633,
+              "name": "neil hannon",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1771627772702,
+              "done": false,
+              "timeContexts": [
+                "ongoing",
+                "month:2026-02"
+              ]
+            }
+          ],
+          "expanded": false,
+          "createdAt": 1771627762046,
+          "done": false,
+          "timeContexts": [
+            "ongoing",
+            "month:2026-02"
+          ]
+        },
+        {
+          "id": 608,
+          "name": "סשן יותם",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771493406180,
+          "done": false,
+          "timeContexts": [
+            "week:2026-02-15"
+          ],
+          "contextDurations": {}
+        },
+        {
+          "id": 577,
+          "name": "להקליט בלי אוזניות זה רעיון די טוב",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771375368443,
+          "done": false,
+          "timeContexts": [
+            "ongoing"
+          ]
+        },
         {
           "id": 508,
           "name": "לשלוח לדקלה",
@@ -428,7 +957,7 @@
               "createdAt": 1770730496059,
               "done": false,
               "timeContexts": [
-                "week:2026-02-15"
+                "ongoing"
               ],
               "contextDurations": {
                 "2026-02-15": 30
@@ -448,6 +977,20 @@
           "name": "ג׳אז בחצר",
           "children": [
             {
+              "id": 688,
+              "name": "לפרסם את ההופעה",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1771844308376,
+              "done": false,
+              "timeContexts": [
+                "2026-02-23@18:44-21:00"
+              ],
+              "contextDurations": {
+                "2026-02-23@18:44-21:00": 10
+              }
+            },
+            {
               "id": 447,
               "name": "חזרה לג׳אז",
               "children": [],
@@ -460,7 +1003,7 @@
               "contextDurations": {}
             }
           ],
-          "expanded": false,
+          "expanded": true,
           "createdAt": 1770824890691,
           "done": false,
           "timeContexts": [
@@ -488,22 +1031,62 @@
         {
           "id": 306,
           "name": "סשן ירדן",
-          "children": [],
+          "children": [
+            {
+              "id": 653,
+              "name": "להתקשר לירדן",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1771764400650,
+              "done": true,
+              "timeContexts": [
+                "ongoing"
+              ],
+              "contextDurations": {
+                "2026-02-22@15:11-00:30": 10
+              }
+            }
+          ],
           "expanded": false,
           "createdAt": 1770824111221,
           "done": false,
           "timeContexts": [
-            "2026-02-25@entry:208"
+            "2026-03-03@entry:208"
           ],
           "contextDurations": {
             "2026-02-25": 180,
-            "2026-02-25@entry:208": 0
+            "2026-03-03@entry:208": 0
           }
         },
         {
           "id": 243,
           "name": "סשן איתי",
           "children": [
+            {
+              "id": 684,
+              "name": "מיקס ויראלי",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1771839804892,
+              "done": false,
+              "timeContexts": [
+                "week:2026-02-22"
+              ],
+              "contextDurations": {
+                "week:2026-02-22": 240
+              }
+            },
+            {
+              "id": 626,
+              "name": "אקורדים לאיתי",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1771585853596,
+              "done": true,
+              "timeContexts": [
+                "week:2026-02-15"
+              ]
+            },
             {
               "id": 429,
               "name": "לענות על התאריכים בקבוצה של איתי",
@@ -537,11 +1120,9 @@
           "done": false,
           "estimatedDuration": 270,
           "timeContexts": [
-            "2026-02-17@entry:455"
+            "2026-02-24"
           ],
-          "contextDurations": {
-            "2026-02-17@entry:455": 270
-          }
+          "contextDurations": {}
         },
         {
           "id": 190,
@@ -561,14 +1142,12 @@
           ],
           "expanded": false,
           "createdAt": 1770681399392,
-          "done": false,
+          "done": true,
           "estimatedDuration": 180,
           "timeContexts": [
-            "2026-02-17@entry:454"
+            "week:2026-02-15"
           ],
-          "contextDurations": {
-            "2026-02-17@entry:454": 180
-          }
+          "contextDurations": {}
         },
         {
           "id": 79,
@@ -591,8 +1170,11 @@
           "done": false,
           "timeContexts": [
             "ongoing",
-            "week:2026-02-15"
-          ]
+            "week:2026-02-22"
+          ],
+          "contextDurations": {
+            "week:2026-02-22": 360
+          }
         },
         {
           "id": 93,
@@ -606,10 +1188,11 @@
               "createdAt": 1771203814978,
               "done": false,
               "timeContexts": [
-                "2026-02-16"
+                "week:2026-02-15"
               ],
               "contextDurations": {
-                "2026-02-16": 5
+                "2026-02-16": 5,
+                "week:2026-02-15": 5
               }
             }
           ],
@@ -640,15 +1223,34 @@
         {
           "id": 86,
           "name": "תיקוני מיקס לאורי",
-          "children": [],
+          "children": [
+            {
+              "id": 581,
+              "name": "לדגום את נועם בן שבת על המאסטר",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1771414513186,
+              "done": false,
+              "timeContexts": [
+                "ongoing",
+                "2026-02-24"
+              ],
+              "contextDurations": {
+                "2026-02-24": 10
+              }
+            }
+          ],
           "expanded": false,
           "createdAt": 1770607255310,
           "done": false,
           "timeContexts": [
-            "ongoing"
+            "ongoing",
+            "week:2026-02-22"
           ],
           "contextDurations": {
-            "2026-02-12": 25
+            "2026-02-12": 25,
+            "2026-02-17@00:38-02:30": 10,
+            "week:2026-02-22": 20
           }
         }
       ],
@@ -664,6 +1266,85 @@
       "name": "עופר",
       "children": [
         {
+          "id": 658,
+          "name": "הדבר הבא של עופר",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771773092665,
+          "done": false,
+          "timeContexts": [
+            "week:2026-02-22"
+          ],
+          "contextDurations": {
+            "week:2026-02-22": 180
+          }
+        },
+        {
+          "id": 601,
+          "name": "להכין תרגילי Azure Goat",
+          "children": [
+            {
+              "id": 657,
+              "name": "remove old infra",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1771772456903,
+              "done": false,
+              "timeContexts": [
+                "ongoing",
+                "2026-02-24"
+              ],
+              "contextDurations": {
+                "2026-02-24": 10
+              }
+            },
+            {
+              "id": 656,
+              "name": "נקודות לדיפלוימנט - צריך טלפון, כתובת וכרטיס אשראי לחשבון חינם",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1771772132164,
+              "done": true,
+              "timeContexts": [
+                "ongoing",
+                "2026-02-23"
+              ]
+            },
+            {
+              "id": 602,
+              "name": "להכין תרגילי בית",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1771458951619,
+              "done": false,
+              "timeContexts": [
+                "ongoing",
+                "2026-02-24"
+              ],
+              "contextLeadTimes": {
+                "2026-02-22": 0
+              },
+              "contextDurations": {
+                "2026-02-24": 120
+              }
+            }
+          ],
+          "expanded": false,
+          "createdAt": 1771458934099,
+          "done": false,
+          "timeContexts": [
+            "ongoing",
+            "week:2026-02-22",
+            "2026-02-24"
+          ],
+          "contextDurations": {
+            "2026-02-21@11:33-00:30": 120
+          },
+          "contextLeadTimes": {
+            "2026-02-22": 0
+          }
+        },
+        {
           "id": 489,
           "name": "יושב עם עופר",
           "children": [],
@@ -671,10 +1352,11 @@
           "createdAt": 1771160771581,
           "done": false,
           "timeContexts": [
-            "2026-02-16@entry:443"
+            "ongoing",
+            "week:2026-02-22"
           ],
           "contextDurations": {
-            "2026-02-16@entry:443": 0
+            "week:2026-02-22": 60
           }
         },
         {
@@ -683,29 +1365,58 @@
           "children": [],
           "expanded": false,
           "createdAt": 1771092520191,
-          "done": false,
+          "done": true,
           "timeContexts": [
-            "ongoing",
-            "2026-02-16@08:00-16:00"
+            "week:2026-02-15"
           ],
-          "contextDurations": {
-            "2026-02-16@08:00-16:00": 60
-          }
+          "contextDurations": {}
         },
         {
           "id": 466,
           "name": "לראות ש-azure GOAT עובד",
-          "children": [],
-          "expanded": false,
+          "children": [
+            {
+              "id": 530,
+              "name": "full deploy",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1771241583070,
+              "done": false,
+              "timeContexts": [
+                "ongoing"
+              ]
+            },
+            {
+              "id": 529,
+              "name": "limited deploy (poc)",
+              "children": [
+                {
+                  "id": 545,
+                  "name": "חוטר על ה flow של התלמידים",
+                  "children": [],
+                  "expanded": false,
+                  "createdAt": 1771245525599,
+                  "done": false,
+                  "timeContexts": [
+                    "ongoing"
+                  ]
+                }
+              ],
+              "expanded": false,
+              "createdAt": 1771241578786,
+              "done": false,
+              "timeContexts": [
+                "ongoing"
+              ]
+            }
+          ],
+          "expanded": true,
           "createdAt": 1771092514309,
           "done": false,
           "timeContexts": [
-            "ongoing",
-            "2026-02-16@08:00-16:00"
+            "ongoing"
           ],
-          "contextDurations": {
-            "2026-02-16@08:00-16:00": 120
-          }
+          "contextDurations": {}
         },
         {
           "id": 146,
@@ -725,23 +1436,326 @@
       "done": false,
       "timeContexts": [
         "ongoing",
-        "2026-02-16"
+        "week:2026-02-22"
       ],
-      "contextDurations": {}
+      "contextDurations": {
+        "week:2026-02-22": 600
+      }
     },
     {
       "id": 9,
       "name": "anything",
       "children": [
         {
-          "id": 526,
-          "name": "fix accordion animation",
+          "id": 697,
+          "name": "easy prioritization besides projects bar?",
           "children": [],
           "expanded": false,
-          "createdAt": 1771237755631,
+          "createdAt": 1771865735523,
           "done": false,
           "timeContexts": [
             "ongoing"
+          ]
+        },
+        {
+          "id": 690,
+          "name": "should ALWAYS be queue - even if only one live item",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771844709565,
+          "done": false,
+          "timeContexts": [
+            "ongoing"
+          ]
+        },
+        {
+          "id": 683,
+          "name": "capacity bar - is it project recursive?",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771837352529,
+          "done": true,
+          "timeContexts": [
+            "ongoing",
+            "2026-02-23@11:02-00:30"
+          ],
+          "contextDurations": {
+            "2026-02-23@11:02-00:30": 10
+          }
+        },
+        {
+          "id": 681,
+          "name": "restore the renderAll",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771837295422,
+          "done": true,
+          "timeContexts": [
+            "2026-02-23"
+          ],
+          "contextDurations": {
+            "2026-02-23": 10
+          }
+        },
+        {
+          "id": 680,
+          "name": "maybe be able to schedule inbox?",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771837247185,
+          "done": false,
+          "timeContexts": [
+            "ongoing",
+            "week:2026-02-22"
+          ]
+        },
+        {
+          "id": 671,
+          "name": "change from count up to countdown in the middle",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771776007842,
+          "done": false,
+          "timeContexts": [
+            "ongoing"
+          ]
+        },
+        {
+          "id": 670,
+          "name": "show scheduled (as ghosts)",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771775244099,
+          "done": false,
+          "timeContexts": [
+            "ongoing",
+            "week:2026-02-22"
+          ]
+        },
+        {
+          "id": 664,
+          "name": "capacity bars in headers",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771773659735,
+          "done": false,
+          "timeContexts": [
+            "ongoing",
+            "month:2026-02"
+          ]
+        },
+        {
+          "id": 662,
+          "name": "fix capacity bars for days in week",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771773494681,
+          "done": false,
+          "timeContexts": [
+            "ongoing",
+            "month:2026-02"
+          ]
+        },
+        {
+          "id": 661,
+          "name": "in capacity bar - maybe show planned contexts in click",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771773451872,
+          "done": false,
+          "timeContexts": [
+            "ongoing",
+            "month:2026-02"
+          ]
+        },
+        {
+          "id": 660,
+          "name": "when drag and copy, ask for dest duration",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771773315999,
+          "done": false,
+          "timeContexts": [
+            "ongoing",
+            "week:2026-02-22"
+          ]
+        },
+        {
+          "id": 659,
+          "name": "make \"ghost\" (lead time) real (by just hiding it if a real context is scheduled)",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771773228566,
+          "done": false,
+          "timeContexts": [
+            "ongoing"
+          ],
+          "contextDurations": {}
+        },
+        {
+          "id": 650,
+          "name": "today jumps to ongoing in degrading instead of week/month",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771714003302,
+          "done": false,
+          "timeContexts": [
+            "ongoing"
+          ]
+        },
+        {
+          "id": 645,
+          "name": "stop an done in one button",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771695844690,
+          "done": false,
+          "timeContexts": [
+            "future"
+          ]
+        },
+        {
+          "id": 641,
+          "name": "better indication in actions area of items under header",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771695483262,
+          "done": false,
+          "timeContexts": [
+            "ongoing",
+            "month:2026-02"
+          ],
+          "contextDurations": {
+            "month:2026-02": 5
+          }
+        },
+        {
+          "id": 638,
+          "name": "planned in live == the set duration?",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771695133091,
+          "done": false,
+          "timeContexts": [
+            "ongoing",
+            "month:2026-02"
+          ],
+          "contextDurations": {
+            "month:2026-02": 25
+          }
+        },
+        {
+          "id": 625,
+          "name": "in resolve - no need to resolve the prep (or we do?)",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771585840622,
+          "done": false,
+          "timeContexts": [
+            "week:2026-02-15"
+          ]
+        },
+        {
+          "id": 610,
+          "name": "start with timer - pre filled with current remaining time value",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771493698324,
+          "done": false,
+          "timeContexts": [
+            "week:2026-02-15"
+          ]
+        },
+        {
+          "id": 588,
+          "name": "capacity bar calc is still not perfect",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771425789243,
+          "done": false,
+          "timeContexts": [
+            "ongoing",
+            "month:2026-02"
+          ]
+        },
+        {
+          "id": 587,
+          "name": "in idle + option to document breaks",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771425492902,
+          "done": false,
+          "timeContexts": [
+            "ongoing"
+          ]
+        },
+        {
+          "id": 579,
+          "name": "\"done/followup\" from intentions",
+          "children": [
+            {
+              "id": 600,
+              "name": "followup for items",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1771458423271,
+              "done": false,
+              "timeContexts": [
+                "ongoing",
+                "month:2026-02"
+              ]
+            }
+          ],
+          "expanded": false,
+          "createdAt": 1771414345843,
+          "done": false,
+          "timeContexts": [
+            "ongoing"
+          ]
+        },
+        {
+          "id": 575,
+          "name": "start from idle",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771355669794,
+          "done": true,
+          "timeContexts": [
+            "ongoing"
+          ]
+        },
+        {
+          "id": 567,
+          "name": "when starting an item - start with REMAINING time, not PLANNEd time",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771335984909,
+          "done": true,
+          "timeContexts": [
+            "week:2026-02-15"
+          ]
+        },
+        {
+          "id": 543,
+          "name": "indicate paused items in queue (started) to allow maximum paused, not only return them to queue",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771245125131,
+          "done": false,
+          "timeContexts": [
+            "ongoing"
+          ]
+        },
+        {
+          "id": 542,
+          "name": "לצעוק עליך כשמנסה להחליף קונטקסט באמצע ריצה",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771244916302,
+          "done": false,
+          "timeContexts": [
+            "ongoing",
+            "month:2026-02"
           ]
         },
         {
@@ -752,7 +1766,8 @@
           "createdAt": 1771232279116,
           "done": false,
           "timeContexts": [
-            "2026-02-16"
+            "ongoing",
+            "month:2026-02"
           ]
         },
         {
@@ -763,7 +1778,8 @@
           "createdAt": 1771232266614,
           "done": false,
           "timeContexts": [
-            "2026-02-16"
+            "ongoing",
+            "month:2026-02"
           ]
         },
         {
@@ -774,7 +1790,8 @@
           "createdAt": 1771232253371,
           "done": false,
           "timeContexts": [
-            "2026-02-16"
+            "ongoing",
+            "month:2026-02"
           ]
         },
         {
@@ -785,7 +1802,8 @@
           "createdAt": 1771232212673,
           "done": false,
           "timeContexts": [
-            "2026-02-16"
+            "ongoing",
+            "month:2026-02"
           ]
         },
         {
@@ -796,7 +1814,8 @@
           "createdAt": 1771232176502,
           "done": false,
           "timeContexts": [
-            "2026-02-16"
+            "ongoing",
+            "month:2026-02"
           ]
         },
         {
@@ -805,10 +1824,10 @@
           "children": [],
           "expanded": false,
           "createdAt": 1771208190684,
-          "done": false,
+          "done": true,
           "timeContexts": [
-            "2026-02-16",
-            "month:2026-02"
+            "month:2026-02",
+            "week:2026-02-15"
           ]
         },
         {
@@ -819,7 +1838,8 @@
           "createdAt": 1771208178495,
           "done": false,
           "timeContexts": [
-            "2026-02-16"
+            "ongoing",
+            "month:2026-02"
           ]
         },
         {
@@ -842,8 +1862,7 @@
           "createdAt": 1771160492658,
           "done": false,
           "timeContexts": [
-            "ongoing",
-            "2026-02-16"
+            "ongoing"
           ],
           "contextDurations": {}
         },
@@ -910,6 +1929,31 @@
           "name": "core",
           "children": [
             {
+              "id": 586,
+              "name": "fix flex",
+              "children": [
+                {
+                  "id": 580,
+                  "name": "incorrect drilldown for flex plans to session level",
+                  "children": [],
+                  "expanded": false,
+                  "createdAt": 1771414492672,
+                  "done": false,
+                  "timeContexts": [
+                    "ongoing",
+                    "month:2026-02"
+                  ]
+                }
+              ],
+              "expanded": false,
+              "createdAt": 1771422161561,
+              "done": false,
+              "timeContexts": [
+                "ongoing",
+                "month:2026-02"
+              ]
+            },
+            {
               "id": 460,
               "name": "top level planning",
               "children": [
@@ -943,7 +1987,7 @@
                   "children": [],
                   "expanded": false,
                   "createdAt": 1770943488414,
-                  "done": false,
+                  "done": true,
                   "timeContexts": [
                     "ongoing"
                   ],
@@ -1020,7 +2064,7 @@
                   ]
                 }
               ],
-              "expanded": true,
+              "expanded": false,
               "createdAt": 1771089143334,
               "done": false,
               "timeContexts": [
@@ -1031,6 +2075,32 @@
               "id": 416,
               "name": "showing past logs",
               "children": [
+                {
+                  "id": 585,
+                  "name": "fix edit/remove/add past logs",
+                  "children": [],
+                  "expanded": false,
+                  "createdAt": 1771422068224,
+                  "done": false,
+                  "timeContexts": [
+                    "ongoing",
+                    "month:2026-02"
+                  ],
+                  "contextDurations": {
+                    "2026-02-18": 30
+                  }
+                },
+                {
+                  "id": 571,
+                  "name": "heat map on past days for specific filters",
+                  "children": [],
+                  "expanded": false,
+                  "createdAt": 1771344139729,
+                  "done": false,
+                  "timeContexts": [
+                    "ongoing"
+                  ]
+                },
                 {
                   "id": 493,
                   "name": "add logs",
@@ -1159,7 +2229,8 @@
                   "createdAt": 1771195832634,
                   "done": false,
                   "timeContexts": [
-                    "week:2026-02-15"
+                    "ongoing",
+                    "month:2026-02"
                   ]
                 },
                 {
@@ -1210,7 +2281,7 @@
                   "createdAt": 1770998637870,
                   "done": true,
                   "timeContexts": [
-                    "2026-02-16"
+                    "week:2026-02-15"
                   ],
                   "contextDurations": {}
                 },
@@ -1254,7 +2325,7 @@
                   }
                 }
               ],
-              "expanded": true,
+              "expanded": false,
               "createdAt": 1771026926358,
               "done": false,
               "timeContexts": [
@@ -1270,8 +2341,7 @@
               "createdAt": 1770979784782,
               "done": false,
               "timeContexts": [
-                "ongoing",
-                "2026-02-16"
+                "ongoing"
               ],
               "contextDurations": {
                 "ongoing": 60
@@ -1351,15 +2421,27 @@
             },
             {
               "id": 405,
-              "name": "prep time - need to think through the concept",
+              "name": "prep time",
               "children": [
+                {
+                  "id": 597,
+                  "name": "multi day prep",
+                  "children": [],
+                  "expanded": false,
+                  "createdAt": 1771457743154,
+                  "done": false,
+                  "timeContexts": [
+                    "ongoing",
+                    "month:2026-02"
+                  ]
+                },
                 {
                   "id": 357,
                   "name": "drag into prep time",
                   "children": [],
                   "expanded": false,
                   "createdAt": 1770926420908,
-                  "done": false,
+                  "done": true,
                   "timeContexts": [
                     "ongoing"
                   ],
@@ -1583,10 +2665,12 @@
               "createdAt": 1770810064805,
               "done": false,
               "timeContexts": [
-                "ongoing"
+                "ongoing",
+                "week:2026-02-22"
               ],
               "contextDurations": {
-                "ongoing": 60
+                "ongoing": 60,
+                "week:2026-02-22": 20
               }
             },
             {
@@ -1688,7 +2772,7 @@
                   ]
                 }
               ],
-              "expanded": true,
+              "expanded": false,
               "createdAt": 1770805487565,
               "done": false,
               "timeContexts": [
@@ -1808,13 +2892,13 @@
                   "children": [],
                   "expanded": false,
                   "createdAt": 1770721314816,
-                  "done": false,
+                  "done": true,
                   "timeContexts": [
                     "ongoing"
                   ]
                 }
               ],
-              "expanded": false,
+              "expanded": true,
               "createdAt": 1770603539447,
               "done": false,
               "timeContexts": [
@@ -1878,8 +2962,7 @@
               "createdAt": 1770993478460,
               "done": false,
               "timeContexts": [
-                "ongoing",
-                "2026-02-16"
+                "ongoing"
               ],
               "contextDurations": {
                 "2026-02-16": 5
@@ -1898,11 +2981,56 @@
           "name": "future",
           "children": [
             {
+              "id": 583,
+              "name": "drilldown parent autocomplete in input",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1771414753410,
+              "done": false,
+              "timeContexts": [
+                "ongoing"
+              ]
+            },
+            {
               "id": 347,
               "name": "connect to Ai agents",
               "children": [],
               "expanded": false,
               "createdAt": 1770912320550,
+              "done": false,
+              "timeContexts": [
+                "ongoing"
+              ]
+            },
+            {
+              "id": 666,
+              "name": "whatsapp bot",
+              "children": [
+                {
+                  "id": 668,
+                  "name": "if input is voice - output voice",
+                  "children": [],
+                  "expanded": false,
+                  "createdAt": 1771774579835,
+                  "done": false,
+                  "timeContexts": [
+                    "ongoing"
+                  ]
+                },
+                {
+                  "id": 667,
+                  "name": "both reminders and conversation",
+                  "children": [],
+                  "expanded": false,
+                  "createdAt": 1771774568697,
+                  "done": false,
+                  "timeContexts": [
+                    "ongoing"
+                  ]
+                }
+              ],
+              "expanded": false,
+              "createdAt": 1771774549460,
               "done": false,
               "timeContexts": [
                 "ongoing"
@@ -1980,7 +3108,7 @@
                   ]
                 }
               ],
-              "expanded": true,
+              "expanded": false,
               "createdAt": 1770805412771,
               "done": false,
               "timeContexts": [
@@ -2375,6 +3503,17 @@
                     "ongoing"
                   ],
                   "contextDurations": {}
+                },
+                {
+                  "id": 526,
+                  "name": "fix accordion animation",
+                  "children": [],
+                  "expanded": false,
+                  "createdAt": 1771237755631,
+                  "done": false,
+                  "timeContexts": [
+                    "ongoing"
+                  ]
                 }
               ],
               "expanded": false,
@@ -2742,7 +3881,7 @@
               }
             }
           ],
-          "expanded": false,
+          "expanded": true,
           "createdAt": 1770938999434,
           "done": false,
           "timeContexts": [
@@ -2753,6 +3892,29 @@
           "id": 369,
           "name": "ideas",
           "children": [
+            {
+              "id": 642,
+              "name": "tutorial videos with veo!",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1771695672451,
+              "done": false,
+              "timeContexts": [
+                "ongoing",
+                "month:2026-02"
+              ]
+            },
+            {
+              "id": 582,
+              "name": "adhd \"panic mode\" and jessica tools like wall of awful",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1771414720918,
+              "done": false,
+              "timeContexts": [
+                "ongoing"
+              ]
+            },
             {
               "id": 225,
               "name": "and a why axis",
@@ -4035,17 +5197,22 @@
           ]
         }
       ],
-      "expanded": true,
+      "expanded": false,
       "createdAt": 1770591468116,
       "done": false,
       "timeContexts": [
         "ongoing",
-        "month:2026-02"
+        "month:2026-02",
+        "week:2026-02-22",
+        "2026-02-23"
       ],
       "estimatedDuration": 60,
       "contextDurations": {
         "ongoing": 6000,
-        "month:2026-02": 0
+        "month:2026-02": 0,
+        "2026-02-16": 10,
+        "week:2026-02-22": 240,
+        "2026-02-23": 60
       }
     },
     {
@@ -4066,8 +5233,102 @@
         {
           "id": 98,
           "name": "סוכנים וכאלה",
-          "children": [],
-          "expanded": false,
+          "children": [
+            {
+              "id": 557,
+              "name": "פלואו לאישור קוד ו diff",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1771276609972,
+              "done": false,
+              "timeContexts": [
+                "week:2026-02-15"
+              ]
+            },
+            {
+              "id": 556,
+              "name": "לתת לסוכנים גישה לדפלט בקלאודפלייר",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1771272894521,
+              "done": false,
+              "timeContexts": [
+                "ongoing",
+                "week:2026-02-15"
+              ]
+            },
+            {
+              "id": 555,
+              "name": "שהסוכנים גם יבדקו בעצמם",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1771272245610,
+              "done": false,
+              "timeContexts": [
+                "ongoing",
+                "week:2026-02-15"
+              ]
+            },
+            {
+              "id": 552,
+              "name": "להעביר את אנשי לאופוס",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1771263280347,
+              "done": false,
+              "timeContexts": [
+                "week:2026-02-15"
+              ]
+            },
+            {
+              "id": 550,
+              "name": "סוכנים עתידיים",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1771260481128,
+              "done": false,
+              "timeContexts": [
+                "week:2026-02-15"
+              ]
+            },
+            {
+              "id": 548,
+              "name": "לענות על מיילים - שתהיה לו גישה",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1771257277558,
+              "done": false,
+              "timeContexts": [
+                "week:2026-02-15"
+              ]
+            },
+            {
+              "id": 547,
+              "name": "לבדוק את קודקס",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1771246089192,
+              "done": false,
+              "timeContexts": [
+                "ongoing"
+              ],
+              "contextDurations": {
+                "2026-02-16@break": 45
+              }
+            },
+            {
+              "id": 544,
+              "name": "לתת לסוכן משימת deploy מלאה כולל לדבג שגיאות",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1771245352841,
+              "done": false,
+              "timeContexts": [
+                "ongoing"
+              ]
+            }
+          ],
+          "expanded": true,
           "createdAt": 1770633310924,
           "done": false,
           "timeContexts": [
@@ -4080,7 +5341,7 @@
           }
         }
       ],
-      "expanded": true,
+      "expanded": false,
       "createdAt": 1771066816319,
       "done": false,
       "timeContexts": [
@@ -4088,94 +5349,121 @@
       ]
     },
     {
-      "id": 28,
-      "name": "health",
+      "id": 568,
+      "name": "תחזוקה",
       "children": [
         {
-          "id": 439,
-          "name": "חייב לעשות ספורט כלשהו",
+          "id": 569,
+          "name": "להסתפר",
           "children": [],
           "expanded": false,
-          "createdAt": 1771076002684,
-          "done": false,
+          "createdAt": 1771337966468,
+          "done": true,
           "timeContexts": [
             "week:2026-02-15"
           ],
           "contextDurations": {
-            "2026-02-15": 60
+            "2026-02-17": 30,
+            "week:2026-02-15": 30
           }
         },
         {
-          "id": 230,
-          "name": "שיננית",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770735935477,
-          "done": false,
-          "estimatedDuration": 60,
-          "timeContexts": [
-            "2026-02-26@entry:163"
-          ],
-          "contextDurations": {
-            "2026-02-26@entry:163": 60
-          }
-        },
-        {
-          "id": 188,
-          "name": "פמי",
+          "id": 28,
+          "name": "health",
           "children": [
             {
-              "id": 194,
-              "name": "להתארגן לפמי",
+              "id": 439,
+              "name": "חייב לעשות ספורט כלשהו",
               "children": [],
               "expanded": false,
-              "createdAt": 1770713243077,
+              "createdAt": 1771076002684,
               "done": false,
-              "estimatedDuration": 13,
+              "timeContexts": [
+                "week:2026-02-15"
+              ],
+              "contextDurations": {
+                "2026-02-15": 60
+              }
+            },
+            {
+              "id": 230,
+              "name": "שיננית",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770735935477,
+              "done": false,
+              "estimatedDuration": 60,
+              "timeContexts": [
+                "2026-02-26@entry:163"
+              ],
+              "contextDurations": {
+                "2026-02-26@entry:163": 60
+              }
+            },
+            {
+              "id": 188,
+              "name": "פמי",
+              "children": [
+                {
+                  "id": 194,
+                  "name": "להתארגן לפמי",
+                  "children": [],
+                  "expanded": false,
+                  "createdAt": 1770713243077,
+                  "done": false,
+                  "estimatedDuration": 13,
+                  "timeContexts": [
+                    "ongoing"
+                  ]
+                }
+              ],
+              "expanded": false,
+              "createdAt": 1770681106983,
+              "done": true,
+              "estimatedDuration": 90,
+              "timeContexts": [
+                "week:2026-02-08"
+              ],
+              "contextDurations": {
+                "2026-02-13": 60
+              },
+              "contextLeadTimes": {
+                "2026-02-13@09:00-10:00": 900
+              }
+            },
+            {
+              "id": 135,
+              "name": "זן",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770646686091,
+              "done": false,
+              "timeContexts": [
+                "ongoing"
+              ]
+            },
+            {
+              "id": 30,
+              "name": "איריס",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770594437194,
+              "done": false,
               "timeContexts": [
                 "ongoing"
               ]
             }
           ],
           "expanded": false,
-          "createdAt": 1770681106983,
-          "done": true,
-          "estimatedDuration": 90,
-          "timeContexts": [
-            "week:2026-02-08"
-          ],
-          "contextDurations": {
-            "2026-02-13": 60
-          },
-          "contextLeadTimes": {
-            "2026-02-13@09:00-10:00": 900
-          }
-        },
-        {
-          "id": 135,
-          "name": "זן",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770646686091,
-          "done": false,
-          "timeContexts": [
-            "ongoing"
-          ]
-        },
-        {
-          "id": 30,
-          "name": "איריס",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1770594437194,
+          "createdAt": 1770594369815,
           "done": false,
           "timeContexts": [
             "ongoing"
           ]
         }
       ],
-      "expanded": false,
-      "createdAt": 1770594369815,
+      "expanded": true,
+      "createdAt": 1771337956635,
       "done": false,
       "timeContexts": [
         "ongoing"
@@ -4193,12 +5481,9 @@
           "createdAt": 1771190823264,
           "done": false,
           "timeContexts": [
-            "2026-02-16",
-            "2026-02-16@08:00-16:00"
+            "ongoing"
           ],
-          "contextDurations": {
-            "2026-02-16@08:00-16:00": 5
-          }
+          "contextDurations": {}
         },
         {
           "id": 470,
@@ -4212,7 +5497,7 @@
               "createdAt": 1771188200277,
               "done": false,
               "timeContexts": [
-                "2026-02-16"
+                "week:2026-02-15"
               ]
             }
           ],
@@ -4232,8 +5517,13 @@
           "createdAt": 1770924354958,
           "done": false,
           "timeContexts": [
-            "ongoing"
-          ]
+            "ongoing",
+            "week:2026-02-22",
+            "2026-02-23"
+          ],
+          "contextDurations": {
+            "2026-02-23": 10
+          }
         },
         {
           "id": 352,
@@ -4294,16 +5584,20 @@
               "createdAt": 1771066377217,
               "done": false,
               "timeContexts": [
+                "ongoing",
                 "week:2026-02-15"
               ],
-              "contextDurations": {}
+              "contextDurations": {
+                "week:2026-02-15": 30
+              }
             }
           ],
           "expanded": true,
           "createdAt": 1770922605406,
           "done": false,
           "timeContexts": [
-            "2026-06-17"
+            "2026-06-17",
+            "week:2026-02-22"
           ],
           "contextLeadTimes": {
             "2026-04-15": 5443200
@@ -4330,7 +5624,22 @@
         {
           "id": 309,
           "name": "שקדי ועומרי מתחתנים",
-          "children": [],
+          "children": [
+            {
+              "id": 692,
+              "name": "יושב עם תומר על השירים",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1771846216457,
+              "done": false,
+              "timeContexts": [
+                "2026-02-25"
+              ],
+              "contextDurations": {
+                "2026-02-25": 45
+              }
+            }
+          ],
           "expanded": false,
           "createdAt": 1770824413755,
           "done": false,
@@ -4379,6 +5688,38 @@
             "ongoing"
           ],
           "contextDurations": {}
+        },
+        {
+          "id": 640,
+          "name": "לדבר עם סבתא וסבתא",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771695417185,
+          "done": false,
+          "timeContexts": [
+            "week:2026-02-22",
+            "2026-02-23"
+          ],
+          "contextDurations": {
+            "2026-02-23": 5
+          }
+        },
+        {
+          "id": 578,
+          "name": "סקריפט רומנית",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771410147058,
+          "done": false,
+          "timeContexts": [
+            "ongoing",
+            "week:2026-02-22"
+          ],
+          "contextDurations": {
+            "2026-02-18@23:00-00:30": 25,
+            "2026-02-21": 20,
+            "week:2026-02-22": 30
+          }
         }
       ],
       "expanded": false,
@@ -4386,86 +5727,45 @@
       "done": false,
       "timeContexts": [
         "ongoing",
-        "month:2026-02"
-      ]
+        "month:2026-02",
+        "2026-02-23"
+      ],
+      "contextDurations": {
+        "2026-02-23": 20
+      }
     },
     {
       "id": 62,
       "name": "kolwrite",
       "children": [
         {
-          "id": 525,
-          "name": "fix download media files only on enterprise",
+          "id": 694,
+          "name": "sub script to manual verification",
           "children": [],
           "expanded": false,
-          "createdAt": 1771237618098,
+          "createdAt": 1771851974238,
           "done": false,
           "timeContexts": [
-            "2026-02-16"
-          ],
-          "contextDurations": {
-            "2026-02-16": 25
-          }
+            "2026-02-23"
+          ]
         },
         {
-          "id": 524,
-          "name": "לענות למיילים",
+          "id": 693,
+          "name": "more pods (needs extra 90-100$)",
           "children": [],
           "expanded": false,
-          "createdAt": 1771233915020,
+          "createdAt": 1771846648668,
           "done": false,
           "timeContexts": [
-            "2026-02-16"
-          ],
-          "contextDurations": {
-            "2026-02-16": 10
-          }
+            "2026-02-23"
+          ]
         },
         {
-          "id": 522,
-          "name": "להקליט לג׳ון",
+          "id": 689,
+          "name": "runpod buy",
           "children": [],
           "expanded": false,
-          "createdAt": 1771233842758,
-          "done": false,
-          "timeContexts": [
-            "ongoing",
-            "2026-02-16"
-          ],
-          "contextDurations": {
-            "2026-02-16": 20
-          }
-        },
-        {
-          "id": 497,
-          "name": "deploy zip",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1771169463315,
-          "done": false,
-          "timeContexts": [
-            "week:2026-02-15"
-          ],
-          "contextDurations": {}
-        },
-        {
-          "id": 494,
-          "name": "לענות ליעל עם הזיפ",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1771168577009,
-          "done": true,
-          "timeContexts": [
-            "week:2026-02-15"
-          ],
-          "contextDurations": {}
-        },
-        {
-          "id": 492,
-          "name": "לענות למיילים",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1771164189971,
+          "createdAt": 1771844601285,
           "done": false,
           "timeContexts": [
             "ongoing"
@@ -4473,11 +5773,163 @@
           "contextDurations": {}
         },
         {
-          "id": 491,
-          "name": "לבדוק זיפ",
+          "id": 686,
+          "name": "ליאורה העתקת טקסט",
           "children": [],
           "expanded": false,
-          "createdAt": 1771164185951,
+          "createdAt": 1771844198151,
+          "done": false,
+          "timeContexts": [
+            "2026-02-23"
+          ]
+        },
+        {
+          "id": 682,
+          "name": "buy more runpods",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771837302234,
+          "done": true,
+          "timeContexts": [
+            "2026-02-23"
+          ]
+        },
+        {
+          "id": 679,
+          "name": "retries in fails",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771802714570,
+          "done": false,
+          "timeContexts": [
+            "2026-02-23"
+          ]
+        },
+        {
+          "id": 678,
+          "name": "אולי לכתוב לענת/דניאל על השימוש באורקל",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771800562017,
+          "done": false,
+          "timeContexts": [
+            "2026-02-23"
+          ]
+        },
+        {
+          "id": 677,
+          "name": "יוסי שלי פיצול דוברים",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771800152094,
+          "done": false,
+          "timeContexts": [
+            "ongoing"
+          ]
+        },
+        {
+          "id": 675,
+          "name": "koluser",
+          "children": [
+            {
+              "id": 676,
+              "name": "logs",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1771799964734,
+              "done": false,
+              "timeContexts": [
+                "2026-02-23"
+              ]
+            }
+          ],
+          "expanded": true,
+          "createdAt": 1771799962840,
+          "done": false,
+          "timeContexts": [
+            "2026-02-23"
+          ]
+        },
+        {
+          "id": 674,
+          "name": "יעל",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771798581831,
+          "done": false,
+          "timeContexts": [
+            "2026-02-23"
+          ]
+        },
+        {
+          "id": 673,
+          "name": "עמותה seat",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771798570025,
+          "done": false,
+          "timeContexts": [
+            "2026-02-23"
+          ]
+        },
+        {
+          "id": 672,
+          "name": "לשאול את ניר",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771798562669,
+          "done": true,
+          "timeContexts": [
+            "2026-02-23"
+          ]
+        },
+        {
+          "id": 669,
+          "name": "לענות למייל של ניר",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771775232880,
+          "done": false,
+          "timeContexts": [
+            "ongoing",
+            "2026-02-23"
+          ],
+          "contextDurations": {
+            "2026-02-23": 5
+          }
+        },
+        {
+          "id": 663,
+          "name": "cost",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771773640776,
+          "done": false,
+          "timeContexts": [
+            "week:2026-02-22"
+          ],
+          "contextDurations": {
+            "week:2026-02-22": 480
+          }
+        },
+        {
+          "id": 655,
+          "name": "חיוב כפול אורן",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771770342564,
+          "done": true,
+          "timeContexts": [
+            "2026-02-23"
+          ],
+          "contextDurations": {}
+        },
+        {
+          "id": 652,
+          "name": "לענות על מיילים",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771752571001,
           "done": false,
           "timeContexts": [
             "ongoing"
@@ -4494,7 +5946,10 @@
           "timeContexts": [
             "week:2026-02-15"
           ],
-          "contextDurations": {}
+          "contextDurations": {
+            "2026-02-15": 15,
+            "week:2026-02-15": 15
+          }
         },
         {
           "id": 473,
@@ -4533,51 +5988,15 @@
           ]
         },
         {
-          "id": 283,
+          "id": 449,
           "name": "recording",
-          "children": [
-            {
-              "id": 512,
-              "name": "test on multiple devices",
-              "children": [],
-              "expanded": false,
-              "createdAt": 1771202695056,
-              "done": false,
-              "timeContexts": [
-                "2026-02-16"
-              ]
-            },
-            {
-              "id": 511,
-              "name": "iterate plan",
-              "children": [],
-              "expanded": false,
-              "createdAt": 1771202688580,
-              "done": false,
-              "timeContexts": [
-                "2026-02-16"
-              ]
-            },
-            {
-              "id": 287,
-              "name": "plan recording",
-              "children": [],
-              "expanded": false,
-              "createdAt": 1770810830525,
-              "done": false,
-              "timeContexts": [
-                "week:2026-02-15"
-              ],
-              "contextDurations": {}
-            }
-          ],
-          "expanded": true,
-          "createdAt": 1770810667740,
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771084098640,
           "done": false,
           "timeContexts": [
             "ongoing"
-          ],
-          "contextDurations": {}
+          ]
         },
         {
           "id": 346,
@@ -4631,7 +6050,8 @@
             "week:2026-02-15"
           ],
           "contextDurations": {
-            "2026-02-15": 60
+            "2026-02-15": 60,
+            "week:2026-02-15": 60
           }
         },
         {
@@ -4640,6 +6060,45 @@
           "children": [],
           "expanded": false,
           "createdAt": 1770810670931,
+          "done": false,
+          "timeContexts": [
+            "ongoing"
+          ],
+          "contextDurations": {}
+        },
+        {
+          "id": 283,
+          "name": "recording",
+          "children": [
+            {
+              "id": 643,
+              "name": "restore discarded",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1771695742140,
+              "done": false,
+              "timeContexts": [
+                "ongoing"
+              ]
+            },
+            {
+              "id": 287,
+              "name": "plan recording",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770810830525,
+              "done": false,
+              "timeContexts": [
+                "week:2026-02-15"
+              ],
+              "contextDurations": {
+                "2026-02-15@21:00-00:30": 60,
+                "week:2026-02-15": 60
+              }
+            }
+          ],
+          "expanded": true,
+          "createdAt": 1770810667740,
           "done": false,
           "timeContexts": [
             "ongoing"
@@ -4784,10 +6243,13 @@
       "done": false,
       "timeContexts": [
         "ongoing",
-        "month:2026-02"
+        "week:2026-02-22",
+        "2026-02-23"
       ],
       "contextDurations": {
-        "month:2026-02": 0
+        "month:2026-02": 0,
+        "week:2026-02-22": 1800,
+        "2026-02-23": 180
       }
     },
     {
@@ -4848,10 +6310,11 @@
           "createdAt": 1771208271394,
           "done": false,
           "timeContexts": [
-            "2026-02-16@entry:528"
+            "week:2026-02-15"
           ],
           "contextDurations": {
-            "2026-02-16@entry:528": 0
+            "2026-02-16@entry:528": 0,
+            "week:2026-02-15": 0
           }
         },
         {
@@ -4874,8 +6337,7 @@
           "createdAt": 1771090042198,
           "done": false,
           "timeContexts": [
-            "ongoing",
-            "2026-02-16"
+            "ongoing"
           ],
           "contextDurations": {}
         },
@@ -4887,10 +6349,11 @@
           "createdAt": 1771081449310,
           "done": false,
           "timeContexts": [
-            "2026-02-16"
+            "week:2026-02-15"
           ],
           "contextDurations": {
-            "2026-02-16": 5
+            "2026-02-16": 5,
+            "week:2026-02-15": 5
           }
         },
         {
@@ -5078,10 +6541,13 @@
       "children": [],
       "expanded": false,
       "createdAt": 1770654014475,
-      "done": false,
+      "done": true,
       "timeContexts": [
-        "ongoing"
-      ]
+        "week:2026-02-22"
+      ],
+      "contextDurations": {
+        "2026-02-22@15:17-00:30": 90
+      }
     },
     {
       "id": 177,
@@ -5167,8 +6633,7 @@
           "createdAt": 1770758160373,
           "done": false,
           "timeContexts": [
-            "ongoing",
-            "2026-02-16"
+            "ongoing"
           ],
           "contextDurations": {
             "2026-02-16": 15
@@ -5213,8 +6678,9 @@
       "done": false,
       "timeContexts": [
         "ongoing"
-      ]
+      ],
+      "contextDurations": {}
     }
   ],
-  "nextId": 527
+  "nextId": 698
 }
