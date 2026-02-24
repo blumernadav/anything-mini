@@ -6600,16 +6600,6 @@
       "manual": true
     },
     {
-      "text": "ללכת לבדוק טלפון",
-      "projectName": null,
-      "type": "planned",
-      "startTime": 1771945200000,
-      "endTime": 1771947000000,
-      "itemId": null,
-      "id": 757,
-      "timestamp": 1771945200000
-    },
-    {
       "text": "Break (30m)",
       "type": "break",
       "startTime": 1771924208467,
@@ -6705,7 +6695,123 @@
       "itemId": 685,
       "timestamp": 1771935924875,
       "manual": true
+    },
+    {
+      "text": "Done: multiple actions",
+      "projectName": "anything › future › AI",
+      "type": "completion",
+      "id": 768,
+      "timestamp": 1771938569501
+    },
+    {
+      "id": 769,
+      "text": "Worked on: AI (1h 49m)",
+      "projectName": "anything",
+      "type": "work",
+      "startTime": 1771936914645,
+      "endTime": 1771943512154,
+      "targetEndTime": 1771941204668,
+      "itemId": 183,
+      "timestamp": 1771936914645,
+      "manual": true
+    },
+    {
+      "id": 770,
+      "text": "Worked on: AI (34m)",
+      "projectName": "anything › future",
+      "type": "work",
+      "startTime": 1771943533480,
+      "endTime": 1771945630074,
+      "targetEndTime": 1771944133480,
+      "itemId": 183,
+      "timestamp": 1771943533480,
+      "manual": true
+    },
+    {
+      "text": "Worked on: לענות על הודעות (3m)",
+      "projectName": "",
+      "type": "work",
+      "startTime": 1771945716845,
+      "endTime": 1771945919085,
+      "itemId": 303,
+      "id": 771,
+      "timestamp": 1771945716845,
+      "manual": true
+    },
+    {
+      "text": "Worked on: kolwrite (7m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1771945919085,
+      "endTime": 1771946370958,
+      "targetEndTime": 1771947477969,
+      "itemId": 62,
+      "id": 772,
+      "timestamp": 1771945919085,
+      "manual": true
+    },
+    {
+      "text": "Worked on: לצאת לסיבוב בעיר (7m)",
+      "projectName": "Breaks",
+      "type": "work",
+      "startTime": 1771946436389,
+      "endTime": 1771946913847,
+      "targetEndTime": 1771951536383,
+      "itemId": 685,
+      "id": 773,
+      "timestamp": 1771946436389,
+      "manual": true
+    },
+    {
+      "text": "Worked on: remove old infra (6m)",
+      "projectName": "עופר › להכין תרגילי Azure Goat",
+      "type": "work",
+      "startTime": 1771946935903,
+      "endTime": 1771947341798,
+      "targetEndTime": 1771947535903,
+      "itemId": 657,
+      "id": 774,
+      "timestamp": 1771946935903,
+      "manual": true
+    },
+    {
+      "text": "Done: remove old infra",
+      "projectName": "עופר › להכין תרגילי Azure Goat",
+      "type": "completion",
+      "id": 775,
+      "timestamp": 1771947344933
+    },
+    {
+      "text": "Worked on: לצאת לסיבוב בעיר (1h 46m)",
+      "projectName": "Breaks",
+      "type": "work",
+      "startTime": 1771947425634,
+      "endTime": 1771953838261,
+      "targetEndTime": 1771951385634,
+      "itemId": 685,
+      "id": 776,
+      "timestamp": 1771947425634,
+      "manual": true
+    },
+    {
+      "text": "Done: לצאת לסיבוב בעיר",
+      "projectName": "Breaks",
+      "type": "completion",
+      "id": 777,
+      "timestamp": 1771953872294
+    },
+    {
+      "text": "Worked on: anything (2m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1771953999355,
+      "endTime": 1771954122220,
+      "targetEndTime": 1771954599355,
+      "itemId": 9,
+      "id": 778,
+      "timestamp": 1771953999355,
+      "manual": true
     }
   ],
-  "nextId": 768
+  "nextId": 779
 }

@@ -245,6 +245,17 @@ app.post('/api/ai/chat', async (req, res) => {
         const { message, writeMode } = req.body;
         if (!message) return res.status(400).json({ error: 'Message is required' });
 
+        // SSE headers
+        res.setHeader('Content-Type', 'text/event-stream');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Connection', 'keep-alive');
+        res.setHeader('X-Accel-Buffering', 'no');
+        res.flushHeaders();
+
+        const sendEvent = (data) => {
+            res.write(`data: ${JSON.stringify(data)}\n\n`);
+        };
+
         // Load persisted history, send last 50 as context
         const chatData = chatStore.read();
         const recentHistory = chatData.messages
@@ -259,7 +270,9 @@ app.post('/api/ai/chat', async (req, res) => {
             timestamp: Date.now()
         });
 
-        const result = await aiChat(message, recentHistory, writeMode || false);
+        const result = await aiChat(message, recentHistory, (event) => {
+            sendEvent(event);
+        });
 
         // Persist AI response
         if (result.text) {
@@ -281,10 +294,19 @@ app.post('/api/ai/chat', async (req, res) => {
         }
 
         chatStore.write(chatData);
-        res.json(result);
+
+        // Send final result
+        sendEvent({ type: 'done', text: result.text, plan: result.plan });
+        res.end();
     } catch (err) {
         console.error('AI chat error:', err);
-        res.status(500).json({ error: err.message || 'AI request failed' });
+        // If headers already sent, send error as SSE event
+        if (res.headersSent) {
+            res.write(`data: ${JSON.stringify({ type: 'error', error: err.message || 'AI request failed' })}\n\n`);
+            res.end();
+        } else {
+            res.status(500).json({ error: err.message || 'AI request failed' });
+        }
     }
 });
 
@@ -295,6 +317,17 @@ app.post('/api/ai/execute', async (req, res) => {
             return res.status(400).json({ error: 'toolCalls array is required' });
         }
 
+        // SSE headers for streaming execution events
+        res.setHeader('Content-Type', 'text/event-stream');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Connection', 'keep-alive');
+        res.setHeader('X-Accel-Buffering', 'no');
+        res.flushHeaders();
+
+        const sendEvent = (data) => {
+            res.write(`data: ${JSON.stringify(data)}\n\n`);
+        };
+
         // Load chat history for continuation context
         const chatData = chatStore.read();
         const recentHistory = chatData.messages
@@ -302,7 +335,9 @@ app.post('/api/ai/execute', async (req, res) => {
             .slice(-50)
             .map(m => ({ role: m.role, content: m.content }));
 
-        const { results, summary } = await executeAndContinue(toolCalls, recentHistory);
+        const { results, summary } = await executeAndContinue(toolCalls, recentHistory, (event) => {
+            sendEvent(event);
+        });
 
         // Persist AI summary from continuation if any
         if (summary) {
@@ -314,10 +349,17 @@ app.post('/api/ai/execute', async (req, res) => {
             chatStore.write(chatData);
         }
 
-        res.json({ results, summary });
+        // Send final result as SSE event
+        sendEvent({ type: 'done', results, summary });
+        res.end();
     } catch (err) {
         console.error('AI execute error:', err);
-        res.status(500).json({ error: err.message || 'Execution failed' });
+        if (res.headersSent) {
+            res.write(`data: ${JSON.stringify({ type: 'error', error: err.message || 'Execution failed' })}\n\n`);
+            res.end();
+        } else {
+            res.status(500).json({ error: err.message || 'Execution failed' });
+        }
     }
 });
 

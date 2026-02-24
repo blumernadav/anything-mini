@@ -12,7 +12,7 @@ const { getToolDefinitions, executeTool, enrichPlan, isReadTool } = require('./t
 const fs = require('fs');
 const path = require('path');
 
-const MAX_TOOL_ROUNDS = 5; // prevent infinite loops
+const MAX_TOOL_ROUNDS = 50;
 
 function getAiConfig() {
     const settingsPath = path.join(__dirname, '..', 'data', 'settings.json');
@@ -42,7 +42,8 @@ function getAiConfig() {
  * @param {Array} history - Previous messages [{role, content}]
  * @returns {{ text: string, plan?: Array }}
  */
-async function chat(message, history = []) {
+async function chat(message, history = [], onEvent = null) {
+    const emit = onEvent || (() => { });
     const config = getAiConfig();
     const provider = getProvider(config);
     const context = buildContext();
@@ -55,9 +56,9 @@ async function chat(message, history = []) {
         { role: 'user', content: message }
     ];
 
-    let collectedText = '';
 
     for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
+
         const result = await provider.chat({
             systemPrompt,
             messages: conversation,
@@ -65,14 +66,9 @@ async function chat(message, history = []) {
             temperature: 0.7
         });
 
-        // Collect any text
-        if (result.text) {
-            collectedText += (collectedText ? '\n' : '') + result.text;
-        }
-
-        // No tool calls → done
+        // No tool calls → done — this round's text IS the final answer
         if (!result.toolCalls || result.toolCalls.length === 0) {
-            return { text: collectedText };
+            return { text: result.text || 'I wasn\'t able to find a clear answer. Could you try rephrasing?' };
         }
 
         // Separate read vs write tool calls
@@ -82,9 +78,14 @@ async function chat(message, history = []) {
         // If there are write tool calls → return them as a plan (don't auto-execute)
         if (writeCalls.length > 0) {
             return {
-                text: collectedText,
+                text: result.text || '',  // Only THIS round's text as intent
                 plan: enrichPlan(writeCalls)
             };
+        }
+
+        // Only read calls — stream narration text live but don't persist it
+        if (result.text) {
+            emit({ type: 'status', text: result.text, tools: readCalls.map(tc => tc.name) });
         }
 
         // Only read calls → auto-execute and feed results back
@@ -98,6 +99,7 @@ async function chat(message, history = []) {
         // Execute each read tool and add results to conversation
         const toolResults = [];
         for (const tc of readCalls) {
+            emit({ type: 'tool_start', tool: tc.name, args: tc.args });
             try {
                 const toolResult = await executeTool(tc.name, tc.args);
                 toolResults.push({
@@ -112,6 +114,9 @@ async function chat(message, history = []) {
                     result: JSON.stringify({ error: err.message })
                 });
             }
+            const resultStr = toolResults[toolResults.length - 1].result;
+            const preview = resultStr.length > 200 ? resultStr.slice(0, 200) + '…' : resultStr;
+            emit({ type: 'tool_done', tool: tc.name, result: preview });
         }
 
         // Add tool results to conversation
@@ -121,8 +126,8 @@ async function chat(message, history = []) {
         });
     }
 
-    // Max rounds reached
-    return { text: collectedText || 'I needed too many data lookups to answer. Please try a more specific question.' };
+    // Max rounds reached — don't dump narration, just explain
+    return { text: 'I ran out of analysis rounds. Please try a more specific question so I can be more focused.' };
 }
 
 /**
@@ -136,11 +141,14 @@ async function chat(message, history = []) {
  * @param {Array} history - Chat history for continuation context
  * @returns {{ results: Array, continuationResults: Array, summary: string }}
  */
-async function executeAndContinue(toolCalls, history = []) {
+async function executeAndContinue(toolCalls, history = [], onEvent = null) {
+    const emit = onEvent || (() => { });
     const allResults = [];
 
     // Execute the initial approved plan
-    for (const tc of toolCalls) {
+    for (let i = 0; i < toolCalls.length; i++) {
+        const tc = toolCalls[i];
+        emit({ type: 'exec_step', step: i + 1, total: toolCalls.length, tool: tc.tool, args: tc.args, description: tc.description });
         try {
             const result = await executeTool(tc.tool, tc.args);
             allResults.push({
@@ -181,6 +189,7 @@ async function executeAndContinue(toolCalls, history = []) {
 
     // Agentic continuation loop
     for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
+
         const result = await provider.chat({
             systemPrompt,
             messages: conversation,
@@ -188,34 +197,48 @@ async function executeAndContinue(toolCalls, history = []) {
             temperature: 0.7
         });
 
-        if (result.text) {
-            summaryText += (summaryText ? '\n' : '') + result.text;
-        }
-
-        // No tool calls → done
+        // No tool calls → done — this round's text is the actual summary
         if (!result.toolCalls || result.toolCalls.length === 0) {
+            if (result.text) {
+                summaryText = result.text; // Use final answer, not accumulated narration
+            }
             break;
         }
 
-        // Separate read vs write
+        // Has tool calls — check if only read tools (narration to discard)
         const readCalls = result.toolCalls.filter(tc => isReadTool(tc.name));
         const writeCalls = result.toolCalls.filter(tc => !isReadTool(tc.name));
 
-        // Handle read calls first (auto-execute silently)
+        // Stream narration text live so user sees what the AI is doing
+        if (result.text) {
+            const toolInfo = [...readCalls, ...writeCalls].map(tc => ({ name: tc.name, args: tc.args }));
+            emit({ type: 'status', text: result.text, tools: toolInfo });
+        }
+
+        // Only accumulate text from rounds with write tool calls (intent text),
+        // NOT from read-only rounds ("Let me look at..." narration)
+        if (writeCalls.length > 0 && result.text) {
+            summaryText += (summaryText ? '\n' : '') + result.text;
+        }
+
         if (readCalls.length > 0) {
             conversation.push({
                 role: 'assistant',
                 content: result.text || '',
-                toolCalls: result.toolCalls
+                toolCalls: readCalls
             });
             const toolResults = [];
             for (const tc of readCalls) {
+                emit({ type: 'tool_start', tool: tc.name, args: tc.args });
                 try {
                     const toolResult = await executeTool(tc.name, tc.args);
                     toolResults.push({ toolUseId: tc.id, name: tc.name, result: JSON.stringify(toolResult) });
                 } catch (err) {
                     toolResults.push({ toolUseId: tc.id, name: tc.name, result: JSON.stringify({ error: err.message }) });
                 }
+                const resultStr = toolResults[toolResults.length - 1].result;
+                const preview = resultStr.length > 200 ? resultStr.slice(0, 200) + '…' : resultStr;
+                emit({ type: 'tool_done', tool: tc.name, result: preview });
             }
             conversation.push({ role: 'tool', toolResults });
         }
@@ -223,12 +246,18 @@ async function executeAndContinue(toolCalls, history = []) {
         // Auto-execute write calls (already approved intent)
         if (writeCalls.length > 0) {
             for (const tc of writeCalls) {
+                emit({ type: 'tool_start', tool: tc.name, args: tc.args });
+                let execResult;
                 try {
-                    const result = await executeTool(tc.name, tc.args);
-                    allResults.push({ tool: tc.name, success: !result.error, result });
+                    execResult = await executeTool(tc.name, tc.args);
+                    allResults.push({ tool: tc.name, success: !execResult.error, result: execResult });
                 } catch (err) {
-                    allResults.push({ tool: tc.name, success: false, result: { error: err.message } });
+                    execResult = { error: err.message };
+                    allResults.push({ tool: tc.name, success: false, result: execResult });
                 }
+                const resultStr = JSON.stringify(execResult);
+                const preview = resultStr.length > 200 ? resultStr.slice(0, 200) + '…' : resultStr;
+                emit({ type: 'tool_done', tool: tc.name, result: preview });
             }
 
             // Feed these results back for the next round

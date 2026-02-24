@@ -625,6 +625,66 @@ const WRITE_TOOLS = [
         }
     },
     {
+        name: 'edit_file',
+        description: 'Edit a file by search-and-replace. Each edit finds an exact string in the file and replaces it. Use read_file first to see the current code, then specify the exact text to find and what to replace it with. The search string must match exactly once in the file — include enough surrounding lines to make it unique.',
+        parameters: {
+            type: 'object',
+            properties: {
+                filePath: {
+                    type: 'string',
+                    description: 'Relative path to the file from project root'
+                },
+                edits: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            search: {
+                                type: 'string',
+                                description: 'Exact string to find in the file (must match exactly once). Include enough context lines to make unique.'
+                            },
+                            replace: {
+                                type: 'string',
+                                description: 'String to replace the search match with'
+                            }
+                        },
+                        required: ['search', 'replace']
+                    },
+                    description: 'Array of search-and-replace edits to apply sequentially'
+                }
+            },
+            required: ['filePath', 'edits']
+        },
+        async execute(args) {
+            const resolved = resolveProjectPath(args.filePath);
+            if (!resolved) return { error: 'Invalid path — must be relative to project root, no ".." allowed' };
+            if (!fs.existsSync(resolved)) return { error: `File not found: ${args.filePath}` };
+
+            let content = fs.readFileSync(resolved, 'utf8');
+            const applied = [];
+
+            for (let i = 0; i < args.edits.length; i++) {
+                const { search, replace } = args.edits[i];
+                const occurrences = content.split(search).length - 1;
+                if (occurrences === 0) {
+                    return { error: `Edit ${i + 1} failed: search string not found in ${args.filePath}. Make sure it matches exactly.`, applied };
+                }
+                if (occurrences > 1) {
+                    return { error: `Edit ${i + 1} failed: search string found ${occurrences} times in ${args.filePath}. Include more context to make it unique.`, applied };
+                }
+                content = content.replace(search, replace);
+                applied.push({ editIndex: i + 1, searchPreview: search.slice(0, 60) + (search.length > 60 ? '...' : '') });
+            }
+
+            fs.writeFileSync(resolved, content, 'utf8');
+            return { message: `Applied ${applied.length} edit(s) to ${args.filePath}`, applied };
+        },
+        describe(args) {
+            const count = args.edits?.length || 0;
+            return `✏️ Edit ${args.filePath} (${count} change${count !== 1 ? 's' : ''})`;
+        }
+    },
+    {
         name: 'run_command',
         description: 'Run a shell command in the project root directory. Returns stdout, stderr, and exit code. Timeout: 30 seconds. Use this to run builds, tests, git commands, list files with grep, etc.',
         parameters: {

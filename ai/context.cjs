@@ -193,7 +193,15 @@ CODE CAPABILITIES:
 - All file paths are relative to the project root.
 - When fixing code: read the relevant file(s) first, understand the code, then propose changes.
 - Keep changes small and focused — one fix per iteration.
-- After writing a file, consider running a quick validation (e.g. node -c for syntax check).`;
+- After writing a file, consider running a quick validation (e.g. node -c for syntax check).
+
+TOOL USAGE EFFICIENCY (CRITICAL):
+- You have ~10 tool rounds. Be strategic — don't waste rounds.
+- NEVER narrate what you're about to do ("Let me look at..."). Just DO it.
+- For LARGE files (script.js is ~21000 lines): ALWAYS use run_command with grep to find relevant sections, then read_file with startLine/endLine to read just those lines. NEVER try to read the whole file.
+- If a tool call fails or returns too much data, change your approach — do NOT retry the same thing.
+- If you have enough information to answer, STOP calling tools and give the answer.
+- Combine multiple observations into a single response rather than exploring endlessly.`;
 }
 
 module.exports = { buildContext, buildSystemPrompt, pruneItems, filterTimeline };

@@ -21360,13 +21360,139 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!skipScroll) copilotMessages.scrollTop = copilotMessages.scrollHeight;
         }
 
-        function addLoadingIndicator() {
-            const el = document.createElement('div');
-            el.className = 'copilot-message copilot-message-ai copilot-loading';
-            el.textContent = '⏳ Thinking...';
-            copilotMessages.appendChild(el);
+        function createExecLog() {
+            const container = document.createElement('div');
+            container.className = 'copilot-message copilot-message-ai copilot-loading';
+
+            // Header with total timer
+            const header = document.createElement('div');
+            header.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:6px';
+            const headerLabel = document.createElement('span');
+            headerLabel.textContent = '⏳ Working...';
+            headerLabel.style.fontWeight = 'bold';
+            const totalTimer = document.createElement('span');
+            totalTimer.style.cssText = 'font-size:0.8em;opacity:0.6;font-family:monospace';
+            totalTimer.textContent = '0.0s';
+            header.appendChild(headerLabel);
+            header.appendChild(totalTimer);
+            container.appendChild(header);
+
+            // Thoughts section (collapsible)
+            const thoughtsToggle = document.createElement('div');
+            thoughtsToggle.style.cssText = 'font-size:0.8em;cursor:pointer;user-select:none;opacity:0.6;margin-bottom:4px;display:none';
+            thoughtsToggle.textContent = '💭 Show thoughts ▸';
+            container.appendChild(thoughtsToggle);
+            const thoughtsBox = document.createElement('div');
+            thoughtsBox.style.cssText = 'display:none;border-left:2px solid rgba(255,255,255,0.15);padding-left:8px;margin-bottom:6px;font-style:italic;opacity:0.75;font-size:0.85em';
+            container.appendChild(thoughtsBox);
+            let thoughtsVisible = false;
+            thoughtsToggle.addEventListener('click', () => {
+                thoughtsVisible = !thoughtsVisible;
+                thoughtsBox.style.display = thoughtsVisible ? 'block' : 'none';
+                thoughtsToggle.textContent = thoughtsVisible ? '💭 Hide thoughts ▾' : '💭 Show thoughts ▸';
+            });
+
+            // Steps log
+            const stepsLog = document.createElement('div');
+            container.appendChild(stepsLog);
+
+            copilotMessages.appendChild(container);
             copilotMessages.scrollTop = copilotMessages.scrollHeight;
-            return el;
+
+            // Total timer
+            const startTime = Date.now();
+            const totalInterval = setInterval(() => {
+                const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+                totalTimer.textContent = `${elapsed}s`;
+            }, 100);
+
+            // Per-step timer tracking
+            let activeTimerInterval = null;
+            let activeTimerEl = null;
+            let activeStepStart = null;
+
+            function stopActiveTimer() {
+                if (activeTimerInterval) {
+                    clearInterval(activeTimerInterval);
+                    activeTimerInterval = null;
+                    if (activeTimerEl && activeStepStart) {
+                        const dur = ((Date.now() - activeStepStart) / 1000).toFixed(1);
+                        activeTimerEl.textContent = `${dur}s`;
+                        activeTimerEl.style.opacity = '0.5';
+                    }
+                }
+            }
+
+            function startStepTimer() {
+                stopActiveTimer();
+                activeStepStart = Date.now();
+                const timerSpan = document.createElement('span');
+                timerSpan.style.cssText = 'font-size:0.75em;opacity:0.7;font-family:monospace;margin-left:6px';
+                timerSpan.textContent = '0.0s';
+                activeTimerEl = timerSpan;
+                activeTimerInterval = setInterval(() => {
+                    const dur = ((Date.now() - activeStepStart) / 1000).toFixed(1);
+                    timerSpan.textContent = `${dur}s`;
+                }, 100);
+                return timerSpan;
+            }
+
+            const log = {
+                el: container,
+                addThought(text) {
+                    thoughtsToggle.style.display = 'block';
+                    const entry = document.createElement('div');
+                    entry.style.marginBottom = '3px';
+                    entry.textContent = text.split('\n')[0];
+                    thoughtsBox.appendChild(entry);
+                    copilotMessages.scrollTop = copilotMessages.scrollHeight;
+                },
+                addToolStart(displayName, argsStr) {
+                    const entry = document.createElement('div');
+                    entry.style.cssText = 'margin-bottom:2px;display:flex;align-items:baseline;flex-wrap:wrap';
+                    const label = document.createElement('span');
+                    label.innerHTML = `<span style="opacity:0.7">🔧</span> <strong>${displayName}</strong>`;
+                    entry.appendChild(label);
+                    if (argsStr) {
+                        const argsEl = document.createElement('span');
+                        argsEl.style.cssText = 'font-size:0.8em;opacity:0.6;margin-left:4px';
+                        argsEl.textContent = `(${argsStr})`;
+                        entry.appendChild(argsEl);
+                    }
+                    const timer = startStepTimer();
+                    entry.appendChild(timer);
+                    stepsLog.appendChild(entry);
+                    copilotMessages.scrollTop = copilotMessages.scrollHeight;
+                },
+                addToolResult(resultText) {
+                    stopActiveTimer();
+                    if (resultText) {
+                        const entry = document.createElement('div');
+                        entry.style.cssText = 'font-size:0.75em;opacity:0.4;margin-bottom:4px;margin-left:20px;white-space:pre-wrap;max-height:60px;overflow:hidden';
+                        entry.textContent = `↳ ${resultText.slice(0, 150)}`;
+                        stepsLog.appendChild(entry);
+                        copilotMessages.scrollTop = copilotMessages.scrollHeight;
+                    }
+                },
+                addExecStep(text) {
+                    const entry = document.createElement('div');
+                    entry.style.cssText = 'margin-bottom:2px;display:flex;align-items:baseline';
+                    const label = document.createElement('span');
+                    label.style.fontWeight = 'bold';
+                    label.textContent = `⚡ ${text}`;
+                    entry.appendChild(label);
+                    const timer = startStepTimer();
+                    entry.appendChild(timer);
+                    stepsLog.appendChild(entry);
+                    copilotMessages.scrollTop = copilotMessages.scrollHeight;
+                },
+                remove() {
+                    stopActiveTimer();
+                    clearInterval(totalInterval);
+                    container.remove();
+                }
+            };
+            return log;
         }
 
         // ── Load chat history ──
@@ -21410,6 +21536,24 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
+        // ── Friendly tool name mapping ──
+        const TOOL_DISPLAY_NAMES = {
+            get_items: 'Reading task tree',
+            get_timeline: 'Reading timeline',
+            get_settings: 'Reading settings',
+            get_preferences: 'Reading preferences',
+            read_file: 'Reading file',
+            list_files: 'Listing files',
+            run_command: 'Running command'
+        };
+
+        function getToolDisplayName(toolName, args) {
+            if (toolName === 'read_file' && args?.filePath) return `Reading ${args.filePath}`;
+            if (toolName === 'list_files' && args?.dirPath) return `Listing ${args.dirPath}`;
+            if (toolName === 'run_command' && args?.command) return `Running: ${args.command}`;
+            return TOOL_DISPLAY_NAMES[toolName] || toolName;
+        }
+
         // ── Send message ──
         async function sendMessage() {
             const text = copilotInput.value.trim();
@@ -21424,7 +21568,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             addMessage('user', text, Date.now());
 
-            const loadingEl = addLoadingIndicator();
+            const execLog = createExecLog();
             copilotLoading = true;
             copilotSend.disabled = true;
 
@@ -21437,25 +21581,65 @@ document.addEventListener('DOMContentLoaded', () => {
                     })
                 });
 
-                loadingEl.remove();
-
                 if (!res.ok) {
+                    execLog.remove();
                     const err = await res.json().catch(() => ({ error: 'Request failed' }));
                     addMessage('assistant', `❌ Error: ${err.error || 'Something went wrong'}`, Date.now());
                     return;
                 }
 
-                const data = await res.json();
+                // Read SSE stream
+                const reader = res.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+                let finalData = null;
 
-                if (data.plan && data.plan.length > 0) {
-                    // Get plan index from server
-                    const histRes = await fetch('/api/ai/history');
-                    const histData = await histRes.json();
-                    const planIdx = histData.messages.filter(m => m.role === 'plan').length - 1;
-                    // Text is shown as intent inside the plan card
-                    addPlanCard(data.plan, 'pending', planIdx, false, data.text);
-                } else if (data.text) {
-                    addMessage('assistant', data.text, Date.now());
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    buffer += decoder.decode(value, { stream: true });
+
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop();
+
+                    for (const line of lines) {
+                        if (!line.startsWith('data: ')) continue;
+                        try {
+                            const event = JSON.parse(line.slice(6));
+
+                            if (event.type === 'status') {
+                                if (event.text) execLog.addThought(event.text);
+                            } else if (event.type === 'tool_start') {
+                                const displayName = getToolDisplayName(event.tool, event.args);
+                                const argsStr = event.args ? Object.entries(event.args).map(([k, v]) => `${k}: ${v}`).join(', ') : '';
+                                execLog.addToolStart(displayName, argsStr);
+                            } else if (event.type === 'tool_done') {
+                                execLog.addToolResult(event.result);
+                            } else if (event.type === 'done') {
+                                finalData = event;
+                            } else if (event.type === 'error') {
+                                execLog.remove();
+                                addMessage('assistant', `❌ Error: ${event.error || 'Something went wrong'}`, Date.now());
+                                return;
+                            }
+                        } catch { /* skip malformed lines */ }
+                    }
+                }
+
+                execLog.remove();
+
+                if (finalData) {
+                    if (finalData.plan && finalData.plan.length > 0) {
+                        // Get plan index from server
+                        const histRes = await fetch('/api/ai/history');
+                        const histData = await histRes.json();
+                        const planIdx = histData.messages.filter(m => m.role === 'plan').length - 1;
+                        // Text is shown as intent inside the plan card
+                        addPlanCard(finalData.plan, 'pending', planIdx, false, finalData.text);
+                    } else if (finalData.text) {
+                        addMessage('assistant', finalData.text, Date.now());
+                    }
                 }
 
             } catch (err) {
@@ -21492,13 +21676,8 @@ document.addEventListener('DOMContentLoaded', () => {
             card.querySelectorAll('.copilot-plan-btn').forEach(b => b.disabled = true);
             card.classList.add('copilot-plan-executing');
 
-            // Show execution progress indicator with step descriptions
-            const execLoading = document.createElement('div');
-            execLoading.className = 'copilot-message copilot-message-ai copilot-loading';
-            const stepDescs = plan.map(p => p.description || p.tool).join('\n');
-            execLoading.textContent = `⏳ ${stepDescs}...`;
-            copilotMessages.appendChild(execLoading);
-            copilotMessages.scrollTop = copilotMessages.scrollHeight;
+            // Show execution progress with log manager
+            const execLog = createExecLog();
 
             try {
                 const res = await fetch('/api/ai/execute', {
@@ -21507,36 +21686,82 @@ document.addEventListener('DOMContentLoaded', () => {
                     body: JSON.stringify({ toolCalls: plan })
                 });
 
-                execLoading.remove();
-                const data = await res.json();
-                const allResults = data.results || [];
-                const successes = allResults.filter(r => r.success) || [];
-                const failures = allResults.filter(r => !r.success) || [];
+                // Read SSE stream for real-time progress
+                const reader = res.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+                let finalData = null;
 
-                card.classList.add('copilot-plan-done');
-                card.querySelector('.copilot-plan-actions')?.remove();
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
 
-                // Persist applied status
-                await fetch(`/api/ai/plan/${planIndex}`, {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ status: 'applied' })
-                });
+                    buffer += decoder.decode(value, { stream: true });
 
-                // Show AI summary from continuation, or default count message
-                if (data.summary) {
-                    addMessage('assistant', data.summary, Date.now());
-                } else if (failures.length > 0) {
-                    addMessage('assistant', `⚠️ ${successes.length} succeeded, ${failures.length} failed: ${failures.map(f => f.result?.error).join(', ')}`, Date.now());
-                } else {
-                    addMessage('assistant', `✅ Done! ${successes.length} action${successes.length !== 1 ? 's' : ''} applied.`, Date.now());
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop();
+
+                    for (const line of lines) {
+                        if (!line.startsWith('data: ')) continue;
+                        try {
+                            const event = JSON.parse(line.slice(6));
+
+                            if (event.type === 'exec_step') {
+                                const stepText = event.description || getToolDisplayName(event.tool, event.args);
+                                const progress = event.total ? ` (${event.step}/${event.total})` : '';
+                                execLog.addExecStep(`${stepText}${progress}`);
+                            } else if (event.type === 'status') {
+                                if (event.text) execLog.addThought(event.text);
+                            } else if (event.type === 'tool_start') {
+                                const displayName = getToolDisplayName(event.tool, event.args);
+                                const argsStr = event.args ? Object.entries(event.args).map(([k, v]) => `${k}: ${v}`).join(', ') : '';
+                                execLog.addToolStart(displayName, argsStr);
+                            } else if (event.type === 'tool_done') {
+                                execLog.addToolResult(event.result);
+                            } else if (event.type === 'done') {
+                                finalData = event;
+                            } else if (event.type === 'error') {
+                                execLog.remove();
+                                addMessage('assistant', `❌ Error: ${event.error || 'Execution failed'}`, Date.now());
+                                card.classList.remove('copilot-plan-executing');
+                                return;
+                            }
+                        } catch { /* skip malformed */ }
+                    }
                 }
 
-                await loadAll();
-                renderAll();
+                execLog.remove();
+
+                if (finalData) {
+                    const allResults = finalData.results || [];
+                    const successes = allResults.filter(r => r.success) || [];
+                    const failures = allResults.filter(r => !r.success) || [];
+
+                    card.classList.add('copilot-plan-done');
+                    card.querySelector('.copilot-plan-actions')?.remove();
+
+                    // Persist applied status
+                    await fetch(`/api/ai/plan/${planIndex}`, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ status: 'applied' })
+                    });
+
+                    // Show AI summary from continuation, or default count message
+                    if (finalData.summary) {
+                        addMessage('assistant', finalData.summary, Date.now());
+                    } else if (failures.length > 0) {
+                        addMessage('assistant', `⚠️ ${successes.length} succeeded, ${failures.length} failed: ${failures.map(f => f.result?.error).join(', ')}`, Date.now());
+                    } else {
+                        addMessage('assistant', `✅ Done! ${successes.length} action${successes.length !== 1 ? 's' : ''} applied.`, Date.now());
+                    }
+
+                    await loadAll();
+                    renderAll();
+                }
 
             } catch (err) {
-                execLoading.remove();
+                execLog.remove();
                 addMessage('assistant', `❌ Execution error: ${err.message}`, Date.now());
                 card.classList.remove('copilot-plan-executing');
             }

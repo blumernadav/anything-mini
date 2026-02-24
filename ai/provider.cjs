@@ -113,7 +113,7 @@ function createClaudeAdapter(apiKey, model) {
             })) : undefined;
 
             // Convert messages to Claude format (handle tool calls and results)
-            const claudeMessages = messages.map(m => {
+            const rawMessages = messages.map(m => {
                 if (m.role === 'tool' && m.toolResults) {
                     // Tool results → user message with tool_result blocks
                     return {
@@ -145,11 +145,49 @@ function createClaudeAdapter(apiKey, model) {
                 };
             });
 
+            // Sanitize: strip orphaned tool_use blocks (no matching tool_result after)
+            const claudeMessages = [];
+            for (let i = 0; i < rawMessages.length; i++) {
+                const msg = rawMessages[i];
+                if (msg.role === 'assistant' && Array.isArray(msg.content)) {
+                    const hasToolUse = msg.content.some(b => b.type === 'tool_use');
+                    if (hasToolUse) {
+                        const next = rawMessages[i + 1];
+                        const hasToolResult = next && next.role === 'user' &&
+                            Array.isArray(next.content) &&
+                            next.content.some(b => b.type === 'tool_result');
+                        if (!hasToolResult) {
+                            // Strip tool_use blocks — keep only text
+                            const textParts = msg.content.filter(b => b.type === 'text');
+                            const text = textParts.map(b => b.text).join('') || '';
+                            claudeMessages.push({ role: 'assistant', content: text || 'OK' });
+                            continue;
+                        }
+                    }
+                }
+                // Ensure non-empty content
+                if (!msg.content && msg.content !== '') {
+                    msg.content = msg.role === 'assistant' ? 'OK' : '...';
+                }
+                claudeMessages.push(msg);
+            }
+
+            // Merge consecutive same-role messages (Claude requires strict alternation)
+            const mergedMessages = [];
+            for (const msg of claudeMessages) {
+                const prev = mergedMessages[mergedMessages.length - 1];
+                if (prev && prev.role === msg.role && typeof prev.content === 'string' && typeof msg.content === 'string') {
+                    prev.content += '\n' + msg.content;
+                } else {
+                    mergedMessages.push(msg);
+                }
+            }
+
             const params = {
                 model,
                 max_tokens: 4096,
                 system: systemPrompt,
-                messages: claudeMessages,
+                messages: mergedMessages,
                 temperature,
             };
 
