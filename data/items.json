@@ -3528,7 +3528,7 @@
                       "createdAt": 1771934657510,
                       "done": false,
                       "timeContexts": [
-                        "2026-02-24"
+                        "2026-02-25"
                       ],
                       "contextDurations": {
                         "2026-02-24": 5
@@ -3542,7 +3542,7 @@
                       "createdAt": 1771934657514,
                       "done": false,
                       "timeContexts": [
-                        "2026-02-24"
+                        "2026-02-25"
                       ],
                       "contextDurations": {
                         "2026-02-24": 60
@@ -3556,7 +3556,7 @@
                       "createdAt": 1771934657517,
                       "done": false,
                       "timeContexts": [
-                        "2026-02-24"
+                        "2026-02-25"
                       ],
                       "contextDurations": {
                         "2026-02-24": 60
@@ -3570,7 +3570,7 @@
                       "createdAt": 1771934657519,
                       "done": false,
                       "timeContexts": [
-                        "2026-02-24"
+                        "2026-02-25"
                       ],
                       "contextDurations": {
                         "2026-02-24": 30
@@ -3584,7 +3584,7 @@
                       "createdAt": 1771934657522,
                       "done": false,
                       "timeContexts": [
-                        "2026-02-24"
+                        "2026-02-25"
                       ],
                       "contextDurations": {
                         "2026-02-24": 15
@@ -3598,7 +3598,7 @@
                       "createdAt": 1771934657524,
                       "done": false,
                       "timeContexts": [
-                        "2026-02-24"
+                        "2026-02-25"
                       ],
                       "contextDurations": {
                         "2026-02-24": 30
@@ -3609,8 +3609,11 @@
                   "createdAt": 1771932542872,
                   "done": false,
                   "timeContexts": [
-                    "2026-02-24"
-                  ]
+                    "2026-02-25"
+                  ],
+                  "contextDurations": {
+                    "2026-02-25": 180
+                  }
                 },
                 {
                   "id": 711,
@@ -3646,7 +3649,10 @@
                   "done": false,
                   "timeContexts": [
                     "2026-02-24"
-                  ]
+                  ],
+                  "contextDurations": {
+                    "2026-02-24": 150
+                  }
                 },
                 {
                   "id": 707,

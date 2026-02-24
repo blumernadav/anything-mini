@@ -7,8 +7,23 @@
 
 const fs = require('fs');
 const path = require('path');
+const { execSync } = require('child_process');
 
 const DATA_DIR = path.join(__dirname, '..', 'data');
+const PROJECT_ROOT = path.join(__dirname, '..');
+
+// ============ Security Helpers ============
+
+function resolveProjectPath(relativePath) {
+    // Block absolute paths and path traversal
+    if (path.isAbsolute(relativePath) || relativePath.includes('..')) {
+        return null;
+    }
+    const resolved = path.resolve(PROJECT_ROOT, relativePath);
+    // Ensure it's still within PROJECT_ROOT
+    if (!resolved.startsWith(PROJECT_ROOT)) return null;
+    return resolved;
+}
 
 // ============ Data Store Helpers ============
 // Read/write JSON directly (same as server.cjs stores, but standalone)
@@ -114,6 +129,71 @@ const READ_TOOLS = [
         },
         async execute() {
             return readStore('preferences.json') || {};
+        }
+    },
+    {
+        name: 'read_file',
+        description: 'Read the contents of a file in the project. Path is relative to project root (e.g. "script.js", "ai/tools.cjs"). Returns file contents with line numbers. Max 100KB.',
+        parameters: {
+            type: 'object',
+            properties: {
+                filePath: {
+                    type: 'string',
+                    description: 'Relative path to the file from project root'
+                },
+                startLine: {
+                    type: 'number',
+                    description: 'Optional start line (1-indexed). If omitted, reads from beginning.'
+                },
+                endLine: {
+                    type: 'number',
+                    description: 'Optional end line (1-indexed, inclusive). If omitted, reads to end.'
+                }
+            },
+            required: ['filePath']
+        },
+        async execute(args) {
+            const resolved = resolveProjectPath(args.filePath);
+            if (!resolved) return { error: 'Invalid path — must be relative to project root, no ".." allowed' };
+            if (!fs.existsSync(resolved)) return { error: `File not found: ${args.filePath}` };
+            const stat = fs.statSync(resolved);
+            if (stat.isDirectory()) return { error: `${args.filePath} is a directory, not a file. Use list_files instead.` };
+            if (stat.size > 100 * 1024) return { error: `File too large (${Math.round(stat.size / 1024)}KB). Max 100KB.` };
+            const content = fs.readFileSync(resolved, 'utf8');
+            const lines = content.split('\n');
+            const start = Math.max(1, args.startLine || 1);
+            const end = Math.min(lines.length, args.endLine || lines.length);
+            const slice = lines.slice(start - 1, end);
+            const numbered = slice.map((line, i) => `${start + i}: ${line}`).join('\n');
+            return { filePath: args.filePath, totalLines: lines.length, showing: `${start}-${end}`, content: numbered };
+        }
+    },
+    {
+        name: 'list_files',
+        description: 'List files and directories at a given path in the project. Path is relative to project root. Excludes node_modules and .git by default.',
+        parameters: {
+            type: 'object',
+            properties: {
+                dirPath: {
+                    type: 'string',
+                    description: 'Relative path to the directory. Use "." or omit for project root.'
+                }
+            }
+        },
+        async execute(args) {
+            const dirPath = args?.dirPath || '.';
+            const resolved = resolveProjectPath(dirPath);
+            if (!resolved) return { error: 'Invalid path — must be relative to project root, no ".." allowed' };
+            if (!fs.existsSync(resolved)) return { error: `Directory not found: ${dirPath}` };
+            if (!fs.statSync(resolved).isDirectory()) return { error: `${dirPath} is a file, not a directory. Use read_file instead.` };
+            const entries = fs.readdirSync(resolved, { withFileTypes: true })
+                .filter(e => e.name !== 'node_modules' && e.name !== '.git')
+                .map(e => ({
+                    name: e.name,
+                    type: e.isDirectory() ? 'directory' : 'file',
+                    size: e.isFile() ? fs.statSync(path.join(resolved, e.name)).size : undefined
+                }));
+            return { path: dirPath, entries };
         }
     }
 ];
@@ -511,6 +591,71 @@ const WRITE_TOOLS = [
             if (args.addMinutes) return `⏱️ Add ${args.addMinutes}min to "${name}" timer`;
             if (args.setMinutesFromNow) return `⏱️ Set "${name}" timer to ${args.setMinutesFromNow}min from now`;
             return `⏱️ Modify "${name}" timer`;
+        }
+    },
+    {
+        name: 'write_file',
+        description: 'Write content to a file in the project (create or overwrite). Path is relative to project root. Creates parent directories if needed.',
+        parameters: {
+            type: 'object',
+            properties: {
+                filePath: {
+                    type: 'string',
+                    description: 'Relative path to the file from project root'
+                },
+                content: {
+                    type: 'string',
+                    description: 'Full content to write to the file'
+                }
+            },
+            required: ['filePath', 'content']
+        },
+        async execute(args) {
+            const resolved = resolveProjectPath(args.filePath);
+            if (!resolved) return { error: 'Invalid path — must be relative to project root, no ".." allowed' };
+            // Create parent directories if needed
+            const dir = path.dirname(resolved);
+            if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+            fs.writeFileSync(resolved, args.content, 'utf8');
+            const lines = args.content.split('\n').length;
+            return { message: `Wrote ${lines} lines to ${args.filePath}`, filePath: args.filePath };
+        },
+        describe(args) {
+            return `📝 Write file: ${args.filePath}`;
+        }
+    },
+    {
+        name: 'run_command',
+        description: 'Run a shell command in the project root directory. Returns stdout, stderr, and exit code. Timeout: 30 seconds. Use this to run builds, tests, git commands, list files with grep, etc.',
+        parameters: {
+            type: 'object',
+            properties: {
+                command: {
+                    type: 'string',
+                    description: 'The shell command to execute (e.g. "npm run build", "ls -la", "grep -r something .")'
+                }
+            },
+            required: ['command']
+        },
+        async execute(args) {
+            try {
+                const stdout = execSync(args.command, {
+                    cwd: PROJECT_ROOT,
+                    timeout: 30000,
+                    maxBuffer: 1024 * 1024,
+                    encoding: 'utf8',
+                    stdio: ['pipe', 'pipe', 'pipe']
+                });
+                const truncated = stdout.length > 10240 ? stdout.slice(0, 10240) + '\n... (truncated)' : stdout;
+                return { stdout: truncated, stderr: '', exitCode: 0 };
+            } catch (err) {
+                const stdout = (err.stdout || '').slice(0, 10240);
+                const stderr = (err.stderr || '').slice(0, 5120);
+                return { stdout, stderr, exitCode: err.status || 1, error: err.message?.split('\n')[0] };
+            }
+        },
+        describe(args) {
+            return `🖥️ Run: \`${args.command}\``;
         }
     }
 ];

@@ -185,7 +185,15 @@ IMPORTANT RULES:
 - "ongoing" means the item is always visible. Date-specific contexts scope it to that period.
 - When the user asks you to do something that requires changes, use the available tools to make those changes.
 - Always explain what you're going to do before doing it.
-- If in read-only mode, you can only answer questions — explain what you WOULD do if asked to make changes.`;
+- If in read-only mode, you can only answer questions — explain what you WOULD do if asked to make changes.
+
+CODE CAPABILITIES:
+- You can read and write files in the project using read_file, write_file, and list_files.
+- You can run shell commands (build, test, git, grep, etc.) using run_command.
+- All file paths are relative to the project root.
+- When fixing code: read the relevant file(s) first, understand the code, then propose changes.
+- Keep changes small and focused — one fix per iteration.
+- After writing a file, consider running a quick validation (e.g. node -c for syntax check).`;
 }
 
 module.exports = { buildContext, buildSystemPrompt, pruneItems, filterTimeline };
