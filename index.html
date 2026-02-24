@@ -226,6 +226,33 @@
         </div>
     </div>
 
+    <!-- AI Copilot -->
+    <button class="copilot-fab" id="copilot-fab" title="AI Copilot">🤖</button>
+    <div class="copilot-overlay" id="copilot-overlay"></div>
+    <div class="copilot-panel" id="copilot-panel">
+        <div class="copilot-header">
+            <span class="copilot-title">🤖 Copilot</span>
+            <div class="copilot-header-actions">
+                <span class="copilot-model-label" id="copilot-model-label"></span>
+                <button class="copilot-clear" id="copilot-clear" title="Clear chat">🗑️</button>
+                <button class="copilot-close" id="copilot-close" title="Close">✕</button>
+            </div>
+        </div>
+        <div class="copilot-messages" id="copilot-messages">
+            <div class="copilot-welcome">
+                <span class="copilot-welcome-icon">✨</span>
+                <span class="copilot-welcome-text">Hey! I'm your AI copilot. Ask me anything about your tasks, or let me
+                    help you organize.</span>
+            </div>
+        </div>
+        <div class="copilot-input-row">
+            <textarea class="copilot-input" id="copilot-input" placeholder="Ask anything..." rows="1"
+                autocomplete="off"></textarea>
+            <button class="copilot-send" id="copilot-send" title="Send">→</button>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/marked@15/marked.min.js"></script>
     <script src="script.js" type="module"></script>
 </body>
 

@@ -93,6 +93,18 @@
       "dayStartMinute": 30,
       "dayEndHour": 0,
       "dayEndMinute": 30
+    },
+    "2026-02-23": {
+      "dayStartHour": 8,
+      "dayStartMinute": 0,
+      "dayEndHour": 1,
+      "dayEndMinute": 30
+    },
+    "2026-02-24": {
+      "dayStartHour": 10,
+      "dayStartMinute": 30,
+      "dayEndHour": 0,
+      "dayEndMinute": 30
     }
   },
   "streak": {
@@ -101,5 +113,8 @@
     "longestStreak": 9
   },
   "weekStartDay": 0,
-  "sleepGuard": true
+  "sleepGuard": true,
+  "aiProvider": "claude",
+  "aiModel": "claude-sonnet-4-6",
+  "aiApiKey": "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"
 }

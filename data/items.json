@@ -23,8 +23,7 @@
           "createdAt": 1771766691764,
           "done": true,
           "timeContexts": [
-            "ongoing",
-            "2026-02-23"
+            "ongoing"
           ],
           "contextDurations": {
             "2026-02-23": 10
@@ -79,11 +78,14 @@
               "createdAt": 1771699093323,
               "done": false,
               "timeContexts": [
-                "ongoing",
-                "2026-02-23"
+                "week:2026-02-22"
               ],
               "contextDurations": {
-                "2026-02-23": 5
+                "2026-02-23": 5,
+                "week:2026-02-22": 5
+              },
+              "contextDone": {
+                "2026-02-23": 1771887566423
               }
             }
           ],
@@ -91,9 +93,11 @@
           "createdAt": 1771626059130,
           "done": false,
           "timeContexts": [
-            "ongoing",
-            "2026-02-23"
-          ]
+            "ongoing"
+          ],
+          "contextDurations": {
+            "2026-02-23@08:00-00:30": 5
+          }
         },
         {
           "id": 628,
@@ -107,8 +111,7 @@
               "createdAt": 1771699142331,
               "done": false,
               "timeContexts": [
-                "ongoing",
-                "2026-02-23"
+                "ongoing"
               ],
               "contextDurations": {
                 "2026-02-23": 2
@@ -123,10 +126,10 @@
               "done": false,
               "timeContexts": [
                 "ongoing",
-                "2026-02-23"
+                "2026-02-24"
               ],
               "contextDurations": {
-                "2026-02-23": 10
+                "2026-02-24": 10
               }
             }
           ],
@@ -134,8 +137,7 @@
           "createdAt": 1771623308231,
           "done": false,
           "timeContexts": [
-            "ongoing",
-            "2026-02-23"
+            "ongoing"
           ]
         },
         {
@@ -184,7 +186,7 @@
           "createdAt": 1771515997792,
           "done": false,
           "timeContexts": [
-            "week:2026-02-15"
+            "month:2026-02"
           ],
           "contextDurations": {}
         },
@@ -196,11 +198,11 @@
           "createdAt": 1771511674651,
           "done": true,
           "timeContexts": [
-            "week:2026-02-15"
+            "month:2026-02"
           ],
           "contextDurations": {
             "2026-02-19@20:52-02:30": 0,
-            "week:2026-02-15": 0
+            "month:2026-02": 0
           }
         },
         {
@@ -249,10 +251,10 @@
           "createdAt": 1771508780519,
           "done": true,
           "timeContexts": [
-            "week:2026-02-15"
+            "month:2026-02"
           ],
           "contextDurations": {
-            "week:2026-02-15": 0
+            "month:2026-02": 0
           }
         },
         {
@@ -299,7 +301,7 @@
           "createdAt": 1771328322202,
           "done": true,
           "timeContexts": [
-            "week:2026-02-15"
+            "month:2026-02"
           ]
         },
         {
@@ -310,11 +312,11 @@
           "createdAt": 1771322522351,
           "done": true,
           "timeContexts": [
-            "week:2026-02-15"
+            "month:2026-02"
           ],
           "contextDurations": {
             "2026-02-17": 15,
-            "week:2026-02-15": 15
+            "month:2026-02": 15
           }
         },
         {
@@ -325,11 +327,11 @@
           "createdAt": 1771322508493,
           "done": true,
           "timeContexts": [
-            "week:2026-02-15"
+            "month:2026-02"
           ],
           "contextDurations": {
             "2026-02-17": 15,
-            "week:2026-02-15": 15
+            "month:2026-02": 15
           }
         },
         {
@@ -340,7 +342,7 @@
           "createdAt": 1771263733607,
           "done": true,
           "timeContexts": [
-            "week:2026-02-15"
+            "month:2026-02"
           ]
         },
         {
@@ -413,12 +415,12 @@
           "done": false,
           "timeContexts": [
             "ongoing",
-            "2026-02-23"
+            "2026-02-24"
           ],
           "contextDurations": {
             "2026-02-17": 10,
             "2026-02-22": 15,
-            "2026-02-23": 15
+            "2026-02-24": 15
           }
         },
         {
@@ -429,7 +431,7 @@
           "createdAt": 1770810767800,
           "done": true,
           "timeContexts": [
-            "week:2026-02-08"
+            "month:2026-02"
           ],
           "contextDurations": {}
         },
@@ -456,26 +458,13 @@
           ]
         }
       ],
-      "expanded": true,
+      "expanded": false,
       "createdAt": 1770593135805,
       "done": false,
       "isInbox": true,
       "timeContexts": [
-        "ongoing",
-        "2026-02-23"
-      ]
-    },
-    {
-      "id": 685,
-      "name": "לצאת לסיבוב בעיר",
-      "children": [],
-      "expanded": false,
-      "createdAt": 1771840105291,
-      "done": false,
-      "timeContexts": [
         "ongoing"
-      ],
-      "contextDurations": {}
+      ]
     },
     {
       "id": 593,
@@ -485,7 +474,7 @@
       "createdAt": 1771457007814,
       "done": true,
       "timeContexts": [
-        "week:2026-02-15"
+        "month:2026-02"
       ],
       "contextDurations": {}
     },
@@ -497,7 +486,7 @@
       "createdAt": 1771456991145,
       "done": true,
       "timeContexts": [
-        "week:2026-02-15"
+        "month:2026-02"
       ],
       "contextDurations": {}
     },
@@ -509,7 +498,7 @@
       "createdAt": 1771456957455,
       "done": true,
       "timeContexts": [
-        "week:2026-02-15"
+        "month:2026-02"
       ],
       "contextDurations": {}
     },
@@ -521,9 +510,33 @@
       "createdAt": 1771160633223,
       "done": true,
       "timeContexts": [
-        "week:2026-02-15"
+        "month:2026-02"
       ],
       "contextDurations": {}
+    },
+    {
+      "id": 698,
+      "name": "Breaks",
+      "children": [
+        {
+          "id": 685,
+          "name": "לצאת לסיבוב בעיר",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771840105291,
+          "done": false,
+          "timeContexts": [
+            "ongoing"
+          ],
+          "contextDurations": {}
+        }
+      ],
+      "expanded": false,
+      "createdAt": 1771868513862,
+      "done": false,
+      "timeContexts": [
+        "ongoing"
+      ]
     },
     {
       "id": 475,
@@ -633,11 +646,13 @@
           "createdAt": 1771864987518,
           "done": false,
           "timeContexts": [
-            "2026-02-23"
+            "week:2026-02-22"
           ],
           "contextDurations": {
-            "2026-02-23": 45
-          }
+            "2026-02-23": 45,
+            "week:2026-02-22": 45
+          },
+          "contextDone": {}
         },
         {
           "id": 599,
@@ -685,7 +700,7 @@
           "createdAt": 1770988590514,
           "done": true,
           "timeContexts": [
-            "week:2026-02-08"
+            "month:2026-02"
           ],
           "contextDurations": {}
         },
@@ -761,7 +776,7 @@
           "createdAt": 1770812039041,
           "done": true,
           "timeContexts": [
-            "week:2026-02-15"
+            "month:2026-02"
           ],
           "contextDurations": {}
         },
@@ -773,7 +788,7 @@
           "createdAt": 1770808515559,
           "done": true,
           "timeContexts": [
-            "week:2026-02-15"
+            "month:2026-02"
           ],
           "contextDurations": {}
         },
@@ -785,7 +800,7 @@
           "createdAt": 1770909150598,
           "done": true,
           "timeContexts": [
-            "week:2026-02-08"
+            "month:2026-02"
           ],
           "contextDurations": {}
         },
@@ -797,7 +812,7 @@
           "createdAt": 1770972747119,
           "done": true,
           "timeContexts": [
-            "week:2026-02-08"
+            "month:2026-02"
           ],
           "contextDurations": {
             "2026-02-13@13:44-18:00": 30
@@ -811,7 +826,7 @@
           "createdAt": 1770976860202,
           "done": true,
           "timeContexts": [
-            "week:2026-02-08"
+            "month:2026-02"
           ],
           "contextDurations": {
             "2026-02-13": 30
@@ -837,10 +852,14 @@
           "createdAt": 1771865157767,
           "done": false,
           "timeContexts": [
-            "2026-02-23"
+            "week:2026-02-22"
           ],
           "contextDurations": {
-            "2026-02-23": 15
+            "2026-02-23": 15,
+            "week:2026-02-22": 15
+          },
+          "contextDone": {
+            "2026-02-23": 1771872886964
           }
         }
       ],
@@ -848,11 +867,10 @@
       "createdAt": 1770773753107,
       "done": false,
       "timeContexts": [
-        "ongoing",
-        "2026-02-23"
+        "ongoing"
       ],
       "contextDurations": {
-        "2026-02-23": 90
+        "2026-02-23": 0
       }
     },
     {
@@ -916,7 +934,7 @@
           "createdAt": 1771493406180,
           "done": false,
           "timeContexts": [
-            "week:2026-02-15"
+            "month:2026-02"
           ],
           "contextDurations": {}
         },
@@ -939,7 +957,7 @@
           "createdAt": 1771196822652,
           "done": true,
           "timeContexts": [
-            "week:2026-02-15"
+            "month:2026-02"
           ],
           "contextDurations": {
             "2026-02-15": 5
@@ -984,10 +1002,14 @@
               "createdAt": 1771844308376,
               "done": false,
               "timeContexts": [
-                "2026-02-23@18:44-21:00"
+                "week:2026-02-22"
               ],
               "contextDurations": {
-                "2026-02-23@18:44-21:00": 10
+                "2026-02-23": 10,
+                "week:2026-02-22": 10
+              },
+              "contextDone": {
+                "2026-02-23": 1771888572023
               }
             },
             {
@@ -998,7 +1020,7 @@
               "createdAt": 1771082071665,
               "done": true,
               "timeContexts": [
-                "week:2026-02-15"
+                "month:2026-02"
               ],
               "contextDurations": {}
             }
@@ -1070,10 +1092,11 @@
               "createdAt": 1771839804892,
               "done": false,
               "timeContexts": [
-                "week:2026-02-22"
+                "ongoing",
+                "2026-02-25"
               ],
               "contextDurations": {
-                "week:2026-02-22": 240
+                "2026-02-25": 240
               }
             },
             {
@@ -1084,7 +1107,7 @@
               "createdAt": 1771585853596,
               "done": true,
               "timeContexts": [
-                "week:2026-02-15"
+                "month:2026-02"
               ]
             },
             {
@@ -1097,7 +1120,10 @@
               "timeContexts": [
                 "ongoing"
               ],
-              "contextDurations": {}
+              "contextDurations": {},
+              "contextDone": {
+                "ongoing": 1771887385664
+              }
             }
           ],
           "expanded": false,
@@ -1105,7 +1131,7 @@
           "done": true,
           "estimatedDuration": 180,
           "timeContexts": [
-            "week:2026-02-08"
+            "month:2026-02"
           ],
           "contextDurations": {
             "2026-02-11@entry:178": 180
@@ -1120,7 +1146,7 @@
           "done": false,
           "estimatedDuration": 270,
           "timeContexts": [
-            "2026-02-24"
+            "2026-03-03"
           ],
           "contextDurations": {}
         },
@@ -1137,7 +1163,10 @@
               "done": false,
               "timeContexts": [
                 "ongoing"
-              ]
+              ],
+              "contextDone": {
+                "ongoing": 1771887384039
+              }
             }
           ],
           "expanded": false,
@@ -1145,7 +1174,7 @@
           "done": true,
           "estimatedDuration": 180,
           "timeContexts": [
-            "week:2026-02-15"
+            "month:2026-02"
           ],
           "contextDurations": {}
         },
@@ -1188,11 +1217,11 @@
               "createdAt": 1771203814978,
               "done": false,
               "timeContexts": [
-                "week:2026-02-15"
+                "month:2026-02"
               ],
               "contextDurations": {
                 "2026-02-16": 5,
-                "week:2026-02-15": 5
+                "month:2026-02": 5
               }
             }
           ],
@@ -1200,7 +1229,7 @@
           "createdAt": 1770609710103,
           "done": false,
           "timeContexts": [
-            "week:2026-02-15"
+            "month:2026-02"
           ],
           "contextDurations": {
             "2026-02-15": 15
@@ -1214,7 +1243,7 @@
           "createdAt": 1770808570871,
           "done": false,
           "timeContexts": [
-            "week:2026-02-15"
+            "month:2026-02"
           ],
           "contextDurations": {
             "2026-02-15": 5
@@ -1254,7 +1283,7 @@
           }
         }
       ],
-      "expanded": true,
+      "expanded": false,
       "createdAt": 1770609703744,
       "done": false,
       "timeContexts": [
@@ -1265,6 +1294,20 @@
       "id": 145,
       "name": "עופר",
       "children": [
+        {
+          "id": 699,
+          "name": "לשלוח לעופר azuregoat",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771888659224,
+          "done": false,
+          "timeContexts": [
+            "2026-02-24"
+          ],
+          "contextDurations": {
+            "2026-02-24": 20
+          }
+        },
         {
           "id": 658,
           "name": "הדבר הבא של עופר",
@@ -1306,8 +1349,7 @@
               "createdAt": 1771772132164,
               "done": true,
               "timeContexts": [
-                "ongoing",
-                "2026-02-23"
+                "ongoing"
               ]
             },
             {
@@ -1319,7 +1361,8 @@
               "done": false,
               "timeContexts": [
                 "ongoing",
-                "2026-02-24"
+                "2026-02-24",
+                "2026-02-25"
               ],
               "contextLeadTimes": {
                 "2026-02-22": 0
@@ -1367,7 +1410,7 @@
           "createdAt": 1771092520191,
           "done": true,
           "timeContexts": [
-            "week:2026-02-15"
+            "month:2026-02"
           ],
           "contextDurations": {}
         },
@@ -1476,8 +1519,7 @@
           "createdAt": 1771837352529,
           "done": true,
           "timeContexts": [
-            "ongoing",
-            "2026-02-23@11:02-00:30"
+            "ongoing"
           ],
           "contextDurations": {
             "2026-02-23@11:02-00:30": 10
@@ -1491,10 +1533,11 @@
           "createdAt": 1771837295422,
           "done": true,
           "timeContexts": [
-            "2026-02-23"
+            "week:2026-02-22"
           ],
           "contextDurations": {
-            "2026-02-23": 10
+            "2026-02-23": 10,
+            "week:2026-02-22": 10
           }
         },
         {
@@ -1652,7 +1695,7 @@
           "createdAt": 1771585840622,
           "done": false,
           "timeContexts": [
-            "week:2026-02-15"
+            "month:2026-02"
           ]
         },
         {
@@ -1663,7 +1706,7 @@
           "createdAt": 1771493698324,
           "done": false,
           "timeContexts": [
-            "week:2026-02-15"
+            "month:2026-02"
           ]
         },
         {
@@ -1732,7 +1775,7 @@
           "createdAt": 1771335984909,
           "done": true,
           "timeContexts": [
-            "week:2026-02-15"
+            "month:2026-02"
           ]
         },
         {
@@ -1826,8 +1869,7 @@
           "createdAt": 1771208190684,
           "done": true,
           "timeContexts": [
-            "month:2026-02",
-            "week:2026-02-15"
+            "month:2026-02"
           ]
         },
         {
@@ -1885,7 +1927,7 @@
           "createdAt": 1770983647893,
           "done": true,
           "timeContexts": [
-            "week:2026-02-08"
+            "month:2026-02"
           ],
           "contextDurations": {
             "2026-02-13": 30
@@ -1899,7 +1941,7 @@
           "createdAt": 1770981704559,
           "done": true,
           "timeContexts": [
-            "week:2026-02-08"
+            "month:2026-02"
           ]
         },
         {
@@ -1910,7 +1952,7 @@
           "createdAt": 1770980523320,
           "done": true,
           "timeContexts": [
-            "week:2026-02-08"
+            "month:2026-02"
           ]
         },
         {
@@ -1921,7 +1963,7 @@
           "createdAt": 1770979982757,
           "done": true,
           "timeContexts": [
-            "week:2026-02-08"
+            "month:2026-02"
           ]
         },
         {
@@ -2218,7 +2260,7 @@
                   "createdAt": 1771195891641,
                   "done": true,
                   "timeContexts": [
-                    "week:2026-02-15"
+                    "month:2026-02"
                   ]
                 },
                 {
@@ -2245,8 +2287,7 @@
                       "createdAt": 1771093546266,
                       "done": true,
                       "timeContexts": [
-                        "ongoing",
-                        "week:2026-02-15"
+                        "month:2026-02"
                       ],
                       "contextDurations": {}
                     }
@@ -2281,7 +2322,7 @@
                   "createdAt": 1770998637870,
                   "done": true,
                   "timeContexts": [
-                    "week:2026-02-15"
+                    "month:2026-02"
                   ],
                   "contextDurations": {}
                 },
@@ -2355,7 +2396,7 @@
               "createdAt": 1770913093639,
               "done": true,
               "timeContexts": [
-                "week:2026-02-15"
+                "month:2026-02"
               ],
               "contextDurations": {}
             },
@@ -2403,7 +2444,7 @@
               "createdAt": 1770927503105,
               "done": true,
               "timeContexts": [
-                "week:2026-02-08"
+                "month:2026-02"
               ],
               "contextDurations": {}
             },
@@ -2481,7 +2522,7 @@
                   "createdAt": 1771113761973,
                   "done": true,
                   "timeContexts": [
-                    "week:2026-02-08"
+                    "month:2026-02"
                   ]
                 }
               ],
@@ -2504,10 +2545,10 @@
                   "createdAt": 1770852039123,
                   "done": true,
                   "timeContexts": [
-                    "week:2026-02-08"
+                    "month:2026-02"
                   ],
                   "contextDurations": {
-                    "week:2026-02-08": 10
+                    "month:2026-02": 10
                   }
                 },
                 {
@@ -2518,10 +2559,10 @@
                   "createdAt": 1770852032333,
                   "done": true,
                   "timeContexts": [
-                    "week:2026-02-08"
+                    "month:2026-02"
                   ],
                   "contextDurations": {
-                    "week:2026-02-08": 10
+                    "month:2026-02": 10
                   }
                 },
                 {
@@ -2532,10 +2573,10 @@
                   "createdAt": 1770852030965,
                   "done": true,
                   "timeContexts": [
-                    "week:2026-02-08"
+                    "month:2026-02"
                   ],
                   "contextDurations": {
-                    "week:2026-02-08": 5
+                    "month:2026-02": 5
                   }
                 },
                 {
@@ -2546,7 +2587,7 @@
                   "createdAt": 1770852013276,
                   "done": true,
                   "timeContexts": [
-                    "week:2026-02-15"
+                    "month:2026-02"
                   ],
                   "contextDurations": {
                     "week:2026-02-08": 5
@@ -2557,7 +2598,7 @@
               "createdAt": 1770832301356,
               "done": true,
               "timeContexts": [
-                "week:2026-02-08"
+                "month:2026-02"
               ],
               "contextDurations": {
                 "2026-02-11": 60
@@ -2585,7 +2626,7 @@
               "createdAt": 1770822520306,
               "done": true,
               "timeContexts": [
-                "week:2026-02-08"
+                "month:2026-02"
               ],
               "contextDurations": {}
             },
@@ -2646,22 +2687,21 @@
               }
             },
             {
+              "id": 407,
+              "name": "maybe absorb done like absorb plan?",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1770988850571,
+              "done": false,
+              "timeContexts": [
+                "ongoing"
+              ]
+            },
+            {
               "id": 282,
               "name": "idea - move \"done\" to be done under a context",
-              "children": [
-                {
-                  "id": 407,
-                  "name": "maybe absorb done like absorb plan?",
-                  "children": [],
-                  "expanded": false,
-                  "createdAt": 1770988850571,
-                  "done": false,
-                  "timeContexts": [
-                    "ongoing"
-                  ]
-                }
-              ],
-              "expanded": false,
+              "children": [],
+              "expanded": true,
               "createdAt": 1770810064805,
               "done": false,
               "timeContexts": [
@@ -3253,14 +3293,385 @@
             {
               "id": 183,
               "name": "AI",
-              "children": [],
-              "expanded": false,
+              "children": [
+                {
+                  "id": 747,
+                  "name": "we still don't see currently executed tool",
+                  "children": [],
+                  "expanded": false,
+                  "createdAt": 1771935959314,
+                  "done": false,
+                  "timeContexts": [
+                    "2026-02-24"
+                  ]
+                },
+                {
+                  "id": 737,
+                  "name": "agent external capabilities (sandboxed)",
+                  "children": [
+                    {
+                      "id": 746,
+                      "name": "audit trail - log what agent did and when",
+                      "children": [],
+                      "expanded": false,
+                      "createdAt": 1771935848543,
+                      "done": false,
+                      "timeContexts": [
+                        "ongoing"
+                      ]
+                    },
+                    {
+                      "id": 745,
+                      "name": "approval layer for sensitive actions",
+                      "children": [],
+                      "expanded": false,
+                      "createdAt": 1771935848541,
+                      "done": false,
+                      "timeContexts": [
+                        "ongoing"
+                      ]
+                    },
+                    {
+                      "id": 744,
+                      "name": "spawn sub-agents for complex tasks",
+                      "children": [],
+                      "expanded": false,
+                      "createdAt": 1771935848539,
+                      "done": false,
+                      "timeContexts": [
+                        "ongoing"
+                      ]
+                    },
+                    {
+                      "id": 743,
+                      "name": "email read/write access",
+                      "children": [],
+                      "expanded": false,
+                      "createdAt": 1771935848536,
+                      "done": false,
+                      "timeContexts": [
+                        "ongoing"
+                      ]
+                    },
+                    {
+                      "id": 742,
+                      "name": "HTTP requests / API calls",
+                      "children": [],
+                      "expanded": false,
+                      "createdAt": 1771935848534,
+                      "done": false,
+                      "timeContexts": [
+                        "ongoing"
+                      ]
+                    },
+                    {
+                      "id": 741,
+                      "name": "file system access (read/write)",
+                      "children": [],
+                      "expanded": false,
+                      "createdAt": 1771935848530,
+                      "done": false,
+                      "timeContexts": [
+                        "ongoing"
+                      ]
+                    },
+                    {
+                      "id": 740,
+                      "name": "web search",
+                      "children": [],
+                      "expanded": false,
+                      "createdAt": 1771935848528,
+                      "done": false,
+                      "timeContexts": [
+                        "ongoing"
+                      ]
+                    },
+                    {
+                      "id": 739,
+                      "name": "command line / shell access",
+                      "children": [],
+                      "expanded": false,
+                      "createdAt": 1771935848526,
+                      "done": false,
+                      "timeContexts": [
+                        "ongoing"
+                      ]
+                    },
+                    {
+                      "id": 738,
+                      "name": "tool gateway - sandboxed execution layer",
+                      "children": [],
+                      "expanded": false,
+                      "createdAt": 1771935848524,
+                      "done": false,
+                      "timeContexts": [
+                        "ongoing"
+                      ]
+                    }
+                  ],
+                  "expanded": false,
+                  "createdAt": 1771935836482,
+                  "done": false,
+                  "timeContexts": [
+                    "ongoing"
+                  ]
+                },
+                {
+                  "id": 729,
+                  "name": "proactive agent - active ADHD assistant",
+                  "children": [
+                    {
+                      "id": 736,
+                      "name": "notification channel abstraction (telegram, push, in-app)",
+                      "children": [],
+                      "expanded": false,
+                      "createdAt": 1771935607286,
+                      "done": false,
+                      "timeContexts": [
+                        "ongoing"
+                      ]
+                    },
+                    {
+                      "id": 735,
+                      "name": "overbooked day detected - suggest reprioritization",
+                      "children": [],
+                      "expanded": false,
+                      "createdAt": 1771935607285,
+                      "done": false,
+                      "timeContexts": [
+                        "ongoing"
+                      ]
+                    },
+                    {
+                      "id": 734,
+                      "name": "day start / day end trigger - morning briefing & evening recap",
+                      "children": [],
+                      "expanded": false,
+                      "createdAt": 1771935607283,
+                      "done": false,
+                      "timeContexts": [
+                        "ongoing"
+                      ]
+                    },
+                    {
+                      "id": 733,
+                      "name": "idle too long trigger - nudge user back to work",
+                      "children": [],
+                      "expanded": false,
+                      "createdAt": 1771935607281,
+                      "done": false,
+                      "timeContexts": [
+                        "ongoing"
+                      ]
+                    },
+                    {
+                      "id": 732,
+                      "name": "heartbeat - periodic check-in on the day (is everything going to plan?)",
+                      "children": [],
+                      "expanded": false,
+                      "createdAt": 1771935607278,
+                      "done": false,
+                      "timeContexts": [
+                        "ongoing"
+                      ]
+                    },
+                    {
+                      "id": 731,
+                      "name": "timer running out trigger",
+                      "children": [],
+                      "expanded": false,
+                      "createdAt": 1771935607276,
+                      "done": false,
+                      "timeContexts": [
+                        "ongoing"
+                      ]
+                    },
+                    {
+                      "id": 730,
+                      "name": "due items trigger",
+                      "children": [],
+                      "expanded": false,
+                      "createdAt": 1771935607274,
+                      "done": false,
+                      "timeContexts": [
+                        "ongoing"
+                      ]
+                    }
+                  ],
+                  "expanded": true,
+                  "createdAt": 1771935596235,
+                  "done": false,
+                  "timeContexts": [
+                    "ongoing"
+                  ]
+                },
+                {
+                  "id": 716,
+                  "name": "multiple actions",
+                  "children": [],
+                  "expanded": false,
+                  "createdAt": 1771932790293,
+                  "done": false,
+                  "timeContexts": [
+                    "2026-02-24"
+                  ]
+                },
+                {
+                  "id": 715,
+                  "name": "telegram bot",
+                  "children": [
+                    {
+                      "id": 723,
+                      "name": "BotFather setup - get token",
+                      "children": [],
+                      "expanded": false,
+                      "createdAt": 1771934657510,
+                      "done": false,
+                      "timeContexts": [
+                        "2026-02-24"
+                      ],
+                      "contextDurations": {
+                        "2026-02-24": 5
+                      }
+                    },
+                    {
+                      "id": 724,
+                      "name": "Cloudflare Worker webhook endpoint",
+                      "children": [],
+                      "expanded": false,
+                      "createdAt": 1771934657514,
+                      "done": false,
+                      "timeContexts": [
+                        "2026-02-24"
+                      ],
+                      "contextDurations": {
+                        "2026-02-24": 60
+                      }
+                    },
+                    {
+                      "id": 725,
+                      "name": "connect to existing copilot logic",
+                      "children": [],
+                      "expanded": false,
+                      "createdAt": 1771934657517,
+                      "done": false,
+                      "timeContexts": [
+                        "2026-02-24"
+                      ],
+                      "contextDurations": {
+                        "2026-02-24": 60
+                      }
+                    },
+                    {
+                      "id": 726,
+                      "name": "send responses back to Telegram",
+                      "children": [],
+                      "expanded": false,
+                      "createdAt": 1771934657519,
+                      "done": false,
+                      "timeContexts": [
+                        "2026-02-24"
+                      ],
+                      "contextDurations": {
+                        "2026-02-24": 30
+                      }
+                    },
+                    {
+                      "id": 727,
+                      "name": "auth - restrict to owner only",
+                      "children": [],
+                      "expanded": false,
+                      "createdAt": 1771934657522,
+                      "done": false,
+                      "timeContexts": [
+                        "2026-02-24"
+                      ],
+                      "contextDurations": {
+                        "2026-02-24": 15
+                      }
+                    },
+                    {
+                      "id": 728,
+                      "name": "test end to end",
+                      "children": [],
+                      "expanded": false,
+                      "createdAt": 1771934657524,
+                      "done": false,
+                      "timeContexts": [
+                        "2026-02-24"
+                      ],
+                      "contextDurations": {
+                        "2026-02-24": 30
+                      }
+                    }
+                  ],
+                  "expanded": true,
+                  "createdAt": 1771932542872,
+                  "done": false,
+                  "timeContexts": [
+                    "2026-02-24"
+                  ]
+                },
+                {
+                  "id": 711,
+                  "name": "read/write only mode",
+                  "children": [],
+                  "expanded": false,
+                  "createdAt": 1771929605267,
+                  "done": true,
+                  "timeContexts": [
+                    "2026-02-24"
+                  ]
+                },
+                {
+                  "id": 710,
+                  "name": "scroll issue with actions approval",
+                  "children": [],
+                  "expanded": false,
+                  "createdAt": 1771929598559,
+                  "done": true,
+                  "timeContexts": [
+                    "2026-02-24"
+                  ],
+                  "contextDone": {
+                    "2026-02-24": 1771931100920
+                  }
+                },
+                {
+                  "id": 708,
+                  "name": "work on anything itself from copilot",
+                  "children": [],
+                  "expanded": false,
+                  "createdAt": 1771929582703,
+                  "done": false,
+                  "timeContexts": [
+                    "2026-02-24"
+                  ]
+                },
+                {
+                  "id": 707,
+                  "name": "chats persistence",
+                  "children": [],
+                  "expanded": false,
+                  "createdAt": 1771929545730,
+                  "done": true,
+                  "timeContexts": [
+                    "2026-02-24"
+                  ],
+                  "contextDone": {
+                    "2026-02-24": 1771931106916
+                  }
+                }
+              ],
+              "expanded": true,
               "createdAt": 1770675382995,
               "done": false,
               "timeContexts": [
                 "ongoing"
               ],
-              "contextDurations": {}
+              "contextDurations": {
+                "2026-02-24": 45
+              }
             },
             {
               "id": 173,
@@ -3396,7 +3807,7 @@
               "createdAt": 1770947420700,
               "done": true,
               "timeContexts": [
-                "week:2026-02-08"
+                "month:2026-02"
               ]
             },
             {
@@ -3756,7 +4167,7 @@
               "createdAt": 1771067242157,
               "done": true,
               "timeContexts": [
-                "week:2026-02-15"
+                "month:2026-02"
               ],
               "contextDurations": {}
             }
@@ -3780,7 +4191,7 @@
               "createdAt": 1771107229116,
               "done": true,
               "timeContexts": [
-                "week:2026-02-15"
+                "month:2026-02"
               ],
               "contextDurations": {}
             },
@@ -3828,7 +4239,7 @@
               "createdAt": 1770811440975,
               "done": true,
               "timeContexts": [
-                "week:2026-02-15"
+                "month:2026-02"
               ],
               "contextDurations": {}
             },
@@ -4135,7 +4546,7 @@
           "createdAt": 1770908683724,
           "done": true,
           "timeContexts": [
-            "week:2026-02-08"
+            "month:2026-02"
           ]
         },
         {
@@ -4157,10 +4568,10 @@
           "createdAt": 1770852757866,
           "done": true,
           "timeContexts": [
-            "week:2026-02-08"
+            "month:2026-02"
           ],
           "contextDurations": {
-            "week:2026-02-08": 15
+            "month:2026-02": 15
           }
         },
         {
@@ -4171,7 +4582,7 @@
           "createdAt": 1770852271463,
           "done": true,
           "timeContexts": [
-            "week:2026-02-08"
+            "month:2026-02"
           ],
           "contextDurations": {
             "2026-02-12": 10
@@ -4185,7 +4596,7 @@
           "createdAt": 1770852260931,
           "done": true,
           "timeContexts": [
-            "week:2026-02-08"
+            "month:2026-02"
           ],
           "contextDurations": {
             "2026-02-12": 10
@@ -4199,7 +4610,7 @@
           "createdAt": 1770847736743,
           "done": true,
           "timeContexts": [
-            "week:2026-02-08"
+            "month:2026-02"
           ],
           "contextDurations": {
             "2026-02-12": 45
@@ -4213,7 +4624,7 @@
           "createdAt": 1770807975129,
           "done": true,
           "timeContexts": [
-            "week:2026-02-08"
+            "month:2026-02"
           ],
           "contextDurations": {
             "2026-02-11": 10
@@ -4272,7 +4683,7 @@
           "createdAt": 1770809109151,
           "done": true,
           "timeContexts": [
-            "week:2026-02-08"
+            "month:2026-02"
           ],
           "contextDurations": {
             "2026-02-12": 90
@@ -4436,7 +4847,7 @@
           "createdAt": 1770663355309,
           "done": true,
           "timeContexts": [
-            "week:2026-02-08"
+            "month:2026-02"
           ],
           "contextDurations": {
             "2026-02-10@entry:171": 25
@@ -5165,7 +5576,7 @@
           "createdAt": 1770807358182,
           "done": true,
           "timeContexts": [
-            "week:2026-02-08"
+            "month:2026-02"
           ],
           "contextDurations": {
             "2026-02-11": 0
@@ -5179,7 +5590,7 @@
           "createdAt": 1770806427542,
           "done": true,
           "timeContexts": [
-            "week:2026-02-08"
+            "month:2026-02"
           ],
           "contextDurations": {
             "2026-02-11": 25
@@ -5197,14 +5608,13 @@
           ]
         }
       ],
-      "expanded": false,
+      "expanded": true,
       "createdAt": 1770591468116,
       "done": false,
       "timeContexts": [
         "ongoing",
         "month:2026-02",
-        "week:2026-02-22",
-        "2026-02-23"
+        "week:2026-02-22"
       ],
       "estimatedDuration": 60,
       "contextDurations": {
@@ -5213,6 +5623,10 @@
         "2026-02-16": 10,
         "week:2026-02-22": 240,
         "2026-02-23": 60
+      },
+      "contextLeadTimes": {},
+      "contextDone": {
+        "2026-02-23": 1771869961586
       }
     },
     {
@@ -5242,7 +5656,7 @@
               "createdAt": 1771276609972,
               "done": false,
               "timeContexts": [
-                "week:2026-02-15"
+                "month:2026-02"
               ]
             },
             {
@@ -5253,8 +5667,7 @@
               "createdAt": 1771272894521,
               "done": false,
               "timeContexts": [
-                "ongoing",
-                "week:2026-02-15"
+                "month:2026-02"
               ]
             },
             {
@@ -5265,8 +5678,7 @@
               "createdAt": 1771272245610,
               "done": false,
               "timeContexts": [
-                "ongoing",
-                "week:2026-02-15"
+                "month:2026-02"
               ]
             },
             {
@@ -5277,7 +5689,7 @@
               "createdAt": 1771263280347,
               "done": false,
               "timeContexts": [
-                "week:2026-02-15"
+                "month:2026-02"
               ]
             },
             {
@@ -5288,7 +5700,7 @@
               "createdAt": 1771260481128,
               "done": false,
               "timeContexts": [
-                "week:2026-02-15"
+                "month:2026-02"
               ]
             },
             {
@@ -5299,7 +5711,7 @@
               "createdAt": 1771257277558,
               "done": false,
               "timeContexts": [
-                "week:2026-02-15"
+                "month:2026-02"
               ]
             },
             {
@@ -5332,8 +5744,7 @@
           "createdAt": 1770633310924,
           "done": false,
           "timeContexts": [
-            "ongoing",
-            "week:2026-02-15"
+            "month:2026-02"
           ],
           "estimatedDuration": null,
           "contextDurations": {
@@ -5360,11 +5771,11 @@
           "createdAt": 1771337966468,
           "done": true,
           "timeContexts": [
-            "week:2026-02-15"
+            "month:2026-02"
           ],
           "contextDurations": {
             "2026-02-17": 30,
-            "week:2026-02-15": 30
+            "month:2026-02": 30
           }
         },
         {
@@ -5379,7 +5790,7 @@
               "createdAt": 1771076002684,
               "done": false,
               "timeContexts": [
-                "week:2026-02-15"
+                "month:2026-02"
               ],
               "contextDurations": {
                 "2026-02-15": 60
@@ -5422,7 +5833,7 @@
               "done": true,
               "estimatedDuration": 90,
               "timeContexts": [
-                "week:2026-02-08"
+                "month:2026-02"
               ],
               "contextDurations": {
                 "2026-02-13": 60
@@ -5462,7 +5873,7 @@
           ]
         }
       ],
-      "expanded": true,
+      "expanded": false,
       "createdAt": 1771337956635,
       "done": false,
       "timeContexts": [
@@ -5497,7 +5908,7 @@
               "createdAt": 1771188200277,
               "done": false,
               "timeContexts": [
-                "week:2026-02-15"
+                "month:2026-02"
               ]
             }
           ],
@@ -5518,11 +5929,13 @@
           "done": false,
           "timeContexts": [
             "ongoing",
-            "week:2026-02-22",
-            "2026-02-23"
+            "week:2026-02-22"
           ],
           "contextDurations": {
             "2026-02-23": 10
+          },
+          "contextDone": {
+            "2026-02-23": 1771872069504
           }
         },
         {
@@ -5537,7 +5950,7 @@
               "createdAt": 1771080551498,
               "done": false,
               "timeContexts": [
-                "week:2026-02-15"
+                "month:2026-02"
               ]
             },
             {
@@ -5548,7 +5961,7 @@
               "createdAt": 1771066420199,
               "done": false,
               "timeContexts": [
-                "week:2026-02-15"
+                "month:2026-02"
               ],
               "contextDurations": {}
             },
@@ -5560,7 +5973,7 @@
               "createdAt": 1771066412199,
               "done": false,
               "timeContexts": [
-                "week:2026-02-15"
+                "month:2026-02"
               ],
               "contextDurations": {}
             },
@@ -5572,7 +5985,7 @@
               "createdAt": 1771066407050,
               "done": false,
               "timeContexts": [
-                "week:2026-02-15"
+                "month:2026-02"
               ],
               "contextDurations": {}
             },
@@ -5584,11 +5997,10 @@
               "createdAt": 1771066377217,
               "done": false,
               "timeContexts": [
-                "ongoing",
-                "week:2026-02-15"
+                "month:2026-02"
               ],
               "contextDurations": {
-                "week:2026-02-15": 30
+                "month:2026-02": 30
               }
             }
           ],
@@ -5615,10 +6027,10 @@
           "createdAt": 1770854416071,
           "done": false,
           "timeContexts": [
-            "week:2026-02-15"
+            "month:2026-02"
           ],
           "contextDurations": {
-            "week:2026-02-15": 5
+            "month:2026-02": 5
           }
         },
         {
@@ -5659,7 +6071,7 @@
           "createdAt": 1770824044768,
           "done": true,
           "timeContexts": [
-            "week:2026-02-15"
+            "month:2026-02"
           ],
           "contextDurations": {
             "2026-02-15@entry:287": 0
@@ -5697,12 +6109,12 @@
           "createdAt": 1771695417185,
           "done": false,
           "timeContexts": [
-            "week:2026-02-22",
-            "2026-02-23"
+            "week:2026-02-22"
           ],
           "contextDurations": {
             "2026-02-23": 5
-          }
+          },
+          "contextDone": {}
         },
         {
           "id": 578,
@@ -5727,8 +6139,7 @@
       "done": false,
       "timeContexts": [
         "ongoing",
-        "month:2026-02",
-        "2026-02-23"
+        "month:2026-02"
       ],
       "contextDurations": {
         "2026-02-23": 20
@@ -5739,6 +6150,126 @@
       "name": "kolwrite",
       "children": [
         {
+          "id": 700,
+          "name": "לרכז את כל המשימות מהגרסה הקודמת של anything",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771925746292,
+          "done": false,
+          "timeContexts": [
+            "ongoing",
+            "2026-02-24@11:40-17:00"
+          ],
+          "contextDurations": {
+            "2026-02-24@11:40-17:00": 15
+          }
+        },
+        {
+          "id": 701,
+          "name": "sync tasks with Anything?",
+          "children": [],
+          "expanded": false,
+          "createdAt": 1771926220139,
+          "done": false,
+          "timeContexts": [
+            "ongoing"
+          ]
+        },
+        {
+          "id": 675,
+          "name": "koluser",
+          "children": [
+            {
+              "id": 663,
+              "name": "cost",
+              "children": [
+                {
+                  "id": 705,
+                  "name": "providers",
+                  "children": [
+                    {
+                      "id": 706,
+                      "name": "where do we take info from?",
+                      "children": [],
+                      "expanded": false,
+                      "createdAt": 1771927809573,
+                      "done": false,
+                      "timeContexts": [
+                        "2026-02-24"
+                      ]
+                    }
+                  ],
+                  "expanded": true,
+                  "createdAt": 1771927797809,
+                  "done": false,
+                  "timeContexts": [
+                    "ongoing"
+                  ]
+                },
+                {
+                  "id": 704,
+                  "name": "per user action costs",
+                  "children": [],
+                  "expanded": false,
+                  "createdAt": 1771927787298,
+                  "done": false,
+                  "timeContexts": [
+                    "2026-02-24"
+                  ]
+                },
+                {
+                  "id": 703,
+                  "name": "const operational costs",
+                  "children": [],
+                  "expanded": false,
+                  "createdAt": 1771927779812,
+                  "done": false,
+                  "timeContexts": [
+                    "2026-02-24"
+                  ]
+                },
+                {
+                  "id": 702,
+                  "name": "design page",
+                  "children": [],
+                  "expanded": false,
+                  "createdAt": 1771927771495,
+                  "done": false,
+                  "timeContexts": [
+                    "2026-02-24"
+                  ]
+                }
+              ],
+              "expanded": true,
+              "createdAt": 1771773640776,
+              "done": false,
+              "timeContexts": [
+                "2026-02-24@17:30-00:30"
+              ],
+              "contextDurations": {
+                "2026-02-24@17:30-00:30": 180
+              }
+            },
+            {
+              "id": 676,
+              "name": "logs",
+              "children": [],
+              "expanded": false,
+              "createdAt": 1771799964734,
+              "done": false,
+              "timeContexts": [
+                "week:2026-02-22"
+              ]
+            }
+          ],
+          "expanded": true,
+          "createdAt": 1771799962840,
+          "done": false,
+          "timeContexts": [
+            "week:2026-02-22"
+          ]
+        },
+        {
           "id": 694,
           "name": "sub script to manual verification",
           "children": [],
@@ -5746,7 +6277,8 @@
           "createdAt": 1771851974238,
           "done": false,
           "timeContexts": [
-            "2026-02-23"
+            "ongoing",
+            "2026-02-24"
           ]
         },
         {
@@ -5757,7 +6289,8 @@
           "createdAt": 1771846648668,
           "done": false,
           "timeContexts": [
-            "2026-02-23"
+            "ongoing",
+            "2026-02-24"
           ]
         },
         {
@@ -5780,7 +6313,8 @@
           "createdAt": 1771844198151,
           "done": false,
           "timeContexts": [
-            "2026-02-23"
+            "ongoing",
+            "2026-02-24"
           ]
         },
         {
@@ -5791,7 +6325,7 @@
           "createdAt": 1771837302234,
           "done": true,
           "timeContexts": [
-            "2026-02-23"
+            "week:2026-02-22"
           ]
         },
         {
@@ -5802,7 +6336,8 @@
           "createdAt": 1771802714570,
           "done": false,
           "timeContexts": [
-            "2026-02-23"
+            "ongoing",
+            "2026-02-24"
           ]
         },
         {
@@ -5813,7 +6348,8 @@
           "createdAt": 1771800562017,
           "done": false,
           "timeContexts": [
-            "2026-02-23"
+            "ongoing",
+            "2026-02-24"
           ]
         },
         {
@@ -5828,29 +6364,6 @@
           ]
         },
         {
-          "id": 675,
-          "name": "koluser",
-          "children": [
-            {
-              "id": 676,
-              "name": "logs",
-              "children": [],
-              "expanded": false,
-              "createdAt": 1771799964734,
-              "done": false,
-              "timeContexts": [
-                "2026-02-23"
-              ]
-            }
-          ],
-          "expanded": true,
-          "createdAt": 1771799962840,
-          "done": false,
-          "timeContexts": [
-            "2026-02-23"
-          ]
-        },
-        {
           "id": 674,
           "name": "יעל",
           "children": [],
@@ -5858,7 +6371,8 @@
           "createdAt": 1771798581831,
           "done": false,
           "timeContexts": [
-            "2026-02-23"
+            "ongoing",
+            "2026-02-24"
           ]
         },
         {
@@ -5869,7 +6383,8 @@
           "createdAt": 1771798570025,
           "done": false,
           "timeContexts": [
-            "2026-02-23"
+            "ongoing",
+            "2026-02-24"
           ]
         },
         {
@@ -5880,7 +6395,7 @@
           "createdAt": 1771798562669,
           "done": true,
           "timeContexts": [
-            "2026-02-23"
+            "week:2026-02-22"
           ]
         },
         {
@@ -5891,25 +6406,10 @@
           "createdAt": 1771775232880,
           "done": false,
           "timeContexts": [
-            "ongoing",
-            "2026-02-23"
+            "ongoing"
           ],
           "contextDurations": {
             "2026-02-23": 5
-          }
-        },
-        {
-          "id": 663,
-          "name": "cost",
-          "children": [],
-          "expanded": false,
-          "createdAt": 1771773640776,
-          "done": false,
-          "timeContexts": [
-            "week:2026-02-22"
-          ],
-          "contextDurations": {
-            "week:2026-02-22": 480
           }
         },
         {
@@ -5920,7 +6420,7 @@
           "createdAt": 1771770342564,
           "done": true,
           "timeContexts": [
-            "2026-02-23"
+            "week:2026-02-22"
           ],
           "contextDurations": {}
         },
@@ -5944,11 +6444,11 @@
           "createdAt": 1771144195580,
           "done": false,
           "timeContexts": [
-            "week:2026-02-15"
+            "month:2026-02"
           ],
           "contextDurations": {
             "2026-02-15": 15,
-            "week:2026-02-15": 15
+            "month:2026-02": 15
           }
         },
         {
@@ -5959,7 +6459,7 @@
           "createdAt": 1771104193941,
           "done": true,
           "timeContexts": [
-            "week:2026-02-15"
+            "month:2026-02"
           ],
           "contextDurations": {
             "2026-02-14@12:00-01:30": 5
@@ -6010,7 +6510,7 @@
               "createdAt": 1771100462557,
               "done": true,
               "timeContexts": [
-                "week:2026-02-15"
+                "month:2026-02"
               ],
               "contextDurations": {
                 "2026-02-14": 5
@@ -6033,7 +6533,7 @@
           "createdAt": 1770912286750,
           "done": true,
           "timeContexts": [
-            "week:2026-02-15"
+            "month:2026-02"
           ],
           "contextDurations": {
             "2026-02-14": 10
@@ -6047,11 +6547,11 @@
           "createdAt": 1770832037368,
           "done": false,
           "timeContexts": [
-            "week:2026-02-15"
+            "month:2026-02"
           ],
           "contextDurations": {
             "2026-02-15": 60,
-            "week:2026-02-15": 60
+            "month:2026-02": 60
           }
         },
         {
@@ -6089,11 +6589,11 @@
               "createdAt": 1770810830525,
               "done": false,
               "timeContexts": [
-                "week:2026-02-15"
+                "month:2026-02"
               ],
               "contextDurations": {
                 "2026-02-15@21:00-00:30": 60,
-                "week:2026-02-15": 60
+                "month:2026-02": 60
               }
             }
           ],
@@ -6243,13 +6743,12 @@
       "done": false,
       "timeContexts": [
         "ongoing",
-        "week:2026-02-22",
-        "2026-02-23"
+        "week:2026-02-22"
       ],
       "contextDurations": {
         "month:2026-02": 0,
         "week:2026-02-22": 1800,
-        "2026-02-23": 180
+        "2026-02-23": 150
       }
     },
     {
@@ -6310,11 +6809,11 @@
           "createdAt": 1771208271394,
           "done": false,
           "timeContexts": [
-            "week:2026-02-15"
+            "month:2026-02"
           ],
           "contextDurations": {
             "2026-02-16@entry:528": 0,
-            "week:2026-02-15": 0
+            "month:2026-02": 0
           }
         },
         {
@@ -6325,7 +6824,7 @@
           "createdAt": 1771091337506,
           "done": true,
           "timeContexts": [
-            "week:2026-02-15"
+            "month:2026-02"
           ],
           "contextDurations": {}
         },
@@ -6349,11 +6848,11 @@
           "createdAt": 1771081449310,
           "done": false,
           "timeContexts": [
-            "week:2026-02-15"
+            "month:2026-02"
           ],
           "contextDurations": {
             "2026-02-16": 5,
-            "week:2026-02-15": 5
+            "month:2026-02": 5
           }
         },
         {
@@ -6364,12 +6863,12 @@
           "createdAt": 1770832206994,
           "done": false,
           "timeContexts": [
-            "week:2026-02-15"
+            "month:2026-02"
           ],
           "contextDurations": {
             "2026-02-11": 150,
             "2026-02-11@entry:222": 0,
-            "week:2026-02-15": 5
+            "month:2026-02": 5
           }
         },
         {
@@ -6470,7 +6969,7 @@
           "done": true,
           "estimatedDuration": 90,
           "timeContexts": [
-            "week:2026-02-08"
+            "month:2026-02"
           ],
           "contextDurations": {
             "2026-02-12@entry:182": 90
@@ -6484,7 +6983,7 @@
           "createdAt": 1770896669281,
           "done": false,
           "timeContexts": [
-            "week:2026-02-15"
+            "month:2026-02"
           ],
           "contextDurations": {}
         }
@@ -6504,7 +7003,7 @@
       "createdAt": 1770648773227,
       "done": false,
       "timeContexts": [
-        "week:2026-02-15"
+        "month:2026-02"
       ],
       "contextDurations": {}
     },
@@ -6520,7 +7019,7 @@
           "createdAt": 1771090030916,
           "done": false,
           "timeContexts": [
-            "week:2026-02-15"
+            "month:2026-02"
           ],
           "contextDurations": {
             "2026-02-15": 20
@@ -6677,10 +7176,13 @@
       "createdAt": 1770822558666,
       "done": false,
       "timeContexts": [
-        "ongoing"
+        "ongoing",
+        "2026-02-24"
       ],
-      "contextDurations": {}
+      "contextDurations": {
+        "2026-02-24": 45
+      }
     }
   ],
-  "nextId": 698
+  "nextId": 748
 }

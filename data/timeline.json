@@ -6454,7 +6454,258 @@
       "id": 739,
       "timestamp": 1771867114574,
       "manual": true
+    },
+    {
+      "text": "Done: מקלחת",
+      "projectName": "בית",
+      "type": "completion",
+      "id": 740,
+      "timestamp": 1771869158316
+    },
+    {
+      "text": "Worked on: idea - move \"done\" to be done under a context (44m)",
+      "projectName": "anything › core",
+      "type": "work",
+      "startTime": 1771867208920,
+      "endTime": 1771869904587,
+      "targetEndTime": 1771868708909,
+      "itemId": 282,
+      "id": 741,
+      "timestamp": 1771867208920,
+      "manual": true
+    },
+    {
+      "text": "Worked on: anything (0m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1771869904613,
+      "endTime": 1771869958628,
+      "itemId": 9,
+      "id": 742,
+      "timestamp": 1771869904613,
+      "manual": true
+    },
+    {
+      "text": "Done: anything",
+      "projectName": null,
+      "type": "completion",
+      "id": 743,
+      "timestamp": 1771869961597
+    },
+    {
+      "text": "Done: לדבר עם ההורים",
+      "projectName": "משפחה",
+      "type": "completion",
+      "id": 744,
+      "timestamp": 1771872058448
+    },
+    {
+      "text": "Done: לדבר עם ההורים",
+      "projectName": "משפחה",
+      "type": "completion",
+      "id": 745,
+      "timestamp": 1771872069515
+    },
+    {
+      "text": "Done: לדבר עם סבתא וסבתא",
+      "projectName": "משפחה",
+      "type": "completion",
+      "id": 746,
+      "timestamp": 1771872828289
+    },
+    {
+      "text": "Done: מקלחת",
+      "projectName": "בית",
+      "type": "completion",
+      "id": 747,
+      "timestamp": 1771872886971
+    },
+    {
+      "text": "Done: א. ערב",
+      "projectName": "בית",
+      "type": "completion",
+      "id": 748,
+      "timestamp": 1771872911688
+    },
+    {
+      "text": "Break (4h 28m)",
+      "type": "break",
+      "startTime": 1771870440501,
+      "endTime": 1771886546733,
+      "targetEndTime": 1771874580500,
+      "id": 749,
+      "timestamp": 1771870440501
+    },
+    {
+      "text": "Done: מסיבת מרשמלו",
+      "projectName": "פרויקטי מוזיקה › סשן לירון",
+      "type": "completion",
+      "id": 750,
+      "timestamp": 1771887384060
+    },
+    {
+      "text": "Done: לענות על התאריכים בקבוצה של איתי",
+      "projectName": "פרויקטי מוזיקה › סשן איתי",
+      "type": "completion",
+      "id": 751,
+      "timestamp": 1771887385673
+    },
+    {
+      "text": "Worked on: לדגום את אייל (2m)",
+      "projectName": "Inbox › לדבר עם אייל",
+      "type": "work",
+      "startTime": 1771887423025,
+      "endTime": 1771887561702,
+      "targetEndTime": 1771887723025,
+      "itemId": 647,
+      "id": 752,
+      "timestamp": 1771887423025,
+      "manual": true
+    },
+    {
+      "text": "Done: לדגום את אייל",
+      "projectName": "Inbox › לדבר עם אייל",
+      "type": "completion",
+      "id": 753,
+      "timestamp": 1771887566435
+    },
+    {
+      "text": "Worked on: לפרסם את ההופעה (4m)",
+      "projectName": "פרויקטי מוזיקה › ג׳אז בחצר",
+      "type": "work",
+      "startTime": 1771888272416,
+      "endTime": 1771888570743,
+      "targetEndTime": 1771888872416,
+      "itemId": 688,
+      "id": 754,
+      "timestamp": 1771888272416,
+      "manual": true
+    },
+    {
+      "text": "Done: לפרסם את ההופעה",
+      "projectName": "פרויקטי מוזיקה › ג׳אז בחצר",
+      "type": "completion",
+      "id": 755,
+      "timestamp": 1771888572042
+    },
+    {
+      "text": "Worked on: לענות על הודעות (27m)",
+      "projectName": null,
+      "type": "work",
+      "startTime": 1771921800000,
+      "endTime": 1771923428306,
+      "itemId": 303,
+      "id": 756,
+      "timestamp": 1771921800000,
+      "manual": true
+    },
+    {
+      "text": "ללכת לבדוק טלפון",
+      "projectName": null,
+      "type": "planned",
+      "startTime": 1771945200000,
+      "endTime": 1771947000000,
+      "itemId": null,
+      "id": 757,
+      "timestamp": 1771945200000
+    },
+    {
+      "text": "Break (30m)",
+      "type": "break",
+      "startTime": 1771924208467,
+      "endTime": 1771926015542,
+      "targetEndTime": 1771926008467,
+      "id": 758,
+      "timestamp": 1771924208467
+    },
+    {
+      "text": "Done: scroll issue with actions approval",
+      "projectName": "anything › future › AI",
+      "type": "completion",
+      "id": 759,
+      "timestamp": 1771931100932
+    },
+    {
+      "text": "Done: chats persistence",
+      "projectName": "anything › future › AI",
+      "type": "completion",
+      "id": 760,
+      "timestamp": 1771931106923
+    },
+    {
+      "text": "Done: scroll issue with actions approval",
+      "projectName": "anything › future › AI",
+      "type": "completion",
+      "id": 761,
+      "timestamp": 1771932527908
+    },
+    {
+      "text": "Done: chats persistence",
+      "projectName": "anything › future › AI",
+      "type": "completion",
+      "id": 762,
+      "timestamp": 1771932534096
+    },
+    {
+      "id": 763,
+      "text": "Worked on: AI (1h 52m)",
+      "projectName": "anything › future",
+      "type": "work",
+      "startTime": 1771926015553,
+      "endTime": 1771932747513,
+      "targetEndTime": 1771928715530,
+      "itemId": 183,
+      "timestamp": 1771926015553,
+      "manual": true
+    },
+    {
+      "id": 764,
+      "text": "Worked on: AI (12m)",
+      "projectName": "anything › future",
+      "type": "work",
+      "startTime": 1771932859884,
+      "endTime": 1771933634769,
+      "targetEndTime": 1771933759884,
+      "itemId": 183,
+      "timestamp": 1771932859884,
+      "manual": true
+    },
+    {
+      "id": 765,
+      "text": "Worked on: AI (4m)",
+      "projectName": "anything › future",
+      "type": "work",
+      "startTime": 1771933806100,
+      "endTime": 1771934083506,
+      "targetEndTime": 1771934406100,
+      "itemId": 183,
+      "timestamp": 1771933806100,
+      "manual": true
+    },
+    {
+      "id": 766,
+      "text": "Worked on: AI (30m)",
+      "projectName": "anything › future",
+      "type": "work",
+      "startTime": 1771934086335,
+      "endTime": 1771935919286,
+      "targetEndTime": 1771936486335,
+      "itemId": 183,
+      "timestamp": 1771934086335,
+      "manual": true
+    },
+    {
+      "id": 767,
+      "text": "Worked on: לצאת לסיבוב בעיר (16m)",
+      "projectName": "Breaks",
+      "type": "work",
+      "startTime": 1771935924875,
+      "endTime": 1771936914645,
+      "targetEndTime": 1771936824875,
+      "itemId": 685,
+      "timestamp": 1771935924875,
+      "manual": true
     }
   ],
-  "nextId": 740
+  "nextId": 768
 }
