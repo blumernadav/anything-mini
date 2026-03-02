@@ -1429,18 +1429,21 @@ body {
 }
 
 .action-buttons {
-    display: flex;
+    display: none;
     gap: 4px;
-    opacity: 0;
     flex-shrink: 0;
-    transition: opacity var(--dur) var(--ease);
 }
 
 .action-item:hover .action-buttons {
-    opacity: 1;
+    display: flex;
 }
 
 .action-item.done .action-buttons {
+    display: none;
+}
+
+.action-item.done:hover .action-buttons {
+    display: flex;
     opacity: 0.5;
 }
 
@@ -8856,6 +8859,15 @@ select.schedule-leadtime-input {
         display: none;
     }
 
+    /* During tab animation, both panels must be visible & clipped */
+    .sidebar-left.mobile-tab-animating,
+    .sidebar-right.mobile-tab-animating,
+    .main-content.mobile-tab-animating {
+        display: flex !important;
+        will-change: transform, opacity;
+        overflow: hidden;
+    }
+
     .panel-divider {
         display: none;
     }
@@ -9071,10 +9083,6 @@ select.schedule-leadtime-input {
         min-height: 44px;
     }
 
-    /* ── Hide action buttons on mobile (don't take up space) ── */
-    .action-buttons {
-        display: none;
-    }
 
     /* ── Touch action visibility (no hover on mobile) ── */
     .plan-start-btn,

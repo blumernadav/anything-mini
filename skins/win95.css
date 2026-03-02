@@ -8075,6 +8075,15 @@ select.schedule-leadtime-input {
         display: none;
     }
 
+    /* During tab animation, both panels must be visible & clipped */
+    .sidebar-left.mobile-tab-animating,
+    .sidebar-right.mobile-tab-animating,
+    .main-content.mobile-tab-animating {
+        display: flex !important;
+        will-change: transform, opacity;
+        overflow: hidden;
+    }
+
     .panel-divider {
         display: none;
     }

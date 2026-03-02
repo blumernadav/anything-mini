@@ -20042,26 +20042,14 @@ function animateNavTransition(direction, updateFn) {
     }, 200);
 }
 
-// ── Group collapse animation (fade out children before re-render) ──
+// ── Group collapse (no animation – expand-only policy) ──
 function _animateGroupCollapse(headerEl, callback) {
     // Toggle chevron immediately for responsiveness
     const chevron = headerEl.querySelector('.action-group-chevron');
     if (chevron) chevron.classList.remove('expanded');
 
-    // Find the children container (next sibling)
-    const children = headerEl.nextElementSibling;
-    if (!children || !children.classList.contains('action-group-children')) {
-        callback();
-        return;
-    }
-    children.classList.add('action-group-collapse');
-    const onDone = () => {
-        children.classList.remove('action-group-collapse');
-        callback();
-    };
-    children.addEventListener('animationend', onDone, { once: true });
-    // Safety fallback
-    setTimeout(() => { if (children.classList.contains('action-group-collapse')) onDone(); }, 200);
+    // No collapse animation — call back immediately
+    callback();
 }
 
 // ── Actions zoom-out (breadcrumb navigate to broader focus) ──
@@ -20182,19 +20170,106 @@ function initMobileTabBar() {
         timeline: document.getElementById('sidebar-timeline'),
     };
 
-    function switchMobileTab(tabName) {
-        // Update buttons
+    const tabOrder = ['projects', 'actions', 'timeline'];
+    let _mobileTabAnimating = false;
+
+    function getMobileActiveTab() {
+        return localStorage.getItem('mobileActiveTab') || 'actions';
+    }
+
+    function showPanel(key) {
+        const panel = panelMap[key];
+        if (key === 'actions') {
+            panel.classList.remove('mobile-hidden');
+        } else {
+            panel.classList.add('mobile-active');
+        }
+    }
+
+    function hidePanel(key) {
+        const panel = panelMap[key];
+        if (key === 'actions') {
+            panel.classList.add('mobile-hidden');
+        } else {
+            panel.classList.remove('mobile-active');
+        }
+    }
+
+    function switchMobileTab(tabName, animate = true) {
+        if (window.innerWidth > 900) animate = false;
+        const prevTab = getMobileActiveTab();
+
+        // Update tab bar buttons
         tabBar.querySelectorAll('.mobile-tab').forEach(btn => {
             btn.classList.toggle('active', btn.dataset.tab === tabName);
         });
-        // Update panels
-        Object.entries(panelMap).forEach(([key, panel]) => {
-            if (key === 'actions') {
-                panel.classList.toggle('mobile-hidden', key !== tabName);
-            } else {
-                panel.classList.toggle('mobile-active', key === tabName);
-            }
+
+        // No animation needed — same tab or initial load
+        if (!animate || prevTab === tabName || _mobileTabAnimating) {
+            Object.keys(panelMap).forEach(key => {
+                if (key === tabName) showPanel(key);
+                else hidePanel(key);
+            });
+            localStorage.setItem('mobileActiveTab', tabName);
+            return;
+        }
+
+        // Determine direction
+        const prevIdx = tabOrder.indexOf(prevTab);
+        const nextIdx = tabOrder.indexOf(tabName);
+        const goingLeft = nextIdx > prevIdx; // "forward" = content slides left
+
+        const outPanel = panelMap[prevTab];
+        const inPanel = panelMap[tabName];
+
+        _mobileTabAnimating = true;
+
+        // Show incoming panel and position it off-screen
+        showPanel(tabName);
+        inPanel.classList.add('mobile-tab-animating');
+        outPanel.classList.add('mobile-tab-animating');
+
+        // Set initial positions
+        const offset = goingLeft ? '100%' : '-100%';
+        const exitOffset = goingLeft ? '-100%' : '100%';
+        inPanel.style.transform = `translateX(${offset})`;
+        inPanel.style.opacity = '0';
+        outPanel.style.transform = 'translateX(0)';
+        outPanel.style.opacity = '1';
+
+        // Force reflow
+        void inPanel.offsetHeight;
+
+        // Animate
+        requestAnimationFrame(() => {
+            inPanel.style.transition = 'transform 280ms cubic-bezier(0.4, 0, 0.2, 1), opacity 280ms cubic-bezier(0.4, 0, 0.2, 1)';
+            outPanel.style.transition = 'transform 280ms cubic-bezier(0.4, 0, 0.2, 1), opacity 280ms cubic-bezier(0.4, 0, 0.2, 1)';
+
+            inPanel.style.transform = 'translateX(0)';
+            inPanel.style.opacity = '1';
+            outPanel.style.transform = `translateX(${exitOffset})`;
+            outPanel.style.opacity = '0';
         });
+
+        const cleanup = () => {
+            // Clear inline styles
+            [inPanel, outPanel].forEach(el => {
+                el.style.transform = '';
+                el.style.opacity = '';
+                el.style.transition = '';
+                el.classList.remove('mobile-tab-animating');
+            });
+            // Hide old panel
+            hidePanel(prevTab);
+            _mobileTabAnimating = false;
+        };
+
+        inPanel.addEventListener('transitionend', (e) => {
+            if (e.propertyName === 'transform') cleanup();
+        }, { once: true });
+        // Safety fallback
+        setTimeout(cleanup, 350);
+
         localStorage.setItem('mobileActiveTab', tabName);
     }
 
@@ -20203,12 +20278,11 @@ function initMobileTabBar() {
         if (tab) switchMobileTab(tab.dataset.tab);
     });
 
-    // Restore last tab (default: actions)
+    // Restore last tab (default: actions) — no animation on initial load
     const saved = localStorage.getItem('mobileActiveTab') || 'actions';
-    switchMobileTab(saved);
+    switchMobileTab(saved, false);
 
     // ── Swipe gestures for tab switching ──
-    const tabOrder = ['projects', 'actions', 'timeline'];
     let _swipeStartX = 0, _swipeStartY = 0;
     const appLayout = document.querySelector('.app-layout');
     if (appLayout && 'ontouchstart' in window) {
@@ -20224,7 +20298,7 @@ function initMobileTabBar() {
             const dy = e.changedTouches[0].clientY - _swipeStartY;
             // Only trigger if horizontal movement dominates and exceeds threshold
             if (Math.abs(dx) < 50 || Math.abs(dy) > Math.abs(dx)) return;
-            const currentTab = localStorage.getItem('mobileActiveTab') || 'actions';
+            const currentTab = getMobileActiveTab();
             const idx = tabOrder.indexOf(currentTab);
             if (dx < 0 && idx < tabOrder.length - 1) {
                 // Swipe left → next tab
