@@ -18370,6 +18370,11 @@ const panelResize = {
     applyWidths() {
         const layout = document.querySelector('.app-layout');
         if (!layout) return;
+        // On mobile, CSS media query handles layout — don't override with fixed widths
+        if (window.innerWidth <= 900) {
+            layout.style.gridTemplateColumns = '';
+            return;
+        }
         layout.style.gridTemplateColumns = `${this.leftWidth}px 6px 1fr 6px ${this.rightWidth}px`;
     },
 
