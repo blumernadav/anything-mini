@@ -12064,24 +12064,7 @@ function createFreeTimeBlock(startMs, endMs) {
                     ? action._path.slice(0, -1).map(p => p.name).join(' › ')
                     : '';
 
-                // Remove segment context before starting
-                if (item && item.timeContexts) {
-                    const matchingCtx = item.timeContexts.find(tc => {
-                        const p = parseTimeContext(tc);
-                        return p && p.segment;
-                    });
-                    if (matchingCtx) {
-                        item.timeContexts = item.timeContexts.filter(tc => tc !== matchingCtx);
-                        const patch = { timeContexts: item.timeContexts };
-                        if (item.contextDurations) {
-                            delete item.contextDurations[matchingCtx];
-                            patch.contextDurations = item.contextDurations;
-                        }
-                        await api.patch(`/items/${action.id}`, patch);
-                    }
-                }
-
-                // Use the proper startWorking flow
+                // Use the proper startWorking flow (keep the segment context — intention stays assigned)
                 await startWorking(action.id, action.name, ancestors || null, targetEnd);
             });
 
@@ -21292,14 +21275,13 @@ document.addEventListener('DOMContentLoaded', () => {
             copilotOpen = forceOpen !== undefined ? forceOpen : !copilotOpen;
             copilotPanel.classList.toggle('copilot-panel-open', copilotOpen);
             copilotOverlay.classList.toggle('copilot-overlay-visible', copilotOpen);
-            copilotFab.classList.toggle('copilot-fab-hidden', copilotOpen);
             if (copilotOpen) {
                 if (!copilotHistoryLoaded) loadChatHistory();
                 setTimeout(() => copilotInput.focus(), 300);
             }
         }
 
-        copilotFab.addEventListener('click', () => toggleCopilot(true));
+        copilotFab.addEventListener('click', () => toggleCopilot());
         copilotClose.addEventListener('click', () => toggleCopilot(false));
         copilotOverlay.addEventListener('click', () => toggleCopilot(false));
 

@@ -8212,10 +8212,7 @@ select.schedule-leadtime-input {
         font-size: 16px;
     }
 
-    /* ── FAB above tab bar ── */
-    .copilot-fab {
-        bottom: 66px;
-    }
+
 }
 
 /* ── Duration Picker Popover ── */
@@ -8789,39 +8786,7 @@ select.schedule-leadtime-input {
 /* ── AI Copilot ── */
 /* ============================================================ */
 
-.copilot-fab {
-    position: fixed;
-    bottom: 40px;
-    right: 24px;
-    width: 48px;
-    height: 48px;
-    border-radius: 0;
-    border: 2px outset #dfdfdf;
-    background: #c0c0c0;
-    color: #000;
-    font-size: 22px;
-    cursor: pointer;
-    box-shadow: inset 1px 1px 0 #fff, inset -1px -1px 0 #808080;
-    z-index: 9998;
-    transition: opacity 0.2s;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.copilot-fab:hover {
-    background: #d0d0d0;
-}
-
-.copilot-fab:active {
-    border-style: inset;
-    box-shadow: inset -1px -1px 0 #fff, inset 1px 1px 0 #808080;
-}
-
-.copilot-fab-hidden {
-    opacity: 0;
-    pointer-events: none;
-}
+/* copilot-fab is now a top-bar-btn — no special styling needed */
 
 .copilot-overlay {
     position: fixed;
