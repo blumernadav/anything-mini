@@ -1,4 +1,4 @@
-const CACHE_NAME = 'anything-mini-v4';
+const CACHE_NAME = 'anything-mini-v8';
 const STATIC_ASSETS = [
     '/',
     '/index.html',
@@ -41,7 +41,14 @@ self.addEventListener('fetch', (event) => {
 
     // Always go to network for API calls
     if (url.pathname.startsWith('/api/')) {
-        event.respondWith(fetch(event.request));
+        event.respondWith(
+            fetch(event.request).catch(() =>
+                new Response(JSON.stringify({ error: 'Network unavailable' }), {
+                    status: 503,
+                    headers: { 'Content-Type': 'application/json' },
+                })
+            )
+        );
         return;
     }
 

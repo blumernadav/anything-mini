@@ -120,6 +120,79 @@ function clearFocusStack() {
     saveFocusStack();
 }
 
+// ─── Optimistic Update Infrastructure ───
+
+// Temporary ID counter for optimistic timeline entries (negative to avoid server ID collisions)
+let _nextTempId = -1;
+
+// Optimistic timeline POST — returns the temp entry immediately (synchronous)
+function postTimelineOptimistic(payload) {
+    const tempId = _nextTempId--;
+    const entry = {
+        ...payload,
+        id: tempId,
+        timestamp: payload.startTime || Date.now(),
+    };
+    state.timeline.entries.push(entry);
+
+    // Background: POST to server, reconcile ID
+    api.post('/timeline', payload).then(serverEntry => {
+        const idx = state.timeline.entries.findIndex(e => e.id === tempId);
+        if (idx !== -1) {
+            state.timeline.entries[idx] = serverEntry;
+        }
+    }).catch(err => {
+        console.error('[optimistic] Timeline POST failed:', err);
+        // Remove the optimistic entry on failure
+        const idx = state.timeline.entries.findIndex(e => e.id === tempId);
+        if (idx !== -1) state.timeline.entries.splice(idx, 1);
+        _showSaveError('timeline entry');
+        renderAll();
+    });
+
+    return entry;
+}
+
+// Fire-and-forget timeline PATCH — applies locally first
+function patchTimelineOptimistic(entryId, updates) {
+    // Apply to local state immediately
+    const entry = state.timeline.entries.find(e => e.id === entryId);
+    if (entry) {
+        Object.assign(entry, updates);
+        if (updates.startTime !== undefined && !('timestamp' in updates)) {
+            entry.timestamp = updates.startTime;
+        }
+    }
+    // Fire-and-forget to server
+    api.patch(`/timeline/${entryId}`, updates).catch(err => {
+        console.error('[optimistic] Timeline PATCH failed:', err);
+        _showSaveError('timeline update');
+    });
+}
+
+// Fire-and-forget timeline DELETE — removes from local state immediately
+function delTimelineOptimistic(entryId) {
+    const idx = state.timeline.entries.findIndex(e => e.id === entryId);
+    const removed = idx !== -1 ? state.timeline.entries.splice(idx, 1)[0] : null;
+    // Fire-and-forget to server
+    api.del(`/timeline/${entryId}`).catch(err => {
+        console.error('[optimistic] Timeline DELETE failed:', err);
+        // Re-insert the entry on failure
+        if (removed) state.timeline.entries.push(removed);
+        _showSaveError('timeline delete');
+        renderAll();
+    });
+}
+
+// Non-blocking error toast
+function _showSaveError(domain) {
+    const toast = document.createElement('div');
+    toast.className = 'save-error-toast';
+    toast.textContent = `⚠️ Failed to save ${domain}. Will retry on reconnect.`;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 4000);
+}
+
 // ─── Load Data ───
 async function loadAll() {
     const [items, timeline, prefs] = await Promise.all([
@@ -816,10 +889,19 @@ function setupAutocomplete(actionInput, suggestions, { onSelect, allowCreate = t
         const name = createName.trim();
         if (!name) return;
 
-        // Create the item
-        await api.post('/items', { name, parentId, timeContexts: getCurrentTimeContexts() });
-        // Reload items data but DON'T re-render timeline (it would destroy this editor)
-        state.items = await api.get('/items');
+        // Create the item optimistically
+        api.post('/items', { name, parentId, timeContexts: getCurrentTimeContexts() }).then(newItem => {
+            reloadItems(); // background sync
+        }).catch(err => {
+            console.error('[optimistic] Item creation failed:', err);
+            _showSaveError('item creation');
+        });
+        // Optimistic local add — add to state.items tree immediately
+        const tempId = state.items.nextId++;
+        const newLocalItem = { id: tempId, name, children: [], expanded: false, createdAt: Date.now(), done: false, timeContexts: getCurrentTimeContexts() };
+        const parentArr = parentId ? findItemById(parentId)?.children : state.items.items;
+        if (parentArr) parentArr.push(newLocalItem);
+        saveItems(); // debounced bulk save
         renderProjects();
         renderActions();
 
@@ -1184,7 +1266,7 @@ async function sendToMonth(itemId, monthKey, sourceDuration) {
     const dur = sourceDuration != null ? sourceDuration : (item.contextDurations[Object.keys(item.contextDurations)[0]] ?? undefined);
     item.contextDurations = {};
     if (dur != null) item.contextDurations[monthKey] = dur;
-    await api.patch(`/items/${itemId}`, { timeContexts: item.timeContexts, contextDurations: item.contextDurations });
+    api.patch(`/items/${itemId}`, { timeContexts: item.timeContexts, contextDurations: item.contextDurations });
     renderAll();
 }
 
@@ -1347,7 +1429,7 @@ function isContextDone(item, viewContext) {
 }
 
 // Set or clear a context-done entry. Stores Date.now() as timestamp when marking done.
-async function setContextDone(item, contextKey, done) {
+function setContextDone(item, contextKey, done) {
     if (!item) return;
     if (!item.contextDone) item.contextDone = {};
     if (done) {
@@ -1355,7 +1437,10 @@ async function setContextDone(item, contextKey, done) {
     } else {
         delete item.contextDone[contextKey];
     }
-    await api.patch(`/items/${item.id}`, { contextDone: item.contextDone });
+    api.patch(`/items/${item.id}`, { contextDone: item.contextDone }).catch(err => {
+        console.error('[optimistic] Item PATCH failed:', err);
+        _showSaveError('item update');
+    });
 }
 
 // Returns info about at which level the item is done in the given context, or null if not done.
@@ -1507,13 +1592,13 @@ async function addSegmentContext(itemId, segmentContextStr, seedDuration, { move
     } else if (!(segmentContextStr in item.contextDurations)) {
         item.contextDurations[segmentContextStr] = item.estimatedDuration || 0;
     }
-    await api.patch(`/items/${itemId}`, { timeContexts: item.timeContexts, contextDurations: item.contextDurations });
+    api.patch(`/items/${itemId}`, { timeContexts: item.timeContexts, contextDurations: item.contextDurations });
     renderAll();
 }
 
 // Degrade a segment context back to its parent date context.
 // Returns the removed context's duration (if any) so callers can migrate it.
-async function degradeSegmentContext(itemId, segmentContextStr) {
+function degradeSegmentContext(itemId, segmentContextStr) {
     itemId = Number(itemId);
     const item = findItemById(itemId);
     if (!item || !item.timeContexts) return;
@@ -1538,13 +1623,16 @@ async function degradeSegmentContext(itemId, segmentContextStr) {
     }
     const patch = { timeContexts: item.timeContexts };
     if (item.contextDurations) patch.contextDurations = item.contextDurations;
-    await api.patch(`/items/${itemId}`, patch);
+    api.patch(`/items/${itemId}`, patch).catch(err => {
+        console.error('[optimistic] Item PATCH failed:', err);
+        _showSaveError('item context');
+    });
     renderAll();
     return removedDuration;
 }
 
 // Degrade all segment/entry contexts referencing a specific entry ID
-async function degradeEntryContexts(entryId) {
+function degradeEntryContexts(entryId) {
     const items = collectAllItems(state.items.items);
     for (const item of items) {
         if (!item.timeContexts) continue;
@@ -1554,7 +1642,7 @@ async function degradeEntryContexts(entryId) {
         });
         if (matching.length > 0) {
             for (const ctx of matching) {
-                await degradeSegmentContext(item.id, ctx);
+                degradeSegmentContext(item.id, ctx);
             }
         }
     }
@@ -1568,21 +1656,21 @@ function getBufferEntries(parentEntryId) {
 }
 
 // Delete buffer entries for a parent entry AND clean up item contexts referencing them
-async function deleteBuffersForEntry(parentEntryId) {
+function deleteBuffersForEntry(parentEntryId) {
     const buffers = getBufferEntries(parentEntryId);
     for (const buf of buffers) {
-        await degradeEntryContexts(buf.id);
-        await api.del(`/timeline/${buf.id}`);
+        degradeEntryContexts(buf.id);
+        delTimelineOptimistic(buf.id);
     }
 }
 
 // Create buffer entries for a parent planned entry based on its prepDuration / windDownDuration
-async function createBufferEntries(parentEntry) {
+function createBufferEntries(parentEntry) {
     const buffers = [];
     if (parentEntry.prepDuration && parentEntry.prepDuration > 0) {
         const prepEnd = parentEntry.startTime || parentEntry.timestamp;
         const prepStart = prepEnd - parentEntry.prepDuration * 1000;
-        const buf = await api.post('/timeline', {
+        const buf = postTimelineOptimistic({
             text: `Prep: ${parentEntry.text}`,
             type: 'planned',
             startTime: prepStart,
@@ -1591,13 +1679,12 @@ async function createBufferEntries(parentEntry) {
             bufferForEntryId: parentEntry.id,
             bufferType: 'prep',
         });
-        state.timeline.entries.push(buf);
         buffers.push(buf);
     }
     if (parentEntry.windDownDuration && parentEntry.windDownDuration > 0) {
         const wdStart = parentEntry.endTime;
         const wdEnd = wdStart + parentEntry.windDownDuration * 1000;
-        const buf = await api.post('/timeline', {
+        const buf = postTimelineOptimistic({
             text: `Wind-down: ${parentEntry.text}`,
             type: 'planned',
             startTime: wdStart,
@@ -1606,14 +1693,13 @@ async function createBufferEntries(parentEntry) {
             bufferForEntryId: parentEntry.id,
             bufferType: 'winddown',
         });
-        state.timeline.entries.push(buf);
         buffers.push(buf);
     }
     return buffers;
 }
 
 // Sync buffer entries when parent's times or durations change
-async function syncBufferEntries(parentEntry) {
+function syncBufferEntries(parentEntry) {
     const existing = getBufferEntries(parentEntry.id);
     const prepDur = parentEntry.prepDuration || 0;
     const wdDur = parentEntry.windDownDuration || 0;
@@ -1626,21 +1712,20 @@ async function syncBufferEntries(parentEntry) {
         const prepEnd = parentStart;
         const prepStart = prepEnd - prepDur * 1000;
         if (existingPrep) {
-            await api.patch(`/timeline/${existingPrep.id}`, {
+            patchTimelineOptimistic(existingPrep.id, {
                 startTime: prepStart, timestamp: prepStart, endTime: prepEnd,
                 text: `Prep: ${parentEntry.text}`,
             });
         } else {
-            const buf = await api.post('/timeline', {
+            postTimelineOptimistic({
                 text: `Prep: ${parentEntry.text}`,
                 type: 'planned', startTime: prepStart, endTime: prepEnd,
                 itemId: null, bufferForEntryId: parentEntry.id, bufferType: 'prep',
             });
-            state.timeline.entries.push(buf);
         }
     } else if (existingPrep) {
-        await degradeEntryContexts(existingPrep.id);
-        await api.del(`/timeline/${existingPrep.id}`);
+        degradeEntryContexts(existingPrep.id);
+        delTimelineOptimistic(existingPrep.id);
     }
 
     // Handle wind-down buffer
@@ -1649,21 +1734,20 @@ async function syncBufferEntries(parentEntry) {
         const wdStart = parentEnd;
         const wdEnd = wdStart + wdDur * 1000;
         if (existingWd) {
-            await api.patch(`/timeline/${existingWd.id}`, {
+            patchTimelineOptimistic(existingWd.id, {
                 startTime: wdStart, timestamp: wdStart, endTime: wdEnd,
                 text: `Wind-down: ${parentEntry.text}`,
             });
         } else {
-            const buf = await api.post('/timeline', {
+            postTimelineOptimistic({
                 text: `Wind-down: ${parentEntry.text}`,
                 type: 'planned', startTime: wdStart, endTime: wdEnd,
                 itemId: null, bufferForEntryId: parentEntry.id, bufferType: 'winddown',
             });
-            state.timeline.entries.push(buf);
         }
     } else if (existingWd) {
-        await degradeEntryContexts(existingWd.id);
-        await api.del(`/timeline/${existingWd.id}`);
+        degradeEntryContexts(existingWd.id);
+        delTimelineOptimistic(existingWd.id);
     }
 }
 
@@ -1979,74 +2063,57 @@ function detectOutOfHoursWork(viewDate, nowMs) {
 // Plans are NEVER modified or deleted.
 
 // Accept Log for a single idle segment — create a manual idle entry
-async function _resolveSegmentAcceptLog_Idle(planEntry, seg) {
-    const planName = planEntry.text || 'Planned session';
-    const durationMs = seg.endMs - seg.startMs;
-    const durStr = _fmtDuration(durationMs);
-
-    await api.post('/timeline', {
+function _resolveSegmentAcceptLog_Idle(planEntry, seg) {
+    postTimelineOptimistic({
         text: 'Idle',
         type: 'idle',
         manual: true,
         startTime: seg.startMs,
         endTime: seg.endMs,
     });
-
-    state.timeline = await api.get('/timeline');
-    renderAll();
 }
 
 // Accept Log for a single different-work segment — mark the work entry as manual
-async function _resolveSegmentAcceptLog_Different(seg) {
+function _resolveSegmentAcceptLog_Different(seg) {
     const workEntry = seg.workEntry;
     if (!workEntry) return;
-
-    await api.patch(`/timeline/${workEntry.id}`, { manual: true });
-
-    state.timeline = await api.get('/timeline');
-    renderAll();
+    patchTimelineOptimistic(workEntry.id, { manual: true });
 }
 
 // Accept Log for ALL segments of a plan at once
-async function _resolveAllSegmentsAsLog(divergence) {
+function _resolveAllSegmentsAsLog(divergence) {
     for (const seg of (divergence.allSegments || divergence.segments || [])) {
         if (seg.type === 'covered') continue;
         if (seg.type === 'idle') {
-            await _resolveSegmentAcceptLog_Idle(divergence.entry, seg);
+            _resolveSegmentAcceptLog_Idle(divergence.entry, seg);
         } else if (seg.type === 'different') {
-            await _resolveSegmentAcceptLog_Different(seg);
+            _resolveSegmentAcceptLog_Different(seg);
         }
     }
-    // Reload once at the end (individual functions already reload, but ensure consistency)
-    state.timeline = await api.get('/timeline');
     renderAll();
 }
 
 // Accept unplanned work — mark it as manual (intentional)
-async function resolveDivergenceAcceptUnplanned(workEntryId) {
-    await api.patch(`/timeline/${workEntryId}`, { manual: true });
-
-    state.timeline = await api.get('/timeline');
+function resolveDivergenceAcceptUnplanned(workEntryId) {
+    patchTimelineOptimistic(workEntryId, { manual: true });
     renderAll();
 }
 
 // Reject unplanned work — delete the log entry (nothing was planned, dismiss it)
-async function resolveDivergenceRejectUnplanned(workEntryId) {
-    await api.del(`/timeline/${workEntryId}`);
-
-    state.timeline = await api.get('/timeline');
+function resolveDivergenceRejectUnplanned(workEntryId) {
+    delTimelineOptimistic(workEntryId);
     renderAll();
 }
 
 // Accept Plan for idle segment — create retroactive manual work entry for the gap
-async function _resolveSegmentAcceptPlan_Idle(planEntry, seg) {
+function _resolveSegmentAcceptPlan_Idle(planEntry, seg) {
     const planName = planEntry.text || 'Planned session';
     const itemId = planEntry.itemId || null;
     const projectName = planEntry.projectName || null;
     const durationMs = seg.endMs - seg.startMs;
     const durStr = _fmtDuration(durationMs);
 
-    await api.post('/timeline', {
+    postTimelineOptimistic({
         text: `Worked on: ${planName} (${durStr})`,
         projectName,
         type: 'work',
@@ -2055,13 +2122,10 @@ async function _resolveSegmentAcceptPlan_Idle(planEntry, seg) {
         endTime: seg.endMs,
         itemId,
     });
-
-    state.timeline = await api.get('/timeline');
-    renderAll();
 }
 
 // Accept Plan for different-work segment — re-attribute the work entry to the planned project
-async function _resolveSegmentAcceptPlan_Different(planEntry, seg) {
+function _resolveSegmentAcceptPlan_Different(planEntry, seg) {
     const planName = planEntry.text || 'Planned session';
     const workEntry = seg.workEntry;
     if (!workEntry) return;
@@ -2069,19 +2133,16 @@ async function _resolveSegmentAcceptPlan_Different(planEntry, seg) {
     const durationMs = workEntry.endTime - workEntry.timestamp;
     const durStr = _fmtDuration(durationMs);
 
-    await api.patch(`/timeline/${workEntry.id}`, {
+    patchTimelineOptimistic(workEntry.id, {
         text: `Worked on: ${planName} (${durStr})`,
         itemId: planEntry.itemId || null,
         projectName: planEntry.projectName || null,
         manual: true,
     });
-
-    state.timeline = await api.get('/timeline');
-    renderAll();
 }
 
 // Accept Plan for ALL idle segments of a plan at once
-async function resolveDivergenceDidIt(entry) {
+function resolveDivergenceDidIt(entry) {
     const planName = entry.text || 'Planned session';
     const itemId = entry.itemId || null;
     const projectName = entry.projectName || null;
@@ -2117,7 +2178,7 @@ async function resolveDivergenceDidIt(entry) {
     for (const [gapStart, gapEnd] of gaps) {
         const durationMs = gapEnd - gapStart;
         const durStr = _fmtDuration(durationMs);
-        await api.post('/timeline', {
+        postTimelineOptimistic({
             text: `Worked on: ${planName} (${durStr})`,
             projectName,
             type: 'work',
@@ -2131,7 +2192,7 @@ async function resolveDivergenceDidIt(entry) {
     // Also mark any non-manual different-work entries as manual (user confirmed the plan)
     for (const ce of coverageEntries) {
         if (ce.type === 'work' && !ce.manual) {
-            await api.patch(`/timeline/${ce.id}`, {
+            patchTimelineOptimistic(ce.id, {
                 text: `Worked on: ${planName} (${_fmtDuration(ce.endTime - ce.timestamp)})`,
                 itemId: itemId,
                 projectName: projectName,
@@ -2140,11 +2201,10 @@ async function resolveDivergenceDidIt(entry) {
         }
     }
 
-    state.timeline = await api.get('/timeline');
     renderAll();
 }
 
-async function resolveDivergenceReschedule(entry, target) {
+function resolveDivergenceReschedule(entry, target) {
     // Rescheduling creates a NEW plan and covers the old time with a manual idle log.
     // The original plan entry is never deleted.
     const planStart = entry.timestamp;
@@ -2153,7 +2213,7 @@ async function resolveDivergenceReschedule(entry, target) {
     const planName = entry.text || 'Planned session';
 
     // Create manual idle log for the original time slot
-    await api.post('/timeline', {
+    postTimelineOptimistic({
         text: 'Idle',
         type: 'idle',
         manual: true,
@@ -2164,14 +2224,14 @@ async function resolveDivergenceReschedule(entry, target) {
     // Create the new plan entry at the target time
     if (target === 'drop') {
         // Drop = just cover original with idle, no new plan
-        await deleteBuffersForEntry(entry.id);
-        await degradeEntryContexts(entry.id);
+        deleteBuffersForEntry(entry.id);
+        degradeEntryContexts(entry.id);
     } else if (target === 'tomorrow') {
         const tomorrow = new Date(planStart);
         tomorrow.setDate(tomorrow.getDate() + 1);
         const newStart = tomorrow.getTime();
         const newEnd = newStart + duration;
-        await api.post('/timeline', {
+        postTimelineOptimistic({
             text: entry.text,
             type: 'planned',
             startTime: newStart,
@@ -2189,7 +2249,7 @@ async function resolveDivergenceReschedule(entry, target) {
             const slotStart = Math.max(seg.startMs, nowMs);
             if (seg.endMs - slotStart >= duration) {
                 const newEnd = slotStart + duration;
-                await api.post('/timeline', {
+                postTimelineOptimistic({
                     text: entry.text,
                     type: 'planned',
                     startTime: slotStart,
@@ -2204,7 +2264,6 @@ async function resolveDivergenceReschedule(entry, target) {
         if (!slotFound) return resolveDivergenceReschedule(entry, 'tomorrow');
     }
 
-    state.timeline = await api.get('/timeline');
     renderAll();
 }
 
@@ -2222,7 +2281,7 @@ async function resolveOutOfHoursExtendDay(div) {
         dayEndHour: workEnd.getHours(),
         dayEndMinute: workEnd.getMinutes() + (workEnd.getSeconds() > 0 ? 1 : 0), // round up
     };
-    await api.put('/settings', state.settings);
+    api.put('/settings', state.settings);
     renderAll();
 }
 
@@ -2238,12 +2297,12 @@ async function resolveOutOfHoursEarlierStart(div) {
         dayStartHour: workStart.getHours(),
         dayStartMinute: workStart.getMinutes(),
     };
-    await api.put('/settings', state.settings);
+    api.put('/settings', state.settings);
     renderAll();
 }
 
 // Trim the log entry to exclude the out-of-hours portion
-async function resolveOutOfHoursTrimLog(div) {
+function resolveOutOfHoursTrimLog(div) {
     const entry = div.workEntry;
     if (!entry) return;
 
@@ -2251,21 +2310,20 @@ async function resolveOutOfHoursTrimLog(div) {
         // Work extends past day end — trim endTime to gapStart (day end)
         if (entry.timestamp >= div.gapStart) {
             // Entire entry is in the gap — delete it
-            await api.del(`/timeline/${entry.id}`);
+            delTimelineOptimistic(entry.id);
         } else {
-            await api.patch(`/timeline/${entry.id}`, { endTime: div.gapStart });
+            patchTimelineOptimistic(entry.id, { endTime: div.gapStart });
         }
     } else {
         // Work starts before day start — trim timestamp to gapEnd (day start)
         if (entry.endTime <= div.gapEnd) {
             // Entire entry is in the gap — delete it
-            await api.del(`/timeline/${entry.id}`);
+            delTimelineOptimistic(entry.id);
         } else {
-            await api.patch(`/timeline/${entry.id}`, { timestamp: div.gapEnd });
+            patchTimelineOptimistic(entry.id, { timestamp: div.gapEnd });
         }
     }
 
-    state.timeline = await api.get('/timeline');
     renderAll();
 }
 
@@ -2821,7 +2879,7 @@ function _syncSessionToFocusStack(segment) {
 }
 
 // Degrade all @work or @break live contexts back to the parent day context
-async function _degradeLiveContexts(type) {
+function _degradeLiveContexts(type) {
     const dateKey = getDateKey(state.timelineViewDate);
     const liveCtx = `${dateKey}@${type}`;
     const allItems = collectAllItems(state.items.items);
@@ -2844,7 +2902,10 @@ async function _degradeLiveContexts(type) {
             }
             const patch = { timeContexts: item.timeContexts };
             if (item.contextDurations) patch.contextDurations = item.contextDurations;
-            await api.patch(`/items/${item.id}`, patch);
+            api.patch(`/items/${item.id}`, patch).catch(err => {
+                console.error('[optimistic] Item PATCH failed:', err);
+                _showSaveError('item context');
+            });
         }
     }
 }
@@ -3118,7 +3179,7 @@ function _isDragCopy(e) {
 // Unlike sendToEpoch/sendToWeek etc., this does NOT replace all contexts — it removes just the one.
 // If the exact sourceContext isn't found (e.g. plan boundaries were resized), falls back to
 // fuzzy overlap matching: finds a stored context on the same date with overlapping time ranges.
-async function removeSourceContext(itemId, sourceContext) {
+function removeSourceContext(itemId, sourceContext) {
     itemId = Number(itemId);
     const item = findItemById(itemId);
     if (!item || !item.timeContexts) return;
@@ -3170,6 +3231,7 @@ async function removeSourceContext(itemId, sourceContext) {
     // Remove the resolved context
     const before = item.timeContexts.length;
     item.timeContexts = item.timeContexts.filter(tc => tc !== contextToRemove);
+    const didRemove = item.timeContexts.length < before;
     // Capture duration before deleting, so callers can migrate it
     const removedDuration = item.contextDurations?.[contextToRemove];
     // Clean up duration for removed context
@@ -3180,11 +3242,14 @@ async function removeSourceContext(itemId, sourceContext) {
     if (item.timeContexts.length === 0) {
         item.timeContexts.push('ongoing');
     }
-    // Only persist if something changed
-    if (item.timeContexts.length !== before) {
+    // Only persist if something was actually removed
+    if (didRemove) {
         const patch = { timeContexts: item.timeContexts };
         if (item.contextDurations) patch.contextDurations = item.contextDurations;
-        await api.patch(`/items/${itemId}`, patch);
+        api.patch(`/items/${itemId}`, patch).catch(err => {
+            console.error('[optimistic] Item PATCH failed:', err);
+            _showSaveError('item context');
+        });
     }
     return removedDuration;
 }
@@ -3572,7 +3637,7 @@ async function toggleTimeContext(itemId, dateKey) {
     } else {
         item.timeContexts.push(dateKey);
     }
-    await api.patch(`/items/${itemId}`, { timeContexts: item.timeContexts });
+    api.patch(`/items/${itemId}`, { timeContexts: item.timeContexts });
     renderAll();
 }
 
@@ -3595,7 +3660,7 @@ async function addTimeContext(itemId, dateKey, seedDuration) {
     if (changed) {
         const patch = { timeContexts: item.timeContexts };
         if (item.contextDurations) patch.contextDurations = item.contextDurations;
-        await api.patch(`/items/${itemId}`, patch);
+        api.patch(`/items/${itemId}`, patch);
         renderAll();
     }
 }
@@ -3614,7 +3679,7 @@ async function sendToEpoch(itemId, epochName, sourceDuration) {
     const dur = sourceDuration != null ? sourceDuration : (item.contextDurations[Object.keys(item.contextDurations)[0]] ?? undefined);
     item.contextDurations = {};
     if (dur != null) item.contextDurations[epochName] = dur;
-    await api.patch(`/items/${itemId}`, { timeContexts: item.timeContexts, contextDurations: item.contextDurations });
+    api.patch(`/items/${itemId}`, { timeContexts: item.timeContexts, contextDurations: item.contextDurations });
     renderAll();
 }
 // Convenience wrapper
@@ -3631,7 +3696,7 @@ async function sendToWeek(itemId, weekKey, sourceDuration) {
     const dur = sourceDuration != null ? sourceDuration : (item.contextDurations[Object.keys(item.contextDurations)[0]] ?? undefined);
     item.contextDurations = {};
     if (dur != null) item.contextDurations[weekKey] = dur;
-    await api.patch(`/items/${itemId}`, { timeContexts: item.timeContexts, contextDurations: item.contextDurations });
+    api.patch(`/items/${itemId}`, { timeContexts: item.timeContexts, contextDurations: item.contextDurations });
     renderAll();
 }
 
@@ -3656,7 +3721,7 @@ async function promoteFromWeek(itemId, dateKey, sourceDuration) {
     if (weekCtx) delete item.contextDurations[weekCtx];
     for (const ep of EPOCH_CONTEXTS) delete item.contextDurations[ep];
     if (weekDur != null) item.contextDurations[dateKey] = weekDur;
-    await api.patch(`/items/${itemId}`, { timeContexts: item.timeContexts, contextDurations: item.contextDurations });
+    api.patch(`/items/${itemId}`, { timeContexts: item.timeContexts, contextDurations: item.contextDurations });
     renderAll();
 }
 
@@ -3688,7 +3753,7 @@ async function promoteFromEpoch(itemId, dateKey, sourceDuration) {
         if (key.startsWith(dateKey + '@')) delete item.contextDurations[key];
     }
     if (epochDur != null) item.contextDurations[dateKey] = epochDur;
-    await api.patch(`/items/${itemId}`, { timeContexts: item.timeContexts, contextDurations: item.contextDurations });
+    api.patch(`/items/${itemId}`, { timeContexts: item.timeContexts, contextDurations: item.contextDurations });
     renderAll();
 }
 // Convenience alias
@@ -3718,7 +3783,7 @@ async function rescheduleToDate(itemId, dateKey) {
     if (!item.contextDurations) item.contextDurations = {};
     item.contextDurations = {};
     if (srcDur) item.contextDurations[dateKey] = srcDur;
-    await api.patch(`/items/${itemId}`, { timeContexts: item.timeContexts, contextDurations: item.contextDurations });
+    api.patch(`/items/${itemId}`, { timeContexts: item.timeContexts, contextDurations: item.contextDurations });
     renderAll();
 }
 
@@ -3913,7 +3978,7 @@ async function cleanPastSchedules() {
 
     walkItems(state.items.items);
     if (dirty) {
-        await saveItems();
+        saveItems();
     }
 }
 
@@ -4020,7 +4085,7 @@ async function cleanPastSessions(now) {
 
     walkItems(state.items.items);
     if (dirty) {
-        await saveItems();
+        saveItems();
     }
 }
 
@@ -4037,7 +4102,7 @@ async function migrateEmptyTimeContexts() {
         }
     }
     walkItems(state.items.items);
-    if (dirty) await saveItems();
+    if (dirty) saveItems();
 }
 
 // ─── One-time migration: rename 'someday' → 'ongoing' in existing items ───
@@ -4061,7 +4126,7 @@ async function migrateSomedayToOngoing() {
         }
     }
     walkItems(state.items.items);
-    if (dirty) await saveItems();
+    if (dirty) saveItems();
 }
 
 // ─── Drag & Drop State ───
@@ -4150,7 +4215,7 @@ function startInlineRename(nameEl, item) {
         const val = input.value.trim();
         if (val && val !== currentName) {
             item.name = val;
-            await saveItems();
+            saveItems();
         }
         nameEl.textContent = item.name;
     };
@@ -4217,19 +4282,18 @@ function showProjectContextMenu(e, item) {
         ev.stopPropagation();
         dismissProjectContextMenu();
         const newDone = !item.done;
-        await api.patch(`/items/${item.id}`, { done: newDone });
+        api.patch(`/items/${item.id}`, { done: newDone });
         item.done = newDone;
         if (newDone) {
             const ancestorPath = getAncestorPath(item.id);
             const ancestors = ancestorPath
                 ? ancestorPath.map(a => a.name).join(' › ')
                 : '';
-            await api.post('/timeline', {
+            postTimelineOptimistic({
                 text: `Done: ${item.name}`,
                 projectName: ancestors || null,
                 type: 'completion'
             });
-            state.timeline = await api.get('/timeline');
             // Deselect if hiding done items
             if (!state.showDone && state.selectedItemId === item.id) {
                 state.selectedItemId = null;
@@ -4361,12 +4425,12 @@ function showProjectContextMenu(e, item) {
     deleteOpt.addEventListener('click', async (ev) => {
         ev.stopPropagation();
         dismissProjectContextMenu();
-        await api.del(`/items/${item.id}`);
+        api.del(`/items/${item.id}`).catch(err => { console.error('[optimistic] Item delete failed:', err); _showSaveError('item deletion'); });
         if (state.selectedItemId === item.id) {
             state.selectedItemId = null;
             savePref('selectedItemId', '');
         }
-        await reloadItems();
+        reloadItems();
     });
     menu.appendChild(deleteOpt);
 
@@ -4441,17 +4505,16 @@ function showActionContextMenu(e, action) {
             const item = findItemById(action.id);
             if (!item) return;
             const wasDone = isContextDone(item, viewCtx);
-            await setContextDone(item, viewCtx, !wasDone);
+            setContextDone(item, viewCtx, !wasDone);
             if (!wasDone) {
                 const ancestors = action._path
                     ? action._path.slice(0, -1).map(p => p.name).join(' › ')
                     : '';
-                await api.post('/timeline', {
+                postTimelineOptimistic({
                     text: `Done: ${action.name}`,
                     projectName: ancestors || null,
                     type: 'completion'
                 });
-                state.timeline = await api.get('/timeline');
             }
             renderAll();
         });
@@ -4645,7 +4708,7 @@ function showActionContextMenu(e, action) {
         if (isBulk) {
             await bulkDecline();
         } else {
-            await removeSourceContext(action.id, getCurrentViewContext());
+            removeSourceContext(action.id, getCurrentViewContext());
             renderAll();
         }
     });
@@ -4689,7 +4752,7 @@ function startActionInlineRename(nameEl, action) {
             if (originalItem) {
                 originalItem.name = val;
                 action.name = val;
-                await saveItems();
+                saveItems();
             }
         }
         nameEl.textContent = action.name;
@@ -5213,19 +5276,18 @@ function renderProjectLevel(items, parent, depth, query = '', matchingIds = new 
             doneBtn.addEventListener('click', async (e) => {
                 e.stopPropagation();
                 const newDone = !item.done;
-                await api.patch(`/items/${item.id}`, { done: newDone });
+                api.patch(`/items/${item.id}`, { done: newDone });
                 item.done = newDone;
                 if (newDone) {
                     const ancestorPath = getAncestorPath(item.id);
                     const ancestors = ancestorPath
                         ? ancestorPath.map(a => a.name).join(' › ')
                         : '';
-                    await api.post('/timeline', {
+                    postTimelineOptimistic({
                         text: `Done: ${item.name}`,
                         projectName: ancestors || null,
                         type: 'completion'
                     });
-                    state.timeline = await api.get('/timeline');
                     if (!state.showDone && state.selectedItemId === item.id) {
                         state.selectedItemId = null;
                         savePref('selectedItemId', '');
@@ -5273,12 +5335,12 @@ function renderProjectLevel(items, parent, depth, query = '', matchingIds = new 
             delBtn.addEventListener('click', async (e) => {
                 e.stopPropagation();
                 if (!confirm(`Delete "${item.name}"? This cannot be undone.`)) return;
-                await api.del(`/items/${item.id}`);
+                api.del(`/items/${item.id}`).catch(err => { console.error('[optimistic] Item delete failed:', err); _showSaveError('item deletion'); });
                 if (state.selectedItemId === item.id) {
                     state.selectedItemId = null;
                     savePref('selectedItemId', '');
                 }
-                await reloadItems();
+                reloadItems();
             });
             actions.appendChild(delBtn);
         }
@@ -5405,7 +5467,7 @@ function showInsertInput(markerEl, targetArray, insertIndex) {
             done: false,
         };
         targetArray.splice(insertIndex, 0, newItem);
-        await saveItems();
+        saveItems();
         renderAll();
     };
 
@@ -5430,17 +5492,26 @@ function showInsertInput(markerEl, targetArray, insertIndex) {
     });
 }
 
-async function saveItems() {
-    try {
-        await api.put('/items', { ...state.items }); // bulk save
-    } catch (e) {
-        if (e.status === 409) {
-            alert('⚠️ This tab has outdated data and was blocked from saving.\nThe page will now reload with the latest data.');
-            location.reload();
-            return;
+// Debounced fire-and-forget item save (300ms coalescing for rapid edits)
+let _saveItemsTimer = null;
+function saveItems() {
+    if (_saveItemsTimer) clearTimeout(_saveItemsTimer);
+    _saveItemsTimer = setTimeout(async () => {
+        try {
+            api.put('/items', { ...state.items }).catch(err => {
+                console.error('[optimistic] Items bulk save failed:', err);
+                _showSaveError('items');
+            });
+        } catch (e) {
+            if (e.status === 409) {
+                alert('⚠️ This tab has outdated data and was blocked from saving.\nThe page will now reload with the latest data.');
+                location.reload();
+                return;
+            }
+            console.error('[optimistic] Items save failed:', e);
+            _showSaveError('items');
         }
-        throw e;
-    }
+    }, 300);
 }
 
 async function reloadItems() {
@@ -5495,12 +5566,21 @@ function showItemInput(parentId = null, childDepth = 0) {
 
     input.addEventListener('keydown', async (e) => {
         if (e.key === 'Enter' && input.value.trim()) {
-            await api.post('/items', {
+            // Optimistic local add
+            const tempId = state.items.nextId++;
+            const newLocalItem = { id: tempId, name: input.value.trim(), children: [], expanded: false, createdAt: Date.now(), done: false, timeContexts: getCurrentTimeContexts() };
+            const parentArr = parentId ? findItemById(parentId)?.children : state.items.items;
+            if (parentArr) parentArr.push(newLocalItem);
+            // Fire-and-forget to server
+            api.post('/items', {
                 name: input.value.trim(),
                 parentId: parentId,
                 timeContexts: getCurrentTimeContexts()
+            }).then(() => reloadItems()).catch(err => {
+                console.error('[optimistic] Item creation failed:', err);
+                _showSaveError('item creation');
             });
-            await reloadItems();
+            renderAll();
         }
         if (e.key === 'Escape') {
             row.remove();
@@ -5919,15 +5999,14 @@ function renderActions(opts) {
             doneBtn.title = 'Mark as done';
             doneBtn.addEventListener('click', async (e) => {
                 e.stopPropagation();
-                await setContextDone(headerItem, getCurrentViewContext(), true);
+                setContextDone(headerItem, getCurrentViewContext(), true);
                 const ancestors = getAncestorPath(headerId) || [];
                 const ancestorStr = ancestors.map(a => a.name).join(' › ');
-                await api.post('/timeline', {
+                postTimelineOptimistic({
                     text: `Done: ${headerItem.name}`,
                     projectName: ancestorStr || null,
                     type: 'completion'
                 });
-                state.timeline = await api.get('/timeline');
                 renderAll();
             });
             hdrButtons.appendChild(doneBtn);
@@ -5940,16 +6019,15 @@ function renderActions(opts) {
             hdrFollowupBtn.addEventListener('click', async (e) => {
                 e.stopPropagation();
                 // 1. Mark as done
-                await setContextDone(headerItem, getCurrentViewContext(), true);
+                setContextDone(headerItem, getCurrentViewContext(), true);
                 // 2. Log to timeline
                 const ancestors = getAncestorPath(headerId) || [];
                 const ancestorStr = ancestors.map(a => a.name).join(' › ');
-                await api.post('/timeline', {
+                postTimelineOptimistic({
                     text: `Done: ${headerItem.name}`,
                     projectName: ancestorStr || null,
                     type: 'completion'
                 });
-                state.timeline = await api.get('/timeline');
                 // 3. Create next-sibling
                 const location = findParentArray(headerId);
                 if (location) {
@@ -5964,7 +6042,7 @@ function renderActions(opts) {
                         contextDurations: headerItem.contextDurations ? { ...headerItem.contextDurations } : {},
                     };
                     location.array.splice(location.index + 1, 0, newItem);
-                    await saveItems();
+                    saveItems();
                     renderAll();
                     setTimeout(() => {
                         const newActionEl = document.querySelector(`.action-item[data-id="${newItem.id}"] .action-name`);
@@ -5982,13 +6060,13 @@ function renderActions(opts) {
                                 const itemInTree = findItemById(newItem.id);
                                 if (val && itemInTree) {
                                     itemInTree.name = val;
-                                    await saveItems();
+                                    saveItems();
                                     renderAll();
                                 } else if (!val && itemInTree) {
                                     const loc = findParentArray(newItem.id);
                                     if (loc) {
                                         loc.array.splice(loc.index, 1);
-                                        await saveItems();
+                                        saveItems();
                                         renderAll();
                                     }
                                 }
@@ -6777,7 +6855,7 @@ function _createOverflowItemRow(action, overflow, sourceCtx, container) {
         const existingCtxs = item.timeContexts || [];
         const merged = [...new Set([...existingCtxs, ...newContexts])];
         item.timeContexts = merged;
-        await saveItems();
+        saveItems();
         state._animateActions = true;
         renderAll();
     });
@@ -7235,16 +7313,15 @@ async function bulkMarkDone() {
     for (const id of ids) {
         const numId = parseInt(id, 10);
         const item = findItemById(numId);
-        if (item) await setContextDone(item, viewCtx, true);
+        if (item) setContextDone(item, viewCtx, true);
     }
     // Log a single combined completion entry
     const names = ids.map(id => findItemName(parseInt(id, 10)) || id);
-    await api.post('/timeline', {
+    postTimelineOptimistic({
         text: `Done ${ids.length} items: ${names.join(', ')}`,
         projectName: null,
         type: 'completion'
     });
-    state.timeline = await api.get('/timeline');
     clearActionSelection();
     renderAll();
 }
@@ -7262,7 +7339,7 @@ async function bulkDecline() {
 
     const ctx = getCurrentViewContext();
     for (const id of ids) {
-        await removeSourceContext(parseInt(id, 10), ctx);
+        removeSourceContext(parseInt(id, 10), ctx);
     }
     clearActionSelection();
     renderAll();
@@ -7800,19 +7877,18 @@ function createActionElement(action) {
         const item = findItemById(action.id);
         if (!item) return;
         const wasDone = isContextDone(item, _actViewCtx);
-        await setContextDone(item, _actViewCtx, !wasDone);
+        setContextDone(item, _actViewCtx, !wasDone);
 
         if (!wasDone) {
             // Log to timeline when marking done
             const ancestors = action._path
                 ? action._path.slice(0, -1).map(p => p.name).join(' › ')
                 : '';
-            await api.post('/timeline', {
+            postTimelineOptimistic({
                 text: `Done: ${action.name}`,
                 projectName: ancestors || null,
                 type: 'completion'
             });
-            state.timeline = await api.get('/timeline');
         }
         renderAll();
     });
@@ -7833,7 +7909,7 @@ function createActionElement(action) {
         declineBtn.title = 'Remove from this context';
         declineBtn.addEventListener('click', async (e) => {
             e.stopPropagation();
-            await removeSourceContext(action.id, getCurrentViewContext());
+            removeSourceContext(action.id, getCurrentViewContext());
             renderAll();
         });
     }
@@ -7863,18 +7939,17 @@ function createActionElement(action) {
             e.stopPropagation();
             // 1. Mark as done in context
             const item = findItemById(action.id);
-            if (item) await setContextDone(item, _actViewCtx, true);
+            if (item) setContextDone(item, _actViewCtx, true);
 
             // 2. Log to timeline
             const ancestors = action._path
                 ? action._path.slice(0, -1).map(p => p.name).join(' › ')
                 : '';
-            await api.post('/timeline', {
+            postTimelineOptimistic({
                 text: `Done: ${action.name}`,
                 projectName: ancestors || null,
                 type: 'completion'
             });
-            state.timeline = await api.get('/timeline');
 
             // 3. Create a new sibling item immediately after this one in the tree
             const location = findParentArray(action.id);
@@ -7891,7 +7966,7 @@ function createActionElement(action) {
                     contextDurations: origItem && origItem.contextDurations ? { ...origItem.contextDurations } : {},
                 };
                 location.array.splice(location.index + 1, 0, newItem);
-                await saveItems();
+                saveItems();
                 renderAll();
 
                 // Focus the new item's name for inline editing in the actions list
@@ -7914,14 +7989,14 @@ function createActionElement(action) {
                             const itemInTree = findItemById(newItem.id);
                             if (val && itemInTree) {
                                 itemInTree.name = val;
-                                await saveItems();
+                                saveItems();
                                 renderAll();
                             } else if (!val && itemInTree) {
                                 // Remove the empty item if user didn't type anything
                                 const loc = findParentArray(newItem.id);
                                 if (loc) {
                                     loc.array.splice(loc.index, 1);
-                                    await saveItems();
+                                    saveItems();
                                     renderAll();
                                 }
                             }
@@ -8520,8 +8595,8 @@ function setupActionInput() {
                     patch.contextDurations = cd;
                 }
 
-                await api.patch(`/items/${_existingItemId}`, patch);
-                await reloadItems();
+                api.patch(`/items/${_existingItemId}`, patch);
+                renderAll();
             }
             _clearInputState();
             return;
@@ -8556,17 +8631,26 @@ function setupActionInput() {
             contextDurations = { [durKey]: _durationMinutes };
         }
 
-        const newItem = await api.post('/items', {
+        // Optimistic local add
+        const tempId = state.items.nextId++;
+        const newLocalItem = { id: tempId, name, children: [], expanded: false, createdAt: Date.now(), done: false, timeContexts, contextDurations };
+        const parentArr = parentId ? findItemById(parentId)?.children : state.items.items;
+        if (parentArr) parentArr.push(newLocalItem);
+        // Fire-and-forget to server
+        api.post('/items', {
             name,
             parentId,
             timeContexts,
             contextDurations
+        }).then(() => reloadItems()).catch(err => {
+            console.error('[optimistic] Item creation failed:', err);
+            _showSaveError('item creation');
         });
-        await reloadItems();
+        renderAll();
 
         // Auto-add to queue when focused on the live horizon
-        if (state.viewHorizon === 'live' && newItem?.id) {
-            addToQueue(newItem.id);
+        if (state.viewHorizon === 'live') {
+            addToQueue(tempId);
         }
         _clearInputState();
     };
@@ -8595,8 +8679,8 @@ function setupActionInput() {
                 const timeContexts = _hashOverrideContexts || getCurrentTimeContexts();
                 const merged = [...new Set([...(existingItem.timeContexts || []), ...timeContexts])];
                 existingItem.timeContexts = merged;
-                await api.patch(`/items/${itemId}`, { timeContexts: merged });
-                await reloadItems();
+                api.patch(`/items/${itemId}`, { timeContexts: merged });
+                renderAll();
             }
             const ancestors = getAncestorPath(itemId);
             const projectName = ancestors && ancestors.length > 0
@@ -8641,7 +8725,12 @@ function setupActionInput() {
             timeContexts,
             contextDurations
         });
-        await reloadItems();
+        // Add to local state immediately (skip redundant full reload)
+        if (newItem) {
+            const parentArr2 = parentId ? findItemById(parentId)?.children : state.items.items;
+            if (parentArr2) parentArr2.push(newItem);
+            renderAll();
+        }
 
         if (newItem?.id) {
             const ancestors = getAncestorPath(newItem.id);
@@ -9321,7 +9410,7 @@ function _attachLiveIndicatorDnD(indicator, liveType) {
             if (!itemId) return;
             // Strip old segment context before re-assigning (move only)
             if (!isCopy && segCtx) {
-                await removeSourceContext(Number(itemId), segCtx);
+                removeSourceContext(Number(itemId), segCtx);
             }
         } else {
             // Regular action drag (multi-select aware)
@@ -9331,7 +9420,7 @@ function _attachLiveIndicatorDnD(indicator, liveType) {
             for (const itemId of dragIds) {
                 const item = findItemById(itemId);
                 const srcDur = sourceCtx ? getContextDuration(item, sourceCtx) : getContextDuration(item);
-                if (!isCopy && sourceCtx) { await removeSourceContext(itemId, sourceCtx); }
+                if (!isCopy && sourceCtx) { removeSourceContext(itemId, sourceCtx); }
 
                 // Queue-aware drop: if working or queue active, add to queue instead
                 if ((state.workingOn || state.focusQueue.length > 0) && liveType !== 'idle') {
@@ -9354,7 +9443,7 @@ function _attachLiveIndicatorDnD(indicator, liveType) {
                         const itemProjectId = (itemAncestors && itemAncestors.length > 0) ? itemAncestors[0].id : null;
                         if (itemProjectId !== projectId) {
                             moveItem(itemId, { id: projectId, position: 'inside' });
-                            try { await api.put('/items', state.items); } catch (e) { if (e.status === 409) { alert('⚠️ This tab has outdated data. Reloading...'); location.reload(); return; } throw e; }
+                            try { api.put('/items', state.items); } catch (e) { if (e.status === 409) { alert('⚠️ This tab has outdated data. Reloading...'); location.reload(); return; } throw e; }
                         }
                     }
                 }
@@ -9894,7 +9983,7 @@ function renderWeekView(container) {
                     dayStartHour: newSH, dayStartMinute: newSM,
                     dayEndHour: newEH, dayEndMinute: newEM,
                 };
-                await api.put('/settings', state.settings);
+                api.put('/settings', state.settings);
                 renderTimeline(); // re-renders week view
             };
             const cancel = () => {
@@ -9951,8 +10040,15 @@ function renderWeekView(container) {
                 const name = input.value.trim();
                 _remove();
                 if (!name) return;
-                await api.post('/items', { name, parentId: null, timeContexts: [dateKey] });
-                state.items = await api.get('/items');
+                // Optimistic local add
+                const tempId = state.items.nextId++;
+                const newLocalItem = { id: tempId, name, children: [], expanded: false, createdAt: Date.now(), done: false, timeContexts: [dateKey] };
+                state.items.items.push(newLocalItem);
+                // Fire-and-forget to server
+                api.post('/items', { name, parentId: null, timeContexts: [dateKey] }).then(() => reloadItems()).catch(err => {
+                    console.error('[optimistic] Item creation failed:', err);
+                    _showSaveError('item creation');
+                });
                 renderAll();
             };
             input.addEventListener('keydown', (ke) => {
@@ -10082,7 +10178,7 @@ function renderWeekView(container) {
                     const mins = parseInt(input.value, 10) || 0;
                     if (!item.contextDurations) item.contextDurations = {};
                     item.contextDurations[ctx] = mins;
-                    await api.patch(`/items/${item.id}`, { contextDurations: item.contextDurations });
+                    api.patch(`/items/${item.id}`, { contextDurations: item.contextDurations });
                     pop.remove();
                     renderAll();
                 });
@@ -10323,7 +10419,7 @@ function renderWeekView(container) {
                     const offsetMs = tgtDate.getTime() - srcDate.getTime();
                     entry.timestamp += offsetMs;
                     entry.endTime += offsetMs;
-                    await api.patch(`/timeline/${entry.id}`, { timestamp: entry.timestamp, endTime: entry.endTime });
+                    patchTimelineOptimistic(entry.id, { timestamp: entry.timestamp, endTime: entry.endTime });
                     renderAll();
                 }
                 return;
@@ -10338,7 +10434,7 @@ function renderWeekView(container) {
                     const segItem = findItemById(Number(segItemId));
                     const segSrcDur = segCtx ? getContextDuration(segItem, segCtx) : getContextDuration(segItem);
                     if (segCtx) {
-                        await removeSourceContext(Number(segItemId), segCtx);
+                        removeSourceContext(Number(segItemId), segCtx);
                     }
                     await addTimeContext(Number(segItemId), dateKey, segSrcDur || undefined);
                 } else {
@@ -10354,7 +10450,7 @@ function renderWeekView(container) {
             for (const id of dragIds) {
                 const item = findItemById(id);
                 const srcDur = sourceCtx ? getContextDuration(item, sourceCtx) : getContextDuration(item);
-                if (!isCopy2 && sourceCtx) { await removeSourceContext(id, sourceCtx); }
+                if (!isCopy2 && sourceCtx) { removeSourceContext(id, sourceCtx); }
                 await addTimeContext(id, dateKey, srcDur || undefined);
             }
             if (dragIds.length > 0) clearActionSelection();
@@ -10677,7 +10773,7 @@ function renderMonthView(container) {
                 const segItem = findItemById(Number(itemId));
                 const segSrcDur = segCtx ? getContextDuration(segItem, segCtx) : getContextDuration(segItem);
                 if (!isCopy && segCtx) {
-                    await removeSourceContext(Number(itemId), segCtx);
+                    removeSourceContext(Number(itemId), segCtx);
                 }
                 await addTimeContext(parseInt(itemId, 10), targetWeekKey, segSrcDur || undefined);
                 return;
@@ -10688,7 +10784,7 @@ function renderMonthView(container) {
             for (const id of dragIds) {
                 const item = findItemById(id);
                 const srcDur = sourceCtx ? getContextDuration(item, sourceCtx) : getContextDuration(item);
-                if (!_isDragCopy(e) && sourceCtx) { await removeSourceContext(id, sourceCtx); }
+                if (!_isDragCopy(e) && sourceCtx) { removeSourceContext(id, sourceCtx); }
                 await addTimeContext(id, targetWeekKey, srcDur || undefined);
             }
             if (dragIds.length > 0) clearActionSelection();
@@ -12008,7 +12104,7 @@ function createFreeTimeBlock(startMs, endMs) {
             console.log('[FREE-BLOCK] cross-block drop, itemId:', itemId, 'oldCtx:', oldCtx, 'newCtx:', newSegCtx);
             if (itemId && oldCtx && oldCtx !== newSegCtx) {
                 (async () => {
-                    const dur = await degradeSegmentContext(itemId, oldCtx);
+                    const dur = degradeSegmentContext(itemId, oldCtx);
                     await addSegmentContext(itemId, newSegCtx, dur);
                 })();
             } else {
@@ -12026,7 +12122,7 @@ function createFreeTimeBlock(startMs, endMs) {
         for (const id of dragIds) {
             const item = findItemById(id);
             const srcDur = sourceCtx ? getContextDuration(item, sourceCtx) : getContextDuration(item);
-            if (!isCopy && sourceCtx) { await removeSourceContext(id, sourceCtx); }
+            if (!isCopy && sourceCtx) { removeSourceContext(id, sourceCtx); }
             await addSegmentContext(id, newSegCtx, srcDur || undefined, { move: false });
         }
         clearActionSelection();
@@ -12119,7 +12215,7 @@ function createFreeTimeBlock(startMs, endMs) {
                     const mins = parseInt(input.value, 10) || 0;
                     if (!item.contextDurations) item.contextDurations = {};
                     item.contextDurations[itemSegCtx] = mins;
-                    await api.patch(`/items/${action.id}`, { contextDurations: item.contextDurations });
+                    api.patch(`/items/${action.id}`, { contextDurations: item.contextDurations });
                     pop.remove();
                     renderAll();
                 });
@@ -12192,17 +12288,16 @@ function createFreeTimeBlock(startMs, endMs) {
                 ev.stopPropagation();
                 if (!item) return;
                 const wasDone = isContextDone(item, segCtx);
-                await setContextDone(item, segCtx, !wasDone);
+                setContextDone(item, segCtx, !wasDone);
                 if (!wasDone) {
                     const anc = action._path
                         ? action._path.slice(0, -1).map(p => p.name).join(' › ')
                         : '';
-                    await api.post('/timeline', {
+                    postTimelineOptimistic({
                         text: `Done: ${action.name}`,
                         projectName: anc || null,
                         type: 'completion'
                     });
-                    state.timeline = await api.get('/timeline');
                 }
                 renderAll();
             });
@@ -12660,7 +12755,7 @@ function openPlanEditor(freeBlock, freeStartMs, freeEndMs, preselectedAction = n
                 return;
             }
             // Container session: planned entry with no itemId
-            const entry = await api.post('/timeline', {
+            const entry = postTimelineOptimistic({
                 text: customTitle,
                 projectName: null,
                 type: 'planned',
@@ -12671,8 +12766,7 @@ function openPlanEditor(freeBlock, freeStartMs, freeEndMs, preselectedAction = n
                 ...(parseInt(prepInput.value, 10) > 0 ? { prepDuration: parseInt(prepInput.value, 10) * 60 } : {}),
                 ...(parseInt(wdInput.value, 10) > 0 ? { windDownDuration: parseInt(wdInput.value, 10) * 60 } : {}),
             });
-            state.timeline.entries.push(entry);
-            await createBufferEntries(entry);
+            createBufferEntries(entry);
 
             renderTimeline();
             renderActions();
@@ -12683,7 +12777,7 @@ function openPlanEditor(freeBlock, freeStartMs, freeEndMs, preselectedAction = n
             ? selectedAction._path.slice(0, -1).map(p => p.name).join(' › ')
             : '';
 
-        const entry = await api.post('/timeline', {
+        const entry = postTimelineOptimistic({
             text: selectedAction.name,
             projectName: ancestors || null,
             type: 'planned',
@@ -12694,8 +12788,7 @@ function openPlanEditor(freeBlock, freeStartMs, freeEndMs, preselectedAction = n
             ...(parseInt(prepInput.value, 10) > 0 ? { prepDuration: parseInt(prepInput.value, 10) * 60 } : {}),
             ...(parseInt(wdInput.value, 10) > 0 ? { windDownDuration: parseInt(wdInput.value, 10) * 60 } : {}),
         });
-        state.timeline.entries.push(entry);
-        await createBufferEntries(entry);
+        createBufferEntries(entry);
 
         // Write back duration to item context estimate (learn from scheduling)
         const durationMins = Math.round((planEndMs - planStartMs) / 60000);
@@ -12705,7 +12798,7 @@ function openPlanEditor(freeBlock, freeStartMs, freeEndMs, preselectedAction = n
             if (!existingItem.contextDurations) existingItem.contextDurations = {};
             if (!(ctx in existingItem.contextDurations)) {
                 existingItem.contextDurations[ctx] = durationMins;
-                await api.patch(`/items/${selectedAction.id}`, { contextDurations: existingItem.contextDurations });
+                api.patch(`/items/${selectedAction.id}`, { contextDurations: existingItem.contextDurations });
             }
         }
 
@@ -13096,7 +13189,7 @@ function openIdleWorkEditor(idleBlock, idleStartMs, idleEndMs) {
         const mins = Math.floor((durationMs % 3600000) / 60000);
         const durStr = hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
 
-        const entry = await api.post('/timeline', {
+        const entry = postTimelineOptimistic({
             text: `Worked on: ${selectedAction.name} (${durStr})`,
             projectName: ancestors || null,
             type: 'work',
@@ -13104,7 +13197,6 @@ function openIdleWorkEditor(idleBlock, idleStartMs, idleEndMs) {
             endTime: planEndMs,
             itemId: selectedAction.id,
         });
-        state.timeline.entries.push(entry);
         renderTimeline();
     });
 }
@@ -13162,7 +13254,7 @@ function _attachEntryDropAndQueue(el, contextStr, deadlineMs) {
             const oldCtx = e.dataTransfer.getData('application/x-segment-context');
             if (itemId && oldCtx && oldCtx !== contextStr) {
                 (async () => {
-                    await degradeSegmentContext(itemId, oldCtx);
+                    degradeSegmentContext(itemId, oldCtx);
                     await addSegmentContext(Number(itemId), contextStr);
                 })();
             }
@@ -13178,7 +13270,7 @@ function _attachEntryDropAndQueue(el, contextStr, deadlineMs) {
         for (const id of dragIds) {
             const item = findItemById(id);
             const srcDur = sourceCtx ? getContextDuration(item, sourceCtx) : getContextDuration(item);
-            if (!isCopy && sourceCtx) { await removeSourceContext(id, sourceCtx); }
+            if (!isCopy && sourceCtx) { removeSourceContext(id, sourceCtx); }
             await addSegmentContext(Number(id), contextStr, srcDur || undefined, { move: false });
         }
         clearActionSelection();
@@ -13256,7 +13348,7 @@ function _attachEntryDropAndQueue(el, contextStr, deadlineMs) {
                     const mins = parseInt(input.value, 10) || 0;
                     if (!item.contextDurations) item.contextDurations = {};
                     item.contextDurations[contextStr] = mins;
-                    await api.patch(`/items/${action.id}`, { contextDurations: item.contextDurations });
+                    api.patch(`/items/${action.id}`, { contextDurations: item.contextDurations });
                     pop.remove();
                     renderAll();
                 });
@@ -13321,17 +13413,16 @@ function _attachEntryDropAndQueue(el, contextStr, deadlineMs) {
                 ev.stopPropagation();
                 if (!item) return;
                 const wasDone = isContextDone(item, contextStr);
-                await setContextDone(item, contextStr, !wasDone);
+                setContextDone(item, contextStr, !wasDone);
                 if (!wasDone) {
                     const anc2 = action._path
                         ? action._path.slice(0, -1).map(p => p.name).join(' › ')
                         : '';
-                    await api.post('/timeline', {
+                    postTimelineOptimistic({
                         text: `Done: ${action.name}`,
                         projectName: anc2 || null,
                         type: 'completion'
                     });
-                    state.timeline = await api.get('/timeline');
                 }
                 renderAll();
             });
@@ -13987,7 +14078,7 @@ function createDayBoundaryBlock(type, boundaryTime, now) {
                     ? { dayStartHour: newH, dayStartMinute: newM }
                     : { dayEndHour: newH, dayEndMinute: newM }),
             };
-            await api.put('/settings', state.settings);
+            api.put('/settings', state.settings);
             renderTimeline();
         };
 
@@ -14046,7 +14137,7 @@ function createDayBoundaryBlock(type, boundaryTime, now) {
         resetBtn.addEventListener('click', async (e) => {
             e.stopPropagation();
             delete state.settings.dayOverrides[dateKey];
-            await api.put('/settings', state.settings);
+            api.put('/settings', state.settings);
             renderTimeline();
         });
         content.appendChild(resetBtn);
@@ -14424,9 +14515,8 @@ function createCompactPastEntry(entry) {
         delBtn.title = 'Remove entry';
         delBtn.addEventListener('click', async (e) => {
             e.stopPropagation();
-            await degradeEntryContexts(entry.id);
-            await api.del(`/timeline/${entry.id}`);
-            state.timeline = await api.get('/timeline');
+            degradeEntryContexts(entry.id);
+            delTimelineOptimistic(entry.id);
             renderTimeline();
         });
         el.appendChild(delBtn);
@@ -14727,8 +14817,7 @@ function openPastEntryCreator(markerEl, afterTs, beforeTs) {
                 payload.text = `Worked on: ${name} (${durStr})`;
             }
 
-            const entry = await api.post('/timeline', payload);
-            state.timeline.entries.push(entry);
+            const entry = postTimelineOptimistic(payload);
         } else {
             // Break
             const durationMs = planEndMs - planStartMs;
@@ -14736,13 +14825,12 @@ function openPastEntryCreator(markerEl, afterTs, beforeTs) {
             const mins = Math.floor((durationMs % 3600000) / 60000);
             const durStr = hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
 
-            const entry = await api.post('/timeline', {
+            const entry = postTimelineOptimistic({
                 type: 'break',
                 startTime: planStartMs,
                 endTime: planEndMs,
                 text: `Break (${durStr})`,
             });
-            state.timeline.entries.push(entry);
         }
 
         renderTimeline();
@@ -14884,9 +14972,8 @@ function createWorkEntryBlock(entry) {
     delBtn.title = 'Remove entry';
     delBtn.addEventListener('click', async (e) => {
         e.stopPropagation();
-        await degradeEntryContexts(entry.id);
-        await api.del(`/timeline/${entry.id}`);
-        state.timeline = await api.get('/timeline');
+        degradeEntryContexts(entry.id);
+        delTimelineOptimistic(entry.id);
         renderTimeline();
     });
 
@@ -14961,9 +15048,8 @@ function createBreakEntryBlock(entry) {
     delBtn.title = 'Remove entry';
     delBtn.addEventListener('click', async (e) => {
         e.stopPropagation();
-        await degradeEntryContexts(entry.id);
-        await api.del(`/timeline/${entry.id}`);
-        state.timeline = await api.get('/timeline');
+        degradeEntryContexts(entry.id);
+        delTimelineOptimistic(entry.id);
         renderTimeline();
     });
 
@@ -15013,9 +15099,8 @@ function createMomentEntry(entry) {
     del.className = 'timeline-delete';
     del.textContent = '×';
     del.addEventListener('click', async () => {
-        await degradeEntryContexts(entry.id);
-        await api.del(`/timeline/${entry.id}`);
-        state.timeline = await api.get('/timeline');
+        degradeEntryContexts(entry.id);
+        delTimelineOptimistic(entry.id);
         renderTimeline();
     });
 
@@ -15173,10 +15258,9 @@ function createPlannedTimeBlock(entry, isPhantom = false) {
         delBtn.title = 'Remove plan';
         delBtn.addEventListener('click', async (e) => {
             e.stopPropagation();
-            await deleteBuffersForEntry(entry.id);
-            await degradeEntryContexts(entry.id);
-            await api.del(`/timeline/${entry.id}`);
-            state.timeline = await api.get('/timeline');
+            deleteBuffersForEntry(entry.id);
+            degradeEntryContexts(entry.id);
+            delTimelineOptimistic(entry.id);
             renderTimeline();
         });
     }
@@ -15224,7 +15308,7 @@ function createPlannedTimeBlock(entry, isPhantom = false) {
                 // Validate descendant constraint for item-bound sessions
                 if (planDescendantIds && !planDescendantIds.has(Number(itemId))) return;
                 (async () => {
-                    const dur = await degradeSegmentContext(itemId, oldCtx);
+                    const dur = degradeSegmentContext(itemId, oldCtx);
                     await addSegmentContext(Number(itemId), entryCtx, dur);
                 })();
             }
@@ -15242,7 +15326,7 @@ function createPlannedTimeBlock(entry, isPhantom = false) {
             if (planDescendantIds && !planDescendantIds.has(id)) continue;
             const item = findItemById(id);
             const srcDur = sourceCtx ? getContextDuration(item, sourceCtx) : getContextDuration(item);
-            if (!isCopy && sourceCtx) { await removeSourceContext(id, sourceCtx); }
+            if (!isCopy && sourceCtx) { removeSourceContext(id, sourceCtx); }
             await addSegmentContext(id, entryCtx, srcDur || undefined, { move: false });
         }
         clearActionSelection();
@@ -15342,7 +15426,7 @@ function createPlannedTimeBlock(entry, isPhantom = false) {
                     const mins = parseInt(input.value, 10) || 0;
                     if (!item.contextDurations) item.contextDurations = {};
                     item.contextDurations[entryCtx] = mins;
-                    await api.patch(`/items/${action.id}`, { contextDurations: item.contextDurations });
+                    api.patch(`/items/${action.id}`, { contextDurations: item.contextDurations });
                     pop.remove();
                     renderAll();
                 });
@@ -15408,17 +15492,16 @@ function createPlannedTimeBlock(entry, isPhantom = false) {
                 ev.stopPropagation();
                 if (!item) return;
                 const wasDone = isContextDone(item, entryCtx);
-                await setContextDone(item, entryCtx, !wasDone);
+                setContextDone(item, entryCtx, !wasDone);
                 if (!wasDone) {
                     const anc3 = action._path
                         ? action._path.slice(0, -1).map(p => p.name).join(' › ')
                         : '';
-                    await api.post('/timeline', {
+                    postTimelineOptimistic({
                         text: `Done: ${action.name}`,
                         projectName: anc3 || null,
                         type: 'completion'
                     });
-                    state.timeline = await api.get('/timeline');
                 }
                 renderAll();
             });
@@ -15614,10 +15697,9 @@ function openEntryEditor(entry, blockEl) {
     removeBtn.className = 'plan-editor-remove';
     removeBtn.textContent = 'Remove';
     removeBtn.addEventListener('click', async () => {
-        await deleteBuffersForEntry(entry.id);
-        await degradeEntryContexts(entry.id);
-        await api.del(`/timeline/${entry.id}`);
-        state.timeline = await api.get('/timeline');
+        deleteBuffersForEntry(entry.id);
+        degradeEntryContexts(entry.id);
+        delTimelineOptimistic(entry.id);
         renderTimeline();
     });
 
@@ -15889,17 +15971,13 @@ function openEntryEditor(entry, blockEl) {
             updates.text = `Break (${durStr})`;
         }
 
-        await api.patch(`/timeline/${entry.id}`, updates);
-
-        // Re-fetch timeline from server so new timestamps are reflected
-        state.timeline = await api.get('/timeline');
+        patchTimelineOptimistic(entry.id, updates);
 
         // Sync buffer entries if this is a planned entry
         if (entry.type === 'planned' && !entry.bufferType) {
             // Update entry in-place so syncBufferEntries sees current values
             Object.assign(entry, updates);
-            await syncBufferEntries(entry);
-            state.timeline = await api.get('/timeline');
+            syncBufferEntries(entry);
         }
 
         // ── Update linked item's timeContexts when date changed ──
@@ -15934,7 +16012,7 @@ function openEntryEditor(entry, blockEl) {
                     }
                     const patch = { timeContexts: item.timeContexts };
                     if (item.contextDurations) patch.contextDurations = item.contextDurations;
-                    await api.patch(`/items/${itemId}`, patch);
+                    api.patch(`/items/${itemId}`, patch);
                 }
             }
         }
@@ -16564,10 +16642,10 @@ async function setEstimate(itemId, mins) {
     if (!item.contextDurations) item.contextDurations = {};
     if (mins === null) {
         item.contextDurations[ctx] = 0;
-        await api.patch(`/items/${itemId}`, { contextDurations: item.contextDurations });
+        api.patch(`/items/${itemId}`, { contextDurations: item.contextDurations });
     } else {
         item.contextDurations[ctx] = mins;
-        await api.patch(`/items/${itemId}`, { contextDurations: item.contextDurations });
+        api.patch(`/items/${itemId}`, { contextDurations: item.contextDurations });
     }
     renderActions();
 }
@@ -16699,7 +16777,7 @@ async function setLeadTime(itemId, ctx, seconds) {
     } else {
         item.contextLeadTimes[ctx] = seconds;
     }
-    await api.patch(`/items/${itemId}`, { contextLeadTimes: item.contextLeadTimes || {} });
+    api.patch(`/items/${itemId}`, { contextLeadTimes: item.contextLeadTimes || {} });
     renderAll();
 }
 
@@ -16713,7 +16791,7 @@ async function dismissLeadTimeGhost(itemId, deadlineCtx, viewCtx) {
     if (!item.leadTimeDismissed[deadlineCtx].includes(viewCtx)) {
         item.leadTimeDismissed[deadlineCtx].push(viewCtx);
     }
-    await api.patch(`/items/${itemId}`, { leadTimeDismissed: item.leadTimeDismissed });
+    api.patch(`/items/${itemId}`, { leadTimeDismissed: item.leadTimeDismissed });
     renderAll();
 }
 
@@ -17767,7 +17845,7 @@ function showMissingDurationPopover(anchorEl) {
                 if (!itm) return;
                 if (!itm.timeContexts) itm.timeContexts = [];
                 itm.timeContexts = itm.timeContexts.filter(tc => tc !== state.epochFilter);
-                await api.patch(`/items/${item.id}`, { timeContexts: itm.timeContexts });
+                api.patch(`/items/${item.id}`, { timeContexts: itm.timeContexts });
             } else if (state.viewHorizon === 'month') {
                 // Month → degrade to ongoing
                 await sendToOngoing(item.id);
@@ -18028,15 +18106,13 @@ function handleQuickLog() {
         ? findItemName(state.selectedItemId)
         : null;
 
-    api.post('/timeline', {
+    postTimelineOptimistic({
         text,
         projectName: projectName,
         type: 'log'
-    }).then(async (entry) => {
-        state.timeline.entries.push(entry);
-        renderTimeline();
-        input.value = '';
     });
+    renderTimeline();
+    input.value = '';
 }
 
 // ─── Working On Timer ───
@@ -18118,7 +18194,7 @@ async function stopWorking() {
     const durStr = hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
 
     // Create timeline entry on stop
-    const entry = await api.post('/timeline', {
+    const entry = postTimelineOptimistic({
         text: `Worked on: ${state.workingOn.itemName} (${durStr})`,
         projectName: state.workingOn.projectName,
         type: 'work',
@@ -18127,10 +18203,9 @@ async function stopWorking() {
         targetEndTime: state.workingOn.targetEndTime || undefined,
         itemId: state.workingOn.itemId,
     });
-    state.timeline.entries.push(entry);
 
     // Degrade all @work contexts back to the day context
-    await _degradeLiveContexts('work');
+    _degradeLiveContexts('work');
 
     // Clear working state
     state.workingOn = null;
@@ -18181,17 +18256,16 @@ async function stopBreak() {
     const durStr = hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
 
     // Create timeline entry on stop
-    const entry = await api.post('/timeline', {
+    const entry = postTimelineOptimistic({
         text: `Break (${durStr})`,
         type: 'break',
         startTime: state.onBreak.startTime,
         endTime: endTime,
         targetEndTime: state.onBreak.targetEndTime || undefined,
     });
-    state.timeline.entries.push(entry);
 
     // Degrade all @break contexts back to the day context
-    await _degradeLiveContexts('break');
+    _degradeLiveContexts('break');
 
     // Clear break state
     state.onBreak = null;
@@ -18290,7 +18364,7 @@ async function performCheckIn() {
     }
 
     state.settings.streak = streak;
-    await api.put('/settings', state.settings);
+    api.put('/settings', state.settings);
     renderStreak();
 }
 
@@ -18617,7 +18691,7 @@ function openScheduleModal(itemIdOrIds, itemName) {
             const itm = findItemById(id);
             if (itm) {
                 itm.timeContexts = [...newContexts];
-                await api.patch(`/items/${id}`, { timeContexts: itm.timeContexts });
+                api.patch(`/items/${id}`, { timeContexts: itm.timeContexts });
             }
         }
         assignedContexts = getAssignedContexts();
@@ -18631,7 +18705,7 @@ function openScheduleModal(itemIdOrIds, itemName) {
                 const itm = findItemById(id);
                 if (itm) {
                     itm.timeContexts = (itm.timeContexts || []).filter(tc => tc !== epochName);
-                    await api.patch(`/items/${id}`, { timeContexts: itm.timeContexts });
+                    api.patch(`/items/${id}`, { timeContexts: itm.timeContexts });
                 }
             }
         } else {
@@ -18663,7 +18737,7 @@ function openScheduleModal(itemIdOrIds, itemName) {
                 const itm = findItemById(id);
                 if (itm) {
                     itm.timeContexts = (itm.timeContexts || []).filter(tc => tc !== mk);
-                    await api.patch(`/items/${id}`, { timeContexts: itm.timeContexts });
+                    api.patch(`/items/${id}`, { timeContexts: itm.timeContexts });
                 }
             }
         } else if (scheduleMode === 'one-time') {
@@ -18675,7 +18749,7 @@ function openScheduleModal(itemIdOrIds, itemName) {
                 if (itm) {
                     itm.timeContexts = (itm.timeContexts || []).filter(tc => !EPOCH_CONTEXTS.includes(tc));
                     if (!itm.timeContexts.includes(mk)) itm.timeContexts.push(mk);
-                    await api.patch(`/items/${id}`, { timeContexts: itm.timeContexts });
+                    api.patch(`/items/${id}`, { timeContexts: itm.timeContexts });
                 }
             }
         }
@@ -18703,7 +18777,7 @@ function openScheduleModal(itemIdOrIds, itemName) {
                 const itm = findItemById(id);
                 if (itm) {
                     itm.timeContexts = (itm.timeContexts || []).filter(tc => tc !== wk);
-                    await api.patch(`/items/${id}`, { timeContexts: itm.timeContexts });
+                    api.patch(`/items/${id}`, { timeContexts: itm.timeContexts });
                 }
             }
         } else if (scheduleMode === 'one-time') {
@@ -18717,7 +18791,7 @@ function openScheduleModal(itemIdOrIds, itemName) {
                 if (itm) {
                     itm.timeContexts = (itm.timeContexts || []).filter(tc => !EPOCH_CONTEXTS.includes(tc));
                     if (!itm.timeContexts.includes(wk)) itm.timeContexts.push(wk);
-                    await api.patch(`/items/${id}`, { timeContexts: itm.timeContexts });
+                    api.patch(`/items/${id}`, { timeContexts: itm.timeContexts });
                 }
             }
         }
@@ -18732,7 +18806,7 @@ function openScheduleModal(itemIdOrIds, itemName) {
                 const itm = findItemById(id);
                 if (itm) {
                     itm.timeContexts = (itm.timeContexts || []).filter(tc => tc !== dateKey && !tc.startsWith(dateKey + '@'));
-                    await api.patch(`/items/${id}`, { timeContexts: itm.timeContexts });
+                    api.patch(`/items/${id}`, { timeContexts: itm.timeContexts });
                 }
             }
         } else if (scheduleMode === 'one-time') {
@@ -18746,7 +18820,7 @@ function openScheduleModal(itemIdOrIds, itemName) {
                 if (itm) {
                     itm.timeContexts = (itm.timeContexts || []).filter(tc => !EPOCH_CONTEXTS.includes(tc));
                     if (!itm.timeContexts.includes(dateKey)) itm.timeContexts.push(dateKey);
-                    await api.patch(`/items/${id}`, { timeContexts: itm.timeContexts });
+                    api.patch(`/items/${id}`, { timeContexts: itm.timeContexts });
                 }
             }
         }
@@ -18786,7 +18860,7 @@ function openScheduleModal(itemIdOrIds, itemName) {
             const itm = findItemById(id);
             if (itm) {
                 const wasDone = isContextDone(itm, ctx);
-                await setContextDone(itm, ctx, !wasDone);
+                setContextDone(itm, ctx, !wasDone);
             }
         }
         buildContent();
@@ -18802,7 +18876,7 @@ function openScheduleModal(itemIdOrIds, itemName) {
                 const itm = findItemById(id);
                 if (itm) {
                     itm.timeContexts = (itm.timeContexts || []).filter(tc => tc !== segKey);
-                    await api.patch(`/items/${id}`, { timeContexts: itm.timeContexts });
+                    api.patch(`/items/${id}`, { timeContexts: itm.timeContexts });
                 }
             }
         } else if (scheduleMode === 'one-time') {
@@ -18817,7 +18891,7 @@ function openScheduleModal(itemIdOrIds, itemName) {
                     itm.timeContexts = (itm.timeContexts || []).filter(tc => !EPOCH_CONTEXTS.includes(tc));
                     if (!itm.timeContexts.includes(dateKey)) itm.timeContexts.push(dateKey);
                     if (!itm.timeContexts.includes(segKey)) itm.timeContexts.push(segKey);
-                    await api.patch(`/items/${id}`, { timeContexts: itm.timeContexts });
+                    api.patch(`/items/${id}`, { timeContexts: itm.timeContexts });
                 }
             }
         }
@@ -19737,7 +19811,7 @@ function openGoalModal(itemId, itemName) {
                 if (target <= 0) return; // Don't save 0 target
                 goal = { type: 'time', target };
             }
-            await api.patch(`/items/${itemId}`, { goal });
+            api.patch(`/items/${itemId}`, { goal });
             if (item) item.goal = goal;
             overlay.remove();
             renderAll();
@@ -19752,7 +19826,7 @@ function openGoalModal(itemId, itemName) {
         const removeBtn = modal.querySelector('#goal-remove-btn');
         if (removeBtn) {
             removeBtn.addEventListener('click', async () => {
-                await api.patch(`/items/${itemId}`, { goal: null });
+                api.patch(`/items/${itemId}`, { goal: null });
                 if (item) delete item.goal;
                 overlay.remove();
                 renderAll();
@@ -19910,7 +19984,7 @@ function openDefaultsModal() {
         state.settings.aiModel = document.getElementById('defaults-ai-model').value;
         const newKey = document.getElementById('defaults-ai-key').value.trim();
         if (newKey) state.settings.aiApiKey = newKey; // Only overwrite if user typed a new key
-        await api.put('/settings', state.settings);
+        api.put('/settings', state.settings);
         // Reload copilot config label
         try {
             const res = await fetch('/api/ai/config');
@@ -20591,7 +20665,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const segItem = findItemById(Number(itemId));
                 const segSrcDur = segCtx ? getContextDuration(segItem, segCtx) : getContextDuration(segItem);
                 if (!isCopy && segCtx) {
-                    await removeSourceContext(Number(itemId), segCtx);
+                    removeSourceContext(Number(itemId), segCtx);
                 }
                 await addTimeContext(parseInt(itemId, 10), targetDateKey, segSrcDur || undefined);
                 renderAll();
@@ -20603,7 +20677,7 @@ document.addEventListener('DOMContentLoaded', () => {
             for (const id of dragIds) {
                 const item = findItemById(id);
                 const srcDur = sourceCtx ? getContextDuration(item, sourceCtx) : getContextDuration(item);
-                if (!isCopy && sourceCtx) { await removeSourceContext(id, sourceCtx); }
+                if (!isCopy && sourceCtx) { removeSourceContext(id, sourceCtx); }
                 await addTimeContext(id, targetDateKey, srcDur || undefined);
             }
             if (dragIds.length > 0) clearActionSelection();
@@ -20643,7 +20717,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const segItem = findItemById(Number(itemId));
                 const segSrcDur = segCtx ? getContextDuration(segItem, segCtx) : getContextDuration(segItem);
                 if (!isCopy && segCtx) {
-                    await removeSourceContext(Number(itemId), segCtx);
+                    removeSourceContext(Number(itemId), segCtx);
                 }
                 await addTimeContext(parseInt(itemId, 10), targetWeekKey, segSrcDur || undefined);
                 renderAll();
@@ -20655,7 +20729,7 @@ document.addEventListener('DOMContentLoaded', () => {
             for (const id of dragIds) {
                 const item = findItemById(id);
                 const srcDur = sourceCtx ? getContextDuration(item, sourceCtx) : getContextDuration(item);
-                if (!isCopy && sourceCtx) { await removeSourceContext(id, sourceCtx); }
+                if (!isCopy && sourceCtx) { removeSourceContext(id, sourceCtx); }
                 await addTimeContext(id, targetWeekKey, srcDur || undefined);
             }
             if (dragIds.length > 0) clearActionSelection();
@@ -20746,7 +20820,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const segItem = findItemById(Number(itemId));
             const segSrcDur = segCtx ? getContextDuration(segItem, segCtx) : getContextDuration(segItem);
             if (!isCopy && segCtx) {
-                await removeSourceContext(Number(itemId), segCtx);
+                removeSourceContext(Number(itemId), segCtx);
             }
             await addTimeContext(parseInt(itemId, 10), targetEpoch, segSrcDur || undefined);
             renderAll();
@@ -20759,7 +20833,7 @@ document.addEventListener('DOMContentLoaded', () => {
         for (const id of dragIds) {
             const item = findItemById(id);
             const srcDur = sourceCtx ? getContextDuration(item, sourceCtx) : getContextDuration(item);
-            if (!isCopy && sourceCtx) { await removeSourceContext(id, sourceCtx); }
+            if (!isCopy && sourceCtx) { removeSourceContext(id, sourceCtx); }
             await addTimeContext(id, targetEpoch, srcDur || undefined);
         }
         if (dragIds.length > 0) clearActionSelection();
@@ -20835,7 +20909,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const segItem = findItemById(Number(itemId));
             const segSrcDur = segCtx ? getContextDuration(segItem, segCtx) : getContextDuration(segItem);
             if (!isCopy && segCtx) {
-                await removeSourceContext(Number(itemId), segCtx);
+                removeSourceContext(Number(itemId), segCtx);
             }
             await addTimeContext(parseInt(itemId, 10), targetMonthKey, segSrcDur || undefined);
             renderAll();
@@ -20847,7 +20921,7 @@ document.addEventListener('DOMContentLoaded', () => {
         for (const id of dragIds) {
             const item = findItemById(id);
             const srcDur = sourceCtx ? getContextDuration(item, sourceCtx) : getContextDuration(item);
-            if (!isCopy && sourceCtx) { await removeSourceContext(id, sourceCtx); }
+            if (!isCopy && sourceCtx) { removeSourceContext(id, sourceCtx); }
             await addTimeContext(id, targetMonthKey, srcDur || undefined);
         }
         if (dragIds.length > 0) clearActionSelection();
@@ -20945,7 +21019,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const segItem = findItemById(Number(itemId));
             const segSrcDur = segCtx ? getContextDuration(segItem, segCtx) : getContextDuration(segItem);
             if (!isCopy && segCtx) {
-                await removeSourceContext(Number(itemId), segCtx);
+                removeSourceContext(Number(itemId), segCtx);
             }
             await addTimeContext(parseInt(itemId, 10), weekKey, segSrcDur || undefined);
             renderAll();
@@ -20958,7 +21032,7 @@ document.addEventListener('DOMContentLoaded', () => {
         for (const id of dragIds) {
             const item = findItemById(id);
             const srcDur = sourceCtx ? getContextDuration(item, sourceCtx) : getContextDuration(item);
-            if (!isCopy && sourceCtx) { await removeSourceContext(id, sourceCtx); }
+            if (!isCopy && sourceCtx) { removeSourceContext(id, sourceCtx); }
             await addTimeContext(id, weekKey, srcDur || undefined);
         }
         if (dragIds.length > 0) clearActionSelection();
@@ -21005,7 +21079,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const segItem = findItemById(Number(itemId));
             const segSrcDur = segCtx ? getContextDuration(segItem, segCtx) : getContextDuration(segItem);
             if (!isCopy && segCtx) {
-                await removeSourceContext(Number(itemId), segCtx);
+                removeSourceContext(Number(itemId), segCtx);
             }
             await addTimeContext(parseInt(itemId, 10), dateKey, segSrcDur || undefined);
             renderAll();
@@ -21018,7 +21092,7 @@ document.addEventListener('DOMContentLoaded', () => {
         for (const id of dragIds) {
             const item = findItemById(id);
             const srcDur = sourceCtx ? getContextDuration(item, sourceCtx) : getContextDuration(item);
-            if (!isCopy && sourceCtx) { await removeSourceContext(id, sourceCtx); }
+            if (!isCopy && sourceCtx) { removeSourceContext(id, sourceCtx); }
             await addTimeContext(id, dateKey, srcDur || undefined);
         }
         if (dragIds.length > 0) clearActionSelection();
@@ -21104,7 +21178,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const segItem = findItemById(Number(itemId));
                 const segSrcDur = segCtx ? getContextDuration(segItem, segCtx) : getContextDuration(segItem);
                 if (!isCopy && segCtx) {
-                    await removeSourceContext(Number(itemId), segCtx);
+                    removeSourceContext(Number(itemId), segCtx);
                 }
                 // Add to the active session's segment
                 await addSegmentContext(parseInt(itemId, 10), seg.segmentKey, segSrcDur || undefined, { move: false });
@@ -21118,7 +21192,7 @@ document.addEventListener('DOMContentLoaded', () => {
             for (const id of dragIds) {
                 const item = findItemById(id);
                 const srcDur = sourceCtx ? getContextDuration(item, sourceCtx) : getContextDuration(item);
-                if (!isCopy && sourceCtx) { await removeSourceContext(id, sourceCtx); }
+                if (!isCopy && sourceCtx) { removeSourceContext(id, sourceCtx); }
                 await addSegmentContext(id, seg.segmentKey, srcDur || undefined, { move: false });
             }
             if (dragIds.length > 0) clearActionSelection();
@@ -21158,7 +21232,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const segItem = findItemById(Number(itemId));
                     const segSrcDur = segCtx ? getContextDuration(segItem, segCtx) : getContextDuration(segItem);
                     if (!isCopy && segCtx) {
-                        await removeSourceContext(Number(itemId), segCtx);
+                        removeSourceContext(Number(itemId), segCtx);
                     }
                     await addSegmentContext(parseInt(itemId, 10), targetSeg.segmentKey, segSrcDur || undefined, { move: false });
                     renderAll();
@@ -21170,7 +21244,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 for (const id of dragIds) {
                     const item = findItemById(id);
                     const srcDur = sourceCtx ? getContextDuration(item, sourceCtx) : getContextDuration(item);
-                    if (!isCopy && sourceCtx) { await removeSourceContext(id, sourceCtx); }
+                    if (!isCopy && sourceCtx) { removeSourceContext(id, sourceCtx); }
                     await addSegmentContext(id, targetSeg.segmentKey, srcDur || undefined, { move: false });
                 }
                 if (dragIds.length > 0) clearActionSelection();
