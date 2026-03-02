@@ -1325,18 +1325,21 @@ body {
 
 /* Hand-drawn action buttons */
 .action-buttons {
-    display: flex;
+    display: none;
     gap: 4px;
-    opacity: 0;
     flex-shrink: 0;
-    transition: opacity var(--dur) var(--ease);
 }
 
 .action-item:hover .action-buttons {
-    opacity: 1;
+    display: flex;
 }
 
 .action-item.done .action-buttons {
+    display: none;
+}
+
+.action-item.done:hover .action-buttons {
+    display: flex;
     opacity: 0.4;
 }
 

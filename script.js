@@ -4990,24 +4990,10 @@ function renderProjectLevel(items, parent, depth, query = '', matchingIds = new 
             toggle.addEventListener('click', (e) => {
                 e.stopPropagation();
                 if (item.expanded) {
-                    // Collapse: animate children out, then re-render
-                    const nodeEl = toggle.closest('.project-node');
-                    const childContainer = nodeEl && nodeEl.querySelector(':scope > .project-children');
-                    if (childContainer) {
-                        childContainer.classList.add('action-group-collapse');
-                        const onDone = () => {
-                            childContainer.classList.remove('action-group-collapse');
-                            item.expanded = false;
-                            saveItems();
-                            renderProjects();
-                        };
-                        childContainer.addEventListener('animationend', onDone, { once: true });
-                        setTimeout(() => { if (childContainer.classList.contains('action-group-collapse')) onDone(); }, 200);
-                    } else {
-                        item.expanded = false;
-                        saveItems();
-                        renderProjects();
-                    }
+                    // Collapse: no animation — just re-render
+                    item.expanded = false;
+                    saveItems();
+                    renderProjects();
                 } else {
                     // Expand: re-render, then animate children in
                     item.expanded = true;
