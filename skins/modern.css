@@ -8821,6 +8821,9 @@ select.schedule-leadtime-input {
     .sidebar-right {
         grid-column: 1;
         grid-row: 2;
+        min-width: 0;
+        max-width: 100%;
+        overflow-x: hidden;
         /* Add safe area insets for notched devices */
         padding-left: max(0px, env(safe-area-inset-left));
         padding-right: max(0px, env(safe-area-inset-right));
@@ -8849,23 +8852,18 @@ select.schedule-leadtime-input {
     .top-bar {
         padding: max(6px, env(safe-area-inset-top)) 12px 6px;
         gap: 6px;
-        justify-content: space-between;
-        flex-wrap: nowrap;
-        max-width: 100%;
-        overflow: hidden;
+        justify-content: flex-start;
+        flex-wrap: wrap;
     }
 
     .top-bar-right {
-        gap: 8px;
-        min-width: 0;
-        flex-shrink: 1;
+        gap: 12px;
     }
 
     .top-bar-btn {
-        width: 40px;
-        height: 40px;
+        width: 44px;
+        height: 44px;
         font-size: 18px;
-        flex-shrink: 0;
         /* Minimum touch target size for mobile */
     }
 

@@ -8044,6 +8044,9 @@ select.schedule-leadtime-input {
     .sidebar-right {
         grid-column: 1;
         grid-row: 2;
+        min-width: 0;
+        max-width: 100%;
+        overflow-x: hidden;
     }
 
     .sidebar-left,
@@ -8068,24 +8071,19 @@ select.schedule-leadtime-input {
     .top-bar {
         padding: max(4px, env(safe-area-inset-top)) 8px 4px;
         gap: 4px;
-        justify-content: space-between;
-        flex-wrap: nowrap;
-        max-width: 100%;
-        overflow: hidden;
+        justify-content: flex-start;
+        flex-wrap: wrap;
     }
 
     .top-bar-right {
         gap: 6px;
         flex-wrap: nowrap;
-        min-width: 0;
-        flex-shrink: 1;
     }
 
     .top-bar-btn {
         width: 30px;
         height: 30px;
         font-size: 14px;
-        flex-shrink: 0;
     }
 
     .streak-widget {
