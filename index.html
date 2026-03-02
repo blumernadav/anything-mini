@@ -261,10 +261,109 @@
     <script src="https://cdn.jsdelivr.net/npm/marked@15/marked.min.js"></script>
     <script src="script.js" type="module"></script>
     <script>
+        // Service Worker registration
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('/sw.js').catch(() => { });
         }
+
+        // Custom PWA install prompt
+        let _deferredPrompt = null;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            _deferredPrompt = e;
+            // Don't show if user dismissed before
+            if (localStorage.getItem('pwaInstallDismissed')) return;
+            showInstallBanner();
+        });
+
+        function showInstallBanner() {
+            if (document.getElementById('pwa-install-banner')) return;
+            const banner = document.createElement('div');
+            banner.id = 'pwa-install-banner';
+            banner.className = 'pwa-install-banner';
+            banner.innerHTML = `
+                <span>✨ Install <strong>Anything Mini</strong> as an app</span>
+                <button id="pwa-install-btn" class="pwa-install-btn">Install</button>
+                <button id="pwa-dismiss-btn" class="pwa-dismiss-btn">×</button>
+            `;
+            document.body.prepend(banner);
+            document.getElementById('pwa-install-btn').addEventListener('click', async () => {
+                if (_deferredPrompt) {
+                    _deferredPrompt.prompt();
+                    const { outcome } = await _deferredPrompt.userChoice;
+                    _deferredPrompt = null;
+                }
+                banner.remove();
+            });
+            document.getElementById('pwa-dismiss-btn').addEventListener('click', () => {
+                localStorage.setItem('pwaInstallDismissed', '1');
+                banner.remove();
+            });
+        }
+
+        // Hide banner if already installed
+        window.addEventListener('appinstalled', () => {
+            const b = document.getElementById('pwa-install-banner');
+            if (b) b.remove();
+        });
     </script>
+    <style>
+        @keyframes slideDown {
+            from {
+                transform: translateY(-100%);
+            }
+
+            to {
+                transform: translateY(0);
+            }
+        }
+
+        .pwa-install-banner {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            padding: 10px 16px;
+            background: var(--bg-panel, var(--duo-white, var(--paper, var(--w-bg, #1e1e2e))));
+            border-bottom: 1px solid var(--border, var(--duo-border, #333));
+            font-family: inherit;
+            font-size: 13px;
+            color: var(--text, var(--duo-text, var(--pencil, var(--w-text, #e4e4e7))));
+            animation: slideDown .3s ease;
+        }
+
+        .pwa-install-btn {
+            padding: 6px 16px;
+            border: none;
+            border-radius: var(--radius-sm, var(--duo-radius-sm, 6px));
+            background: var(--accent, var(--duo-green, var(--highlight, var(--w-title, #eab350))));
+            color: var(--bg, var(--duo-bg, #111));
+            font-weight: 600;
+            font-size: 12px;
+            cursor: pointer;
+            font-family: inherit;
+            transition: opacity 0.15s;
+        }
+
+        .pwa-install-btn:hover {
+            opacity: 0.85;
+        }
+
+        .pwa-dismiss-btn {
+            background: none;
+            border: none;
+            color: var(--text-faint, var(--duo-text-faint, #888));
+            cursor: pointer;
+            font-size: 18px;
+            padding: 0 4px;
+            line-height: 1;
+        }
+    </style>
 </body>
 
 </html>
