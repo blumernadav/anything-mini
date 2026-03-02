@@ -8845,8 +8845,8 @@ select.schedule-leadtime-input {
 
     /* ── Top bar compact ── */
     .top-bar {
-        padding: 8px 16px;
-        gap: 10px;
+        padding: max(6px, env(safe-area-inset-top)) 12px 6px;
+        gap: 6px;
         justify-content: flex-start;
         flex-wrap: wrap;
     }
