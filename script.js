@@ -5,6 +5,7 @@
 // =====================================================
 
 const API = '/api';
+const CLIENT_ID = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
 // ─── State ───
 const state = {
@@ -64,13 +65,15 @@ function _fmtHMS(ms) {
 // ─── API Layer ───
 const api = {
     async get(path) {
-        const res = await fetch(`${API}${path}`);
+        const res = await fetch(`${API}${path}`, {
+            headers: { 'X-Client-ID': CLIENT_ID },
+        });
         return res.json();
     },
     async post(path, body) {
         const res = await fetch(`${API}${path}`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'X-Client-ID': CLIENT_ID },
             body: JSON.stringify(body),
         });
         return res.json();
@@ -78,7 +81,7 @@ const api = {
     async patch(path, body) {
         const res = await fetch(`${API}${path}`, {
             method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'X-Client-ID': CLIENT_ID },
             body: JSON.stringify(body),
         });
         return res.json();
@@ -86,7 +89,7 @@ const api = {
     async put(path, body) {
         const res = await fetch(`${API}${path}`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'X-Client-ID': CLIENT_ID },
             body: JSON.stringify(body),
         });
         if (res.status === 409) {
@@ -99,7 +102,7 @@ const api = {
         return res.json();
     },
     async del(path) {
-        await fetch(`${API}${path}`, { method: 'DELETE' });
+        await fetch(`${API}${path}`, { method: 'DELETE', headers: { 'X-Client-ID': CLIENT_ID } });
     },
 };
 
@@ -229,7 +232,115 @@ async function loadAll() {
     syncToggleUI();
     // Render streak widget with loaded settings
     renderStreak();
+    // Connect SSE sync after initial load
+    connectSync();
 }
+
+// ─── Real-Time Sync (SSE) ───
+let _syncSource = null;
+let _lastSseActivity = Date.now();
+let _syncReconnectTimer = null;
+
+function connectSync() {
+    // Clean up previous connection
+    if (_syncSource) {
+        _syncSource.close();
+        _syncSource = null;
+    }
+    if (_syncReconnectTimer) {
+        clearTimeout(_syncReconnectTimer);
+        _syncReconnectTimer = null;
+    }
+
+    try {
+        _syncSource = new EventSource(`${API}/sync?clientId=${encodeURIComponent(CLIENT_ID)}`);
+    } catch { return; /* SSE not supported */ }
+
+    _syncSource.onmessage = async (event) => {
+        _lastSseActivity = Date.now();
+        try {
+            const msg = JSON.parse(event.data);
+            if (msg.type === 'connected') return; // handshake
+            await _applySyncEvent(msg.type);
+        } catch { /* ignore parse errors */ }
+    };
+
+    _syncSource.onerror = () => {
+        // EventSource auto-reconnects, but if it fully closes, retry manually
+        if (_syncSource && _syncSource.readyState === EventSource.CLOSED) {
+            _syncSource = null;
+            _syncReconnectTimer = setTimeout(connectSync, 3000);
+        }
+    };
+}
+
+// Apply a remote sync event by re-fetching the specific domain
+async function _applySyncEvent(type) {
+    try {
+        if (type === 'items') {
+            state.items = await api.get('/items');
+            ensureInbox();
+            renderProjects();
+            renderActions();
+        } else if (type === 'timeline') {
+            state.timeline = await api.get('/timeline');
+            renderTimeline();
+        } else if (type === 'preferences') {
+            const prefs = await api.get('/preferences');
+            // Apply critical live-state fields from remote
+            if ('workingOn' in prefs) state.workingOn = prefs.workingOn;
+            if ('onBreak' in prefs) state.onBreak = prefs.onBreak;
+            if (Array.isArray(prefs.focusQueue)) {
+                state.focusQueue = prefs.focusQueue.filter(q => q.type === 'break' || findItemById(q.itemId));
+            }
+            if (prefs.focusQueueSettings) {
+                state.focusQueueSettings = {
+                    autoAdvance: prefs.focusQueueSettings.autoAdvance === true,
+                    breakMinutes: typeof prefs.focusQueueSettings.breakMinutes === 'number' ? prefs.focusQueueSettings.breakMinutes : 0,
+                };
+            }
+            if (typeof prefs.queueSessionStart === 'number' || prefs.queueSessionStart === null) {
+                state.queueSessionStart = prefs.queueSessionStart;
+            }
+            if (Array.isArray(prefs.bookmarks)) {
+                state.bookmarks = prefs.bookmarks.filter(id => findItemById(id));
+                syncBookmarksBtn();
+            }
+            if (Array.isArray(prefs.focusStack) && prefs.focusStack.length > 0) {
+                state.focusStack = prefs.focusStack;
+            }
+            renderAll();
+        } else if (type === 'settings') {
+            const s = await api.get('/settings');
+            state.settings = { ...state.settings, ...s };
+            syncSettingsUI();
+            renderAll();
+        }
+    } catch (err) {
+        console.warn('[sync] Failed to apply remote event:', type, err);
+    }
+}
+
+// ─── Stale Tab Recovery (visibilitychange) ───
+let _lastHiddenTime = 0;
+
+document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+        _lastHiddenTime = Date.now();
+    } else {
+        const hiddenDuration = Date.now() - _lastHiddenTime;
+        const sseStale = (Date.now() - _lastSseActivity) > 30000;
+        // If tab was hidden for >30s AND we haven't received SSE activity recently, full reload
+        if (hiddenDuration > 30000 && sseStale) {
+            console.log('[sync] Stale tab detected, reloading state...');
+            loadAll();
+        }
+        // Re-establish SSE if connection was lost
+        if (!_syncSource || _syncSource.readyState === EventSource.CLOSED) {
+            connectSync();
+        }
+    }
+});
 
 // Sync the schedule-filter button appearance with the current state
 function syncScheduleFilterBtn(btn) {

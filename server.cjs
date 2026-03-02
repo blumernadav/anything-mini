@@ -66,10 +66,51 @@ function initStores() {
     }
 }
 
+// ============ SSE Sync Infrastructure ============
+
+const sseClients = new Map(); // clientId -> res
+
+function notifyClients(type, excludeClientId) {
+    const msg = `data: ${JSON.stringify({ type })}\n\n`;
+    for (const [cid, res] of sseClients) {
+        if (cid === excludeClientId) continue;
+        try { res.write(msg); } catch { /* client gone */ }
+    }
+}
+
 // Middleware
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.static('.'));
+
+// ============ SSE Sync Endpoint ============
+
+app.get('/api/sync', (req, res) => {
+    const clientId = req.query.clientId || `anon-${Date.now()}`;
+
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
+    res.flushHeaders();
+
+    // Send connected confirmation
+    res.write(`data: ${JSON.stringify({ type: 'connected', clientId })}\n\n`);
+
+    sseClients.set(clientId, res);
+    console.log(`SSE client connected: ${clientId} (total: ${sseClients.size})`);
+
+    // Heartbeat every 20s to keep connection alive
+    const heartbeat = setInterval(() => {
+        try { res.write(': heartbeat\n\n'); } catch { clearInterval(heartbeat); }
+    }, 20000);
+
+    req.on('close', () => {
+        clearInterval(heartbeat);
+        sseClients.delete(clientId);
+        console.log(`SSE client disconnected: ${clientId} (total: ${sseClients.size})`);
+    });
+});
 
 // ============ Items API (unified tree) ============
 
@@ -120,6 +161,7 @@ app.post('/api/items', async (req, res) => {
     }
 
     await itemsStore.write(data);
+    notifyClients('items', req.headers['x-client-id']);
     res.status(201).json(newItem);
 });
 
@@ -146,6 +188,7 @@ app.patch('/api/items/:id', async (req, res) => {
     if (!updated) return res.status(404).json({ error: 'Item not found' });
 
     await itemsStore.write(data);
+    notifyClients('items', req.headers['x-client-id']);
     res.json(updated);
 });
 
@@ -169,6 +212,7 @@ app.delete('/api/items/:id', async (req, res) => {
     }
 
     await itemsStore.write(data);
+    notifyClients('items', req.headers['x-client-id']);
     res.json({ message: 'Deleted' });
 });
 
@@ -186,6 +230,7 @@ app.put('/api/items', async (req, res) => {
         });
     }
     await itemsStore.write(incoming);
+    notifyClients('items', req.headers['x-client-id']);
     res.json(incoming);
 });
 
@@ -204,6 +249,7 @@ app.post('/api/timeline', async (req, res) => {
     };
     data.entries.push(entry);
     await timelineStore.write(data);
+    notifyClients('timeline', req.headers['x-client-id']);
     res.status(201).json(entry);
 });
 
@@ -220,6 +266,7 @@ app.patch('/api/timeline/:id', async (req, res) => {
         entry.timestamp = updates.startTime;
     }
     await timelineStore.write(data);
+    notifyClients('timeline', req.headers['x-client-id']);
     res.json(entry);
 });
 
@@ -231,6 +278,7 @@ app.delete('/api/timeline/:id', async (req, res) => {
 
     data.entries.splice(idx, 1);
     await timelineStore.write(data);
+    notifyClients('timeline', req.headers['x-client-id']);
     res.json({ message: 'Deleted' });
 });
 
@@ -244,6 +292,7 @@ app.put('/api/settings', async (req, res) => {
     const current = await settingsStore.read();
     const updated = { ...current, ...req.body };
     await settingsStore.write(updated);
+    notifyClients('settings', req.headers['x-client-id']);
     res.json(updated);
 });
 
@@ -257,6 +306,7 @@ app.put('/api/preferences', async (req, res) => {
     const current = await preferencesStore.read();
     const updated = { ...current, ...req.body };
     await preferencesStore.write(updated);
+    notifyClients('preferences', req.headers['x-client-id']);
     res.json(updated);
 });
 
