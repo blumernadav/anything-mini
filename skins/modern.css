@@ -8811,6 +8811,8 @@ select.schedule-leadtime-input {
     .app-layout {
         grid-template-columns: 1fr;
         grid-template-rows: auto 1fr auto;
+        max-width: 100vw;
+        overflow-x: hidden;
     }
 
     /* All 3 panels stack in grid row 2, only one visible at a time */
@@ -8847,18 +8849,23 @@ select.schedule-leadtime-input {
     .top-bar {
         padding: max(6px, env(safe-area-inset-top)) 12px 6px;
         gap: 6px;
-        justify-content: flex-start;
-        flex-wrap: wrap;
+        justify-content: space-between;
+        flex-wrap: nowrap;
+        max-width: 100%;
+        overflow: hidden;
     }
 
     .top-bar-right {
-        gap: 12px;
+        gap: 8px;
+        min-width: 0;
+        flex-shrink: 1;
     }
 
     .top-bar-btn {
-        width: 44px;
-        height: 44px;
+        width: 40px;
+        height: 40px;
         font-size: 18px;
+        flex-shrink: 0;
         /* Minimum touch target size for mobile */
     }
 

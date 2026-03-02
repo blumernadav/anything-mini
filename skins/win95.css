@@ -8035,6 +8035,8 @@ select.schedule-leadtime-input {
         grid-template-columns: 1fr;
         grid-template-rows: auto 1fr auto auto;
         /* top | content | tab-bar | taskbar */
+        max-width: 100vw;
+        overflow-x: hidden;
     }
 
     .sidebar-left,
@@ -8066,19 +8068,24 @@ select.schedule-leadtime-input {
     .top-bar {
         padding: max(4px, env(safe-area-inset-top)) 8px 4px;
         gap: 4px;
-        justify-content: flex-start;
-        flex-wrap: wrap;
+        justify-content: space-between;
+        flex-wrap: nowrap;
+        max-width: 100%;
+        overflow: hidden;
     }
 
     .top-bar-right {
         gap: 6px;
         flex-wrap: nowrap;
+        min-width: 0;
+        flex-shrink: 1;
     }
 
     .top-bar-btn {
         width: 30px;
         height: 30px;
         font-size: 14px;
+        flex-shrink: 0;
     }
 
     .streak-widget {
