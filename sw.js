@@ -1,4 +1,4 @@
-const CACHE_NAME = 'anything-mini-v3';
+const CACHE_NAME = 'anything-mini-v4';
 const STATIC_ASSETS = [
     '/',
     '/index.html',
@@ -33,6 +33,11 @@ self.addEventListener('activate', (event) => {
 // Fetch — network-first for API, cache-first for static assets
 self.addEventListener('fetch', (event) => {
     const url = new URL(event.request.url);
+
+    // SSE sync endpoint — do NOT intercept (must be a direct browser connection)
+    if (url.pathname.startsWith('/api/sync')) {
+        return; // let the browser handle it natively
+    }
 
     // Always go to network for API calls
     if (url.pathname.startsWith('/api/')) {
