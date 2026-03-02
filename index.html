@@ -306,6 +306,26 @@
             const b = document.getElementById('pwa-install-banner');
             if (b) b.remove();
         });
+
+        // iOS-specific install hint (no beforeinstallprompt on iOS)
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+            (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+        const isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
+            window.navigator.standalone;
+        if (isIOS && !isStandalone && !localStorage.getItem('pwaInstallDismissed')) {
+            const banner = document.createElement('div');
+            banner.id = 'pwa-install-banner';
+            banner.className = 'pwa-install-banner';
+            banner.innerHTML = `
+                <span>Tap <strong>⬆ Share</strong> then <strong>Add to Home Screen</strong> to install</span>
+                <button id="pwa-dismiss-btn" class="pwa-dismiss-btn">×</button>
+            `;
+            document.body.prepend(banner);
+            document.getElementById('pwa-dismiss-btn').addEventListener('click', () => {
+                localStorage.setItem('pwaInstallDismissed', '1');
+                banner.remove();
+            });
+        }
     </script>
     <style>
         @keyframes slideDown {
