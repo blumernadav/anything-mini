@@ -9071,6 +9071,11 @@ select.schedule-leadtime-input {
         min-height: 44px;
     }
 
+    /* ── Hide action buttons on mobile (don't take up space) ── */
+    .action-buttons {
+        display: none;
+    }
+
     /* ── Touch action visibility (no hover on mobile) ── */
     .plan-start-btn,
     .plan-delete-btn,
