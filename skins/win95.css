@@ -31,7 +31,7 @@ html {
     height: 100vh;
     height: 100dvh;
     width: 100%;
-    max-width: 100vw;
+    max-width: 100%;
 }
 
 body {
@@ -43,7 +43,7 @@ body {
     height: 100vh;
     height: 100dvh;
     width: 100%;
-    max-width: 100vw;
+    max-width: 100%;
     font-size: 14px;
     cursor: default;
 }
@@ -8047,7 +8047,7 @@ select.schedule-leadtime-input {
         grid-template-columns: 1fr;
         grid-template-rows: auto 1fr auto auto;
         /* top | content | tab-bar | taskbar */
-        max-width: 100vw;
+        max-width: 100%;
         overflow-x: hidden;
     }
 
@@ -8221,7 +8221,7 @@ select.schedule-leadtime-input {
     /* ── Copilot fullscreen on mobile ── */
     .copilot-panel {
         width: 100vw;
-        max-width: 100vw;
+        max-width: 100%;
         border-left: none;
     }
 
