@@ -5652,7 +5652,7 @@ function renderActions(opts) {
 
     // ── Day closed: show "Good Night" instead of actions ──
     if (isDayClosed() && !state.workingOn && !state.onBreak) {
-        container.querySelectorAll('.action-item, .action-group-header').forEach(el => el.remove());
+        container.querySelectorAll('.action-item, .action-group-header, .overflow-preview').forEach(el => el.remove());
         empty.style.display = '';
         empty.innerHTML = '';
         const icon = document.createElement('span');
@@ -8924,15 +8924,52 @@ function isPastDayEnd() {
 // Manual day management: Start Day / Close Day / Reopen Day
 
 function isDayStarted(dateKey) {
-    const key = dateKey || getTodayLogicalDateKey();
+    const key = dateKey || getActiveDayKey();
     const override = state.settings.dayOverrides?.[key];
     return override?.dayStarted === true;
 }
 
 function isDayClosed(dateKey) {
-    const key = dateKey || getTodayLogicalDateKey();
+    const key = dateKey || getActiveDayKey();
     const override = state.settings.dayOverrides?.[key];
     return override?.dayClosed === true;
+}
+
+// Returns the date key of the "active" day:
+// - If today (logical) has dayStarted or dayClosed, use today.
+// - If today has no flags but yesterday was started and NOT closed, yesterday is still active (wind-down).
+// - If today has no flags and it's before today's planned start, and yesterday was closed, show yesterday's closed state.
+// - Otherwise, use today (new day — "Start Day").
+function getActiveDayKey() {
+    const todayKey = getTodayLogicalDateKey();
+    const todayOverride = state.settings.dayOverrides?.[todayKey];
+
+    // Today explicitly started or closed — it's the active day
+    if (todayOverride?.dayStarted || todayOverride?.dayClosed) return todayKey;
+
+    // Check yesterday
+    const yesterday = new Date(getLogicalToday());
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayKey = getDateKey(yesterday);
+    const yesterdayOverride = state.settings.dayOverrides?.[yesterdayKey];
+
+    // Yesterday started but not closed → still active (wind-down)
+    if (yesterdayOverride?.dayStarted && !yesterdayOverride?.dayClosed) {
+        return yesterdayKey;
+    }
+
+    // Yesterday was closed and we're before today's planned start → persist Good Night
+    if (yesterdayOverride?.dayClosed) {
+        const todayTimes = getEffectiveDayTimes(new Date());
+        const now = new Date();
+        const todayStart = new Date(now);
+        todayStart.setHours(todayTimes.dayStartHour, todayTimes.dayStartMinute, 0, 0);
+        if (now < todayStart) {
+            return yesterdayKey; // still in "Good Night" until today's start
+        }
+    }
+
+    return todayKey;
 }
 
 async function startDay() {
@@ -8951,12 +8988,12 @@ async function startDay() {
 }
 
 async function closeDay() {
-    const todayKey = getTodayLogicalDateKey();
+    const activeKey = getActiveDayKey();
     if (!state.settings.dayOverrides) state.settings.dayOverrides = {};
-    if (!state.settings.dayOverrides[todayKey]) state.settings.dayOverrides[todayKey] = {};
+    if (!state.settings.dayOverrides[activeKey]) state.settings.dayOverrides[activeKey] = {};
 
     // Evaluate today's commitments
-    const commitResults = evaluateCommitments(todayKey);
+    const commitResults = evaluateCommitments(activeKey);
     const hasCommitments = commitResults.kept.length + commitResults.broken.length > 0;
 
     // Record commitment results in history
@@ -8969,10 +9006,10 @@ async function closeDay() {
 
     const finishClose = async () => {
         const now = new Date();
-        state.settings.dayOverrides[todayKey].dayEndHour = now.getHours();
-        state.settings.dayOverrides[todayKey].dayEndMinute = now.getMinutes();
-        state.settings.dayOverrides[todayKey].dayClosed = true;
-        state.settings.dayOverrides[todayKey].dayClosedAt = Date.now();
+        state.settings.dayOverrides[activeKey].dayEndHour = now.getHours();
+        state.settings.dayOverrides[activeKey].dayEndMinute = now.getMinutes();
+        state.settings.dayOverrides[activeKey].dayClosed = true;
+        state.settings.dayOverrides[activeKey].dayClosedAt = Date.now();
 
         // Merge streak check-in (commitment-aware)
         await performCheckIn(commitResults);
@@ -8990,12 +9027,12 @@ async function closeDay() {
 }
 
 async function reopenDay() {
-    const todayKey = getTodayLogicalDateKey();
+    const activeKey = getActiveDayKey();
     if (!state.settings.dayOverrides) state.settings.dayOverrides = {};
-    if (!state.settings.dayOverrides[todayKey]) state.settings.dayOverrides[todayKey] = {};
+    if (!state.settings.dayOverrides[activeKey]) state.settings.dayOverrides[activeKey] = {};
 
-    state.settings.dayOverrides[todayKey].dayClosed = false;
-    delete state.settings.dayOverrides[todayKey].dayClosedAt;
+    state.settings.dayOverrides[activeKey].dayClosed = false;
+    delete state.settings.dayOverrides[activeKey].dayClosedAt;
 
     api.put('/settings', state.settings);
     renderAll();
@@ -9590,8 +9627,9 @@ function _attachLiveIndicatorDnD(indicator, liveType) {
 let _liveIndicatorFingerprint = null;
 function _renderLiveSessionIndicator() {
     // Skip full rebuild if live state hasn't changed
+    const _fpActiveDayKey = getActiveDayKey();
     const _fpDayTimes = getEffectiveDayTimes(getLogicalToday());
-    const fp = `${!!state.workingOn}|${!!state.onBreak}|${state.workingOn?.itemId || ''}|${state.focusQueue.length}|${state.workingOn?.startTime || state.onBreak?.startTime || ''}|${state.workingOn?.targetEndTime || state.onBreak?.targetEndTime || ''}|${isDayClosed()}|${isDayStarted()}|${isPastDayEnd()}|${_fpDayTimes.dayStartHour}:${_fpDayTimes.dayStartMinute}-${_fpDayTimes.dayEndHour}:${_fpDayTimes.dayEndMinute}`;
+    const fp = `${!!state.workingOn}|${!!state.onBreak}|${state.workingOn?.itemId || ''}|${state.focusQueue.length}|${state.workingOn?.startTime || state.onBreak?.startTime || ''}|${state.workingOn?.targetEndTime || state.onBreak?.targetEndTime || ''}|${isDayClosed()}|${isDayStarted()}|${isPastDayEnd()}|${_fpDayTimes.dayStartHour}:${_fpDayTimes.dayStartMinute}-${_fpDayTimes.dayEndHour}:${_fpDayTimes.dayEndMinute}|${_fpActiveDayKey}`;
     const liveSlot = document.getElementById('header-live-slot');
     if (!liveSlot) return;
     if (fp === _liveIndicatorFingerprint && liveSlot.children.length > 0) return;
@@ -9616,8 +9654,11 @@ function _renderLiveSessionIndicator() {
             return;
         }
 
-        const logicalToday = getLogicalToday();
-        const { dayStart, dayEnd } = getDayBoundaries(logicalToday);
+        // Use the active day's boundaries (not getLogicalToday which may have rolled)
+        const _activeDayKey = getActiveDayKey();
+        const _activeDayParts = _activeDayKey.split('-').map(Number);
+        const activeDay = new Date(_activeDayParts[0], _activeDayParts[1] - 1, _activeDayParts[2]);
+        const { dayStart, dayEnd } = getDayBoundaries(activeDay);
         const nowMs = Date.now();
 
         // Find idle start: last block end before now, or day start
