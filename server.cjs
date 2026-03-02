@@ -344,9 +344,12 @@ app.post('/api/ai/chat', async (req, res) => {
             timestamp: Date.now()
         });
 
+        // Load settings from the correct store (DB or JSON)
+        const settings = await settingsStore.read();
+
         const result = await aiChat(message, recentHistory, (event) => {
             sendEvent(event);
-        });
+        }, settings);
 
         // Persist AI response
         if (result.text) {
@@ -409,9 +412,12 @@ app.post('/api/ai/execute', async (req, res) => {
             .slice(-50)
             .map(m => ({ role: m.role, content: m.content }));
 
+        // Load settings from the correct store (DB or JSON)
+        const execSettings = await settingsStore.read();
+
         const { results, summary } = await executeAndContinue(toolCalls, recentHistory, (event) => {
             sendEvent(event);
-        });
+        }, execSettings);
 
         // Persist AI summary from continuation if any
         if (summary) {

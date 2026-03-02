@@ -14,14 +14,18 @@ const path = require('path');
 
 const MAX_TOOL_ROUNDS = 50;
 
-function getAiConfig() {
-    const settingsPath = path.join(__dirname, '..', 'data', 'settings.json');
-    let settings = {};
-    try {
-        if (fs.existsSync(settingsPath)) {
-            settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
-        }
-    } catch { }
+function getAiConfig(settings) {
+    // If settings passed from server (from DB store), use those.
+    // Otherwise fall back to reading JSON file directly.
+    if (!settings) {
+        const settingsPath = path.join(__dirname, '..', 'data', 'settings.json');
+        try {
+            if (fs.existsSync(settingsPath)) {
+                settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+            }
+        } catch { }
+        settings = settings || {};
+    }
     return {
         provider: settings.aiProvider || undefined,
         model: settings.aiModel || undefined,
@@ -42,9 +46,9 @@ function getAiConfig() {
  * @param {Array} history - Previous messages [{role, content}]
  * @returns {{ text: string, plan?: Array }}
  */
-async function chat(message, history = [], onEvent = null) {
+async function chat(message, history = [], onEvent = null, settings = null) {
     const emit = onEvent || (() => { });
-    const config = getAiConfig();
+    const config = getAiConfig(settings);
     const provider = getProvider(config);
     const context = buildContext();
     const systemPrompt = buildSystemPrompt(context);
@@ -141,7 +145,7 @@ async function chat(message, history = [], onEvent = null) {
  * @param {Array} history - Chat history for continuation context
  * @returns {{ results: Array, continuationResults: Array, summary: string }}
  */
-async function executeAndContinue(toolCalls, history = [], onEvent = null) {
+async function executeAndContinue(toolCalls, history = [], onEvent = null, settings = null) {
     const emit = onEvent || (() => { });
     const allResults = [];
 
@@ -166,7 +170,7 @@ async function executeAndContinue(toolCalls, history = [], onEvent = null) {
     }
 
     // Now feed execution results back to AI for continuation
-    const config = getAiConfig();
+    const config = getAiConfig(settings);
     const provider = getProvider(config);
     const context = buildContext();
     const systemPrompt = buildSystemPrompt(context);
