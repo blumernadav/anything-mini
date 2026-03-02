@@ -8214,7 +8214,7 @@ select.schedule-leadtime-input {
 
     /* ── FAB above tab bar ── */
     .copilot-fab {
-        bottom: calc(60px + max(6px, env(safe-area-inset-bottom)));
+        bottom: 66px;
     }
 }
 

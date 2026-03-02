@@ -9219,7 +9219,7 @@ select.schedule-leadtime-input {
         grid-row: 3;
         justify-content: space-around;
         align-items: center;
-        padding: 6px 0 max(6px, env(safe-area-inset-bottom));
+        padding: 6px 0;
         border-top: 2px solid var(--duo-border, #3a3a3a);
         background: var(--duo-white, #1a1a2e);
     }
@@ -9278,7 +9278,7 @@ select.schedule-leadtime-input {
 
     /* ── FAB above tab bar ── */
     .copilot-fab {
-        bottom: calc(60px + max(6px, env(safe-area-inset-bottom)));
+        bottom: 66px;
     }
 }
 
