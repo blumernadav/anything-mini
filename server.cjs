@@ -349,7 +349,7 @@ app.post('/api/ai/chat', async (req, res) => {
 
         const result = await aiChat(message, recentHistory, (event) => {
             sendEvent(event);
-        }, settings);
+        }, settings, { items: itemsStore, timeline: timelineStore, settings: settingsStore, preferences: preferencesStore });
 
         // Persist AI response
         if (result.text) {
@@ -417,7 +417,7 @@ app.post('/api/ai/execute', async (req, res) => {
 
         const { results, summary } = await executeAndContinue(toolCalls, recentHistory, (event) => {
             sendEvent(event);
-        }, execSettings);
+        }, execSettings, { items: itemsStore, timeline: timelineStore, settings: settingsStore, preferences: preferencesStore });
 
         // Persist AI summary from continuation if any
         if (summary) {

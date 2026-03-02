@@ -4,28 +4,18 @@
  * Orchestrates the full flow: context → tools → provider → response/plan.
  * Implements an agentic loop: read tools are auto-executed and their results
  * fed back to the AI. Only write tools are surfaced as plans for user approval.
+ * 
+ * All data access goes through the server's store instances (DB or JSON).
  */
 
 const { getProvider } = require('./provider.cjs');
 const { buildContext, buildSystemPrompt } = require('./context.cjs');
 const { getToolDefinitions, executeTool, enrichPlan, isReadTool } = require('./tools.cjs');
-const fs = require('fs');
-const path = require('path');
 
 const MAX_TOOL_ROUNDS = 50;
 
 function getAiConfig(settings) {
-    // If settings passed from server (from DB store), use those.
-    // Otherwise fall back to reading JSON file directly.
-    if (!settings) {
-        const settingsPath = path.join(__dirname, '..', 'data', 'settings.json');
-        try {
-            if (fs.existsSync(settingsPath)) {
-                settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
-            }
-        } catch { }
-        settings = settings || {};
-    }
+    settings = settings || {};
     return {
         provider: settings.aiProvider || undefined,
         model: settings.aiModel || undefined,
@@ -44,13 +34,16 @@ function getAiConfig(settings) {
  * 
  * @param {string} message - User's message
  * @param {Array} history - Previous messages [{role, content}]
+ * @param {Function} onEvent - SSE event emitter
+ * @param {object} settings - App settings (for AI config)
+ * @param {object} stores - { items, timeline, settings, preferences } store instances
  * @returns {{ text: string, plan?: Array }}
  */
-async function chat(message, history = [], onEvent = null, settings = null) {
+async function chat(message, history = [], onEvent = null, settings = null, stores = null) {
     const emit = onEvent || (() => { });
     const config = getAiConfig(settings);
     const provider = getProvider(config);
-    const context = buildContext();
+    const context = await buildContext(stores);
     const systemPrompt = buildSystemPrompt(context);
     const tools = getToolDefinitions(true);
 
@@ -83,7 +76,7 @@ async function chat(message, history = [], onEvent = null, settings = null) {
         if (writeCalls.length > 0) {
             return {
                 text: result.text || '',  // Only THIS round's text as intent
-                plan: enrichPlan(writeCalls)
+                plan: await enrichPlan(writeCalls, stores)
             };
         }
 
@@ -105,7 +98,7 @@ async function chat(message, history = [], onEvent = null, settings = null) {
         for (const tc of readCalls) {
             emit({ type: 'tool_start', tool: tc.name, args: tc.args });
             try {
-                const toolResult = await executeTool(tc.name, tc.args);
+                const toolResult = await executeTool(tc.name, tc.args, stores);
                 toolResults.push({
                     toolUseId: tc.id,
                     name: tc.name,
@@ -143,9 +136,12 @@ async function chat(message, history = [], onEvent = null, settings = null) {
  * 
  * @param {Array} toolCalls - [{tool, args}] from the approved plan
  * @param {Array} history - Chat history for continuation context
+ * @param {Function} onEvent - SSE event emitter
+ * @param {object} settings - App settings (for AI config)
+ * @param {object} stores - { items, timeline, settings, preferences } store instances
  * @returns {{ results: Array, continuationResults: Array, summary: string }}
  */
-async function executeAndContinue(toolCalls, history = [], onEvent = null, settings = null) {
+async function executeAndContinue(toolCalls, history = [], onEvent = null, settings = null, stores = null) {
     const emit = onEvent || (() => { });
     const allResults = [];
 
@@ -154,7 +150,7 @@ async function executeAndContinue(toolCalls, history = [], onEvent = null, setti
         const tc = toolCalls[i];
         emit({ type: 'exec_step', step: i + 1, total: toolCalls.length, tool: tc.tool, args: tc.args, description: tc.description });
         try {
-            const result = await executeTool(tc.tool, tc.args);
+            const result = await executeTool(tc.tool, tc.args, stores);
             allResults.push({
                 tool: tc.tool,
                 success: !result.error,
@@ -172,7 +168,7 @@ async function executeAndContinue(toolCalls, history = [], onEvent = null, setti
     // Now feed execution results back to AI for continuation
     const config = getAiConfig(settings);
     const provider = getProvider(config);
-    const context = buildContext();
+    const context = await buildContext(stores);
     const systemPrompt = buildSystemPrompt(context);
     const tools = getToolDefinitions(true);
 
@@ -235,7 +231,7 @@ async function executeAndContinue(toolCalls, history = [], onEvent = null, setti
             for (const tc of readCalls) {
                 emit({ type: 'tool_start', tool: tc.name, args: tc.args });
                 try {
-                    const toolResult = await executeTool(tc.name, tc.args);
+                    const toolResult = await executeTool(tc.name, tc.args, stores);
                     toolResults.push({ toolUseId: tc.id, name: tc.name, result: JSON.stringify(toolResult) });
                 } catch (err) {
                     toolResults.push({ toolUseId: tc.id, name: tc.name, result: JSON.stringify({ error: err.message }) });
@@ -253,7 +249,7 @@ async function executeAndContinue(toolCalls, history = [], onEvent = null, setti
                 emit({ type: 'tool_start', tool: tc.name, args: tc.args });
                 let execResult;
                 try {
-                    execResult = await executeTool(tc.name, tc.args);
+                    execResult = await executeTool(tc.name, tc.args, stores);
                     allResults.push({ tool: tc.name, success: !execResult.error, result: execResult });
                 } catch (err) {
                     execResult = { error: err.message };

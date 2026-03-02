@@ -3,18 +3,9 @@
  * 
  * Builds a pruned snapshot of all app data for injection into AI prompts.
  * Prunes items tree (depth limit, done filter), filters timeline to recent days.
+ * 
+ * Reads from the server's store instances (DB or JSON) — NOT directly from files.
  */
-
-const fs = require('fs');
-const path = require('path');
-
-const DATA_DIR = path.join(__dirname, '..', 'data');
-
-function readJson(filename) {
-    const filePath = path.join(DATA_DIR, filename);
-    if (!fs.existsSync(filePath)) return null;
-    return JSON.parse(fs.readFileSync(filePath, 'utf8'));
-}
 
 /**
  * Prune the items tree for context injection.
@@ -81,12 +72,13 @@ function filterTimeline(entries, days = 7) {
 
 /**
  * Build the full context snapshot for AI consumption.
+ * @param {object} stores - { items, timeline, settings, preferences } store instances
  */
-function buildContext() {
-    const items = readJson('items.json');
-    const timeline = readJson('timeline.json');
-    const settings = readJson('settings.json');
-    const preferences = readJson('preferences.json');
+async function buildContext(stores) {
+    const items = await stores.items.read();
+    const timeline = await stores.timeline.read();
+    const settings = await stores.settings.read();
+    const preferences = await stores.preferences.read();
 
     const now = new Date();
 

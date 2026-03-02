@@ -2,14 +2,15 @@
  * ai/tools.cjs — Tool definitions mapping AI function calls to existing API
  * 
  * Each tool has a name, description, parameters schema (for the AI),
- * and an execute function that operates on the data stores directly.
+ * and an execute function that operates on the server's store instances.
+ * 
+ * Stores are passed in at execution time — never reads files directly.
  */
 
 const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
 
-const DATA_DIR = path.join(__dirname, '..', 'data');
 const PROJECT_ROOT = path.join(__dirname, '..');
 
 // ============ Security Helpers ============
@@ -23,20 +24,6 @@ function resolveProjectPath(relativePath) {
     // Ensure it's still within PROJECT_ROOT
     if (!resolved.startsWith(PROJECT_ROOT)) return null;
     return resolved;
-}
-
-// ============ Data Store Helpers ============
-// Read/write JSON directly (same as server.cjs stores, but standalone)
-
-function readStore(filename) {
-    const filePath = path.join(DATA_DIR, filename);
-    if (!fs.existsSync(filePath)) return null;
-    return JSON.parse(fs.readFileSync(filePath, 'utf8'));
-}
-
-function writeStore(filename, data) {
-    const filePath = path.join(DATA_DIR, filename);
-    fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
 }
 
 // ============ Item Tree Helpers ============
@@ -84,8 +71,8 @@ const READ_TOOLS = [
             type: 'object',
             properties: {},
         },
-        async execute() {
-            const data = readStore('items.json');
+        async execute(args, stores) {
+            const data = await stores.items.read();
             return { items: data?.items || [] };
         }
     },
@@ -101,8 +88,8 @@ const READ_TOOLS = [
                 }
             }
         },
-        async execute(args) {
-            const data = readStore('timeline.json');
+        async execute(args, stores) {
+            const data = await stores.timeline.read();
             const days = args?.daysBack || 7;
             const cutoff = Date.now() - (days * 24 * 60 * 60 * 1000);
             const entries = (data?.entries || []).filter(e => (e.timestamp || e.startTime || 0) >= cutoff);
@@ -116,8 +103,8 @@ const READ_TOOLS = [
             type: 'object',
             properties: {},
         },
-        async execute() {
-            return readStore('settings.json') || {};
+        async execute(args, stores) {
+            return await stores.settings.read() || {};
         }
     },
     {
@@ -127,8 +114,8 @@ const READ_TOOLS = [
             type: 'object',
             properties: {},
         },
-        async execute() {
-            return readStore('preferences.json') || {};
+        async execute(args, stores) {
+            return await stores.preferences.read() || {};
         }
     },
     {
@@ -225,8 +212,8 @@ const WRITE_TOOLS = [
             },
             required: ['name']
         },
-        async execute(args) {
-            const data = readStore('items.json');
+        async execute(args, stores) {
+            const data = await stores.items.read();
             const newItem = {
                 id: data.nextId++,
                 name: args.name,
@@ -248,7 +235,7 @@ const WRITE_TOOLS = [
                 data.items.splice(inboxIdx >= 0 ? inboxIdx + 1 : 0, 0, newItem);
             }
 
-            writeStore('items.json', data);
+            await stores.items.write(data);
             return { created: newItem, message: `Created "${args.name}" (id: ${newItem.id})` };
         },
         describe(args) {
@@ -296,8 +283,8 @@ const WRITE_TOOLS = [
             },
             required: ['id']
         },
-        async execute(args) {
-            const data = readStore('items.json');
+        async execute(args, stores) {
+            const data = await stores.items.read();
             const item = findItemById(data.items, args.id);
             if (!item) return { error: `Item ${args.id} not found` };
 
@@ -308,7 +295,7 @@ const WRITE_TOOLS = [
                 if (!item.contextDurations) item.contextDurations = {};
                 Object.assign(item.contextDurations, contextDurations);
             }
-            writeStore('items.json', data);
+            await stores.items.write(data);
 
             return { updated: item, message: `Updated "${item.name}" (id: ${id})` };
         },
@@ -330,8 +317,8 @@ const WRITE_TOOLS = [
             },
             required: ['id']
         },
-        async execute(args) {
-            const data = readStore('items.json');
+        async execute(args, stores) {
+            const data = await stores.items.read();
 
             // Find item name before deleting
             const item = findItemById(data.items, args.id);
@@ -350,7 +337,7 @@ const WRITE_TOOLS = [
             };
 
             deleteRecursive(data.items);
-            writeStore('items.json', data);
+            await stores.items.write(data);
 
             return { deleted: args.id, message: `Deleted "${name}" (id: ${args.id})` };
         },
@@ -380,8 +367,8 @@ const WRITE_TOOLS = [
             },
             required: ['parentId']
         },
-        async execute(args) {
-            const data = readStore('items.json');
+        async execute(args, stores) {
+            const data = await stores.items.read();
             const parent = findItemById(data.items, args.parentId);
             if (!parent) return { error: `Parent item ${args.parentId} not found` };
             if (!parent.children || parent.children.length === 0) return { error: 'Parent has no children' };
@@ -406,7 +393,7 @@ const WRITE_TOOLS = [
                 return { error: 'Specify childIds or reverse:true' };
             }
 
-            writeStore('items.json', data);
+            await stores.items.write(data);
             return { message: `Reordered children of "${parent.name}" (${parent.children.length} items)` };
         },
         describe(args) {
@@ -443,15 +430,15 @@ const WRITE_TOOLS = [
             },
             required: ['name']
         },
-        async execute(args) {
-            const data = readStore('timeline.json');
+        async execute(args, stores) {
+            const data = await stores.timeline.read();
             const entry = {
                 ...args,
                 id: data.nextId++,
                 timestamp: args.startTime || Date.now()
             };
             data.entries.push(entry);
-            writeStore('timeline.json', data);
+            await stores.timeline.write(data);
 
             return { created: entry, message: `Logged "${args.name}"` };
         },
@@ -466,8 +453,8 @@ const WRITE_TOOLS = [
             type: 'object',
             properties: {},
         },
-        async execute() {
-            const prefs = readStore('preferences.json');
+        async execute(args, stores) {
+            const prefs = await stores.preferences.read();
             if (!prefs || !prefs.workingOn) return { error: 'Not currently working on anything' };
 
             const endTime = Date.now();
@@ -477,7 +464,7 @@ const WRITE_TOOLS = [
             const durStr = hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
 
             // Create timeline entry
-            const timeline = readStore('timeline.json') || { entries: [], nextId: 1 };
+            const timeline = await stores.timeline.read() || { entries: [], nextId: 1 };
             const entry = {
                 id: timeline.nextId++,
                 text: `Worked on: ${prefs.workingOn.itemName} (${durStr})`,
@@ -490,20 +477,18 @@ const WRITE_TOOLS = [
                 timestamp: prefs.workingOn.startTime
             };
             timeline.entries.push(entry);
-            writeStore('timeline.json', timeline);
+            await stores.timeline.write(timeline);
 
             const stoppedName = prefs.workingOn.itemName;
 
             // Clear working state
             prefs.workingOn = null;
-            writeStore('preferences.json', prefs);
+            await stores.preferences.write(prefs);
 
             return { message: `Stopped working on "${stoppedName}" (${durStr})`, entry };
         },
         describe() {
-            const prefs = readStore('preferences.json');
-            const name = prefs?.workingOn?.itemName || 'current task';
-            return `⏹️ Stop working on "${name}"`;
+            return `⏹️ Stop working on current task`;
         }
     },
     {
@@ -523,9 +508,9 @@ const WRITE_TOOLS = [
             },
             required: ['itemId']
         },
-        async execute(args) {
-            const prefs = readStore('preferences.json');
-            const items = readStore('items.json');
+        async execute(args, stores) {
+            const prefs = await stores.preferences.read();
+            const items = await stores.items.read();
             const item = findItemById(items?.items || [], args.itemId);
             if (!item) return { error: `Item ${args.itemId} not found` };
 
@@ -540,15 +525,12 @@ const WRITE_TOOLS = [
                 startTime: now,
                 targetEndTime: args.durationMinutes ? now + (args.durationMinutes * 60000) : null
             };
-            writeStore('preferences.json', prefs);
+            await stores.preferences.write(prefs);
 
             return { message: `Started working on "${item.name}"${args.durationMinutes ? ` (${args.durationMinutes}min)` : ''}` };
         },
         describe(args) {
-            const items = readStore('items.json');
-            const item = findItemById(items?.items || [], args.itemId);
-            const name = item?.name || `item #${args.itemId}`;
-            return `▶️ Start working on "${name}"${args.durationMinutes ? ` (${args.durationMinutes}min)` : ''}`;
+            return `▶️ Start working on item #${args.itemId}${args.durationMinutes ? ` (${args.durationMinutes}min)` : ''}`;
         }
     },
     {
@@ -567,8 +549,8 @@ const WRITE_TOOLS = [
                 }
             }
         },
-        async execute(args) {
-            const prefs = readStore('preferences.json');
+        async execute(args, stores) {
+            const prefs = await stores.preferences.read();
             if (!prefs || !prefs.workingOn) return { error: 'Not currently working on anything' };
 
             const now = Date.now();
@@ -581,16 +563,14 @@ const WRITE_TOOLS = [
                 return { error: 'Specify addMinutes or setMinutesFromNow' };
             }
 
-            writeStore('preferences.json', prefs);
+            await stores.preferences.write(prefs);
             const remaining = Math.round((prefs.workingOn.targetEndTime - now) / 60000);
             return { message: `Timer for "${prefs.workingOn.itemName}" updated — ${remaining}min remaining` };
         },
         describe(args) {
-            const prefs = readStore('preferences.json');
-            const name = prefs?.workingOn?.itemName || 'current task';
-            if (args.addMinutes) return `⏱️ Add ${args.addMinutes}min to "${name}" timer`;
-            if (args.setMinutesFromNow) return `⏱️ Set "${name}" timer to ${args.setMinutesFromNow}min from now`;
-            return `⏱️ Modify "${name}" timer`;
+            if (args.addMinutes) return `⏱️ Add ${args.addMinutes}min to timer`;
+            if (args.setMinutesFromNow) return `⏱️ Set timer to ${args.setMinutesFromNow}min from now`;
+            return `⏱️ Modify timer`;
         }
     },
     {
@@ -741,11 +721,11 @@ function getToolDefinitions(writeMode = false) {
 /**
  * Execute a single tool call by name.
  */
-async function executeTool(name, args) {
+async function executeTool(name, args, stores) {
     const allTools = [...READ_TOOLS, ...WRITE_TOOLS];
     const tool = allTools.find(t => t.name === name);
     if (!tool) return { error: `Unknown tool: ${name}` };
-    return tool.execute(args);
+    return tool.execute(args, stores);
 }
 
 /**
@@ -762,8 +742,8 @@ function describeToolCall(name, args) {
 /**
  * Enrich tool calls with human-readable descriptions and context.
  */
-function enrichPlan(toolCalls) {
-    const data = readStore('items.json');
+async function enrichPlan(toolCalls, stores) {
+    const data = stores ? await stores.items.read() : null;
 
     return toolCalls.map(tc => {
         const enriched = {
