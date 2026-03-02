@@ -89,6 +89,13 @@ const api = {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body),
         });
+        if (res.status === 409) {
+            const err = await res.json();
+            const e = new Error(err.message || 'Stale write rejected');
+            e.status = 409;
+            e.details = err;
+            throw e;
+        }
         return res.json();
     },
     async del(path) {
@@ -1702,7 +1709,6 @@ function detectDivergences(allDayEntries, nowMs) {
 
     // ── Plan divergences: decompose each past plan into segments ──
     for (const entry of plans) {
-        if (entry._absorbed) continue;
 
         const planStart = entry.timestamp;
         const planEnd = entry.endTime;
@@ -5328,7 +5334,16 @@ function showInsertInput(markerEl, targetArray, insertIndex) {
 }
 
 async function saveItems() {
-    await api.put('/items', { ...state.items }); // bulk save
+    try {
+        await api.put('/items', { ...state.items }); // bulk save
+    } catch (e) {
+        if (e.status === 409) {
+            alert('⚠️ This tab has outdated data and was blocked from saving.\nThe page will now reload with the latest data.');
+            location.reload();
+            return;
+        }
+        throw e;
+    }
 }
 
 async function reloadItems() {
@@ -5820,21 +5835,82 @@ function renderActions(opts) {
             });
             hdrButtons.appendChild(doneBtn);
 
-            // Add sub-task button
-            const addBtn = document.createElement('button');
-            addBtn.className = 'action-btn action-btn-breakdown';
-            addBtn.textContent = '+';
-            addBtn.title = 'Add sub-task';
-            addBtn.addEventListener('click', async (e) => {
+            // Followup button — marks header done & creates a next-sibling
+            const hdrFollowupBtn = document.createElement('button');
+            hdrFollowupBtn.className = 'action-btn action-btn-followup';
+            hdrFollowupBtn.textContent = '➜';
+            hdrFollowupBtn.title = 'Mark done & create follow-up';
+            hdrFollowupBtn.addEventListener('click', async (e) => {
                 e.stopPropagation();
-                await api.post('/items', {
-                    name: 'New sub-task',
-                    parentId: headerId,
-                    timeContexts: getCurrentTimeContexts()
+                // 1. Mark as done
+                await setContextDone(headerItem, getCurrentViewContext(), true);
+                // 2. Log to timeline
+                const ancestors = getAncestorPath(headerId) || [];
+                const ancestorStr = ancestors.map(a => a.name).join(' › ');
+                await api.post('/timeline', {
+                    text: `Done: ${headerItem.name}`,
+                    projectName: ancestorStr || null,
+                    type: 'completion'
                 });
-                await reloadItems();
+                state.timeline = await api.get('/timeline');
+                // 3. Create next-sibling
+                const location = findParentArray(headerId);
+                if (location) {
+                    const newItem = {
+                        id: state.items.nextId++,
+                        name: '',
+                        children: [],
+                        expanded: false,
+                        createdAt: Date.now(),
+                        done: false,
+                        timeContexts: headerItem.timeContexts ? [...headerItem.timeContexts] : [],
+                        contextDurations: headerItem.contextDurations ? { ...headerItem.contextDurations } : {},
+                    };
+                    location.array.splice(location.index + 1, 0, newItem);
+                    await saveItems();
+                    renderAll();
+                    setTimeout(() => {
+                        const newActionEl = document.querySelector(`.action-item[data-id="${newItem.id}"] .action-name`);
+                        if (newActionEl) {
+                            const input = document.createElement('input');
+                            input.type = 'text';
+                            input.className = 'followup-inline-input';
+                            input.placeholder = 'Follow-up task...';
+                            input.style.cssText = 'width:100%;border:none;background:transparent;font:inherit;color:inherit;outline:none;padding:0;';
+                            newActionEl.textContent = '';
+                            newActionEl.appendChild(input);
+                            input.focus();
+                            const commitFollowup = async () => {
+                                const val = input.value.trim();
+                                const itemInTree = findItemById(newItem.id);
+                                if (val && itemInTree) {
+                                    itemInTree.name = val;
+                                    await saveItems();
+                                    renderAll();
+                                } else if (!val && itemInTree) {
+                                    const loc = findParentArray(newItem.id);
+                                    if (loc) {
+                                        loc.array.splice(loc.index, 1);
+                                        await saveItems();
+                                        renderAll();
+                                    }
+                                }
+                            };
+                            input.addEventListener('keydown', (ev) => {
+                                if (ev.key === 'Enter') { ev.preventDefault(); commitFollowup(); }
+                                if (ev.key === 'Escape') {
+                                    const loc = findParentArray(newItem.id);
+                                    if (loc) { loc.array.splice(loc.index, 1); saveItems(); renderAll(); }
+                                }
+                            });
+                            input.addEventListener('blur', () => { setTimeout(commitFollowup, 150); });
+                        }
+                    }, 50);
+                } else {
+                    renderAll();
+                }
             });
-            hdrButtons.appendChild(addBtn);
+            hdrButtons.appendChild(hdrFollowupBtn);
         }
         if (hdrButtons.children.length > 0) {
             header.appendChild(hdrButtons);
@@ -6453,6 +6529,25 @@ function getOverflowItems(projectFilterId) {
             matches = allLeaves.filter(a => isItemInEpoch(a, state.epochFilter || 'ongoing'));
         }
 
+        // Skip items already scheduled at a more specific level within the current view
+        if (matches.length > 0) {
+            matches = matches.filter(a => {
+                if (horizon === 'week') {
+                    // Viewing day → skip items that also have a specific day in this week
+                    return !isItemInWeekDays(a, state.timelineViewDate);
+                }
+                if (horizon === 'month') {
+                    // Viewing day/week → skip items that also have a week or day in this month
+                    return !isItemInMonthDays(a, state.timelineViewDate);
+                }
+                if (horizon === 'epoch') {
+                    // Viewing day/week/month → skip items with a more specific context in this epoch
+                    return !isItemInEpochRange(a, state.epochFilter || 'ongoing');
+                }
+                return true;
+            });
+        }
+
         if (matches.length > 0) {
             // Sort by capacity fit: items fitting remaining time first
             const viewCtx = getCurrentViewContext();
@@ -6709,9 +6804,8 @@ function renderOverflowPreview(container) {
     // Remove any existing overflow preview (keep reference for swap)
     const existing = container.querySelector('.overflow-preview');
 
-    // Don't show overflow during deep view, live horizon, or sleep
+    // Don't show overflow during deep view or sleep
     if (state.deepView) { if (existing) existing.remove(); return; }
-    if (state.viewHorizon === 'live') { if (existing) existing.remove(); return; }
     if (isInSleepRange() && !state.workingOn && !state.onBreak) { if (existing) existing.remove(); return; }
 
     const overflow = getOverflowItems(state.selectedItemId);
@@ -7660,30 +7754,12 @@ function createActionElement(action) {
         });
     }
 
-    // Add sub-child button
-    const breakdownBtn = document.createElement('button');
-    breakdownBtn.className = 'action-btn action-btn-breakdown';
-    breakdownBtn.textContent = '+';
-    breakdownBtn.title = 'Add sub-task';
-    if (!_actionDone) {
-        breakdownBtn.addEventListener('click', async (e) => {
-            e.stopPropagation();
-            // Add a child under this action, turning it into a project
-            await api.post('/items', {
-                name: 'New sub-task',
-                parentId: action.id,
-                timeContexts: getCurrentTimeContexts()
-            });
-            await reloadItems();
-        });
-    } else {
-        breakdownBtn.disabled = true;
-    }
+
 
     // Followup button — marks as done, then creates a new sibling right after it
     const followupBtn = document.createElement('button');
     followupBtn.className = 'action-btn action-btn-followup';
-    followupBtn.textContent = '↪';
+    followupBtn.textContent = '➜';
     followupBtn.title = 'Mark done & create follow-up';
     if (!_actionDone) {
         followupBtn.addEventListener('click', async (e) => {
@@ -7706,6 +7782,7 @@ function createActionElement(action) {
             // 3. Create a new sibling item immediately after this one in the tree
             const location = findParentArray(action.id);
             if (location) {
+                const origItem = findItemById(action.id);
                 const newItem = {
                     id: state.items.nextId++,
                     name: '',
@@ -7713,6 +7790,8 @@ function createActionElement(action) {
                     expanded: false,
                     createdAt: Date.now(),
                     done: false,
+                    timeContexts: origItem && origItem.timeContexts ? [...origItem.timeContexts] : [],
+                    contextDurations: origItem && origItem.contextDurations ? { ...origItem.contextDurations } : {},
                 };
                 location.array.splice(location.index + 1, 0, newItem);
                 await saveItems();
@@ -7821,7 +7900,7 @@ function createActionElement(action) {
     buttons.appendChild(declineBtn);
     if (ghostScheduleBtn) buttons.appendChild(ghostScheduleBtn);
     buttons.appendChild(scheduleBtn);
-    buttons.appendChild(breakdownBtn);
+    buttons.appendChild(followupBtn);
 
     item.appendChild(content);
     item.appendChild(buttons);
@@ -9178,7 +9257,7 @@ function _attachLiveIndicatorDnD(indicator, liveType) {
                         const itemProjectId = (itemAncestors && itemAncestors.length > 0) ? itemAncestors[0].id : null;
                         if (itemProjectId !== projectId) {
                             moveItem(itemId, { id: projectId, position: 'inside' });
-                            await api.put('/items', state.items);
+                            try { await api.put('/items', state.items); } catch (e) { if (e.status === 409) { alert('⚠️ This tab has outdated data. Reloading...'); location.reload(); return; } throw e; }
                         }
                     }
                 }
@@ -9449,7 +9528,7 @@ function _appendDivergenceBadge(indicator) {
     const dayStartMs = dayStart.getTime();
     const dayEndMs = dayEnd.getTime();
 
-    // Quick check: any planned entries today that ended before now and aren't absorbed?
+    // Quick check: any planned entries today that ended before now?
     // Use detectDivergences for accurate check (respects manual log flags)
     const allDayEntries = entries.filter(e =>
         e.timestamp >= dayStartMs && e.timestamp < dayEndMs
@@ -10940,275 +11019,276 @@ function renderTimeline() {
 
     // Render the queue list section inside the live panel
     function _renderQueueSection(panel) {
-        if (state.focusQueue.length === 0) return;
 
-        // ── Queue Header ──
-        const qHeader = document.createElement('div');
-        qHeader.className = 'live-queue-header';
-        const qTitle = document.createElement('span');
-        qTitle.className = 'live-queue-title';
-        // Show progress if currently working
-        if (state.workingOn) {
-            // Find how many items total (completed = items that were before current in original queue)
-            qTitle.textContent = `Up Next (${state.focusQueue.length})`;
-        } else {
-            qTitle.textContent = `Queue (${state.focusQueue.length})`;
-        }
-        qHeader.appendChild(qTitle);
-
-        const clearBtn = document.createElement('button');
-        clearBtn.className = 'live-queue-clear-btn';
-        clearBtn.textContent = '✕ Clear';
-        clearBtn.addEventListener('click', () => {
-            clearQueue();
-            renderAll();
-        });
-        qHeader.appendChild(clearBtn);
-        panel.appendChild(qHeader);
-
-        // ── Queue List ──
-        const qList = document.createElement('div');
-        qList.className = 'live-queue-list';
-
-        state.focusQueue.forEach((qItem, idx) => {
-            const isBreak = qItem.type === 'break';
-            const row = document.createElement('div');
-            row.className = 'live-queue-item' + (isBreak ? ' queue-break-item' : '');
-            row.draggable = true;
-            row.dataset.queueIndex = idx;
-
-            // Drag handle
-            const handle = document.createElement('span');
-            handle.className = 'queue-drag-handle';
-            handle.textContent = '☰';
-            row.appendChild(handle);
-
-            // Index number
-            const num = document.createElement('span');
-            num.className = 'queue-item-number';
-            num.textContent = `${idx + 1}.`;
-            row.appendChild(num);
-
-            if (isBreak) {
-                // ── Break item ──
-                const name = document.createElement('span');
-                name.className = 'queue-item-name';
-                name.textContent = '☕ Break';
-                row.appendChild(name);
-
-                // Editable duration badge for break
-                const durationMs = qItem.durationMs || 0;
-                const badge = document.createElement('span');
-                badge.className = 'queue-item-duration';
-                badge.style.cursor = 'pointer';
-                badge.title = 'Click to set break duration';
-                const _fmtBDur = (ms) => {
-                    if (!ms) return '5m';
-                    const m = Math.round(ms / 60000);
-                    return m >= 60 ? `${Math.floor(m / 60)}h${m % 60 ? ' ' + (m % 60) + 'm' : ''}` : `${m}m`;
-                };
-                badge.textContent = _fmtBDur(durationMs);
-                badge.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    if (badge.querySelector('input')) return;
-                    const curMins = durationMs ? Math.round(durationMs / 60000) : '';
-                    badge.textContent = '';
-                    const inp = document.createElement('input');
-                    inp.type = 'number';
-                    inp.className = 'queue-duration-input';
-                    inp.value = curMins;
-                    inp.placeholder = 'min';
-                    inp.min = '1';
-                    inp.style.cssText = 'width:40px;font-size:10px;text-align:center;border:1px solid currentColor;border-radius:4px;background:transparent;color:inherit;padding:1px 2px;font-family:inherit';
-                    badge.appendChild(inp);
-                    inp.focus();
-                    inp.select();
-                    const _commit = () => {
-                        const mins = parseInt(inp.value, 10);
-                        qItem.durationMs = (isNaN(mins) || mins <= 0) ? 300000 : mins * 60000;
-                        savePref('focusQueue', state.focusQueue);
-                        badge.textContent = _fmtBDur(qItem.durationMs);
-                    };
-                    inp.addEventListener('blur', _commit);
-                    inp.addEventListener('keydown', (ke) => {
-                        if (ke.key === 'Enter') { ke.preventDefault(); inp.blur(); }
-                        if (ke.key === 'Escape') { ke.preventDefault(); badge.textContent = _fmtBDur(durationMs); }
-                    });
-                });
-                row.appendChild(badge);
+        // ── Queue Header + List (only when queue has items) ──
+        if (state.focusQueue.length > 0) {
+            const qHeader = document.createElement('div');
+            qHeader.className = 'live-queue-header';
+            const qTitle = document.createElement('span');
+            qTitle.className = 'live-queue-title';
+            // Show progress if currently working
+            if (state.workingOn) {
+                // Find how many items total (completed = items that were before current in original queue)
+                qTitle.textContent = `Up Next (${state.focusQueue.length})`;
             } else {
-                // ── Work item ──
-                const name = document.createElement('span');
-                name.className = 'queue-item-name';
-                name.textContent = qItem.itemName;
-                name.title = qItem.projectName ? `${qItem.projectName} › ${qItem.itemName}` : qItem.itemName;
-                row.appendChild(name);
-
-                // Duration badge (⏱ icon, click for inline input)
-                const durationMs = qItem.durationMs || 0;
-                const badge = document.createElement('span');
-                badge.className = 'queue-item-duration';
-                badge.style.cursor = 'pointer';
-                badge.title = 'Click to set duration';
-                const _fmtQDur = (ms) => {
-                    if (!ms) return '⏱';
-                    const s = Math.round(ms / 1000);
-                    const m = Math.floor(s / 60);
-                    const remainS = s % 60;
-                    if (m >= 60) return `${Math.floor(m / 60)}h${m % 60 ? ' ' + (m % 60) + 'm' : ''}`;
-                    if (remainS > 0 && m < 10) return `${m}m ${remainS}s`;
-                    return `${m}m`;
-                };
-                badge.textContent = _fmtQDur(durationMs);
-                if (!durationMs) badge.classList.add('no-estimate');
-                badge.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    if (badge.querySelector('input')) return;
-                    const curMins = durationMs ? Math.round(durationMs / 60000) : '';
-                    badge.textContent = '';
-                    const inp = document.createElement('input');
-                    inp.type = 'number';
-                    inp.className = 'queue-duration-input';
-                    inp.value = curMins;
-                    inp.placeholder = 'min';
-                    inp.min = '0';
-                    inp.style.cssText = 'width:40px;font-size:10px;text-align:center;border:1px solid currentColor;border-radius:4px;background:transparent;color:inherit;padding:1px 2px;font-family:inherit';
-                    badge.appendChild(inp);
-                    inp.focus();
-                    inp.select();
-                    const _commit = () => {
-                        const mins = parseInt(inp.value, 10);
-                        qItem.durationMs = (isNaN(mins) || mins <= 0) ? 0 : mins * 60000;
-                        savePref('focusQueue', state.focusQueue);
-                        badge.textContent = _fmtQDur(qItem.durationMs);
-                        if (!qItem.durationMs) badge.classList.add('no-estimate');
-                        else badge.classList.remove('no-estimate');
-                    };
-                    inp.addEventListener('blur', _commit);
-                    inp.addEventListener('keydown', (ke) => {
-                        if (ke.key === 'Enter') { ke.preventDefault(); inp.blur(); }
-                        if (ke.key === 'Escape') { ke.preventDefault(); badge.textContent = _fmtQDur(durationMs); }
-                    });
-                });
-                row.appendChild(badge);
-
-                // Skip-to button (only when working or on break) — pauses current item
-                if (state.workingOn || state.onBreak) {
-                    const skipBtn = document.createElement('button');
-                    skipBtn.className = 'queue-skip-btn';
-                    skipBtn.textContent = '▶';
-                    skipBtn.title = 'Pause current & start this item';
-                    skipBtn.addEventListener('click', async (e) => {
-                        e.stopPropagation();
-                        // Remove the target item from its current position first
-                        const [promoted] = state.focusQueue.splice(idx, 1);
-                        if (state.workingOn) {
-                            // Pause current: calculate remaining, re-insert after promoted item
-                            const cur = state.workingOn;
-                            let remainingMs = 0;
-                            if (cur.targetEndTime) {
-                                remainingMs = Math.max(0, cur.targetEndTime - Date.now());
-                            }
-                            const entry = {
-                                itemId: cur.itemId,
-                                itemName: cur.itemName,
-                                projectName: cur.projectName,
-                                durationMs: remainingMs,
-                            };
-                            state._suppressQueueAdvance = true;
-                            await stopWorking();
-                            state._suppressQueueAdvance = false;
-                            // Put promoted item at front, paused item right after it
-                            state.focusQueue.unshift(entry);
-                            state.focusQueue.unshift(promoted);
-                        } else if (state.onBreak) {
-                            state._queuePendingAfterBreak = null;
-                            await stopBreak();
-                            // Put promoted item at front of existing queue
-                            state.focusQueue.unshift(promoted);
-                        }
-                        savePref('focusQueue', state.focusQueue);
-                        if (state.focusQueue.length > 0) {
-                            await advanceQueue();
-                        }
-                    });
-                    row.appendChild(skipBtn);
-                }
+                qTitle.textContent = `Queue (${state.focusQueue.length})`;
             }
+            qHeader.appendChild(qTitle);
 
-            // Remove button (index-based, works for both work items and breaks)
-            const rmBtn = document.createElement('button');
-            rmBtn.className = 'queue-remove-btn';
-            rmBtn.textContent = '✕';
-            rmBtn.title = 'Remove from queue';
-            rmBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                removeFromQueueByIndex(idx);
+            const clearBtn = document.createElement('button');
+            clearBtn.className = 'live-queue-clear-btn';
+            clearBtn.textContent = '✕ Clear';
+            clearBtn.addEventListener('click', () => {
+                clearQueue();
                 renderAll();
             });
-            row.appendChild(rmBtn);
+            qHeader.appendChild(clearBtn);
+            panel.appendChild(qHeader);
 
-            // ── Drag-and-drop reorder ──
-            row.addEventListener('dragstart', (e) => {
-                e.dataTransfer.setData('text/plain', String(idx));
-                e.dataTransfer.effectAllowed = 'move';
-                row.classList.add('queue-item-dragging');
-                // For non-break items, also set action-id so horizon layers accept the drop
-                if (!isBreak && qItem.itemId) {
-                    e.dataTransfer.setData('application/x-action-id', String(qItem.itemId));
-                    e.dataTransfer.setData('application/x-drag-source', 'queue');
-                    e.dataTransfer.setData('application/x-source-context', ''); // no source context to remove
-                    window._draggedAction = findItemById(qItem.itemId);
-                    window._draggedActionIds = null;
-                    document.body.classList.add('dragging-to-timeline');
-                    _showAllHorizonLayers();
-                }
-            });
-            row.addEventListener('dragend', (e) => {
-                row.classList.remove('queue-item-dragging');
-                // If dropped on a horizon layer (not queue reorder), remove from queue
-                if (!isBreak && qItem.itemId && e.dataTransfer.dropEffect !== 'none' && !state._queueReorderDrop) {
-                    const curIdx = state.focusQueue.indexOf(qItem);
-                    if (curIdx !== -1) {
-                        removeFromQueueByIndex(curIdx);
-                        renderAll();
+            // ── Queue List ──
+            const qList = document.createElement('div');
+            qList.className = 'live-queue-list';
+
+            state.focusQueue.forEach((qItem, idx) => {
+                const isBreak = qItem.type === 'break';
+                const row = document.createElement('div');
+                row.className = 'live-queue-item' + (isBreak ? ' queue-break-item' : '');
+                row.draggable = true;
+                row.dataset.queueIndex = idx;
+
+                // Drag handle
+                const handle = document.createElement('span');
+                handle.className = 'queue-drag-handle';
+                handle.textContent = '☰';
+                row.appendChild(handle);
+
+                // Index number
+                const num = document.createElement('span');
+                num.className = 'queue-item-number';
+                num.textContent = `${idx + 1}.`;
+                row.appendChild(num);
+
+                if (isBreak) {
+                    // ── Break item ──
+                    const name = document.createElement('span');
+                    name.className = 'queue-item-name';
+                    name.textContent = '☕ Break';
+                    row.appendChild(name);
+
+                    // Editable duration badge for break
+                    const durationMs = qItem.durationMs || 0;
+                    const badge = document.createElement('span');
+                    badge.className = 'queue-item-duration';
+                    badge.style.cursor = 'pointer';
+                    badge.title = 'Click to set break duration';
+                    const _fmtBDur = (ms) => {
+                        if (!ms) return '5m';
+                        const m = Math.round(ms / 60000);
+                        return m >= 60 ? `${Math.floor(m / 60)}h${m % 60 ? ' ' + (m % 60) + 'm' : ''}` : `${m}m`;
+                    };
+                    badge.textContent = _fmtBDur(durationMs);
+                    badge.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        if (badge.querySelector('input')) return;
+                        const curMins = durationMs ? Math.round(durationMs / 60000) : '';
+                        badge.textContent = '';
+                        const inp = document.createElement('input');
+                        inp.type = 'number';
+                        inp.className = 'queue-duration-input';
+                        inp.value = curMins;
+                        inp.placeholder = 'min';
+                        inp.min = '1';
+                        inp.style.cssText = 'width:40px;font-size:10px;text-align:center;border:1px solid currentColor;border-radius:4px;background:transparent;color:inherit;padding:1px 2px;font-family:inherit';
+                        badge.appendChild(inp);
+                        inp.focus();
+                        inp.select();
+                        const _commit = () => {
+                            const mins = parseInt(inp.value, 10);
+                            qItem.durationMs = (isNaN(mins) || mins <= 0) ? 300000 : mins * 60000;
+                            savePref('focusQueue', state.focusQueue);
+                            badge.textContent = _fmtBDur(qItem.durationMs);
+                        };
+                        inp.addEventListener('blur', _commit);
+                        inp.addEventListener('keydown', (ke) => {
+                            if (ke.key === 'Enter') { ke.preventDefault(); inp.blur(); }
+                            if (ke.key === 'Escape') { ke.preventDefault(); badge.textContent = _fmtBDur(durationMs); }
+                        });
+                    });
+                    row.appendChild(badge);
+                } else {
+                    // ── Work item ──
+                    const name = document.createElement('span');
+                    name.className = 'queue-item-name';
+                    name.textContent = qItem.itemName;
+                    name.title = qItem.projectName ? `${qItem.projectName} › ${qItem.itemName}` : qItem.itemName;
+                    row.appendChild(name);
+
+                    // Duration badge (⏱ icon, click for inline input)
+                    const durationMs = qItem.durationMs || 0;
+                    const badge = document.createElement('span');
+                    badge.className = 'queue-item-duration';
+                    badge.style.cursor = 'pointer';
+                    badge.title = 'Click to set duration';
+                    const _fmtQDur = (ms) => {
+                        if (!ms) return '⏱';
+                        const s = Math.round(ms / 1000);
+                        const m = Math.floor(s / 60);
+                        const remainS = s % 60;
+                        if (m >= 60) return `${Math.floor(m / 60)}h${m % 60 ? ' ' + (m % 60) + 'm' : ''}`;
+                        if (remainS > 0 && m < 10) return `${m}m ${remainS}s`;
+                        return `${m}m`;
+                    };
+                    badge.textContent = _fmtQDur(durationMs);
+                    if (!durationMs) badge.classList.add('no-estimate');
+                    badge.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        if (badge.querySelector('input')) return;
+                        const curMins = durationMs ? Math.round(durationMs / 60000) : '';
+                        badge.textContent = '';
+                        const inp = document.createElement('input');
+                        inp.type = 'number';
+                        inp.className = 'queue-duration-input';
+                        inp.value = curMins;
+                        inp.placeholder = 'min';
+                        inp.min = '0';
+                        inp.style.cssText = 'width:40px;font-size:10px;text-align:center;border:1px solid currentColor;border-radius:4px;background:transparent;color:inherit;padding:1px 2px;font-family:inherit';
+                        badge.appendChild(inp);
+                        inp.focus();
+                        inp.select();
+                        const _commit = () => {
+                            const mins = parseInt(inp.value, 10);
+                            qItem.durationMs = (isNaN(mins) || mins <= 0) ? 0 : mins * 60000;
+                            savePref('focusQueue', state.focusQueue);
+                            badge.textContent = _fmtQDur(qItem.durationMs);
+                            if (!qItem.durationMs) badge.classList.add('no-estimate');
+                            else badge.classList.remove('no-estimate');
+                        };
+                        inp.addEventListener('blur', _commit);
+                        inp.addEventListener('keydown', (ke) => {
+                            if (ke.key === 'Enter') { ke.preventDefault(); inp.blur(); }
+                            if (ke.key === 'Escape') { ke.preventDefault(); badge.textContent = _fmtQDur(durationMs); }
+                        });
+                    });
+                    row.appendChild(badge);
+
+                    // Skip-to button (only when working or on break) — pauses current item
+                    if (state.workingOn || state.onBreak) {
+                        const skipBtn = document.createElement('button');
+                        skipBtn.className = 'queue-skip-btn';
+                        skipBtn.textContent = '▶';
+                        skipBtn.title = 'Pause current & start this item';
+                        skipBtn.addEventListener('click', async (e) => {
+                            e.stopPropagation();
+                            // Remove the target item from its current position first
+                            const [promoted] = state.focusQueue.splice(idx, 1);
+                            if (state.workingOn) {
+                                // Pause current: calculate remaining, re-insert after promoted item
+                                const cur = state.workingOn;
+                                let remainingMs = 0;
+                                if (cur.targetEndTime) {
+                                    remainingMs = Math.max(0, cur.targetEndTime - Date.now());
+                                }
+                                const entry = {
+                                    itemId: cur.itemId,
+                                    itemName: cur.itemName,
+                                    projectName: cur.projectName,
+                                    durationMs: remainingMs,
+                                };
+                                state._suppressQueueAdvance = true;
+                                await stopWorking();
+                                state._suppressQueueAdvance = false;
+                                // Put promoted item at front, paused item right after it
+                                state.focusQueue.unshift(entry);
+                                state.focusQueue.unshift(promoted);
+                            } else if (state.onBreak) {
+                                state._queuePendingAfterBreak = null;
+                                await stopBreak();
+                                // Put promoted item at front of existing queue
+                                state.focusQueue.unshift(promoted);
+                            }
+                            savePref('focusQueue', state.focusQueue);
+                            if (state.focusQueue.length > 0) {
+                                await advanceQueue();
+                            }
+                        });
+                        row.appendChild(skipBtn);
                     }
                 }
-                state._queueReorderDrop = false;
-                // Restore horizon layers
-                if (!isBreak && qItem.itemId) {
-                    window._draggedAction = null;
-                    document.body.classList.remove('dragging-to-timeline');
-                    document.querySelectorAll('.horizon-layer-drag-over').forEach(el => el.classList.remove('horizon-layer-drag-over'));
-                    _restoreHorizonLayers();
-                }
-            });
-            row.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                e.dataTransfer.dropEffect = 'move';
-                row.classList.add('queue-item-dragover');
-            });
-            row.addEventListener('dragleave', () => {
-                row.classList.remove('queue-item-dragover');
-            });
-            row.addEventListener('drop', (e) => {
-                e.preventDefault();
-                row.classList.remove('queue-item-dragover');
-                const fromIdx = parseInt(e.dataTransfer.getData('text/plain'), 10);
-                const toIdx = idx;
-                if (fromIdx !== toIdx) {
-                    state._queueReorderDrop = true; // flag so dragend doesn't remove item
-                    reorderQueue(fromIdx, toIdx);
+
+                // Remove button (index-based, works for both work items and breaks)
+                const rmBtn = document.createElement('button');
+                rmBtn.className = 'queue-remove-btn';
+                rmBtn.textContent = '✕';
+                rmBtn.title = 'Remove from queue';
+                rmBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    removeFromQueueByIndex(idx);
                     renderAll();
-                }
+                });
+                row.appendChild(rmBtn);
+
+                // ── Drag-and-drop reorder ──
+                row.addEventListener('dragstart', (e) => {
+                    e.dataTransfer.setData('text/plain', String(idx));
+                    e.dataTransfer.effectAllowed = 'move';
+                    row.classList.add('queue-item-dragging');
+                    // For non-break items, also set action-id so horizon layers accept the drop
+                    if (!isBreak && qItem.itemId) {
+                        e.dataTransfer.setData('application/x-action-id', String(qItem.itemId));
+                        e.dataTransfer.setData('application/x-drag-source', 'queue');
+                        e.dataTransfer.setData('application/x-source-context', ''); // no source context to remove
+                        window._draggedAction = findItemById(qItem.itemId);
+                        window._draggedActionIds = null;
+                        document.body.classList.add('dragging-to-timeline');
+                        _showAllHorizonLayers();
+                    }
+                });
+                row.addEventListener('dragend', (e) => {
+                    row.classList.remove('queue-item-dragging');
+                    // If dropped on a horizon layer (not queue reorder), remove from queue
+                    if (!isBreak && qItem.itemId && e.dataTransfer.dropEffect !== 'none' && !state._queueReorderDrop) {
+                        const curIdx = state.focusQueue.indexOf(qItem);
+                        if (curIdx !== -1) {
+                            removeFromQueueByIndex(curIdx);
+                            renderAll();
+                        }
+                    }
+                    state._queueReorderDrop = false;
+                    // Restore horizon layers
+                    if (!isBreak && qItem.itemId) {
+                        window._draggedAction = null;
+                        document.body.classList.remove('dragging-to-timeline');
+                        document.querySelectorAll('.horizon-layer-drag-over').forEach(el => el.classList.remove('horizon-layer-drag-over'));
+                        _restoreHorizonLayers();
+                    }
+                });
+                row.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                    row.classList.add('queue-item-dragover');
+                });
+                row.addEventListener('dragleave', () => {
+                    row.classList.remove('queue-item-dragover');
+                });
+                row.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    row.classList.remove('queue-item-dragover');
+                    const fromIdx = parseInt(e.dataTransfer.getData('text/plain'), 10);
+                    const toIdx = idx;
+                    if (fromIdx !== toIdx) {
+                        state._queueReorderDrop = true; // flag so dragend doesn't remove item
+                        reorderQueue(fromIdx, toIdx);
+                        renderAll();
+                    }
+                });
+
+                qList.appendChild(row);
             });
 
-            qList.appendChild(row);
-        });
+            panel.appendChild(qList);
+        } // end if (focusQueue.length > 0)
 
-        panel.appendChild(qList);
-
-        // ── Add Break Button ──
+        // ── Add Break Button (always visible) ──
         const addBreakRow = document.createElement('div');
         addBreakRow.className = 'live-queue-settings';
         const addBreakBtn = document.createElement('button');
@@ -11412,42 +11492,10 @@ function renderTimeline() {
     // indented under the block during which they occurred.
     const isBlockEntry = (e) => e.endTime && (e.type === 'work' || e.type === 'break' || e.type === 'planned' || e.type === 'idle');
 
-    // ── Plan Absorption: hide planned entries fully covered by matching work entries ──
-    // A planned entry is "absorbed" if a work entry with the same itemId covers ≥80% of its time.
-    const workEntries = allDayEntries.filter(e => e.type === 'work' && e.endTime);
-    if (state.workingOn) {
-        workEntries.push({
-            type: 'work',
-            timestamp: state.workingOn.startTime,
-            endTime: nowMs,
-            itemId: state.workingOn.itemId,
-        });
-    }
-    for (const entry of allDayEntries) {
-        if (entry.type !== 'planned' || !entry.endTime || entry._phantom) continue;
-        const planStart = entry.timestamp;
-        const planEnd = entry.endTime;
-        const planDuration = planEnd - planStart;
-        if (planDuration <= 0) continue;
-
-        // Check for absorption: same itemId + ≥80% time overlap
-        let absorbed = false;
-        for (const work of workEntries) {
-            const overlapStart = Math.max(planStart, work.timestamp);
-            const overlapEnd = Math.min(planEnd, work.endTime);
-            const overlap = Math.max(0, overlapEnd - overlapStart);
-            if (entry.itemId && work.itemId === entry.itemId && overlap >= planDuration * 0.8) {
-                absorbed = true;
-                break;
-            }
-        }
-        entry._absorbed = absorbed;
-    }
-
-    const allBlockEntries = allDayEntries.filter(e => isBlockEntry(e) && !e._absorbed);
+    const allBlockEntries = allDayEntries.filter(e => isBlockEntry(e));
     const allMomentEntries = allDayEntries.filter(e => !isBlockEntry(e));
 
-    // ── Divergence Detection: find planned sessions that ended without being absorbed ──
+    // ── Divergence Detection: find planned sessions that ended without matching work ──
     const divergences = detectDivergences(allDayEntries, nowMs);
     // Also detect out-of-hours work (gap between day end and next day start)
     divergences.push(...detectOutOfHoursWork(state.timelineViewDate, nowMs));
@@ -15024,8 +15072,7 @@ function createPlannedTimeBlock(entry, isPhantom = false) {
         startBtn.title = 'Start working on this';
         startBtn.addEventListener('click', async (e) => {
             e.stopPropagation();
-            // Keep the plan — the absorption system will hide it once work covers ≥80%,
-            // or show it as a ghost if there's partial overlap
+            // Keep the plan — planned sessions stay visible until they are past
             await startWorking(entry.itemId, entry.text, entry.projectName, entry.endTime);
         });
 
@@ -16618,7 +16665,7 @@ function computeDayCapacity(viewDate) {
 
     // ── Done: sum of completed work/break entries in the day ──
     const dayEntries = (state.timeline?.entries || [])
-        .filter(e => e.endTime && (e.type === 'work' || e.type === 'break') && !e._absorbed)
+        .filter(e => e.endTime && (e.type === 'work' || e.type === 'break'))
         .filter(e => e.timestamp < dayEndMs && e.endTime > dayStartMs);
 
     let doneMs = 0;
@@ -16680,7 +16727,7 @@ function computeSessionCapacity(session) {
 
     // Done: completed entries within session window
     const sessionEntries = (state.timeline?.entries || [])
-        .filter(e => e.endTime && (e.type === 'work' || e.type === 'break') && !e._absorbed)
+        .filter(e => e.endTime && (e.type === 'work' || e.type === 'break'))
         .filter(e => e.timestamp < session.endMs && e.endTime > session.startMs);
 
     let doneMs = 0;
@@ -17709,7 +17756,7 @@ function calculateTotalFreeTime() {
 
     // Collect all block entries in the day
     const blockEntries = (state.timeline?.entries || [])
-        .filter(e => e.endTime && (e.type === 'work' || e.type === 'break' || e.type === 'planned') && !e._absorbed)
+        .filter(e => e.endTime && (e.type === 'work' || e.type === 'break' || e.type === 'planned'))
         .filter(e => e.timestamp < dayEndMs && e.endTime > effectiveStart)
         .sort((a, b) => a.timestamp - b.timestamp);
 
@@ -20171,6 +20218,35 @@ function initMobileTabBar() {
     // Restore last tab (default: actions)
     const saved = localStorage.getItem('mobileActiveTab') || 'actions';
     switchMobileTab(saved);
+
+    // ── Swipe gestures for tab switching ──
+    const tabOrder = ['projects', 'actions', 'timeline'];
+    let _swipeStartX = 0, _swipeStartY = 0;
+    const appLayout = document.querySelector('.app-layout');
+    if (appLayout && 'ontouchstart' in window) {
+        appLayout.addEventListener('touchstart', (e) => {
+            if (window.innerWidth > 900) return;
+            _swipeStartX = e.touches[0].clientX;
+            _swipeStartY = e.touches[0].clientY;
+        }, { passive: true });
+
+        appLayout.addEventListener('touchend', (e) => {
+            if (window.innerWidth > 900) return;
+            const dx = e.changedTouches[0].clientX - _swipeStartX;
+            const dy = e.changedTouches[0].clientY - _swipeStartY;
+            // Only trigger if horizontal movement dominates and exceeds threshold
+            if (Math.abs(dx) < 50 || Math.abs(dy) > Math.abs(dx)) return;
+            const currentTab = localStorage.getItem('mobileActiveTab') || 'actions';
+            const idx = tabOrder.indexOf(currentTab);
+            if (dx < 0 && idx < tabOrder.length - 1) {
+                // Swipe left → next tab
+                switchMobileTab(tabOrder[idx + 1]);
+            } else if (dx > 0 && idx > 0) {
+                // Swipe right → previous tab
+                switchMobileTab(tabOrder[idx - 1]);
+            }
+        }, { passive: true });
+    }
 }
 
 // ─── Event Bindings ───

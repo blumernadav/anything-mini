@@ -5,7 +5,7 @@ const cors = require('cors');
 const path = require('path');
 
 const app = express();
-const PORT = 3002;
+const PORT = process.env.PORT || 3002;
 
 // Generic JSON file store factory (same pattern as anything-5.0)
 function createJsonStore(filePath, defaultValue) {
@@ -159,8 +159,19 @@ app.delete('/api/items/:id', (req, res) => {
 
 // Bulk save the full items tree (for expanded state, reordering, etc.)
 app.put('/api/items', (req, res) => {
-    itemsStore.write(req.body);
-    res.json(req.body);
+    // Guard against stale tabs overwriting newer data
+    const incoming = req.body;
+    const current = itemsStore.read();
+    if (incoming.nextId && current.nextId && incoming.nextId < current.nextId) {
+        return res.status(409).json({
+            error: 'Stale write rejected',
+            message: `Your data (nextId: ${incoming.nextId}) is older than the server (nextId: ${current.nextId}). Please reload.`,
+            serverNextId: current.nextId,
+            clientNextId: incoming.nextId
+        });
+    }
+    itemsStore.write(incoming);
+    res.json(incoming);
 });
 
 // ============ Timeline API ============
@@ -401,6 +412,12 @@ app.patch('/api/ai/plan/:index', (req, res) => {
     }
     chatStore.write(chatData);
     res.json({ updated: true });
+});
+
+// ============ Health Check ============
+
+app.get('/health', (req, res) => {
+    res.json({ status: 'ok', uptime: process.uptime() });
 });
 
 // ============ Start ============
