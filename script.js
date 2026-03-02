@@ -9936,8 +9936,26 @@ function _renderSleepIndicator(liveSlot) {
     label.className = 'live-session-indicator-label';
     label.textContent = 'Good Night';
 
+    // Countdown timer: time until next day's start
+    const timer = document.createElement('span');
+    timer.className = 'live-session-indicator-timer';
+    // Compute next day's start time
+    const now = new Date();
+    const todayTimes = getEffectiveDayTimes(now);
+    const nextStart = new Date(now);
+    nextStart.setHours(todayTimes.dayStartHour, todayTimes.dayStartMinute, 0, 0);
+    if (nextStart <= now) {
+        // Already past today's start — next start is tomorrow
+        nextStart.setDate(nextStart.getDate() + 1);
+    }
+    const remaining = nextStart.getTime() - now.getTime();
+    timer.dataset.targetEnd = nextStart.getTime();
+    timer.dataset.sessionStart = '';
+    timer.textContent = _fmtHMS(remaining) + ' left';
+
     indicator.appendChild(icon);
     indicator.appendChild(label);
+    indicator.appendChild(timer);
 
     // Reopen Day button
     const reopenBtn = document.createElement('button');
