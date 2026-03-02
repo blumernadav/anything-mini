@@ -271,34 +271,60 @@
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
             _deferredPrompt = e;
-            // Don't show if user dismissed before
-            if (localStorage.getItem('pwaInstallDismissed')) return;
-            showInstallBanner();
+            checkAndShowBanner('chrome');
         });
 
-        function showInstallBanner() {
+        async function dismissBanner() {
+            const b = document.getElementById('pwa-install-banner');
+            if (b) b.remove();
+            try {
+                const res = await fetch('/api/preferences');
+                const prefs = await res.json();
+                prefs.pwaInstallDismissed = true;
+                await fetch('/api/preferences', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(prefs)
+                });
+            } catch (e) { }
+        }
+
+        async function checkAndShowBanner(mode) {
+            try {
+                const res = await fetch('/api/preferences');
+                const prefs = await res.json();
+                if (prefs.pwaInstallDismissed) return;
+            } catch (e) { }
             if (document.getElementById('pwa-install-banner')) return;
+
             const banner = document.createElement('div');
             banner.id = 'pwa-install-banner';
             banner.className = 'pwa-install-banner';
-            banner.innerHTML = `
-                <span>✨ Install <strong>Anything Mini</strong> as an app</span>
-                <button id="pwa-install-btn" class="pwa-install-btn">Install</button>
-                <button id="pwa-dismiss-btn" class="pwa-dismiss-btn">×</button>
-            `;
+
+            if (mode === 'ios') {
+                banner.innerHTML = `
+                    <span>Tap <strong>⬆ Share</strong> then <strong>Add to Home Screen</strong> to install</span>
+                    <button id="pwa-dismiss-btn" class="pwa-dismiss-btn">×</button>
+                `;
+            } else {
+                banner.innerHTML = `
+                    <span>✨ Install <strong>Anything Mini</strong> as an app</span>
+                    <button id="pwa-install-btn" class="pwa-install-btn">Install</button>
+                    <button id="pwa-dismiss-btn" class="pwa-dismiss-btn">×</button>
+                `;
+            }
             document.body.prepend(banner);
-            document.getElementById('pwa-install-btn').addEventListener('click', async () => {
-                if (_deferredPrompt) {
-                    _deferredPrompt.prompt();
-                    const { outcome } = await _deferredPrompt.userChoice;
-                    _deferredPrompt = null;
-                }
-                banner.remove();
-            });
-            document.getElementById('pwa-dismiss-btn').addEventListener('click', () => {
-                localStorage.setItem('pwaInstallDismissed', '1');
-                banner.remove();
-            });
+            if (mode !== 'ios') {
+                document.getElementById('pwa-install-btn').addEventListener('click', async () => {
+                    if (_deferredPrompt) {
+                        _deferredPrompt.prompt();
+                        await _deferredPrompt.userChoice;
+                        _deferredPrompt = null;
+                    }
+                    dismissBanner();
+                });
+            }
+            document.getElementById('pwa-dismiss-btn').addEventListener('click', dismissBanner);
         }
 
         // Hide banner if already installed
@@ -307,24 +333,13 @@
             if (b) b.remove();
         });
 
-        // iOS-specific install hint (no beforeinstallprompt on iOS)
+        // iOS-specific install hint
         const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
             (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
         const isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
             window.navigator.standalone;
-        if (isIOS && !isStandalone && !localStorage.getItem('pwaInstallDismissed')) {
-            const banner = document.createElement('div');
-            banner.id = 'pwa-install-banner';
-            banner.className = 'pwa-install-banner';
-            banner.innerHTML = `
-                <span>Tap <strong>⬆ Share</strong> then <strong>Add to Home Screen</strong> to install</span>
-                <button id="pwa-dismiss-btn" class="pwa-dismiss-btn">×</button>
-            `;
-            document.body.prepend(banner);
-            document.getElementById('pwa-dismiss-btn').addEventListener('click', () => {
-                localStorage.setItem('pwaInstallDismissed', '1');
-                banner.remove();
-            });
+        if (isIOS && !isStandalone) {
+            checkAndShowBanner('ios');
         }
     </script>
     <style>
