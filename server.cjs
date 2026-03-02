@@ -3,11 +3,14 @@ const express = require('express');
 const fs = require('fs');
 const cors = require('cors');
 const path = require('path');
+const { initDb, createDbStore, isDbAvailable } = require('./db.cjs');
 
 const app = express();
 const PORT = process.env.PORT || 3002;
 
-// Generic JSON file store factory (same pattern as anything-5.0)
+// ============ Store Setup (DB or JSON fallback) ============
+
+// JSON file store factory — used as fallback when no DATABASE_URL
 function createJsonStore(filePath, defaultValue) {
     return {
         read() {
@@ -23,32 +26,44 @@ function createJsonStore(filePath, defaultValue) {
     };
 }
 
-// Data stores
-const itemsStore = createJsonStore('./data/items.json', () => ({
-    items: [],
-    nextId: 1
-}));
+// Wrap sync JSON stores in async interface for uniform usage
+function asyncJsonStore(filePath, defaultValue) {
+    const store = createJsonStore(filePath, defaultValue);
+    return {
+        async read() { return store.read(); },
+        async write(data) { return store.write(data); }
+    };
+}
 
+const DEFAULTS = {
+    items: () => ({ items: [], nextId: 1 }),
+    timeline: () => ({ entries: [], nextId: 1 }),
+    settings: () => ({ dayStartHour: 8, dayStartMinute: 0, dayEndHour: 22, dayEndMinute: 0 }),
+    ai_chat: () => ({ messages: [] }),
+    preferences: () => ({})
+};
 
-const timelineStore = createJsonStore('./data/timeline.json', () => ({
-    entries: [],
-    nextId: 1
-}));
+let itemsStore, timelineStore, settingsStore, chatStore, preferencesStore;
 
-const settingsStore = createJsonStore('./data/settings.json', () => ({
-    dayStartHour: 8,
-    dayStartMinute: 0,
-    dayEndHour: 22,
-    dayEndMinute: 0
-}));
-
-const chatStore = createJsonStore('./data/ai_chat.json', () => ({
-    messages: []
-}));
-
-// Ensure data directory exists
-if (!fs.existsSync('./data')) {
-    fs.mkdirSync('./data', { recursive: true });
+function initStores() {
+    if (isDbAvailable()) {
+        console.log('Using PostgreSQL storage (DATABASE_URL detected)');
+        itemsStore = createDbStore('items', DEFAULTS.items);
+        timelineStore = createDbStore('timeline', DEFAULTS.timeline);
+        settingsStore = createDbStore('settings', DEFAULTS.settings);
+        chatStore = createDbStore('ai_chat', DEFAULTS.ai_chat);
+        preferencesStore = createDbStore('preferences', DEFAULTS.preferences);
+    } else {
+        console.log('Using JSON file storage (no DATABASE_URL)');
+        if (!fs.existsSync('./data')) {
+            fs.mkdirSync('./data', { recursive: true });
+        }
+        itemsStore = asyncJsonStore('./data/items.json', DEFAULTS.items);
+        timelineStore = asyncJsonStore('./data/timeline.json', DEFAULTS.timeline);
+        settingsStore = asyncJsonStore('./data/settings.json', DEFAULTS.settings);
+        chatStore = asyncJsonStore('./data/ai_chat.json', DEFAULTS.ai_chat);
+        preferencesStore = asyncJsonStore('./data/preferences.json', DEFAULTS.preferences);
+    }
 }
 
 // Middleware
@@ -58,13 +73,13 @@ app.use(express.static('.'));
 
 // ============ Items API (unified tree) ============
 
-app.get('/api/items', (req, res) => {
-    res.json(itemsStore.read());
+app.get('/api/items', async (req, res) => {
+    res.json(await itemsStore.read());
 });
 
 // Add a new item (optionally under a parent)
-app.post('/api/items', (req, res) => {
-    const data = itemsStore.read();
+app.post('/api/items', async (req, res) => {
+    const data = await itemsStore.read();
     const { name, parentId, timeContexts, contextDurations } = req.body;
 
     const newItem = {
@@ -104,14 +119,14 @@ app.post('/api/items', (req, res) => {
         data.items.splice(inboxIdx >= 0 ? inboxIdx + 1 : 0, 0, newItem);
     }
 
-    itemsStore.write(data);
+    await itemsStore.write(data);
     res.status(201).json(newItem);
 });
 
-app.patch('/api/items/:id', (req, res) => {
+app.patch('/api/items/:id', async (req, res) => {
     const id = parseInt(req.params.id, 10);
     const updates = req.body;
-    const data = itemsStore.read();
+    const data = await itemsStore.read();
 
     const updateRecursive = (items) => {
         for (let i = 0; i < items.length; i++) {
@@ -130,13 +145,13 @@ app.patch('/api/items/:id', (req, res) => {
     const updated = updateRecursive(data.items);
     if (!updated) return res.status(404).json({ error: 'Item not found' });
 
-    itemsStore.write(data);
+    await itemsStore.write(data);
     res.json(updated);
 });
 
-app.delete('/api/items/:id', (req, res) => {
+app.delete('/api/items/:id', async (req, res) => {
     const id = parseInt(req.params.id, 10);
-    const data = itemsStore.read();
+    const data = await itemsStore.read();
 
     const deleteRecursive = (items) => {
         for (let i = 0; i < items.length; i++) {
@@ -153,15 +168,15 @@ app.delete('/api/items/:id', (req, res) => {
         return res.status(404).json({ error: 'Item not found' });
     }
 
-    itemsStore.write(data);
+    await itemsStore.write(data);
     res.json({ message: 'Deleted' });
 });
 
 // Bulk save the full items tree (for expanded state, reordering, etc.)
-app.put('/api/items', (req, res) => {
+app.put('/api/items', async (req, res) => {
     // Guard against stale tabs overwriting newer data
     const incoming = req.body;
-    const current = itemsStore.read();
+    const current = await itemsStore.read();
     if (incoming.nextId && current.nextId && incoming.nextId < current.nextId) {
         return res.status(409).json({
             error: 'Stale write rejected',
@@ -170,32 +185,32 @@ app.put('/api/items', (req, res) => {
             clientNextId: incoming.nextId
         });
     }
-    itemsStore.write(incoming);
+    await itemsStore.write(incoming);
     res.json(incoming);
 });
 
 // ============ Timeline API ============
 
-app.get('/api/timeline', (req, res) => {
-    res.json(timelineStore.read());
+app.get('/api/timeline', async (req, res) => {
+    res.json(await timelineStore.read());
 });
 
-app.post('/api/timeline', (req, res) => {
-    const data = timelineStore.read();
+app.post('/api/timeline', async (req, res) => {
+    const data = await timelineStore.read();
     const entry = {
         ...req.body,
         id: data.nextId++,
         timestamp: req.body.startTime || Date.now()
     };
     data.entries.push(entry);
-    timelineStore.write(data);
+    await timelineStore.write(data);
     res.status(201).json(entry);
 });
 
-app.patch('/api/timeline/:id', (req, res) => {
+app.patch('/api/timeline/:id', async (req, res) => {
     const id = parseInt(req.params.id, 10);
     const updates = req.body;
-    const data = timelineStore.read();
+    const data = await timelineStore.read();
     const entry = data.entries.find(e => e.id === id);
     if (!entry) return res.status(404).json({ error: 'Timeline entry not found' });
 
@@ -204,46 +219,44 @@ app.patch('/api/timeline/:id', (req, res) => {
     if (updates.startTime !== undefined) {
         entry.timestamp = updates.startTime;
     }
-    timelineStore.write(data);
+    await timelineStore.write(data);
     res.json(entry);
 });
 
-app.delete('/api/timeline/:id', (req, res) => {
+app.delete('/api/timeline/:id', async (req, res) => {
     const id = parseInt(req.params.id, 10);
-    const data = timelineStore.read();
+    const data = await timelineStore.read();
     const idx = data.entries.findIndex(e => e.id === id);
     if (idx === -1) return res.status(404).json({ error: 'Timeline entry not found' });
 
     data.entries.splice(idx, 1);
-    timelineStore.write(data);
+    await timelineStore.write(data);
     res.json({ message: 'Deleted' });
 });
 
 // ============ Settings API ============
 
-app.get('/api/settings', (req, res) => {
-    res.json(settingsStore.read());
+app.get('/api/settings', async (req, res) => {
+    res.json(await settingsStore.read());
 });
 
-app.put('/api/settings', (req, res) => {
-    const current = settingsStore.read();
+app.put('/api/settings', async (req, res) => {
+    const current = await settingsStore.read();
     const updated = { ...current, ...req.body };
-    settingsStore.write(updated);
+    await settingsStore.write(updated);
     res.json(updated);
 });
 
 // ============ Preferences API ============
 
-const preferencesStore = createJsonStore('./data/preferences.json', () => ({}));
-
-app.get('/api/preferences', (req, res) => {
-    res.json(preferencesStore.read());
+app.get('/api/preferences', async (req, res) => {
+    res.json(await preferencesStore.read());
 });
 
-app.put('/api/preferences', (req, res) => {
-    const current = preferencesStore.read();
+app.put('/api/preferences', async (req, res) => {
+    const current = await preferencesStore.read();
     const updated = { ...current, ...req.body };
-    preferencesStore.write(updated);
+    await preferencesStore.write(updated);
     res.json(updated);
 });
 
@@ -268,7 +281,7 @@ app.post('/api/ai/chat', async (req, res) => {
         };
 
         // Load persisted history, send last 50 as context
-        const chatData = chatStore.read();
+        const chatData = await chatStore.read();
         const recentHistory = chatData.messages
             .filter(m => m.role === 'user' || m.role === 'assistant')
             .slice(-50)
@@ -304,7 +317,7 @@ app.post('/api/ai/chat', async (req, res) => {
             });
         }
 
-        chatStore.write(chatData);
+        await chatStore.write(chatData);
 
         // Send final result
         sendEvent({ type: 'done', text: result.text, plan: result.plan });
@@ -340,7 +353,7 @@ app.post('/api/ai/execute', async (req, res) => {
         };
 
         // Load chat history for continuation context
-        const chatData = chatStore.read();
+        const chatData = await chatStore.read();
         const recentHistory = chatData.messages
             .filter(m => m.role === 'user' || m.role === 'assistant')
             .slice(-50)
@@ -357,7 +370,7 @@ app.post('/api/ai/execute', async (req, res) => {
                 content: summary,
                 timestamp: Date.now()
             });
-            chatStore.write(chatData);
+            await chatStore.write(chatData);
         }
 
         // Send final result as SSE event
@@ -374,8 +387,8 @@ app.post('/api/ai/execute', async (req, res) => {
     }
 });
 
-app.get('/api/ai/config', (req, res) => {
-    const settings = settingsStore.read();
+app.get('/api/ai/config', async (req, res) => {
+    const settings = await settingsStore.read();
     const provider = settings.aiProvider || process.env.AI_PROVIDER || 'gemini';
     const model = settings.aiModel || process.env.AI_MODEL || 'gemini-2.0-flash';
     const hasKey = !!(settings.aiApiKey || process.env.AI_API_KEY);
@@ -383,21 +396,21 @@ app.get('/api/ai/config', (req, res) => {
 });
 
 // Chat history
-app.get('/api/ai/history', (req, res) => {
-    const chatData = chatStore.read();
+app.get('/api/ai/history', async (req, res) => {
+    const chatData = await chatStore.read();
     res.json(chatData);
 });
 
-app.delete('/api/ai/history', (req, res) => {
-    chatStore.write({ messages: [] });
+app.delete('/api/ai/history', async (req, res) => {
+    await chatStore.write({ messages: [] });
     res.json({ cleared: true });
 });
 
 // Update plan status (applied/cancelled)
-app.patch('/api/ai/plan/:index', (req, res) => {
+app.patch('/api/ai/plan/:index', async (req, res) => {
     const { status } = req.body;
     const idx = parseInt(req.params.index, 10);
-    const chatData = chatStore.read();
+    const chatData = await chatStore.read();
     const planMessages = chatData.messages.filter(m => m.role === 'plan');
     // Find the plan message by its index among plan messages
     let planCount = 0;
@@ -410,7 +423,7 @@ app.patch('/api/ai/plan/:index', (req, res) => {
             planCount++;
         }
     }
-    chatStore.write(chatData);
+    await chatStore.write(chatData);
     res.json({ updated: true });
 });
 
@@ -422,6 +435,19 @@ app.get('/health', (req, res) => {
 
 // ============ Start ============
 
-app.listen(PORT, () => {
-    console.log(`Anything Mini running at http://localhost:${PORT}`);
+async function start() {
+    initStores();
+    if (isDbAvailable()) {
+        await initDb();
+        console.log('PostgreSQL connected and initialized');
+    }
+    app.listen(PORT, () => {
+        console.log(`Anything Mini running at http://localhost:${PORT}`);
+        console.log(`Storage mode: ${isDbAvailable() ? 'PostgreSQL' : 'JSON files'}`);
+    });
+}
+
+start().catch(err => {
+    console.error('Failed to start server:', err);
+    process.exit(1);
 });
