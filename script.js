@@ -4343,6 +4343,27 @@ function showProjectContextMenu(e, item) {
         menu.appendChild(queueOpt);
     }
 
+    // ── Commitment option ──
+    if (!item.done) {
+        const projViewCtx = getCurrentViewContext();
+        const projIsCommitted = isCommittedInContext(item, projViewCtx);
+        const commitOpt = document.createElement('div');
+        commitOpt.className = 'project-context-menu-item' + (projIsCommitted ? ' project-context-menu-item-danger' : '');
+        commitOpt.textContent = projIsCommitted ? '⚡ Uncommit (breaks commitment)' : '⚡ Commit to this context';
+        commitOpt.addEventListener('click', (ev) => {
+            ev.stopPropagation();
+            dismissProjectContextMenu();
+            if (projIsCommitted) {
+                if (confirm('Uncommitting counts as a broken commitment. Continue?')) {
+                    uncommitFromContext(item.id, projViewCtx);
+                }
+            } else {
+                commitToContext(item.id, projViewCtx);
+            }
+        });
+        menu.appendChild(commitOpt);
+    }
+
     // ── Time Context options for projects ──
     const projTodayKey = getDateKey(state.timelineViewDate);
     const hasProjectToday = item.timeContexts && item.timeContexts.includes(projTodayKey);
@@ -4657,6 +4678,27 @@ function showActionContextMenu(e, action) {
             });
             menu.appendChild(epochOpt);
         }
+    }
+
+    // ── Commitment option (actions) ──
+    if (!isBulk && !isDoneInCtx) {
+        const actViewCtx = getCurrentViewContext();
+        const actIsCommitted = isCommittedInContext(actionItem, actViewCtx);
+        const actCommitOpt = document.createElement('div');
+        actCommitOpt.className = 'project-context-menu-item' + (actIsCommitted ? ' project-context-menu-item-danger' : '');
+        actCommitOpt.textContent = actIsCommitted ? '⚡ Uncommit (breaks commitment)' : '⚡ Commit to this context';
+        actCommitOpt.addEventListener('click', (ev) => {
+            ev.stopPropagation();
+            dismissProjectContextMenu();
+            if (actIsCommitted) {
+                if (confirm('Uncommitting counts as a broken commitment. Continue?')) {
+                    uncommitFromContext(action.id, actViewCtx);
+                }
+            } else {
+                commitToContext(action.id, actViewCtx);
+            }
+        });
+        menu.appendChild(actCommitOpt);
     }
 
     // Goal option (single only)
@@ -5608,8 +5650,8 @@ function renderActions(opts) {
     // Invalidate work entry index for fresh investment data
     _invalidateWorkEntryIndex();
 
-    // ── Sleep mode: show "Good Night" instead of actions ──
-    if (isInSleepRange() && !state.workingOn && !state.onBreak) {
+    // ── Day closed: show "Good Night" instead of actions ──
+    if (isDayClosed() && !state.workingOn && !state.onBreak) {
         container.querySelectorAll('.action-item, .action-group-header').forEach(el => el.remove());
         empty.style.display = '';
         empty.innerHTML = '';
@@ -6981,7 +7023,7 @@ function renderOverflowPreview(container) {
 
     // Don't show overflow during deep view or sleep
     if (state.deepView) { if (existing) existing.remove(); return; }
-    if (isInSleepRange() && !state.workingOn && !state.onBreak) { if (existing) existing.remove(); return; }
+    if (isDayClosed() && !state.workingOn && !state.onBreak) { if (existing) existing.remove(); return; }
 
     const overflow = getOverflowItems(state.selectedItemId);
     if (!overflow || overflow.items.length === 0) { if (existing) existing.remove(); return; }
@@ -7496,7 +7538,8 @@ function createActionElement(action) {
     const _actionItem = findItemById(action.id);
     const _actViewCtx = getCurrentViewContext();
     const _actionDone = isContextDone(_actionItem, _actViewCtx);
-    item.className = 'action-item' + (_actionDone ? ' done' : '') + (state.selectedActionIds.has(actionIdStr) ? ' selected' : '') + (isLiveWorking ? ' action-item-working' : '');
+    const _actionCommitted = isCommittedInContext(_actionItem, _actViewCtx);
+    item.className = 'action-item' + (_actionDone ? ' done' : '') + (state.selectedActionIds.has(actionIdStr) ? ' selected' : '') + (isLiveWorking ? ' action-item-working' : '') + (_actionCommitted ? ' committed' : '');
     item.dataset.id = action.id;
 
     // ── Multiselect click handler ──
@@ -8863,12 +8906,99 @@ function getLogicalToday() {
 }
 
 // Check if the current moment is in the "tonight" range (outside day boundaries).
-// Returns true when now is after today's day-end or before today's day-start.
+// Now respects manual day lifecycle: returns true only when the day has been explicitly closed.
 function isInSleepRange() {
+    return isDayClosed();
+}
+
+// Check if the current time is past the configured day-end boundary (clock-based).
+// Used for the "wind down" nudge — does NOT block actions.
+function isPastDayEnd() {
     const logicalToday = getLogicalToday();
     const { dayStart, dayEnd } = getDayBoundaries(logicalToday);
     const now = new Date();
     return now < dayStart || now >= dayEnd;
+}
+
+// ─── Day Lifecycle Functions ───
+// Manual day management: Start Day / Close Day / Reopen Day
+
+function isDayStarted(dateKey) {
+    const key = dateKey || getTodayLogicalDateKey();
+    const override = state.settings.dayOverrides?.[key];
+    return override?.dayStarted === true;
+}
+
+function isDayClosed(dateKey) {
+    const key = dateKey || getTodayLogicalDateKey();
+    const override = state.settings.dayOverrides?.[key];
+    return override?.dayClosed === true;
+}
+
+async function startDay() {
+    const todayKey = getTodayLogicalDateKey();
+    if (!state.settings.dayOverrides) state.settings.dayOverrides = {};
+    if (!state.settings.dayOverrides[todayKey]) state.settings.dayOverrides[todayKey] = {};
+
+    const now = new Date();
+    state.settings.dayOverrides[todayKey].dayStartHour = now.getHours();
+    state.settings.dayOverrides[todayKey].dayStartMinute = now.getMinutes();
+    state.settings.dayOverrides[todayKey].dayStarted = true;
+    state.settings.dayOverrides[todayKey].dayClosed = false;
+
+    api.put('/settings', state.settings);
+    renderAll();
+}
+
+async function closeDay() {
+    const todayKey = getTodayLogicalDateKey();
+    if (!state.settings.dayOverrides) state.settings.dayOverrides = {};
+    if (!state.settings.dayOverrides[todayKey]) state.settings.dayOverrides[todayKey] = {};
+
+    // Evaluate today's commitments
+    const commitResults = evaluateCommitments(todayKey);
+    const hasCommitments = commitResults.kept.length + commitResults.broken.length > 0;
+
+    // Record commitment results in history
+    for (const item of commitResults.kept) {
+        _recordCommitmentResult(item.context, item.itemId, item.name, true);
+    }
+    for (const item of commitResults.broken) {
+        _recordCommitmentResult(item.context, item.itemId, item.name, false);
+    }
+
+    const finishClose = async () => {
+        const now = new Date();
+        state.settings.dayOverrides[todayKey].dayEndHour = now.getHours();
+        state.settings.dayOverrides[todayKey].dayEndMinute = now.getMinutes();
+        state.settings.dayOverrides[todayKey].dayClosed = true;
+        state.settings.dayOverrides[todayKey].dayClosedAt = Date.now();
+
+        // Merge streak check-in (commitment-aware)
+        await performCheckIn(commitResults);
+
+        api.put('/settings', state.settings);
+        renderAll();
+    };
+
+    // Show commitment review if there are commitments, else close directly
+    if (hasCommitments) {
+        showCommitmentReview(commitResults, finishClose);
+    } else {
+        await finishClose();
+    }
+}
+
+async function reopenDay() {
+    const todayKey = getTodayLogicalDateKey();
+    if (!state.settings.dayOverrides) state.settings.dayOverrides = {};
+    if (!state.settings.dayOverrides[todayKey]) state.settings.dayOverrides[todayKey] = {};
+
+    state.settings.dayOverrides[todayKey].dayClosed = false;
+    delete state.settings.dayOverrides[todayKey].dayClosedAt;
+
+    api.put('/settings', state.settings);
+    renderAll();
 }
 
 // ─── Horizon Layer Stack ───
@@ -9460,7 +9590,8 @@ function _attachLiveIndicatorDnD(indicator, liveType) {
 let _liveIndicatorFingerprint = null;
 function _renderLiveSessionIndicator() {
     // Skip full rebuild if live state hasn't changed
-    const fp = `${!!state.workingOn}|${!!state.onBreak}|${state.workingOn?.itemId || ''}|${state.focusQueue.length}|${state.workingOn?.startTime || state.onBreak?.startTime || ''}|${state.workingOn?.targetEndTime || state.onBreak?.targetEndTime || ''}`;
+    const _fpDayTimes = getEffectiveDayTimes(getLogicalToday());
+    const fp = `${!!state.workingOn}|${!!state.onBreak}|${state.workingOn?.itemId || ''}|${state.focusQueue.length}|${state.workingOn?.startTime || state.onBreak?.startTime || ''}|${state.workingOn?.targetEndTime || state.onBreak?.targetEndTime || ''}|${isDayClosed()}|${isDayStarted()}|${isPastDayEnd()}|${_fpDayTimes.dayStartHour}:${_fpDayTimes.dayStartMinute}-${_fpDayTimes.dayEndHour}:${_fpDayTimes.dayEndMinute}`;
     const liveSlot = document.getElementById('header-live-slot');
     if (!liveSlot) return;
     if (fp === _liveIndicatorFingerprint && liveSlot.children.length > 0) return;
@@ -9471,16 +9602,23 @@ function _renderLiveSessionIndicator() {
 
     const liveSession = state.workingOn || state.onBreak;
 
-    // ── Idle indicator: show when no work/break is active and currently within today's day ──
+    // ── Idle / Sleep / Day lifecycle indicator ──
     if (!liveSession) {
+        // Day is closed — show sleep indicator
+        if (isDayClosed()) {
+            _renderSleepIndicator(liveSlot);
+            return;
+        }
+
+        // Day not started yet — show Start Day indicator
+        if (!isDayStarted()) {
+            _renderDayStartIndicator(liveSlot);
+            return;
+        }
+
         const logicalToday = getLogicalToday();
         const { dayStart, dayEnd } = getDayBoundaries(logicalToday);
         const nowMs = Date.now();
-        if (nowMs < dayStart.getTime() || nowMs >= dayEnd.getTime()) {
-            // Tonight range — show sleep indicator instead of idle
-            _renderSleepIndicator(liveSlot, dayEnd);
-            return;
-        }
 
         // Find idle start: last block end before now, or day start
         let idleStartMs = dayStart.getTime();
@@ -9493,24 +9631,23 @@ function _renderLiveSessionIndicator() {
             }
         }
 
-
-
         const elapsed = Math.max(0, nowMs - idleStartMs);
+        const pastDayEnd = isPastDayEnd();
 
         const indicator = document.createElement('div');
-        indicator.className = 'live-session-indicator live-session-indicator-idle';
+        indicator.className = 'live-session-indicator live-session-indicator-idle' + (pastDayEnd ? ' live-session-indicator-winddown' : '');
         indicator.style.cursor = 'pointer';
-        indicator.title = 'Click to view current idle time';
+        indicator.title = pastDayEnd ? 'Past your usual end time' : 'Click to view current idle time';
 
         const hasQueue = state.focusQueue.length > 0;
 
         const icon = document.createElement('span');
         icon.className = 'live-session-indicator-icon';
-        icon.textContent = hasQueue ? '📋' : '💤';
+        icon.textContent = pastDayEnd ? '🌙' : (hasQueue ? '📋' : '💤');
 
         const label = document.createElement('span');
         label.className = 'live-session-indicator-label';
-        label.textContent = hasQueue ? `Queue (${state.focusQueue.length})` : 'Idle';
+        label.textContent = pastDayEnd ? 'Wind down?' : (hasQueue ? `Queue (${state.focusQueue.length})` : 'Idle');
 
         const timer = document.createElement('span');
         timer.className = 'live-session-indicator-timer';
@@ -9533,6 +9670,17 @@ function _renderLiveSessionIndicator() {
 
         // Divergence badge: show ⚡ if unresolved divergences exist
         _appendDivergenceBadge(indicator);
+
+        // Close Day button
+        const _closeDayBtn = document.createElement('button');
+        _closeDayBtn.className = 'live-queue-all-btn live-close-day-btn';
+        _closeDayBtn.textContent = '🌙 Close Day';
+        _closeDayBtn.title = 'Close your day';
+        _closeDayBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            closeDay();
+        });
+        indicator.appendChild(_closeDayBtn);
 
         // Start button — start working retroactively from idle start
         const _startBtn = document.createElement('button');
@@ -9732,29 +9880,12 @@ function _appendDivergenceBadge(indicator) {
 }
 
 // ── Sleep Indicator ──
-// Renders a calming sleep indicator during the "tonight" range (outside day boundaries).
-// Shows time since day-end and a "Close Day" button for streak integration.
-function _renderSleepIndicator(liveSlot, dayEnd) {
-    const nowMs = Date.now();
+// Renders a calming sleep indicator when the day has been manually closed.
 
-    // Find the nearest upcoming day-start
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    let { dayStart: nextDayStart } = getDayBoundaries(today);
-    if (nextDayStart.getTime() <= nowMs) {
-        // Today's start already passed — use tomorrow's
-        const tomorrow = new Date(today);
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        ({ dayStart: nextDayStart } = getDayBoundaries(tomorrow));
-    }
-    const targetMs = nextDayStart.getTime();
-
-    const remaining = Math.max(0, targetMs - nowMs);
-    const _fmtDur = _fmtHMS;
-
+function _renderSleepIndicator(liveSlot) {
     const indicator = document.createElement('div');
     indicator.className = 'live-session-indicator live-session-indicator-sleep';
-    indicator.title = 'Sleep mode — time to rest';
+    indicator.title = 'Day closed — time to rest';
 
     const icon = document.createElement('span');
     icon.className = 'live-session-indicator-icon';
@@ -9764,31 +9895,57 @@ function _renderSleepIndicator(liveSlot, dayEnd) {
     label.className = 'live-session-indicator-label';
     label.textContent = 'Good Night';
 
-    const timer = document.createElement('span');
-    timer.className = 'live-session-indicator-timer';
-    timer.dataset.sessionStart = String(nowMs);
-    timer.dataset.targetEnd = String(targetMs);
-    timer.textContent = _fmtDur(remaining) + ' left';
+    indicator.appendChild(icon);
+    indicator.appendChild(label);
+
+    // Reopen Day button
+    const reopenBtn = document.createElement('button');
+    reopenBtn.className = 'live-queue-all-btn live-reopen-day-btn';
+    reopenBtn.textContent = '↩️ Reopen Day';
+    reopenBtn.title = 'Reopen your day';
+    reopenBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        await reopenDay();
+    });
+    indicator.appendChild(reopenBtn);
+
+    // DnD: drop onto sleep → schedule to today
+    _attachLiveIndicatorDnD(indicator, 'idle');
+
+    liveSlot.appendChild(indicator);
+}
+
+// ── Day Start Indicator ──
+// Renders a "Start Day" indicator when the day hasn't been started yet.
+
+function _renderDayStartIndicator(liveSlot) {
+    const indicator = document.createElement('div');
+    indicator.className = 'live-session-indicator live-session-indicator-daystart';
+    indicator.title = 'Start your day';
+
+    const icon = document.createElement('span');
+    icon.className = 'live-session-indicator-icon';
+    icon.textContent = '☀️';
+
+    const label = document.createElement('span');
+    label.className = 'live-session-indicator-label';
+    label.textContent = 'New Day';
 
     indicator.appendChild(icon);
     indicator.appendChild(label);
-    indicator.appendChild(timer);
 
-    // "Close Day" button — only if not already closed today
-    const streak = getStreakData();
-    if (!hasCheckedInToday(streak)) {
-        const closeBtn = document.createElement('button');
-        closeBtn.className = 'sleep-close-day-btn';
-        closeBtn.textContent = '🌙 Close Day';
-        closeBtn.title = 'Close your day and keep the streak going';
-        closeBtn.addEventListener('click', async (e) => {
-            e.stopPropagation();
-            await performCheckIn();
-        });
-        indicator.appendChild(closeBtn);
-    }
+    // Start Day button
+    const startBtn = document.createElement('button');
+    startBtn.className = 'live-queue-all-btn live-start-day-btn';
+    startBtn.textContent = '☀️ Start Day';
+    startBtn.title = 'Start your day — records your start time';
+    startBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        await startDay();
+    });
+    indicator.appendChild(startBtn);
 
-    // DnD: drop onto sleep → schedule to today
+    // DnD: drop onto day-start → schedule to today
     _attachLiveIndicatorDnD(indicator, 'idle');
 
     liveSlot.appendChild(indicator);
@@ -9980,11 +10137,14 @@ function renderWeekView(container) {
                 const key = getDateKey(dayDate);
                 if (!state.settings.dayOverrides) state.settings.dayOverrides = {};
                 state.settings.dayOverrides[key] = {
+                    ...(state.settings.dayOverrides[key] || {}),
                     dayStartHour: newSH, dayStartMinute: newSM,
                     dayEndHour: newEH, dayEndMinute: newEM,
                 };
                 api.put('/settings', state.settings);
+                _liveIndicatorFingerprint = null; // force live indicator refresh
                 renderTimeline(); // re-renders week view
+                _renderLiveSessionIndicator();
             };
             const cancel = () => {
                 if (committed) return;
@@ -11116,17 +11276,26 @@ function renderTimeline() {
             // Queue section
             _renderQueueSection(panel);
 
-        } else if (isInSleepRange()) {
-            // ── Sleep state ──
+        } else if (isDayClosed()) {
+            // ── Day closed state ──
             const header = document.createElement('div');
             header.className = 'live-panel-header live-panel-sleep';
-            header.innerHTML = `<span class="live-panel-icon">🌙</span> <span class="live-panel-title">Sleep</span>`;
+            header.innerHTML = `<span class="live-panel-icon">🌙</span> <span class="live-panel-title">Good Night</span>`;
             panel.appendChild(header);
 
             const msg = document.createElement('div');
             msg.className = 'live-panel-message';
-            msg.textContent = 'Outside work hours.';
+            msg.textContent = 'Day closed — you earned it.';
             panel.appendChild(msg);
+
+            const reopenRow = document.createElement('div');
+            reopenRow.className = 'live-panel-actions';
+            const reopenBtn = document.createElement('button');
+            reopenBtn.className = 'live-panel-stop-btn';
+            reopenBtn.textContent = '↩️ Reopen Day';
+            reopenBtn.addEventListener('click', () => reopenDay());
+            reopenRow.appendChild(reopenBtn);
+            panel.appendChild(reopenRow);
 
         } else {
             // ── Idle state ──
@@ -14073,13 +14242,16 @@ function createDayBoundaryBlock(type, boundaryTime, now) {
 
             if (!state.settings.dayOverrides) state.settings.dayOverrides = {};
             state.settings.dayOverrides[key] = {
+                ...(state.settings.dayOverrides[key] || {}),
                 ...current,
                 ...(type === 'day-start'
                     ? { dayStartHour: newH, dayStartMinute: newM }
                     : { dayEndHour: newH, dayEndMinute: newM }),
             };
             api.put('/settings', state.settings);
+            _liveIndicatorFingerprint = null;
             renderTimeline();
+            _renderLiveSessionIndicator();
         };
 
         input.addEventListener('blur', commit);
@@ -18288,6 +18460,296 @@ async function stopBreak() {
 
 // restoreBreak — now handled in loadAll() from backend preferences
 
+// ─── Commitments System ───
+// Items can be "committed" to a time context — a promise to complete them within that window.
+// committedContexts is an array on each item: ["2026-03-03", "week:2026-03-01", ...]
+
+function isCommittedInContext(item, contextKey) {
+    if (!item || !item.committedContexts) return false;
+    return item.committedContexts.includes(contextKey);
+}
+
+function commitToContext(itemId, contextKey) {
+    const item = findItemById(itemId);
+    if (!item) return;
+    if (!item.committedContexts) item.committedContexts = [];
+    if (item.committedContexts.includes(contextKey)) return; // already committed
+    item.committedContexts.push(contextKey);
+    api.patch(`/items/${itemId}`, { committedContexts: item.committedContexts }).catch(err => {
+        console.error('[commitments] PATCH failed:', err);
+        _showSaveError('commitment update');
+    });
+    renderAll();
+}
+
+function uncommitFromContext(itemId, contextKey) {
+    const item = findItemById(itemId);
+    if (!item || !item.committedContexts) return;
+    const idx = item.committedContexts.indexOf(contextKey);
+    if (idx === -1) return;
+    // Soft penalty: record as broken commitment
+    _recordCommitmentResult(contextKey, itemId, item.name, false);
+    item.committedContexts.splice(idx, 1);
+    api.patch(`/items/${itemId}`, { committedContexts: item.committedContexts }).catch(err => {
+        console.error('[commitments] PATCH failed:', err);
+        _showSaveError('commitment update');
+    });
+    renderAll();
+}
+
+// Evaluate all commitments for a given date key (e.g., "2026-03-03")
+// Returns { kept: [{itemId, name, context}], broken: [{itemId, name, context}] }
+function evaluateCommitments(dateKey) {
+    const results = { kept: [], broken: [] };
+    function walk(items) {
+        for (const item of items) {
+            if (item.committedContexts && item.committedContexts.includes(dateKey)) {
+                const done = isContextDone(item, dateKey) || item.done;
+                const entry = { itemId: item.id, name: item.name, context: dateKey };
+                if (done) {
+                    results.kept.push(entry);
+                } else {
+                    results.broken.push(entry);
+                }
+            }
+            if (item.children && item.children.length) walk(item.children);
+        }
+    }
+    if (state.items && state.items.items) walk(state.items.items);
+    return results;
+}
+
+// Record a commitment result in settings.commitmentHistory
+function _recordCommitmentResult(contextKey, itemId, itemName, kept) {
+    if (!state.settings.commitmentHistory) state.settings.commitmentHistory = [];
+    state.settings.commitmentHistory.push({
+        date: getTodayLogicalDateKey(),
+        context: contextKey,
+        itemId,
+        name: itemName,
+        kept,
+        timestamp: Date.now()
+    });
+    // Keep history bounded (last 500 entries)
+    if (state.settings.commitmentHistory.length > 500) {
+        state.settings.commitmentHistory = state.settings.commitmentHistory.slice(-500);
+    }
+}
+
+// Get commitment stats for display
+function getCommitmentStats() {
+    const history = state.settings.commitmentHistory || [];
+    const todayKey = getTodayLogicalDateKey();
+    const logicalToday = getLogicalToday();
+
+    // This week
+    const weekKey = getWeekKey(logicalToday);
+    const weekRange = getWeekDateRange(weekKey);
+    const weekStart = weekRange ? weekRange.start.getTime() : 0;
+
+    // This month
+    const monthStart = new Date(logicalToday.getFullYear(), logicalToday.getMonth(), 1).getTime();
+
+    let weekKept = 0, weekTotal = 0;
+    let monthKept = 0, monthTotal = 0;
+    let allKept = 0, allTotal = 0;
+
+    for (const entry of history) {
+        allTotal++;
+        if (entry.kept) allKept++;
+        if (entry.timestamp >= weekStart) {
+            weekTotal++;
+            if (entry.kept) weekKept++;
+        }
+        if (entry.timestamp >= monthStart) {
+            monthTotal++;
+            if (entry.kept) monthKept++;
+        }
+    }
+
+    return {
+        week: { kept: weekKept, total: weekTotal, pct: weekTotal ? Math.round(weekKept / weekTotal * 100) : null },
+        month: { kept: monthKept, total: monthTotal, pct: monthTotal ? Math.round(monthKept / monthTotal * 100) : null },
+        allTime: { kept: allKept, total: allTotal, pct: allTotal ? Math.round(allKept / allTotal * 100) : null },
+        recent: history.slice(-10).reverse()
+    };
+}
+
+// Show commitment review modal (called before streak check-in on Close Day)
+function showCommitmentReview(results, onContinue) {
+    const total = results.kept.length + results.broken.length;
+
+    // If no commitments today, skip review
+    if (total === 0) {
+        onContinue();
+        return;
+    }
+
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay commitment-review-overlay';
+
+    const modal = document.createElement('div');
+    modal.className = 'modal-box commitment-review-modal';
+
+    const title = document.createElement('h3');
+    title.className = 'commitment-review-title';
+    title.textContent = 'Today\'s Commitments';
+    modal.appendChild(title);
+
+    const list = document.createElement('div');
+    list.className = 'commitment-review-list';
+    for (const item of results.kept) {
+        const row = document.createElement('div');
+        row.className = 'commitment-review-item commitment-kept';
+        row.textContent = `✅ ${item.name}`;
+        list.appendChild(row);
+    }
+    for (const item of results.broken) {
+        const row = document.createElement('div');
+        row.className = 'commitment-review-item commitment-broken';
+        row.textContent = `❌ ${item.name}`;
+        list.appendChild(row);
+    }
+    modal.appendChild(list);
+
+    const summary = document.createElement('div');
+    summary.className = 'commitment-review-summary';
+    summary.textContent = `${results.kept.length}/${total} kept`;
+    modal.appendChild(summary);
+
+    // Streak impact preview
+    const mode = state.settings.commitmentMode || 'gentle';
+    const streakImpact = document.createElement('div');
+    streakImpact.className = 'commitment-review-streak-impact';
+    const streak = getStreakData();
+    if (mode === 'gentle') {
+        streakImpact.textContent = `🔥 Streak continues (${streak.count + 1})`;
+        streakImpact.classList.add('streak-continues');
+    } else if (mode === 'balanced') {
+        const pct = total > 0 ? (results.kept.length / total) * 100 : 100;
+        if (pct >= 80) {
+            streakImpact.textContent = `🔥 Streak continues (${streak.count + 1}) — ${Math.round(pct)}% kept`;
+            streakImpact.classList.add('streak-continues');
+        } else {
+            streakImpact.textContent = `💔 Streak resets — ${Math.round(pct)}% kept (need 80%)`;
+            streakImpact.classList.add('streak-resets');
+        }
+    } else if (mode === 'strict') {
+        if (results.broken.length === 0) {
+            streakImpact.textContent = `🔥 Streak continues (${streak.count + 1}) — all kept!`;
+            streakImpact.classList.add('streak-continues');
+        } else {
+            streakImpact.textContent = `💔 Streak resets — ${results.broken.length} broken`;
+            streakImpact.classList.add('streak-resets');
+        }
+    }
+    modal.appendChild(streakImpact);
+
+    const btnRow = document.createElement('div');
+    btnRow.className = 'commitment-review-actions';
+    const closeBtn = document.createElement('button');
+    closeBtn.className = 'commitment-review-btn';
+    closeBtn.textContent = '🌙 Close Day';
+    closeBtn.addEventListener('click', () => {
+        overlay.remove();
+        onContinue();
+    });
+    btnRow.appendChild(closeBtn);
+    modal.appendChild(btnRow);
+
+    overlay.appendChild(modal);
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) {
+            overlay.remove();
+            onContinue();
+        }
+    });
+    document.body.appendChild(overlay);
+}
+
+// Show streak expansion panel (commitment history)
+function showStreakExpansion() {
+    // Close if already open
+    const existing = document.querySelector('.streak-expansion-overlay');
+    if (existing) { existing.remove(); return; }
+
+    const overlay = document.createElement('div');
+    overlay.className = 'streak-expansion-overlay';
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) overlay.remove();
+    });
+
+    const panel = document.createElement('div');
+    panel.className = 'streak-expansion-panel';
+
+    const streak = getStreakData();
+    const alive = isStreakAlive(streak);
+    const stats = getCommitmentStats();
+    const mode = state.settings.commitmentMode || 'gentle';
+
+    // Header
+    const header = document.createElement('div');
+    header.className = 'streak-expansion-header';
+    header.innerHTML = `🔥 <strong>${alive ? streak.count : 0}</strong>-day streak <span class="streak-expansion-best">(Best: ${streak.longestStreak || streak.count})</span>`;
+    panel.appendChild(header);
+
+    // Mode indicator
+    const modeEl = document.createElement('div');
+    modeEl.className = 'streak-expansion-mode';
+    const modeLabels = { gentle: '🌱 Gentle', balanced: '⚖️ Balanced', strict: '🎯 Strict' };
+    modeEl.textContent = `Mode: ${modeLabels[mode] || mode}`;
+    panel.appendChild(modeEl);
+
+    // Stats
+    const statsEl = document.createElement('div');
+    statsEl.className = 'streak-expansion-stats';
+    function statRow(label, s) {
+        const row = document.createElement('div');
+        row.className = 'streak-expansion-stat-row';
+        if (s.total === 0) {
+            row.innerHTML = `<span class="streak-stat-label">${label}</span> <span class="streak-stat-value">—</span>`;
+        } else {
+            row.innerHTML = `<span class="streak-stat-label">${label}</span> <span class="streak-stat-value">${s.kept}/${s.total} <span class="streak-stat-pct">${s.pct}%</span></span>`;
+        }
+        return row;
+    }
+    statsEl.appendChild(statRow('This week', stats.week));
+    statsEl.appendChild(statRow('This month', stats.month));
+    statsEl.appendChild(statRow('All time', stats.allTime));
+    panel.appendChild(statsEl);
+
+    // Recent results
+    if (stats.recent.length > 0) {
+        const recentTitle = document.createElement('div');
+        recentTitle.className = 'streak-expansion-recent-title';
+        recentTitle.textContent = 'Recent';
+        panel.appendChild(recentTitle);
+
+        const recentList = document.createElement('div');
+        recentList.className = 'streak-expansion-recent';
+        for (const entry of stats.recent) {
+            const row = document.createElement('div');
+            row.className = 'streak-expansion-recent-item';
+            row.textContent = `${entry.kept ? '✅' : '❌'} ${entry.name}`;
+            recentList.appendChild(row);
+        }
+        panel.appendChild(recentList);
+    }
+
+    overlay.appendChild(panel);
+
+    // Position panel near streak widget
+    const widget = document.getElementById('streak-widget');
+    if (widget) {
+        const wr = widget.getBoundingClientRect();
+        panel.style.position = 'fixed';
+        panel.style.top = `${wr.bottom + 8}px`;
+        panel.style.right = `${window.innerWidth - wr.right}px`;
+    }
+
+    document.body.appendChild(overlay);
+}
+
 // ─── Streak System ───
 // The user must check in before the next day's start time to keep the streak alive.
 // "Day" is defined by the app's day start time from settings (supports cross-midnight).
@@ -18344,13 +18806,29 @@ function hasCheckedInToday(streak) {
     return streak.lastCheckInDate === getTodayLogicalDateKey();
 }
 
-async function performCheckIn() {
+async function performCheckIn(commitResults) {
     const streak = getStreakData();
     const todayKey = getTodayLogicalDateKey();
 
     if (hasCheckedInToday(streak)) return; // Already checked in
 
-    if (isStreakAlive(streak)) {
+    const mode = state.settings.commitmentMode || 'gentle';
+    let shouldContinue = true;
+
+    // Commitment-mode-aware streak logic
+    if (commitResults && mode !== 'gentle') {
+        const total = commitResults.kept.length + commitResults.broken.length;
+        if (total > 0) {
+            if (mode === 'strict') {
+                shouldContinue = commitResults.broken.length === 0;
+            } else if (mode === 'balanced') {
+                const pct = (commitResults.kept.length / total) * 100;
+                shouldContinue = pct >= 80;
+            }
+        }
+    }
+
+    if (shouldContinue && isStreakAlive(streak)) {
         // Continue the streak
         streak.count += 1;
     } else {
@@ -18379,6 +18857,17 @@ function renderStreak() {
     const btn = document.getElementById('streak-checkin-btn');
 
     if (!widget) return;
+
+    // Make streak widget clickable to expand (add once)
+    if (!widget._commitmentClickBound) {
+        widget.style.cursor = 'pointer';
+        widget.addEventListener('click', (e) => {
+            // Don't trigger expansion from the check-in button
+            if (e.target.closest('#streak-checkin-btn')) return;
+            showStreakExpansion();
+        });
+        widget._commitmentClickBound = true;
+    }
 
     // Update count
     count.textContent = alive ? streak.count : 0;
@@ -19908,6 +20397,16 @@ function openDefaultsModal() {
             </div>
             <div class="modal-divider"></div>
             <div class="modal-field">
+                <label class="modal-label" for="defaults-commitment-mode">⚡ Commitment mode</label>
+                <select id="defaults-commitment-mode" class="modal-input">
+                    <option value="gentle">🌱 Gentle — streak always continues</option>
+                    <option value="balanced">⚖️ Balanced — need 80% kept</option>
+                    <option value="strict">🎯 Strict — any broken resets streak</option>
+                </select>
+                <span class="modal-hint">How broken commitments affect your streak</span>
+            </div>
+            <div class="modal-divider"></div>
+            <div class="modal-field">
                 <label class="modal-label">🤖 AI Provider</label>
                 <select id="defaults-ai-provider" class="modal-input">
                     <option value="gemini">Gemini</option>
@@ -19952,6 +20451,8 @@ function openDefaultsModal() {
         document.getElementById('defaults-ai-key').placeholder = '••••••••  (key saved)';
     }
 
+    // Commitment mode
+    document.getElementById('defaults-commitment-mode').value = state.settings.commitmentMode || 'gentle';
 
     // Close on overlay click
     overlay.addEventListener('click', (e) => {
@@ -19984,6 +20485,8 @@ function openDefaultsModal() {
         state.settings.aiModel = document.getElementById('defaults-ai-model').value;
         const newKey = document.getElementById('defaults-ai-key').value.trim();
         if (newKey) state.settings.aiApiKey = newKey; // Only overwrite if user typed a new key
+        // Commitment mode
+        state.settings.commitmentMode = document.getElementById('defaults-commitment-mode').value;
         api.put('/settings', state.settings);
         // Reload copilot config label
         try {
@@ -19993,7 +20496,9 @@ function openDefaultsModal() {
             if (ml) ml.textContent = cfg.available ? cfg.model : '⚠️ No API key';
         } catch { }
         overlay.remove();
+        _liveIndicatorFingerprint = null; // force live indicator refresh
         renderTimeline();
+        _renderLiveSessionIndicator();
     });
 }
 

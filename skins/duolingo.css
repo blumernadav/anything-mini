@@ -2541,6 +2541,212 @@ body {
     background: var(--duo-green-dim);
 }
 
+/* ─── Committed Items ─── */
+.action-item.committed {
+    border-left: 3px solid #ff9600;
+    padding-left: 7px;
+}
+
+.action-item.committed:not(.done)::after {
+    content: '⚡';
+    font-size: 10px;
+    margin-left: auto;
+    padding-left: 4px;
+    flex-shrink: 0;
+}
+
+.action-item.committed.action-item-working {
+    border-left: 3px solid var(--duo-green);
+}
+
+/* ─── Commitment Review Modal ─── */
+.commitment-review-modal {
+    max-width: 360px;
+    padding: 24px;
+    text-align: center;
+}
+
+.commitment-review-title {
+    font-size: 18px;
+    font-weight: 800;
+    margin-bottom: 16px;
+    color: var(--duo-text);
+}
+
+.commitment-review-list {
+    text-align: left;
+    margin-bottom: 16px;
+}
+
+.commitment-review-item {
+    padding: 8px 12px;
+    border-radius: var(--duo-radius-sm);
+    margin-bottom: 4px;
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.commitment-review-item.commitment-kept {
+    background: rgba(88, 204, 2, 0.08);
+    color: var(--duo-green-dark);
+}
+
+.commitment-review-item.commitment-broken {
+    background: var(--duo-red-dim);
+    color: var(--duo-red);
+}
+
+.commitment-review-summary {
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--duo-text);
+    margin-bottom: 12px;
+}
+
+.commitment-review-streak-impact {
+    font-size: 14px;
+    font-weight: 700;
+    padding: 8px 16px;
+    border-radius: var(--duo-radius-sm);
+    margin-bottom: 16px;
+}
+
+.commitment-review-streak-impact.streak-continues {
+    background: rgba(255, 150, 0, 0.08);
+    color: #cc7800;
+}
+
+.commitment-review-streak-impact.streak-resets {
+    background: var(--duo-red-dim);
+    color: var(--duo-red);
+}
+
+.commitment-review-actions {
+    display: flex;
+    justify-content: center;
+}
+
+.commitment-review-btn {
+    padding: 10px 24px;
+    border: 2px solid var(--duo-border);
+    background: var(--duo-white);
+    border-radius: var(--duo-radius);
+    font-size: 14px;
+    font-weight: 800;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all var(--dur) var(--ease);
+    box-shadow: 0 2px 0 var(--duo-border);
+}
+
+.commitment-review-btn:hover {
+    border-color: var(--duo-green);
+    background: var(--duo-green);
+    color: white;
+    box-shadow: 0 2px 0 var(--duo-green-dark);
+    transform: translateY(-1px);
+}
+
+.commitment-review-btn:active {
+    transform: translateY(1px);
+    box-shadow: none;
+}
+
+/* ─── Streak Expansion Panel ─── */
+.streak-expansion-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 10000;
+    background: rgba(0, 0, 0, 0.15);
+}
+
+.streak-expansion-panel {
+    background: var(--duo-white);
+    border: 2px solid var(--duo-border);
+    border-radius: var(--duo-radius);
+    padding: 16px;
+    min-width: 240px;
+    max-width: 320px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+    z-index: 10001;
+}
+
+.streak-expansion-header {
+    font-size: 16px;
+    margin-bottom: 8px;
+}
+
+.streak-expansion-header strong {
+    font-size: 20px;
+    color: #ff9600;
+}
+
+.streak-expansion-best {
+    font-size: 12px;
+    color: var(--duo-text-soft);
+    font-weight: 600;
+}
+
+.streak-expansion-mode {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--duo-text-soft);
+    margin-bottom: 12px;
+    padding: 4px 8px;
+    background: var(--duo-bg);
+    border-radius: 6px;
+    display: inline-block;
+}
+
+.streak-expansion-stats {
+    margin-bottom: 12px;
+}
+
+.streak-expansion-stat-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 0;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.streak-stat-label {
+    color: var(--duo-text-soft);
+}
+
+.streak-stat-value {
+    color: var(--duo-text);
+}
+
+.streak-stat-pct {
+    color: #ff9600;
+    font-weight: 800;
+    font-size: 12px;
+    margin-left: 4px;
+}
+
+.streak-expansion-recent-title {
+    font-size: 12px;
+    font-weight: 800;
+    color: var(--duo-text-soft);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 6px;
+    padding-top: 8px;
+    border-top: 1px solid var(--duo-border);
+}
+
+.streak-expansion-recent-item {
+    font-size: 13px;
+    font-weight: 600;
+    padding: 3px 0;
+    color: var(--duo-text);
+}
+
 /* ─── Goal Badges (Projects) ─── */
 .project-goal-badge {
     font-size: 10px;
@@ -3711,6 +3917,57 @@ body {
 .sleep-close-day-btn:active {
     transform: translateY(1px);
     box-shadow: none;
+}
+
+/* Wind-down nudge */
+.live-session-indicator-winddown {
+    border-left-color: var(--duo-gold) !important;
+    background: var(--duo-gold-dim);
+}
+
+.live-session-indicator-winddown:hover {
+    border-color: var(--duo-gold);
+}
+
+.live-session-indicator-winddown .live-session-indicator-label {
+    color: var(--duo-gold);
+}
+
+/* Day-start indicator */
+.live-session-indicator-daystart {
+    border-left: 4px solid var(--duo-gold);
+    background: var(--duo-gold-dim);
+}
+
+.live-session-indicator-daystart:hover {
+    border-color: var(--duo-gold);
+}
+
+/* Lifecycle buttons */
+.live-close-day-btn {
+    background: rgba(167, 139, 250, 0.1) !important;
+    color: #8b5cf6 !important;
+    border: 2px solid #a78bfa !important;
+    box-shadow: 0 2px 0 #a78bfa !important;
+}
+
+.live-close-day-btn:hover {
+    background: #8b5cf6 !important;
+    color: white !important;
+}
+
+.live-reopen-day-btn,
+.live-start-day-btn {
+    background: var(--duo-gold-dim) !important;
+    color: var(--duo-gold) !important;
+    border: 2px solid var(--duo-gold) !important;
+    box-shadow: 0 2px 0 var(--duo-gold) !important;
+}
+
+.live-reopen-day-btn:hover,
+.live-start-day-btn:hover {
+    background: var(--duo-gold) !important;
+    color: white !important;
 }
 
 .modal-field-toggle {
@@ -5745,6 +6002,8 @@ select.schedule-leadtime-input {
 
 /* Idle start picker */
 .idle-start-picker {
+    position: relative;
+    z-index: 5;
     border-left: 4px solid var(--duo-green);
     background: var(--duo-white);
     box-shadow: 0 2px 0 var(--duo-border);

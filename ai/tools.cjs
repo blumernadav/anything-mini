@@ -61,6 +61,51 @@ function getItemPath(items, id) {
     return null;
 }
 
+/**
+ * Remove an item from its current location in the tree and insert it
+ * under a new parent (or at root level if newParentId is null).
+ * Returns { error } on failure, or {} on success.
+ * Mutates `data` in place — caller is responsible for persisting.
+ */
+function moveItemInTree(data, itemId, newParentId) {
+    const item = findItemById(data.items, itemId);
+    if (!item) return { error: `Item ${itemId} not found` };
+
+    // Validate destination
+    if (newParentId !== null && newParentId !== undefined) {
+        const newParent = findItemById(data.items, newParentId);
+        if (!newParent) return { error: `New parent ${newParentId} not found` };
+        // Prevent moving under self or a descendant
+        const descIds = new Set();
+        const collectIds = (node) => { descIds.add(node.id); (node.children || []).forEach(collectIds); };
+        collectIds(item);
+        if (descIds.has(newParentId)) return { error: `Cannot move item under itself or its descendant` };
+    }
+
+    // Remove from current location
+    const removeRecursive = (items) => {
+        for (let i = 0; i < items.length; i++) {
+            if (items[i].id === itemId) { items.splice(i, 1); return true; }
+            if (items[i].children && removeRecursive(items[i].children)) return true;
+        }
+        return false;
+    };
+    removeRecursive(data.items);
+
+    // Insert into new location
+    if (newParentId === null || newParentId === undefined) {
+        // Insert at root level (after inbox if present)
+        const inboxIdx = data.items.findIndex(i => i.isInbox);
+        data.items.splice(inboxIdx >= 0 ? inboxIdx + 1 : 0, 0, item);
+    } else {
+        const newParent = findItemById(data.items, newParentId);
+        newParent.children = newParent.children || [];
+        newParent.children.unshift(item);
+    }
+
+    return {};
+}
+
 // ============ Tool Definitions ============
 
 const READ_TOOLS = [
@@ -247,7 +292,7 @@ const WRITE_TOOLS = [
     },
     {
         name: 'update_item',
-        description: 'Update an existing item by its ID. Can change name, done status, time contexts, notes, deadline, etc.',
+        description: 'Update an existing item by its ID. Can change name, done status, time contexts, notes, deadline, and parentId (to move the item under a different parent). Setting parentId to null moves the item to root level.',
         parameters: {
             type: 'object',
             properties: {
@@ -262,6 +307,10 @@ const WRITE_TOOLS = [
                 done: {
                     type: 'boolean',
                     description: 'Mark as done or not done'
+                },
+                parentId: {
+                    type: ['number', 'null'],
+                    description: 'Move item under a new parent. Use null to move to root level. The item is removed from its current parent and inserted at the top of the new parent\'s children.'
                 },
                 timeContexts: {
                     type: 'array',
@@ -288,8 +337,17 @@ const WRITE_TOOLS = [
             const item = findItemById(data.items, args.id);
             if (!item) return { error: `Item ${args.id} not found` };
 
-            const { id, contextDurations, ...updates } = args;
+            // Handle parentId move if specified (including explicit null for root)
+            if ('parentId' in args) {
+                const moveResult = moveItemInTree(data, args.id, args.parentId);
+                if (moveResult.error) return moveResult;
+            }
+
+            // Strip parentId from property updates — tree position is the source of truth
+            const { id, contextDurations, parentId, ...updates } = args;
             Object.assign(item, updates);
+            // Clean up any stale parentId property on the item
+            delete item.parentId;
             // Merge contextDurations (don't overwrite existing entries)
             if (contextDurations) {
                 if (!item.contextDurations) item.contextDurations = {};
@@ -302,6 +360,41 @@ const WRITE_TOOLS = [
         describe(args) {
             const changes = Object.keys(args).filter(k => k !== 'id');
             return `✏️ Update item #${args.id}: ${changes.join(', ')}`;
+        }
+    },
+    {
+        name: 'move_item',
+        description: 'Move an item to a different parent in the tree. Removes from current location and inserts at top of new parent\'s children. Use newParentId=null to move to root level.',
+        parameters: {
+            type: 'object',
+            properties: {
+                id: {
+                    type: 'number',
+                    description: 'ID of the item to move'
+                },
+                newParentId: {
+                    type: ['number', 'null'],
+                    description: 'ID of the new parent item. Use null to move to root level.'
+                }
+            },
+            required: ['id', 'newParentId']
+        },
+        async execute(args, stores) {
+            const data = await stores.items.read();
+            const item = findItemById(data.items, args.id);
+            if (!item) return { error: `Item ${args.id} not found` };
+
+            const result = moveItemInTree(data, args.id, args.newParentId);
+            if (result.error) return result;
+
+            // Clean up any stale parentId property
+            delete item.parentId;
+
+            await stores.items.write(data);
+            return { moved: item, message: `Moved "${item.name}" (id: ${args.id}) ${args.newParentId ? `under item #${args.newParentId}` : 'to root level'}` };
+        },
+        describe(args) {
+            return `📦 Move item #${args.id} ${args.newParentId ? `under #${args.newParentId}` : 'to root'}`;
         }
     },
     {
