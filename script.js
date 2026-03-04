@@ -125,6 +125,18 @@ function clearFocusStack() {
 // Temporary ID counter for optimistic timeline entries (negative to avoid server ID collisions)
 let _nextTempId = -1;
 
+// In-flight POST promises keyed by temp ID — allows PATCH/DELETE to wait for the real server ID
+const _inflightPosts = new Map();
+
+// Resolve a temp ID to the real server ID (awaits if POST is still in-flight)
+async function _resolveEntryId(entryId) {
+    if (entryId >= 0) return entryId;
+    const pending = _inflightPosts.get(entryId);
+    if (!pending) return entryId; // already reconciled or unknown
+    const serverEntry = await pending;
+    return serverEntry.id;
+}
+
 // Optimistic timeline POST — returns the temp entry immediately (synchronous)
 function postTimelineOptimistic(payload) {
     const tempId = _nextTempId--;
@@ -136,11 +148,12 @@ function postTimelineOptimistic(payload) {
     state.timeline.entries.push(entry);
 
     // Background: POST to server, reconcile ID
-    api.post('/timeline', payload).then(serverEntry => {
+    const postPromise = api.post('/timeline', payload).then(serverEntry => {
         const idx = state.timeline.entries.findIndex(e => e.id === tempId);
         if (idx !== -1) {
             state.timeline.entries[idx] = serverEntry;
         }
+        return serverEntry;
     }).catch(err => {
         console.error('[optimistic] Timeline POST failed:', err);
         // Remove the optimistic entry on failure
@@ -148,7 +161,12 @@ function postTimelineOptimistic(payload) {
         if (idx !== -1) state.timeline.entries.splice(idx, 1);
         _showSaveError('timeline entry');
         renderAll();
+        throw err; // re-throw so dependents know the POST failed
+    }).finally(() => {
+        _inflightPosts.delete(tempId);
     });
+
+    _inflightPosts.set(tempId, postPromise);
 
     return entry;
 }
@@ -163,25 +181,29 @@ function patchTimelineOptimistic(entryId, updates) {
             entry.timestamp = updates.startTime;
         }
     }
-    // Fire-and-forget to server
-    api.patch(`/timeline/${entryId}`, updates).catch(err => {
-        console.error('[optimistic] Timeline PATCH failed:', err);
-        _showSaveError('timeline update');
-    });
+    // Defer server call if temp ID is still in-flight
+    _resolveEntryId(entryId).then(realId => {
+        api.patch(`/timeline/${realId}`, updates).catch(err => {
+            console.error('[optimistic] Timeline PATCH failed:', err);
+            _showSaveError('timeline update');
+        });
+    }).catch(() => { /* POST failed — entry doesn't exist on server, nothing to patch */ });
 }
 
 // Fire-and-forget timeline DELETE — removes from local state immediately
 function delTimelineOptimistic(entryId) {
     const idx = state.timeline.entries.findIndex(e => e.id === entryId);
     const removed = idx !== -1 ? state.timeline.entries.splice(idx, 1)[0] : null;
-    // Fire-and-forget to server
-    api.del(`/timeline/${entryId}`).catch(err => {
-        console.error('[optimistic] Timeline DELETE failed:', err);
-        // Re-insert the entry on failure
-        if (removed) state.timeline.entries.push(removed);
-        _showSaveError('timeline delete');
-        renderAll();
-    });
+    // Defer server call if temp ID is still in-flight
+    _resolveEntryId(entryId).then(realId => {
+        api.del(`/timeline/${realId}`).catch(err => {
+            console.error('[optimistic] Timeline DELETE failed:', err);
+            // Re-insert the entry on failure
+            if (removed) state.timeline.entries.push(removed);
+            _showSaveError('timeline delete');
+            renderAll();
+        });
+    }).catch(() => { /* POST failed — entry doesn't exist on server, nothing to delete */ });
 }
 
 // Non-blocking error toast
@@ -5929,6 +5951,23 @@ function renderActions(opts) {
         chevron.textContent = '▶';
         header.appendChild(chevron);
 
+        // Locate-in-sidebar icon (hover-reveal, like action items)
+        const locateBtn = document.createElement('span');
+        locateBtn.className = 'action-locate-btn';
+        locateBtn.textContent = '◉';
+        locateBtn.title = 'Locate in projects';
+        locateBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            animateActionsZoomIn(() => {
+                state.selectedItemId = headerId;
+                savePref('selectedItemId', headerId);
+                state._animateActions = true;
+                renderAll();
+                requestAnimationFrame(() => scrollToSelectedItem());
+            });
+        });
+        header.appendChild(locateBtn);
+
         const nameEl = document.createElement('span');
         nameEl.className = 'action-group-name';
         nameEl.textContent = headerItem ? headerItem.name : 'Unknown';
@@ -6335,6 +6374,23 @@ function renderActions(opts) {
             chevron.className = 'action-group-chevron' + (isCollapsed ? '' : ' expanded');
             chevron.textContent = '▶';
             header.appendChild(chevron);
+
+            // Locate-in-sidebar icon (hover-reveal, like action items)
+            const locateBtn = document.createElement('span');
+            locateBtn.className = 'action-locate-btn';
+            locateBtn.textContent = '◉';
+            locateBtn.title = 'Locate in projects';
+            locateBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                animateActionsZoomIn(() => {
+                    state.selectedItemId = group.root.id;
+                    savePref('selectedItemId', group.root.id);
+                    state._animateActions = true;
+                    renderAll();
+                    requestAnimationFrame(() => scrollToSelectedItem());
+                });
+            });
+            header.appendChild(locateBtn);
 
             const nameEl = document.createElement('span');
             nameEl.className = 'action-group-name';
@@ -6939,6 +6995,36 @@ function _createOverflowItemRow(action, overflow, sourceCtx, container) {
             row.appendChild(durEl);
         }
     }
+
+    // ── Hover-reveal action buttons (done on context / remove from context) ──
+    const ovBtns = document.createElement('div');
+    ovBtns.className = 'overflow-item-actions';
+
+    const doneBtn = document.createElement('button');
+    doneBtn.className = 'action-btn action-btn-done overflow-action-btn';
+    doneBtn.textContent = '✓';
+    doneBtn.title = 'Mark done on this context';
+    doneBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const it = findItemById(action.id);
+        if (!it) return;
+        setContextDone(it, sourceCtx, true);
+        renderAll();
+    });
+    ovBtns.appendChild(doneBtn);
+
+    const removeBtn = document.createElement('button');
+    removeBtn.className = 'action-btn action-btn-decline overflow-action-btn';
+    removeBtn.textContent = '✕';
+    removeBtn.title = 'Remove from this context';
+    removeBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        removeSourceContext(action.id, sourceCtx);
+        renderAll();
+    });
+    ovBtns.appendChild(removeBtn);
+
+    row.appendChild(ovBtns);
 
     // Click-to-adopt
     row.addEventListener('click', async (e) => {
@@ -18048,6 +18134,23 @@ function renderReflectionPanel() {
                 });
             }
             row.appendChild(toggle);
+
+            // Focus dot (locate in sidebar)
+            const locateBtn = document.createElement('span');
+            locateBtn.className = 'action-locate-btn';
+            locateBtn.textContent = '◉';
+            locateBtn.title = 'Locate in projects';
+            locateBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                animateActionsZoomIn(() => {
+                    state.selectedItemId = item.id;
+                    savePref('selectedItemId', item.id);
+                    state._animateActions = true;
+                    renderAll();
+                    requestAnimationFrame(() => scrollToSelectedItem());
+                });
+            });
+            row.appendChild(locateBtn);
 
             // Name
             const nameEl = document.createElement('span');
