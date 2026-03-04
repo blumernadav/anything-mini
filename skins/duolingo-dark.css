@@ -1149,6 +1149,23 @@ body {
     padding: 4px 10px 10px;
 }
 
+/* ── Action Cards ── */
+.action-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 2px solid rgba(255, 255, 255, 0.06);
+    border-radius: var(--duo-radius-sm);
+    margin-bottom: 4px;
+    transition: border-color var(--dur) var(--ease);
+}
+
+.action-card:last-child {
+    margin-bottom: 0;
+}
+
+.action-card:hover {
+    border-color: rgba(88, 204, 2, 0.15);
+}
+
 /* ── Action Group Headers ── */
 .action-group-header {
     display: flex;
@@ -1157,7 +1174,6 @@ body {
     padding: 8px 10px 6px;
     cursor: pointer;
     user-select: none;
-    border-bottom: 2px solid var(--duo-bg);
     transition: background var(--dur) var(--ease);
 }
 
@@ -1297,11 +1313,6 @@ body {
     padding: 10px 10px;
     border-radius: var(--duo-radius-sm);
     transition: background var(--dur) var(--ease);
-    border-bottom: 2px solid var(--duo-bg);
-}
-
-.action-item:last-child {
-    border-bottom: none;
 }
 
 .action-item:hover {
@@ -5411,6 +5422,52 @@ select.schedule-leadtime-input {
     flex-shrink: 0;
 }
 
+/* Per-item capacity bar */
+.segment-item-capacity {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+    cursor: pointer;
+    min-width: 60px;
+    position: relative;
+}
+
+.segment-item-cap-track {
+    width: 36px;
+    height: 6px;
+    background: var(--duo-border);
+    border-radius: 4px;
+    display: flex;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.segment-item-cap-invested {
+    height: 100%;
+    background: var(--duo-green);
+    border-radius: 4px 0 0 4px;
+    transition: width 0.3s ease;
+}
+
+.segment-item-cap-invested.over-capacity {
+    background: var(--duo-red);
+}
+
+.segment-item-cap-remaining {
+    height: 100%;
+    background: #2dd4bf;
+    opacity: 0.3;
+    transition: width 0.3s ease;
+}
+
+.segment-item-cap-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--duo-text-faint);
+    white-space: nowrap;
+}
+
 .segment-queue-start {
     opacity: 0;
     border: 2px solid rgba(45, 212, 191, 0.4);
@@ -5510,6 +5567,7 @@ select.schedule-leadtime-input {
     background: var(--duo-border);
     border-radius: 4px;
     position: relative;
+    display: flex;
 }
 
 .segment-capacity-fill {
@@ -5521,6 +5579,26 @@ select.schedule-leadtime-input {
 
 .segment-capacity-fill.over-capacity {
     background: var(--duo-red);
+}
+
+.segment-capacity-fill-invested {
+    height: 100%;
+    background: var(--duo-green);
+    border-radius: 4px 0 0 4px;
+    transition: width 0.3s ease;
+}
+
+.segment-capacity-fill-planned {
+    height: 100%;
+    background: #2dd4bf;
+    opacity: 0.4;
+    border-radius: 0;
+    transition: width 0.3s ease;
+}
+
+.segment-capacity-fill-planned.over-capacity {
+    background: var(--duo-red);
+    opacity: 0.6;
 }
 
 .segment-capacity-label {
@@ -5538,7 +5616,7 @@ select.schedule-leadtime-input {
 
 .segment-capacity-bar:hover .segment-capacity-label {
     opacity: 1;
-    max-width: 100px;
+    max-width: 200px;
 }
 
 .actions-drag-over {

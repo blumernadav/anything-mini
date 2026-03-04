@@ -3339,6 +3339,40 @@ function _invalidateWorkEntryIndex() {
     _workEntryIndex = null;
 }
 
+// Compute total invested minutes from work logs within an arbitrary time window.
+// Sums all work entries (across all items) whose duration overlaps [startMs, endMs].
+function _computeSessionInvestment(startMs, endMs) {
+    if (!_workEntryIndex) _buildWorkEntryIndex();
+    let totalMs = 0;
+    for (const entries of _workEntryIndex.values()) {
+        for (const e of entries) {
+            const s = Math.max(e.startTime, startMs);
+            const end = Math.min(e.endTime, endMs);
+            if (end > s) totalMs += (end - s);
+        }
+    }
+    return Math.round(totalMs / 60000);
+}
+
+// Compute invested minutes for a SINGLE item (and its descendants) within a time window.
+function _computeItemInvestmentInWindow(itemId, startMs, endMs) {
+    if (!_workEntryIndex) _buildWorkEntryIndex();
+    const item = findItemById(itemId);
+    if (!item) return 0;
+    const descIds = collectDescendantIds(item);
+    let totalMs = 0;
+    for (const id of descIds) {
+        const entries = _workEntryIndex.get(id);
+        if (!entries) continue;
+        for (const e of entries) {
+            const s = Math.max(e.startTime, startMs);
+            const end = Math.min(e.endTime, endMs);
+            if (end > s) totalMs += (end - s);
+        }
+    }
+    return Math.round(totalMs / 60000);
+}
+
 // Convert a context string to a time window { startMs, endMs }.
 function getTimeWindowForContext(ctx) {
     if (!ctx) return null;
@@ -5652,7 +5686,7 @@ function renderActions(opts) {
 
     // ── Day closed: show "Good Night" instead of actions ──
     if (isDayClosed() && !state.workingOn && !state.onBreak) {
-        container.querySelectorAll('.action-item, .action-group-header, .overflow-preview').forEach(el => el.remove());
+        container.querySelectorAll('.action-card, .action-item, .action-group-header, .overflow-preview').forEach(el => el.remove());
         empty.style.display = '';
         empty.innerHTML = '';
         const icon = document.createElement('span');
@@ -5670,7 +5704,7 @@ function renderActions(opts) {
     }
 
     // Remove existing items but not the empty state and bulk bar
-    container.querySelectorAll('.action-item, .action-group-header, .overflow-preview').forEach(el => el.remove());
+    container.querySelectorAll('.action-card, .action-item, .action-group-header, .overflow-preview').forEach(el => el.remove());
 
     const filteredActions = getFilteredActions();
 
@@ -6237,15 +6271,28 @@ function renderActions(opts) {
     const renderedIds = [];
 
     // Helper: render a list of actions (mixing regular + context headers) into a fragment
-    function _renderActionList(actions, parentFragment, rootIdForDataset) {
+    function _renderActionList(actions, parentFragment, rootIdForDataset, wrapInCards) {
         for (const action of actions) {
             if (action._isContextHeader || contextHeaderIds.has(action.id)) {
-                // Render as context header tree
-                _renderContextHeaderTree(action.id, parentFragment, rootIdForDataset);
+                if (wrapInCards) {
+                    const card = document.createElement('div');
+                    card.className = 'action-card';
+                    _renderContextHeaderTree(action.id, card, rootIdForDataset);
+                    parentFragment.appendChild(card);
+                } else {
+                    _renderContextHeaderTree(action.id, parentFragment, rootIdForDataset);
+                }
             } else {
                 const el = createActionElement(action);
                 if (rootIdForDataset !== undefined) el.dataset.rootId = rootIdForDataset;
-                parentFragment.appendChild(el);
+                if (wrapInCards) {
+                    const card = document.createElement('div');
+                    card.className = 'action-card';
+                    card.appendChild(el);
+                    parentFragment.appendChild(card);
+                } else {
+                    parentFragment.appendChild(el);
+                }
                 renderedIds.push(String(action.id));
             }
         }
@@ -6267,14 +6314,14 @@ function renderActions(opts) {
                     regularGroupActions[0]._singleGroup = true;
                 }
                 // Render everything directly (context headers + the single regular action)
-                _renderActionList(group.actions, fragment, rootId);
+                _renderActionList(group.actions, fragment, rootId, true);
                 continue;
             }
 
             // If the group's root IS a context header, skip the aggregate header —
             // the context header itself will serve as the header
             if (contextHeaderIds.has(rootId)) {
-                _renderActionList(group.actions, fragment, rootId);
+                _renderActionList(group.actions, fragment, rootId, true);
                 continue;
             }
 
@@ -6453,19 +6500,22 @@ function renderActions(opts) {
                 }
             });
 
-            fragment.appendChild(header);
+            const card = document.createElement('div');
+            card.className = 'action-card';
+            card.appendChild(header);
 
             if (!isCollapsed) {
                 const childrenContainer = document.createElement('div');
                 childrenContainer.className = 'action-group-children';
                 _renderActionList(group.actions, childrenContainer, rootId);
-                fragment.appendChild(childrenContainer);
+                card.appendChild(childrenContainer);
             }
+            fragment.appendChild(card);
         }
     } else {
         // Flat (no grouping) — but may still have context headers
         state._actionGroupingActive = contextHeaderIds.size > 0;
-        _renderActionList(groupableItems, fragment);
+        _renderActionList(groupableItems, fragment, undefined, true);
     }
 
     // Update visible IDs to only include rendered (non-collapsed) actions
@@ -6495,7 +6545,7 @@ function renderActions(opts) {
             });
         } else {
             // Full list animation (zoom-in from project selection etc.)
-            let animTargets = container.querySelectorAll('.action-item, .action-group-header');
+            let animTargets = container.querySelectorAll('.action-card, .action-item:not(.action-card .action-item), .action-group-header:not(.action-card .action-group-header)');
             const staggerMs = Math.min(30, animTargets.length > 0 ? 500 / animTargets.length : 30);
             animTargets.forEach((el, i) => {
                 el.classList.add('action-enter');
@@ -12417,14 +12467,35 @@ function createFreeTimeBlock(startMs, endMs) {
             nameSpan.className = 'segment-queue-name';
             nameSpan.textContent = action.name;
 
-            // Clickable est badge with inline edit
-            const est = document.createElement('span');
-            est.className = 'segment-queue-est';
-            est.textContent = estMins ? `~${estMins}m` : '⏱';
-            est.title = 'Click to set duration for this assignment';
+            // Per-item capacity bar (invested vs allocated)
+            const _itemInvMins = _computeItemInvestmentInWindow(action.id, startMs, endMs);
+            const est = document.createElement('div');
+            est.className = 'segment-item-capacity';
+            est.title = 'Click to set duration';
+            if (estMins > 0 || _itemInvMins > 0) {
+                const _total = estMins || _itemInvMins;
+                const _invPct = _total > 0 ? Math.min(100, (_itemInvMins / _total) * 100) : 0;
+                const _isOver = _itemInvMins > estMins && estMins > 0;
+                const track = document.createElement('div');
+                track.className = 'segment-item-cap-track';
+                const fillInv = document.createElement('div');
+                fillInv.className = 'segment-item-cap-invested' + (_isOver ? ' over-capacity' : '');
+                fillInv.style.width = `${_invPct}%`;
+                track.appendChild(fillInv);
+                est.appendChild(track);
+            }
+            const estLbl = document.createElement('span');
+            estLbl.className = 'segment-item-cap-label';
+            if (_itemInvMins > 0 && estMins > 0) {
+                estLbl.textContent = `${_formatDuration(_itemInvMins)}/${_formatDuration(estMins)}`;
+            } else if (_itemInvMins > 0) {
+                estLbl.textContent = `${_formatDuration(_itemInvMins)} done`;
+            } else {
+                estLbl.textContent = estMins ? `~${estMins}m` : '⏱';
+            }
+            est.appendChild(estLbl);
             est.addEventListener('click', (ev) => {
                 ev.stopPropagation();
-                // Remove any existing popover
                 document.querySelectorAll('.segment-duration-popover').forEach(p => p.remove());
                 const pop = document.createElement('div');
                 pop.className = 'segment-duration-popover';
@@ -12452,7 +12523,6 @@ function createFreeTimeBlock(startMs, endMs) {
                 row.appendChild(pop);
                 input.focus();
                 input.select();
-                // Close on outside click
                 const closeHandler = (ce) => {
                     if (!pop.contains(ce.target)) {
                         pop.remove();
@@ -12460,7 +12530,6 @@ function createFreeTimeBlock(startMs, endMs) {
                     }
                 };
                 setTimeout(() => document.addEventListener('click', closeHandler, true), 0);
-                // Submit on Enter
                 input.addEventListener('keydown', (ke) => {
                     if (ke.key === 'Enter') saveBtn.click();
                     if (ke.key === 'Escape') pop.remove();
@@ -12541,16 +12610,23 @@ function createFreeTimeBlock(startMs, endMs) {
 
         el.appendChild(queue);
 
-        // Capacity bar
+        // Capacity bar (two-fill: invested + planned)
         const availMins = Math.floor(durationMs / 60000);
-        if (totalEstMins > 0) {
+        const investedMins = _computeSessionInvestment(startMs, endMs);
+        if (totalEstMins > 0 || investedMins > 0) {
             const capBar = document.createElement('div');
             capBar.className = 'segment-capacity-bar';
-            const fillPct = Math.min(100, (totalEstMins / availMins) * 100);
-            const isOver = totalEstMins > availMins;
+            const total = availMins;
+            const invPct = total > 0 ? Math.min(100, (investedMins / total) * 100) : 0;
+            const planPct = total > 0 ? Math.min(100 - invPct, (totalEstMins / total) * 100) : 0;
+            const isOver = investedMins + totalEstMins > availMins;
+            const lblParts = [];
+            if (investedMins > 0) lblParts.push(`${_formatDuration(investedMins)} done`);
+            if (totalEstMins > 0) lblParts.push(`${_formatDuration(totalEstMins)} planned`);
+            lblParts.push(`${_formatDuration(availMins)} avail`);
             capBar.innerHTML = `
-                <span class="segment-capacity-label">${_formatDuration(totalEstMins)} / ${_formatDuration(availMins)}</span>
-                <div class="segment-capacity-track"><div class="segment-capacity-fill${isOver ? ' over-capacity' : ''}" style="width:${fillPct}%"></div></div>
+                <span class="segment-capacity-label">${lblParts.join(' · ')}</span>
+                <div class="segment-capacity-track"><div class="segment-capacity-fill-invested" style="width:${invPct}%"></div><div class="segment-capacity-fill-planned${isOver ? ' over-capacity' : ''}" style="width:${planPct}%"></div></div>
             `;
             el.appendChild(capBar);
         }
@@ -13552,10 +13628,34 @@ function _attachEntryDropAndQueue(el, contextStr, deadlineMs) {
             nameSpan.className = 'segment-queue-name';
             nameSpan.textContent = action.name;
 
-            const est = document.createElement('span');
-            est.className = 'segment-queue-est';
-            est.textContent = estMins ? `~${estMins}m` : '⏱';
-            est.title = 'Click to set duration for this assignment';
+            // Per-item capacity bar (invested vs allocated)
+            const _gapWin2 = getTimeWindowForContext(contextStr);
+            const _gapItemInv = _gapWin2 ? _computeItemInvestmentInWindow(action.id, _gapWin2.startMs, _gapWin2.endMs) : 0;
+            const est = document.createElement('div');
+            est.className = 'segment-item-capacity';
+            est.title = 'Click to set duration';
+            if (estMins > 0 || _gapItemInv > 0) {
+                const _total = estMins || _gapItemInv;
+                const _invPct = _total > 0 ? Math.min(100, (_gapItemInv / _total) * 100) : 0;
+                const _isOver = _gapItemInv > estMins && estMins > 0;
+                const track = document.createElement('div');
+                track.className = 'segment-item-cap-track';
+                const fillInv = document.createElement('div');
+                fillInv.className = 'segment-item-cap-invested' + (_isOver ? ' over-capacity' : '');
+                fillInv.style.width = `${_invPct}%`;
+                track.appendChild(fillInv);
+                est.appendChild(track);
+            }
+            const estLbl = document.createElement('span');
+            estLbl.className = 'segment-item-cap-label';
+            if (_gapItemInv > 0 && estMins > 0) {
+                estLbl.textContent = `${_formatDuration(_gapItemInv)}/${_formatDuration(estMins)}`;
+            } else if (_gapItemInv > 0) {
+                estLbl.textContent = `${_formatDuration(_gapItemInv)} done`;
+            } else {
+                estLbl.textContent = estMins ? `~${estMins}m` : '⏱';
+            }
+            est.appendChild(estLbl);
             est.addEventListener('click', (ev) => {
                 ev.stopPropagation();
                 document.querySelectorAll('.segment-duration-popover').forEach(p => p.remove());
@@ -13666,20 +13766,29 @@ function _attachEntryDropAndQueue(el, contextStr, deadlineMs) {
 
         el.appendChild(queue);
 
-        // Capacity bar — uses remaining time (deadline - now) as available capacity
+        // Capacity bar — two-fill (invested + planned), remaining time as capacity
         const nowCap = Date.now();
         const remainingMs = Math.max(0, deadlineMs - nowCap);
         const availMins = Math.max(1, Math.floor(remainingMs / 60000));
-        if (totalEstMins > 0) {
+        // Derive session start from context string for investment computation
+        const _gapWin = getTimeWindowForContext(contextStr);
+        const investedMins = _gapWin ? _computeSessionInvestment(_gapWin.startMs, _gapWin.endMs) : 0;
+        if (totalEstMins > 0 || investedMins > 0) {
             const capBar = document.createElement('div');
             capBar.className = 'segment-capacity-bar';
             capBar.dataset.capDeadline = deadlineMs;
             capBar.dataset.capTotalEst = totalEstMins;
-            const fillPct = Math.min(100, (totalEstMins / availMins) * 100);
-            const isOver = totalEstMins > availMins;
+            const total = availMins;
+            const invPct = total > 0 ? Math.min(100, (investedMins / total) * 100) : 0;
+            const planPct = total > 0 ? Math.min(100 - invPct, (totalEstMins / total) * 100) : 0;
+            const isOver = investedMins + totalEstMins > availMins;
+            const lblParts = [];
+            if (investedMins > 0) lblParts.push(`${_formatDuration(investedMins)} done`);
+            if (totalEstMins > 0) lblParts.push(`${_formatDuration(totalEstMins)} planned`);
+            lblParts.push(`${_formatDuration(availMins)} avail`);
             capBar.innerHTML = `
-                <span class="segment-capacity-label">${_formatDuration(totalEstMins)} / ${_formatDuration(availMins)}</span>
-                <div class="segment-capacity-track"><div class="segment-capacity-fill${isOver ? ' over-capacity' : ''}" style="width:${fillPct}%"></div></div>
+                <span class="segment-capacity-label">${lblParts.join(' · ')}</span>
+                <div class="segment-capacity-track"><div class="segment-capacity-fill-invested" style="width:${invPct}%"></div><div class="segment-capacity-fill-planned${isOver ? ' over-capacity' : ''}" style="width:${planPct}%"></div></div>
             `;
             el.appendChild(capBar);
         }
@@ -15632,11 +15741,33 @@ function createPlannedTimeBlock(entry, isPhantom = false) {
             nameSpan.className = 'segment-queue-name';
             nameSpan.textContent = action.name;
 
-            // Clickable est badge with inline edit
-            const est = document.createElement('span');
-            est.className = 'segment-queue-est';
-            est.textContent = estMins ? `~${estMins}m` : '⏱';
-            est.title = 'Click to set duration for this assignment';
+            // Per-item capacity bar (invested vs allocated)
+            const _entryItemInv = _computeItemInvestmentInWindow(action.id, entry.timestamp, entry.endTime);
+            const est = document.createElement('div');
+            est.className = 'segment-item-capacity';
+            est.title = 'Click to set duration';
+            if (estMins > 0 || _entryItemInv > 0) {
+                const _total = estMins || _entryItemInv;
+                const _invPct = _total > 0 ? Math.min(100, (_entryItemInv / _total) * 100) : 0;
+                const _isOver = _entryItemInv > estMins && estMins > 0;
+                const track = document.createElement('div');
+                track.className = 'segment-item-cap-track';
+                const fillInv = document.createElement('div');
+                fillInv.className = 'segment-item-cap-invested' + (_isOver ? ' over-capacity' : '');
+                fillInv.style.width = `${_invPct}%`;
+                track.appendChild(fillInv);
+                est.appendChild(track);
+            }
+            const estLbl = document.createElement('span');
+            estLbl.className = 'segment-item-cap-label';
+            if (_entryItemInv > 0 && estMins > 0) {
+                estLbl.textContent = `${_formatDuration(_entryItemInv)}/${_formatDuration(estMins)}`;
+            } else if (_entryItemInv > 0) {
+                estLbl.textContent = `${_formatDuration(_entryItemInv)} done`;
+            } else {
+                estLbl.textContent = estMins ? `~${estMins}m` : '⏱';
+            }
+            est.appendChild(estLbl);
             est.addEventListener('click', (ev) => {
                 ev.stopPropagation();
                 document.querySelectorAll('.segment-duration-popover').forEach(p => p.remove());
@@ -15748,16 +15879,23 @@ function createPlannedTimeBlock(entry, isPhantom = false) {
 
         el.appendChild(queue);
 
-        // Capacity bar
+        // Capacity bar (two-fill: invested + planned)
         const availMins = Math.floor(durationMs / 60000);
-        if (totalEstMins > 0) {
+        const investedMins = _computeSessionInvestment(entry.timestamp, entry.endTime);
+        if (totalEstMins > 0 || investedMins > 0) {
             const capBar = document.createElement('div');
             capBar.className = 'segment-capacity-bar';
-            const fillPct = Math.min(100, (totalEstMins / availMins) * 100);
-            const isOver = totalEstMins > availMins;
+            const total = availMins;
+            const invPct = total > 0 ? Math.min(100, (investedMins / total) * 100) : 0;
+            const planPct = total > 0 ? Math.min(100 - invPct, (totalEstMins / total) * 100) : 0;
+            const isOver = investedMins + totalEstMins > availMins;
+            const lblParts = [];
+            if (investedMins > 0) lblParts.push(`${_formatDuration(investedMins)} done`);
+            if (totalEstMins > 0) lblParts.push(`${_formatDuration(totalEstMins)} planned`);
+            lblParts.push(`${_formatDuration(availMins)} avail`);
             capBar.innerHTML = `
-                <span class="segment-capacity-label">${_formatDuration(totalEstMins)} / ${_formatDuration(availMins)}</span>
-                <div class="segment-capacity-track"><div class="segment-capacity-fill${isOver ? ' over-capacity' : ''}" style="width:${fillPct}%"></div></div>
+                <span class="segment-capacity-label">${lblParts.join(' · ')}</span>
+                <div class="segment-capacity-track"><div class="segment-capacity-fill-invested" style="width:${invPct}%"></div><div class="segment-capacity-fill-planned${isOver ? ' over-capacity' : ''}" style="width:${planPct}%"></div></div>
             `;
             el.appendChild(capBar);
         }
@@ -20835,6 +20973,14 @@ function animateLayerTransition(direction, updateFn) {
         '.epoch-nav-display, .month-nav-display, .week-nav-display, .date-nav-display, .session-nav-display, .live-nav-display'
     )];
 
+    // Also zoom the actions area in sync with the timeline
+    const actionsContainer = document.getElementById('actions-list');
+    const actionsZoomClass = direction === 'up' ? 'actions-zoom-in' : 'actions-zoom-out';
+    if (actionsContainer) {
+        actionsContainer.classList.remove('actions-zoom-in', 'actions-zoom-out');
+        actionsContainer.getAnimations().forEach(a => a.cancel());
+    }
+
     // Cancel any in-flight animation
     for (const el of targets) {
         allClasses.forEach(c => el.classList.remove(c));
@@ -20853,14 +20999,16 @@ function animateLayerTransition(direction, updateFn) {
     const towerOutClass = direction === 'up' ? 'tower-slide-out-up' : 'tower-slide-out-down';
     for (const el of targets) el.classList.add(outClass);
     for (const el of towerDisplays) el.classList.add(towerOutClass);
+    if (actionsContainer) actionsContainer.classList.add(actionsZoomClass);
 
     const onSlideOutDone = () => {
         if (outDone) return;
         outDone = true;
         for (const el of targets) el.classList.remove(outClass);
         for (const el of towerDisplays) el.classList.remove(towerOutClass);
+        if (actionsContainer) actionsContainer.classList.remove(actionsZoomClass);
 
-        // Phase 2: update state + re-render
+        // Phase 2: update state + re-render (stagger-in handled by _animateActions)
         updateFn();
 
         // Phase 3: slide new content in (re-query displays since DOM may have changed)

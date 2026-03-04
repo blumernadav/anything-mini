@@ -1082,6 +1082,25 @@ body {
     z-index: 2;
 }
 
+/* ── Action Cards ── */
+.action-card {
+    border: 1px dashed var(--pencil-ghost);
+    border-radius: var(--radius);
+    margin-bottom: 4px;
+    padding: 2px 0;
+    transition: border-color var(--dur) var(--ease);
+    position: relative;
+    z-index: 2;
+}
+
+.action-card:last-child {
+    margin-bottom: 0;
+}
+
+.action-card:hover {
+    border-color: var(--pencil-soft);
+}
+
 /* ── Action Group Headers ── */
 .action-group-header {
     display: flex;
@@ -1090,7 +1109,6 @@ body {
     padding: 4px 6px;
     cursor: pointer;
     user-select: none;
-    border-bottom: 1px dashed var(--pencil-ghost);
     transition: background var(--dur) var(--ease);
     position: relative;
     z-index: 2;
@@ -4990,6 +5008,52 @@ select.schedule-leadtime-input {
     flex-shrink: 0;
 }
 
+/* Per-item capacity bar */
+.segment-item-capacity {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+    cursor: pointer;
+    min-width: 60px;
+    position: relative;
+}
+
+.segment-item-cap-track {
+    width: 36px;
+    height: 3px;
+    background: var(--pencil-ghost);
+    border-radius: 2px;
+    display: flex;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.segment-item-cap-invested {
+    height: 100%;
+    background: #4a8b4a;
+    border-radius: 2px 0 0 2px;
+    transition: width 0.3s ease;
+}
+
+.segment-item-cap-invested.over-capacity {
+    background: var(--red-pen);
+}
+
+.segment-item-cap-remaining {
+    height: 100%;
+    background: #5eab5e;
+    opacity: 0.3;
+    transition: width 0.3s ease;
+}
+
+.segment-item-cap-label {
+    font-size: 13px;
+    font-family: 'Caveat', cursive;
+    color: var(--pencil-faint);
+    white-space: nowrap;
+}
+
 .segment-queue-start {
     opacity: 0;
     border: 1px dashed #5eab5e;
@@ -5075,6 +5139,7 @@ select.schedule-leadtime-input {
     background: var(--pencil-ghost);
     border-radius: 2px;
     position: relative;
+    display: flex;
 }
 
 .segment-capacity-fill {
@@ -5086,6 +5151,26 @@ select.schedule-leadtime-input {
 
 .segment-capacity-fill.over-capacity {
     background: var(--red-pen);
+}
+
+.segment-capacity-fill-invested {
+    height: 100%;
+    background: #4a8b4a;
+    border-radius: 2px 0 0 2px;
+    transition: width 0.3s ease;
+}
+
+.segment-capacity-fill-planned {
+    height: 100%;
+    background: #5eab5e;
+    opacity: 0.4;
+    border-radius: 0;
+    transition: width 0.3s ease;
+}
+
+.segment-capacity-fill-planned.over-capacity {
+    background: var(--red-pen);
+    opacity: 0.6;
 }
 
 .segment-capacity-label {
@@ -5103,7 +5188,7 @@ select.schedule-leadtime-input {
 
 .segment-capacity-bar:hover .segment-capacity-label {
     opacity: 1;
-    max-width: 100px;
+    max-width: 200px;
 }
 
 .actions-drag-over {
