@@ -9571,7 +9571,9 @@ function toggleSessionFocus(session) {
         state.viewHorizon = 'session';
         savePref('viewHorizon', 'session');
         savePref('sessionIndex', state.sessionIndex);
-        _syncSessionToFocusStack(segments[state.sessionIndex]);
+        // Use the original clicked session's exact boundaries (not the re-derived
+        // plan segment) so actions area matches the free-time block's inline items.
+        _syncSessionToFocusStack(session);
         state._animateActions = true;
         renderAll();
     });
