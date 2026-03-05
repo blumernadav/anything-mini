@@ -667,6 +667,228 @@ const WRITE_TOOLS = [
         }
     },
     {
+        name: 'start_break',
+        description: 'Start a break timer. If currently working on something, stops work first (logs the work session). Optionally set a timed break duration.',
+        parameters: {
+            type: 'object',
+            properties: {
+                durationMinutes: {
+                    type: 'number',
+                    description: 'Optional planned break duration in minutes. Sets a target end time.'
+                }
+            }
+        },
+        async execute(args, stores) {
+            const prefs = await stores.preferences.read();
+
+            // If working on something, stop it first (same as client-side startBreak)
+            if (prefs.workingOn) {
+                const endTime = Date.now();
+                const durationMs = endTime - prefs.workingOn.startTime;
+                const hrs = Math.floor(durationMs / 3600000);
+                const mins = Math.floor((durationMs % 3600000) / 60000);
+                const durStr = hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
+
+                const timeline = await stores.timeline.read() || { entries: [], nextId: 1 };
+                timeline.entries.push({
+                    id: timeline.nextId++,
+                    text: `Worked on: ${prefs.workingOn.itemName} (${durStr})`,
+                    projectName: prefs.workingOn.projectName,
+                    type: 'work',
+                    startTime: prefs.workingOn.startTime,
+                    endTime,
+                    targetEndTime: prefs.workingOn.targetEndTime || undefined,
+                    itemId: prefs.workingOn.itemId,
+                    timestamp: prefs.workingOn.startTime
+                });
+                await stores.timeline.write(timeline);
+                prefs.workingOn = null;
+            }
+
+            const now = Date.now();
+            prefs.onBreak = {
+                startTime: now,
+                targetEndTime: args.durationMinutes ? now + (args.durationMinutes * 60000) : null
+            };
+            await stores.preferences.write(prefs);
+
+            return { message: `Break started${args.durationMinutes ? ` (${args.durationMinutes}min)` : ''}` };
+        },
+        describe(args) {
+            return `☕ Start break${args.durationMinutes ? ` (${args.durationMinutes}min)` : ''}`;
+        }
+    },
+    {
+        name: 'stop_break',
+        description: 'Stop the current break and log it as a timeline entry. Only works if the user is currently on a break (onBreak is not null).',
+        parameters: {
+            type: 'object',
+            properties: {},
+        },
+        async execute(args, stores) {
+            const prefs = await stores.preferences.read();
+            if (!prefs || !prefs.onBreak) return { error: 'Not currently on a break' };
+
+            const endTime = Date.now();
+            const durationMs = endTime - prefs.onBreak.startTime;
+            const hrs = Math.floor(durationMs / 3600000);
+            const mins = Math.floor((durationMs % 3600000) / 60000);
+            const durStr = hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
+
+            // Create timeline entry
+            const timeline = await stores.timeline.read() || { entries: [], nextId: 1 };
+            const entry = {
+                id: timeline.nextId++,
+                text: `Break (${durStr})`,
+                type: 'break',
+                startTime: prefs.onBreak.startTime,
+                endTime,
+                targetEndTime: prefs.onBreak.targetEndTime || undefined,
+                timestamp: prefs.onBreak.startTime
+            };
+            timeline.entries.push(entry);
+            await stores.timeline.write(timeline);
+
+            // Clear break state
+            prefs.onBreak = null;
+            await stores.preferences.write(prefs);
+
+            return { message: `Break ended (${durStr})`, entry };
+        },
+        describe() {
+            return `⏹️ Stop break`;
+        }
+    },
+    {
+        name: 'extend_break',
+        description: 'Extend or modify the current break timer. Can add minutes to the existing target end time, or set a new duration from now. Only works if currently on a break.',
+        parameters: {
+            type: 'object',
+            properties: {
+                addMinutes: {
+                    type: 'number',
+                    description: 'Minutes to add to the current target end time (can be negative to shorten). If there is no target end time, sets one from now.'
+                },
+                setMinutesFromNow: {
+                    type: 'number',
+                    description: 'Set the target end time to this many minutes from now (overrides current target).'
+                }
+            }
+        },
+        async execute(args, stores) {
+            const prefs = await stores.preferences.read();
+            if (!prefs || !prefs.onBreak) return { error: 'Not currently on a break' };
+
+            const now = Date.now();
+            if (args.setMinutesFromNow) {
+                prefs.onBreak.targetEndTime = now + (args.setMinutesFromNow * 60000);
+            } else if (args.addMinutes) {
+                const base = prefs.onBreak.targetEndTime || now;
+                prefs.onBreak.targetEndTime = base + (args.addMinutes * 60000);
+            } else {
+                return { error: 'Specify addMinutes or setMinutesFromNow' };
+            }
+
+            await stores.preferences.write(prefs);
+            const remaining = Math.round((prefs.onBreak.targetEndTime - now) / 60000);
+            return { message: `Break timer updated — ${remaining}min remaining` };
+        },
+        describe(args) {
+            if (args.addMinutes) return `⏱️ Add ${args.addMinutes}min to break`;
+            if (args.setMinutesFromNow) return `⏱️ Set break to ${args.setMinutesFromNow}min from now`;
+            return `⏱️ Modify break timer`;
+        }
+    },
+    {
+        name: 'update_timeline_entry',
+        description: 'Update an existing timeline entry (past log) by its ID. Can change text, start/end times, type, or linked item.',
+        parameters: {
+            type: 'object',
+            properties: {
+                id: {
+                    type: 'number',
+                    description: 'ID of the timeline entry to update'
+                },
+                text: {
+                    type: 'string',
+                    description: 'New text/label for the entry'
+                },
+                name: {
+                    type: 'string',
+                    description: 'Alternative to text — new name for the entry'
+                },
+                startTime: {
+                    type: 'number',
+                    description: 'New start time as Unix timestamp (milliseconds)'
+                },
+                endTime: {
+                    type: 'number',
+                    description: 'New end time as Unix timestamp (milliseconds)'
+                },
+                type: {
+                    type: 'string',
+                    description: 'Entry type: "work", "break", "log", "planned"'
+                },
+                itemId: {
+                    type: 'number',
+                    description: 'ID of the linked item (or null to unlink)'
+                }
+            },
+            required: ['id']
+        },
+        async execute(args, stores) {
+            const data = await stores.timeline.read();
+            const entry = data.entries.find(e => e.id === args.id);
+            if (!entry) return { error: `Timeline entry ${args.id} not found` };
+
+            const { id, ...updates } = args;
+            // Map 'name' to 'text' if provided (entries use 'text' field)
+            if (updates.name && !updates.text) {
+                updates.text = updates.name;
+                delete updates.name;
+            }
+            Object.assign(entry, updates);
+            // Keep timestamp in sync with startTime
+            if (updates.startTime !== undefined) {
+                entry.timestamp = updates.startTime;
+            }
+            await stores.timeline.write(data);
+
+            return { updated: entry, message: `Updated timeline entry #${args.id}` };
+        },
+        describe(args) {
+            const changes = Object.keys(args).filter(k => k !== 'id');
+            return `✏️ Update timeline entry #${args.id}: ${changes.join(', ')}`;
+        }
+    },
+    {
+        name: 'delete_timeline_entry',
+        description: 'Delete a timeline entry (past log) by its ID. Use with caution — this permanently removes the entry.',
+        parameters: {
+            type: 'object',
+            properties: {
+                id: {
+                    type: 'number',
+                    description: 'ID of the timeline entry to delete'
+                }
+            },
+            required: ['id']
+        },
+        async execute(args, stores) {
+            const data = await stores.timeline.read();
+            const idx = data.entries.findIndex(e => e.id === args.id);
+            if (idx === -1) return { error: `Timeline entry ${args.id} not found` };
+
+            const removed = data.entries.splice(idx, 1)[0];
+            await stores.timeline.write(data);
+
+            return { message: `Deleted timeline entry #${args.id}: "${removed.text || removed.name || '(unnamed)'}"` };
+        },
+        describe(args) {
+            return `🗑️ Delete timeline entry #${args.id}`;
+        }
+    },
+    {
         name: 'write_file',
         description: 'Write content to a file in the project (create or overwrite). Path is relative to project root. Creates parent directories if needed.',
         parameters: {
