@@ -10163,6 +10163,14 @@ function _renderSleepIndicator(liveSlot) {
     });
     indicator.appendChild(reopenBtn);
 
+    // Click: focus the live horizon layer
+    indicator.style.cursor = 'pointer';
+    indicator.addEventListener('click', () => {
+        state.timelineViewDate = getLogicalToday();
+        savePref('timelineViewDate', state.timelineViewDate.toISOString());
+        toggleLiveFocus();
+    });
+
     // DnD: drop onto sleep → schedule to today
     _attachLiveIndicatorDnD(indicator, 'idle');
 
@@ -10216,6 +10224,14 @@ function _renderDayStartIndicator(liveSlot) {
         await startDay();
     });
     indicator.appendChild(startBtn);
+
+    // Click: focus the live horizon layer
+    indicator.style.cursor = 'pointer';
+    indicator.addEventListener('click', () => {
+        state.timelineViewDate = getLogicalToday();
+        savePref('timelineViewDate', state.timelineViewDate.toISOString());
+        toggleLiveFocus();
+    });
 
     // DnD: drop onto day-start → schedule to today
     _attachLiveIndicatorDnD(indicator, 'idle');
