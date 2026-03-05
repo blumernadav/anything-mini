@@ -12296,17 +12296,19 @@ function renderTimeline() {
 
     // ── Good Night / Good Morning: always show at top when applicable ──
     if (!state.workingOn && !state.onBreak) {
-        // Check the viewed date first, then fall back to active day key for today
-        const viewedDayClosed = isDayClosed(viewDateKey);
-        const activeDayClosed = isDayClosed(); // checks active day key (may be yesterday)
-        const viewedDayNotStarted = !isDayStarted(viewDateKey);
-        if (viewedDayClosed || (viewingToday && viewedDayNotStarted && activeDayClosed)) {
-            // Show Good Night: either the viewed date is closed, or viewing today
-            // which hasn't started yet but the previous (active) day was closed
-            const closedKey = viewedDayClosed ? viewDateKey : getActiveDayKey();
-            const closedAt = state.settings.dayOverrides?.[closedKey]?.dayClosedAt || dayStart.getTime();
+        const activeDayKey = getActiveDayKey();
+        const actualTodayKey = getDateKey(new Date()); // calendar today, not logical
+        const activeDayClosed = isDayClosed(activeDayKey);
+
+        if (activeDayClosed && (viewDateKey === activeDayKey || viewDateKey === actualTodayKey)) {
+            // Good Night: viewing the closed active day OR actual today when active day is closed
+            const closedAt = state.settings.dayOverrides?.[activeDayKey]?.dayClosedAt || dayStart.getTime();
             fragment.appendChild(createSleepTimeBlock(closedAt));
-        } else if (viewingToday && viewedDayNotStarted) {
+        } else if (viewDateKey === actualTodayKey && !isDayStarted(actualTodayKey)) {
+            // Good Morning: actual today, not started, and active day is NOT closed
+            fragment.appendChild(createDayStartTimeBlock());
+        } else if (viewingToday && !isDayStarted(viewDateKey)) {
+            // Good Morning: logical today, not started
             fragment.appendChild(createDayStartTimeBlock());
         }
     }
