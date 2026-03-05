@@ -922,7 +922,15 @@ function setupAutocomplete(actionInput, suggestions, { onSelect, allowCreate = t
         const tempId = state.items.nextId++;
         const newLocalItem = { id: tempId, name, children: [], expanded: false, createdAt: Date.now(), done: false, timeContexts: getCurrentTimeContexts() };
         const parentArr = parentId ? findItemById(parentId)?.children : state.items.items;
-        if (parentArr) parentArr.push(newLocalItem);
+        if (parentArr) {
+            if (!parentId) {
+                // Root level: insert after Inbox (mirrors server logic)
+                const inboxIdx = parentArr.findIndex(i => i.isInbox);
+                parentArr.splice(inboxIdx >= 0 ? inboxIdx + 1 : 0, 0, newLocalItem);
+            } else {
+                parentArr.unshift(newLocalItem);
+            }
+        }
         saveItems(); // debounced bulk save
         renderProjects();
         renderActions();
@@ -22376,6 +22384,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 _lastRenderedDate = dateStr;
                 const sep = document.createElement('div');
                 sep.className = 'copilot-date-sep';
+                sep.dataset.date = dateStr;
                 sep.textContent = formatDate(timestamp);
                 copilotMessages.appendChild(sep);
             }
@@ -22655,11 +22664,56 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 copilotMessages.scrollTop = copilotMessages.scrollHeight;
                 copilotHistoryLoaded = true;
+                updateStickyDatePill();
             } catch (err) {
                 console.error('Failed to load chat history:', err);
                 copilotHistoryLoaded = true;
             }
         }
+
+        // ── Sticky date pill ──
+        const stickyDatePill = document.getElementById('copilot-sticky-date');
+
+        function updateStickyDatePill() {
+            const seps = copilotMessages.querySelectorAll('.copilot-date-sep');
+            if (seps.length < 2) {
+                stickyDatePill.style.display = 'none';
+                return;
+            }
+            stickyDatePill.style.display = '';
+            syncStickyDateText();
+        }
+
+        function syncStickyDateText() {
+            const seps = copilotMessages.querySelectorAll('.copilot-date-sep');
+            if (!seps.length) return;
+            const scrollTop = copilotMessages.scrollTop;
+            let current = seps[0];
+            for (const sep of seps) {
+                if (sep.offsetTop - copilotMessages.offsetTop <= scrollTop + 4) {
+                    current = sep;
+                } else {
+                    break;
+                }
+            }
+            stickyDatePill.textContent = current.textContent;
+            stickyDatePill.dataset.date = current.dataset.date;
+        }
+
+        let _stickyDateScrollTimer = null;
+        copilotMessages.addEventListener('scroll', () => {
+            clearTimeout(_stickyDateScrollTimer);
+            _stickyDateScrollTimer = setTimeout(syncStickyDateText, 30);
+        });
+
+        stickyDatePill.addEventListener('click', () => {
+            const targetDate = stickyDatePill.dataset.date;
+            if (!targetDate) return;
+            const sep = copilotMessages.querySelector(`.copilot-date-sep[data-date="${targetDate}"]`);
+            if (sep) {
+                sep.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        });
 
         // ── Friendly tool name mapping ──
         const TOOL_DISPLAY_NAMES = {
@@ -22903,6 +22957,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>`;
             _lastRenderedDate = '';
             copilotPendingPlan = null;
+            updateStickyDatePill();
         });
 
         // ── Keyboard shortcut: Ctrl/Cmd + K to toggle copilot ──

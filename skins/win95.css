@@ -1037,6 +1037,12 @@ body {
     display: flex;
 }
 
+.action-group-buttons .action-btn {
+    padding: 0px 4px;
+    font-size: 10px;
+    line-height: 1.2;
+}
+
 .action-group-header .action-estimate-badge.no-estimate {
     display: none;
 }
@@ -1050,7 +1056,6 @@ body {
 .action-group-children {
     padding-left: 12px;
     margin-left: 10px;
-    border-left: 2px solid var(--border);
 }
 
 @keyframes action-group-expand {
@@ -1085,9 +1090,7 @@ body {
     animation: action-group-collapse 150ms ease both;
 }
 
-.action-group-children .action-group-children {
-    border-left-color: color-mix(in srgb, var(--border) 50%, transparent);
-}
+
 
 .action-item {
     display: flex;
@@ -1291,9 +1294,11 @@ body {
 }
 
 .action-item:hover .action-locate-btn,
+.action-group-header:hover .action-locate-btn,
 .segment-queue-item:hover .action-locate-btn,
 .time-block-label.action-name-row:hover>.action-locate-btn,
-.overflow-item:hover .action-locate-btn {
+.overflow-item:hover .action-locate-btn,
+.reflection-tree-row:hover .action-locate-btn {
     max-width: 18px;
     opacity: 0.5;
     margin-right: 3px;
@@ -1963,8 +1968,6 @@ body {
 
 .action-item.action-item-shadow {
     opacity: 0.7;
-    border-left: 2px dotted var(--w-dark);
-    padding-left: 4px;
 }
 
 .action-item.action-item-shadow:hover {
@@ -2128,6 +2131,23 @@ body {
 
 .overflow-item-investment .investment-label {
     font-size: 9px;
+}
+
+.overflow-item-actions {
+    display: none;
+    gap: 2px;
+    flex-shrink: 0;
+    margin-left: auto;
+}
+
+.overflow-item:hover .overflow-item-actions {
+    display: flex;
+}
+
+.overflow-action-btn {
+    padding: 0px 4px;
+    font-size: 10px;
+    line-height: 1.2;
 }
 
 .overflow-toggle-row {
@@ -9316,6 +9336,29 @@ select.schedule-leadtime-input {
 
 .copilot-date-sep::after {
     right: 0;
+}
+
+.copilot-sticky-date {
+    text-align: center;
+    padding: 4px 0;
+    flex-shrink: 0;
+    font-size: 10px;
+    color: #808080;
+    cursor: pointer;
+    background: #e0e0e0;
+    border-bottom: 1px solid #808080;
+    font-family: 'MS Sans Serif', Tahoma, sans-serif;
+    user-select: none;
+    transition: background 0.1s;
+}
+
+.copilot-sticky-date:hover {
+    background: #d0d0d0;
+    color: #000;
+}
+
+.copilot-sticky-date:empty {
+    display: none;
 }
 
 .copilot-timestamp {

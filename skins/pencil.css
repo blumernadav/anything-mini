@@ -1181,6 +1181,12 @@ body {
     display: flex;
 }
 
+.action-group-buttons .action-btn {
+    padding: 1px 5px;
+    font-size: 12px;
+    line-height: 1.2;
+}
+
 .action-group-header .action-estimate-badge.no-estimate {
     display: none;
 }
@@ -1194,7 +1200,6 @@ body {
 .action-group-children {
     padding-left: 12px;
     margin-left: 10px;
-    border-left: 2px solid var(--border);
 }
 
 @keyframes action-group-expand {
@@ -1229,9 +1234,7 @@ body {
     animation: action-group-collapse 150ms ease both;
 }
 
-.action-group-children .action-group-children {
-    border-left-color: color-mix(in srgb, var(--border) 50%, transparent);
-}
+
 
 .action-item {
     display: flex;
@@ -1459,9 +1462,11 @@ body {
 }
 
 .action-item:hover .action-locate-btn,
+.action-group-header:hover .action-locate-btn,
 .segment-queue-item:hover .action-locate-btn,
 .time-block-label.action-name-row:hover>.action-locate-btn,
-.overflow-item:hover .action-locate-btn {
+.overflow-item:hover .action-locate-btn,
+.reflection-tree-row:hover .action-locate-btn {
     max-width: 20px;
     opacity: 0.4;
     margin-right: 4px;
@@ -2143,8 +2148,6 @@ body {
 
 .action-item.action-item-shadow {
     opacity: 0.6;
-    border-left: 2px dashed var(--pencil-ghost);
-    padding-left: 4px;
 }
 
 .action-item.action-item-shadow:hover {
@@ -2303,6 +2306,23 @@ body {
 
 .overflow-item-investment .investment-label {
     font-size: 9px;
+}
+
+.overflow-item-actions {
+    display: none;
+    gap: 2px;
+    flex-shrink: 0;
+    margin-left: auto;
+}
+
+.overflow-item:hover .overflow-item-actions {
+    display: flex;
+}
+
+.overflow-action-btn {
+    padding: 1px 5px;
+    font-size: 12px;
+    line-height: 1.2;
 }
 
 .overflow-toggle-row {
@@ -9960,6 +9980,28 @@ select.schedule-leadtime-input {
 
 .copilot-date-sep::after {
     right: 0;
+}
+
+.copilot-sticky-date {
+    text-align: center;
+    padding: 6px 0;
+    flex-shrink: 0;
+    font-size: 11px;
+    color: #999;
+    cursor: pointer;
+    background: #f0ede0;
+    border-bottom: 1px solid #ddd;
+    transition: background 0.15s, color 0.15s;
+    user-select: none;
+}
+
+.copilot-sticky-date:hover {
+    background: #e8e5d8;
+    color: #555;
+}
+
+.copilot-sticky-date:empty {
+    display: none;
 }
 
 .copilot-timestamp {
