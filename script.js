@@ -12295,11 +12295,11 @@ function renderTimeline() {
 
 
     // ── Good Night / Good Morning: always show at top when applicable ──
-    if (viewingToday && !state.workingOn && !state.onBreak) {
-        if (isDayClosed()) {
-            const closedAt = state.settings.dayOverrides?.[getActiveDayKey()]?.dayClosedAt || dayStart.getTime();
+    if (!state.workingOn && !state.onBreak) {
+        if (isDayClosed(viewDateKey)) {
+            const closedAt = state.settings.dayOverrides?.[viewDateKey]?.dayClosedAt || dayStart.getTime();
             fragment.appendChild(createSleepTimeBlock(closedAt));
-        } else if (!isDayStarted()) {
+        } else if (viewingToday && !isDayStarted()) {
             fragment.appendChild(createDayStartTimeBlock());
         }
     }
@@ -12311,11 +12311,7 @@ function renderTimeline() {
             fragment.appendChild(createWorkingTimeBlock(state.workingOn.startTime, nowMs));
         } else if (state.onBreak) {
             fragment.appendChild(createBreakTimeBlock(state.onBreak.startTime, nowMs));
-        } else if (isDayClosed()) {
-            const closedAt = state.settings.dayOverrides?.[getActiveDayKey()]?.dayClosedAt || dayStart.getTime();
-            fragment.appendChild(createSleepTimeBlock(closedAt));
-        } else if (!isDayStarted()) {
-            fragment.appendChild(createDayStartTimeBlock());
+            // isDayClosed / !isDayStarted handled by standalone block above
         } else {
             // Show idle from the end of the last block (or day start) to now, cap start at now
             const idleStart = Math.min(lastBlockEndBeforeNow || dayStart.getTime(), nowMs);
@@ -12340,11 +12336,7 @@ function renderTimeline() {
                 fragment.appendChild(createWorkingTimeBlock(state.workingOn.startTime, idleEnd));
             } else if (state.onBreak) {
                 fragment.appendChild(createBreakTimeBlock(state.onBreak.startTime, idleEnd));
-            } else if (isDayClosed()) {
-                const closedAt = state.settings.dayOverrides?.[getActiveDayKey()]?.dayClosedAt || dayStart.getTime();
-                fragment.appendChild(createSleepTimeBlock(closedAt));
-            } else if (!isDayStarted()) {
-                fragment.appendChild(createDayStartTimeBlock());
+                // isDayClosed / !isDayStarted handled by standalone block above
             } else {
                 fragment.appendChild(createIdleTimeBlock(dayStart.getTime(), idleEnd, idleEnd >= nowMs));
             }
@@ -12466,11 +12458,7 @@ function renderTimeline() {
                     fragment.appendChild(createWorkingTimeBlock(state.workingOn.startTime, idleEnd));
                 } else if (state.onBreak) {
                     fragment.appendChild(createBreakTimeBlock(state.onBreak.startTime, idleEnd));
-                } else if (isDayClosed()) {
-                    const closedAt = state.settings.dayOverrides?.[getActiveDayKey()]?.dayClosedAt || entryEnd;
-                    fragment.appendChild(createSleepTimeBlock(closedAt));
-                } else if (!isDayStarted()) {
-                    fragment.appendChild(createDayStartTimeBlock());
+                    // isDayClosed / !isDayStarted handled by standalone block above
                 } else {
                     fragment.appendChild(createIdleTimeBlock(entryEnd, idleEnd, idleEnd >= nowMs));
                 }
