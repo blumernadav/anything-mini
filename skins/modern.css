@@ -5254,6 +5254,14 @@ select.schedule-leadtime-input {
     transition: width 0.3s ease;
 }
 
+.segment-capacity-fill-idle {
+    height: 100%;
+    background: #f59e0b;
+    opacity: 0.35;
+    border-radius: 0;
+    transition: width 0.3s ease;
+}
+
 .segment-capacity-fill-planned {
     height: 100%;
     background: #34d399;

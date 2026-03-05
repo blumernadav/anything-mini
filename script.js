@@ -4431,7 +4431,7 @@ function showProjectContextMenu(e, item) {
     // ── Time Context options for projects ──
     const projTodayKey = getDateKey(state.timelineViewDate);
     const hasProjectToday = item.timeContexts && item.timeContexts.includes(projTodayKey);
-    const projIsToday = isCurrentDay(state.timelineViewDate);
+    const projIsToday = getDateKey(state.timelineViewDate) === getDateKey(getLogicalToday());
     const projDateLabel = projIsToday ? 'today' : state.timelineViewDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
     const projTodayOpt = document.createElement('div');
@@ -4678,7 +4678,7 @@ function showActionContextMenu(e, action) {
     // ── Time Context / Schedule options ──
     if (!isDoneInCtx || isBulk) {
         const todayKey = getDateKey(state.timelineViewDate);
-        const viewIsToday = isCurrentDay(state.timelineViewDate);
+        const viewIsToday = getDateKey(state.timelineViewDate) === getDateKey(getLogicalToday());
         const dateLabel = viewIsToday ? 'today' : state.timelineViewDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
         if (isBulk) {
@@ -8861,6 +8861,7 @@ function setupActionInput() {
         if (_existingItemId && !name) {
             const itemId = _existingItemId;
             const itemName = _existingItemName;
+            const targetEndTime = _durationMinutes > 0 ? Date.now() + _durationMinutes * 60000 : null;
             const existingItem = findItemById(itemId);
             if (existingItem) {
                 const timeContexts = _hashOverrideContexts || getCurrentTimeContexts();
@@ -8874,7 +8875,7 @@ function setupActionInput() {
                 ? ancestors.map(a => a.name).join(' › ')
                 : null;
             _clearInputState();
-            await startWorking(itemId, itemName, projectName);
+            await startWorking(itemId, itemName, projectName, targetEndTime);
             return;
         }
 
@@ -8882,12 +8883,13 @@ function setupActionInput() {
         if (_atOverrideId && !name) {
             const itemId = _atOverrideId;
             const itemName = _atOverrideName;
+            const targetEndTime = _durationMinutes > 0 ? Date.now() + _durationMinutes * 60000 : null;
             const ancestors = getAncestorPath(itemId);
             const projectName = ancestors && ancestors.length > 0
                 ? ancestors.map(a => a.name).join(' › ')
                 : null;
             _clearInputState();
-            await startWorking(itemId, itemName, projectName);
+            await startWorking(itemId, itemName, projectName, targetEndTime);
             return;
         }
 
@@ -8924,8 +8926,9 @@ function setupActionInput() {
             const projectName = ancestors && ancestors.length > 0
                 ? ancestors.map(a => a.name).join(' › ')
                 : null;
+            const targetEndTime = _durationMinutes > 0 ? Date.now() + _durationMinutes * 60000 : null;
             _clearInputState();
-            await startWorking(newItem.id, name, projectName);
+            await startWorking(newItem.id, name, projectName, targetEndTime);
         } else {
             _clearInputState();
         }
@@ -9045,7 +9048,12 @@ function getLogicalToday() {
     const yesterday = new Date(now);
     yesterday.setDate(yesterday.getDate() - 1);
     if (isCurrentDay(yesterday)) return yesterday;
-    // Fallback: use current calendar date
+    // Gap: we're between days. Prefer the earlier day (yesterday)
+    // unless the latter day's configured start time has already passed.
+    const todayTimes = getEffectiveDayTimes(now);
+    const todayStart = new Date(now);
+    todayStart.setHours(todayTimes.dayStartHour, todayTimes.dayStartMinute, 0, 0);
+    if (now < todayStart) return yesterday; // before today's start → still yesterday
     return now;
 }
 
@@ -12112,9 +12120,20 @@ function renderTimeline() {
         fragment.appendChild(createDayBoundaryBlock('day-start', dayStart, now));
     }
 
-    // ── Build interleaved block entries + free time blocks ──
-    // Track cursor through the day to find gaps — only block entries advance the cursor
-    let cursor = hidePast ? Math.max(nowMs, dayStart.getTime()) : dayStart.getTime();
+    // Track cursor through the day — only PLANNED entries define free block boundaries
+    // When hiding past, start from the last planned entry's end (not now) to show full free gap
+    let cursor;
+    if (hidePast) {
+        let lastPlannedEndBeforeNow = dayStart.getTime();
+        for (const e of allBlockEntries) {
+            if (e.type === 'planned' && e.endTime <= nowMs) {
+                lastPlannedEndBeforeNow = Math.max(lastPlannedEndBeforeNow, e.endTime);
+            }
+        }
+        cursor = lastPlannedEndBeforeNow;
+    } else {
+        cursor = dayStart.getTime();
+    }
 
     // Find the last BLOCK entry that starts at or before "now", tracking its effective end time
     // Use allBlockEntries so we find the anchor even when past entries are hidden
@@ -12141,19 +12160,15 @@ function renderTimeline() {
     // The idle/working block represents the CURRENT state and should always be visible
     if (hidePast && viewingToday && nowMs > dayStart.getTime() && nowMs < dayEndMs) {
         if (state.workingOn) {
-            const workProjectedEnd = Math.max(nowMs, state.workingOn.targetEndTime || 0);
             fragment.appendChild(createWorkingTimeBlock(state.workingOn.startTime, nowMs));
-            cursor = Math.max(cursor, workProjectedEnd);
         } else if (state.onBreak) {
             fragment.appendChild(createBreakTimeBlock(state.onBreak.startTime, nowMs));
-            const breakProjectedEnd = Math.max(nowMs, state.onBreak.targetEndTime || nowMs);
-            cursor = Math.max(cursor, breakProjectedEnd);
         } else {
             // Show idle from the end of the last block (or day start) to now, cap start at now
             const idleStart = Math.min(lastBlockEndBeforeNow || dayStart.getTime(), nowMs);
             fragment.appendChild(createIdleTimeBlock(idleStart, nowMs, true));
-            cursor = Math.max(cursor, nowMs);
         }
+        // Don't advance cursor — free blocks should show full gap with idle in capacity bar
     }
 
     // ── If no block entries before now and viewing today, idle/working from day start to now ──
@@ -12168,17 +12183,13 @@ function renderTimeline() {
 
         if (idleEnd > dayStart.getTime()) {
             if (state.workingOn) {
-                const workProjectedEnd = Math.max(nowMs, state.workingOn.targetEndTime || 0);
                 fragment.appendChild(createWorkingTimeBlock(state.workingOn.startTime, idleEnd));
-                cursor = Math.max(cursor, workProjectedEnd);
             } else if (state.onBreak) {
                 fragment.appendChild(createBreakTimeBlock(state.onBreak.startTime, idleEnd));
-                const breakProjectedEnd = Math.max(nowMs, state.onBreak.targetEndTime || nowMs);
-                cursor = Math.max(cursor, breakProjectedEnd);
             } else {
                 fragment.appendChild(createIdleTimeBlock(dayStart.getTime(), idleEnd, idleEnd >= nowMs));
-                cursor = Math.max(cursor, idleEnd);
             }
+            // Don't advance cursor — free blocks should show full gap with idle in capacity bar
         }
         // Append any moment entries in the idle gap
         appendMomentsBetween(fragment, dayStart.getTime(), idleEnd);
@@ -12240,13 +12251,17 @@ function renderTimeline() {
             for (const m of remainingMoments) {
                 fragment.appendChild(createMomentEntry(m));
             }
-            cursor = Math.max(cursor, pastEnd);
+            // Only advance cursor past planned entries — work/break/idle logs
+            // exist WITHIN free time blocks, they don't truncate them.
+            const lastPlannedEnd = pastRun.reduce((acc, e) => e.type === 'planned' ? Math.max(acc, e.endTime) : acc, cursor);
+            cursor = Math.max(cursor, lastPlannedEnd);
             i = j - 1; // skip processed entries (loop will increment)
             continue;
         }
 
-        // Insert free time block for any gap before this block entry
-        if (entryTime > cursor) {
+        // Insert free time block for any gap before a PLANNED entry
+        // (Work/break/idle logs exist within free time blocks — only plans define boundaries)
+        if (entry.type === 'planned' && entryTime > cursor) {
             const gapEnd = Math.min(entryTime, dayEndMs);
             const gapMs = gapEnd - cursor;
 
@@ -12266,7 +12281,11 @@ function renderTimeline() {
         // Render entry normally
         fragment.appendChild(createTimelineElement(entry));
         appendMomentsBetween(fragment, entryTime, entryEnd);
-        cursor = Math.max(cursor, entryEnd);
+        // Only advance cursor past planned entries — work/break/idle logs
+        // exist WITHIN free time blocks, they don't truncate them.
+        if (entry.type === 'planned') {
+            cursor = Math.max(cursor, entryEnd);
+        }
 
         // ── Divergence prompt: if this planned entry is an unresolved divergence, show resolve prompt ──
         if (!hidePast && entry.type === 'planned' && divergenceByEntryId.has(entry.id)) {
@@ -12285,17 +12304,13 @@ function renderTimeline() {
             const idleEnd = nextBlock ? Math.min(nowMs, nextBlock.timestamp) : nowMs;
             if (idleEnd > entryEnd) {
                 if (state.workingOn) {
-                    const workProjectedEnd = Math.max(nowMs, state.workingOn.targetEndTime || 0);
                     fragment.appendChild(createWorkingTimeBlock(state.workingOn.startTime, idleEnd));
-                    cursor = Math.max(cursor, workProjectedEnd);
                 } else if (state.onBreak) {
                     fragment.appendChild(createBreakTimeBlock(state.onBreak.startTime, idleEnd));
-                    const breakProjectedEnd = Math.max(nowMs, state.onBreak.targetEndTime || nowMs);
-                    cursor = Math.max(cursor, breakProjectedEnd);
                 } else {
                     fragment.appendChild(createIdleTimeBlock(entryEnd, idleEnd, idleEnd >= nowMs));
-                    cursor = Math.max(cursor, idleEnd);
                 }
+                // Don't advance cursor — free blocks should show full gap with idle in capacity bar
                 appendMomentsBetween(fragment, entryEnd, idleEnd);
             }
         }
@@ -12515,11 +12530,10 @@ function createFreeTimeBlock(startMs, endMs) {
 
     // (Phantom segment items removed — replaced by persistent buffer entries)
 
+    let totalEstMins = 0;
     if (assignedItems.length > 0) {
         const queue = document.createElement('div');
         queue.className = 'segment-queue';
-
-        let totalEstMins = 0;
 
         // ── Regular assigned items ──
         for (const action of assignedItems) {
@@ -12705,27 +12719,52 @@ function createFreeTimeBlock(startMs, endMs) {
         }
 
         el.appendChild(queue);
+    }
 
-        // Capacity bar (two-fill: invested + planned)
-        const availMins = Math.floor(durationMs / 60000);
-        const investedMins = _computeSessionInvestment(startMs, endMs);
-        if (totalEstMins > 0 || investedMins > 0) {
-            const capBar = document.createElement('div');
-            capBar.className = 'segment-capacity-bar';
-            const total = availMins;
-            const invPct = total > 0 ? Math.min(100, (investedMins / total) * 100) : 0;
-            const planPct = total > 0 ? Math.min(100 - invPct, (totalEstMins / total) * 100) : 0;
-            const isOver = investedMins + totalEstMins > availMins;
-            const lblParts = [];
-            if (investedMins > 0) lblParts.push(`${_formatDuration(investedMins)} done`);
-            if (totalEstMins > 0) lblParts.push(`${_formatDuration(totalEstMins)} planned`);
-            lblParts.push(`${_formatDuration(availMins)} avail`);
-            capBar.innerHTML = `
-                <span class="segment-capacity-label">${lblParts.join(' · ')}</span>
-                <div class="segment-capacity-track"><div class="segment-capacity-fill-invested" style="width:${invPct}%"></div><div class="segment-capacity-fill-planned${isOver ? ' over-capacity' : ''}" style="width:${planPct}%"></div></div>
-            `;
-            el.appendChild(capBar);
-        }
+    // Capacity bar (three-fill: invested + idle + planned) — always shown
+    const availMins = Math.floor(durationMs / 60000);
+    const investedMins = _computeSessionInvestment(startMs, endMs);
+    // Compute elapsed and idle time (same model as computeSessionCapacity)
+    const _freeNowMs = Date.now();
+    const _freeElapsedMs = Math.max(0, Math.min(_freeNowMs, endMs) - startMs);
+    const _freeElapsedMins = Math.round(_freeElapsedMs / 60000);
+    // Include live work/break in invested if overlapping this window
+    let _freeLiveMins = 0;
+    if (state.workingOn) {
+        const s = Math.max(state.workingOn.startTime, startMs);
+        const e = Math.min(_freeNowMs, endMs);
+        if (e > s) _freeLiveMins += Math.round((e - s) / 60000);
+    }
+    if (state.onBreak) {
+        const s = Math.max(state.onBreak.startTime, startMs);
+        const e = Math.min(_freeNowMs, endMs);
+        if (e > s) _freeLiveMins += Math.round((e - s) / 60000);
+    }
+    const _freeTotalInvested = investedMins + _freeLiveMins;
+    const _freeIdleMins = Math.max(0, _freeElapsedMins - _freeTotalInvested);
+    const _freeRemainingMins = Math.max(0, availMins - _freeElapsedMins);
+    {
+        const capBar = document.createElement('div');
+        capBar.className = 'segment-capacity-bar segment-capacity-bar-free';
+        const total = availMins;
+        const invPct = total > 0 ? Math.min(100, (_freeTotalInvested / total) * 100) : 0;
+        const idlePct = total > 0 ? Math.min(100 - invPct, (_freeIdleMins / total) * 100) : 0;
+        const planPct = total > 0 ? Math.min(100 - invPct - idlePct, (totalEstMins / total) * 100) : 0;
+        const isOver = _freeTotalInvested + totalEstMins > _freeRemainingMins + _freeTotalInvested;
+        const lblParts = [];
+        if (_freeTotalInvested > 0) lblParts.push(`${_formatDuration(_freeTotalInvested)} done`);
+        if (_freeIdleMins > 0) lblParts.push(`${_formatDuration(_freeIdleMins)} idle`);
+        if (totalEstMins > 0) lblParts.push(`${_formatDuration(totalEstMins)} planned`);
+        lblParts.push(`${_formatDuration(_freeRemainingMins)} free`);
+        capBar.innerHTML = `
+            <span class="segment-capacity-label">${lblParts.join(' · ')}</span>
+            <div class="segment-capacity-track"><div class="segment-capacity-fill-invested" style="width:${invPct}%"></div><div class="segment-capacity-fill-idle" style="width:${idlePct}%"></div><div class="segment-capacity-fill-planned${isOver ? ' over-capacity' : ''}" style="width:${planPct}%"></div></div>
+        `;
+        // Store metadata for tick-based refresh
+        capBar.dataset.freeStartMs = startMs;
+        capBar.dataset.freeEndMs = endMs;
+        capBar.dataset.freePlannedMins = totalEstMins;
+        el.appendChild(capBar);
     }
 
     return el;
@@ -14301,9 +14340,7 @@ function startIdleUpdater() {
                 timeEl.textContent = `${formatTime(startMs)} – ${formatTime(nowMs)}`;
             }
 
-            // Push adjacent free time block (use projected end so free time starts after work)
-            const workEffectiveEnd = targetEnd ? Math.max(nowMs, targetEnd) : nowMs;
-            updateAdjacentFreeBlock(workingBlock, workEffectiveEnd);
+            // (Free blocks no longer clamped — they show full gap with idle in capacity bar)
 
             // Update capacity bar remaining time
             _updateLiveCapacityBar(workingBlock, targetEnd);
@@ -14355,9 +14392,7 @@ function startIdleUpdater() {
                 timeEl.textContent = `${formatTime(startMs)} – ${formatTime(nowMs)}`;
             }
 
-            // Push adjacent free time block (use projected end so free time starts after break)
-            const breakEffectiveEnd = targetEnd ? Math.max(nowMs, targetEnd) : nowMs;
-            updateAdjacentFreeBlock(breakBlock, breakEffectiveEnd);
+            // (Free blocks no longer clamped — they show full gap with idle in capacity bar)
 
             // Update capacity bar remaining time
             _updateLiveCapacityBar(breakBlock, targetEnd);
@@ -14394,8 +14429,7 @@ function startIdleUpdater() {
             timeEl.textContent = `${formatTime(startMs)} – ${formatTime(nowMs)}`;
         }
 
-        // Push the adjacent free time block (shrink it)
-        updateAdjacentFreeBlock(idleBlock, nowMs);
+        // (Free blocks no longer clamped — they show full gap with idle in capacity bar)
 
         // ── Refresh capacity bar (idle + free depend on current time) ──
         _tickCapacityBar();
@@ -16571,7 +16605,7 @@ function updateDateNav() {
     }
 
     // Day mode (dateEl already set above)
-    const isToday = isCurrentDay(viewDate);
+    const isToday = getDateKey(viewDate) === getDateKey(getLogicalToday());
     if (todayBtn) {
         todayBtn.style.display = isToday ? 'none' : '';
         todayBtn.textContent = 'Today';
@@ -17483,6 +17517,55 @@ function _tickCapacityBar() {
         hoverParts.push(`${_formatDuration(-effectiveFree)} over`);
     }
     bar.title = hoverParts.join(' · ');
+
+    // ── Tick free-time block capacity bars ──
+    document.querySelectorAll('.segment-capacity-bar-free').forEach(capBar => {
+        const fStartMs = parseInt(capBar.dataset.freeStartMs, 10);
+        const fEndMs = parseInt(capBar.dataset.freeEndMs, 10);
+        const fPlannedMins = parseInt(capBar.dataset.freePlannedMins, 10) || 0;
+        if (!fStartMs || !fEndMs) return;
+        const fNow = Date.now();
+        const fTotalMins = Math.round((fEndMs - fStartMs) / 60000);
+        if (fTotalMins <= 0) return;
+
+        const fInvestedMins = _computeSessionInvestment(fStartMs, fEndMs);
+        const fElapsedMs = Math.max(0, Math.min(fNow, fEndMs) - fStartMs);
+        const fElapsedMins = Math.round(fElapsedMs / 60000);
+        let fLiveMins = 0;
+        if (state.workingOn) {
+            const s = Math.max(state.workingOn.startTime, fStartMs);
+            const e = Math.min(fNow, fEndMs);
+            if (e > s) fLiveMins += Math.round((e - s) / 60000);
+        }
+        if (state.onBreak) {
+            const s = Math.max(state.onBreak.startTime, fStartMs);
+            const e = Math.min(fNow, fEndMs);
+            if (e > s) fLiveMins += Math.round((e - s) / 60000);
+        }
+        const fTotalInvested = fInvestedMins + fLiveMins;
+        const fIdleMins = Math.max(0, fElapsedMins - fTotalInvested);
+        const fFreeMins = Math.max(0, fTotalMins - fElapsedMins);
+
+        const invPct = Math.min(100, (fTotalInvested / fTotalMins) * 100);
+        const idlePct = Math.min(100 - invPct, (fIdleMins / fTotalMins) * 100);
+        const planPct = Math.min(100 - invPct - idlePct, (fPlannedMins / fTotalMins) * 100);
+
+        const invEl = capBar.querySelector('.segment-capacity-fill-invested');
+        const idleEl2 = capBar.querySelector('.segment-capacity-fill-idle');
+        const planEl = capBar.querySelector('.segment-capacity-fill-planned');
+        const lblEl = capBar.querySelector('.segment-capacity-label');
+        if (invEl) invEl.style.width = `${invPct}%`;
+        if (idleEl2) idleEl2.style.width = `${idlePct}%`;
+        if (planEl) planEl.style.width = `${planPct}%`;
+        if (lblEl) {
+            const parts2 = [];
+            if (fTotalInvested > 0) parts2.push(`${_formatDuration(fTotalInvested)} done`);
+            if (fIdleMins > 0) parts2.push(`${_formatDuration(fIdleMins)} idle`);
+            if (fPlannedMins > 0) parts2.push(`${_formatDuration(fPlannedMins)} planned`);
+            parts2.push(`${_formatDuration(fFreeMins)} free`);
+            lblEl.textContent = parts2.join(' · ');
+        }
+    });
 }
 
 function updateCapacitySummary(sortedActions) {

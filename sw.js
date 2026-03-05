@@ -1,4 +1,4 @@
-const CACHE_NAME = 'anything-mini-v8';
+const CACHE_NAME = 'anything-mini-v12';
 const STATIC_ASSETS = [
     '/',
     '/index.html',
