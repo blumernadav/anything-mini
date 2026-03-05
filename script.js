@@ -12296,7 +12296,7 @@ function renderTimeline() {
 
     // ── When hiding past entries, inject idle/working block before the entry loop ──
     // The idle/working block represents the CURRENT state and should always be visible
-    if (hidePast && ((viewingToday && nowMs > dayStart.getTime() && nowMs < dayEndMs) || dayStillOpen)) {
+    if (hidePast && ((viewingToday && nowMs > dayStart.getTime() && nowMs < dayEndMs) || dayStillOpen || (viewingToday && isDayClosed()) || (viewingToday && !isDayStarted()))) {
         if (state.workingOn) {
             fragment.appendChild(createWorkingTimeBlock(state.workingOn.startTime, nowMs));
         } else if (state.onBreak) {
@@ -12483,16 +12483,6 @@ function renderTimeline() {
 
     // ── Day End block ──
     fragment.appendChild(createDayBoundaryBlock('day-end', dayEnd, now));
-
-    // ── Good Night / Good Morning block after Day End ──
-    if (!state.workingOn && !state.onBreak) {
-        if (isDayClosed()) {
-            const closedAt = state.settings.dayOverrides?.[getActiveDayKey()]?.dayClosedAt || dayEnd.getTime();
-            fragment.appendChild(createSleepTimeBlock(closedAt));
-        } else if (!isDayStarted() && viewingToday) {
-            fragment.appendChild(createDayStartTimeBlock());
-        }
-    }
 
     // ── Night indicator AFTER Day End (this day's end → next day's start) ──
     const nextDay = new Date(viewDate);
