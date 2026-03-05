@@ -263,8 +263,8 @@ class TriggerEngine {
     /**
      * Get all trigger definitions with their current enabled/config state.
      */
-    async getTriggers() {
-        const settings = await this._settingsStore.read();
+    async getTriggers(settings = null) {
+        if (!settings) settings = await this._settingsStore.read();
         const triggerSettings = settings.triggers || {};
 
         return Object.entries(BUILT_IN_TRIGGERS).map(([id, def]) => {
@@ -355,8 +355,10 @@ class TriggerEngine {
         if (!this._running) return;
 
         try {
-            const triggers = await this.getTriggers();
-            const state = await this._buildState();
+            // Read settings once for the entire tick
+            const settings = await this._settingsStore.read();
+            const triggers = await this.getTriggers(settings);
+            const state = await this._buildState(settings);
 
             for (const trigger of triggers) {
                 if (!trigger.enabled) continue;
@@ -367,7 +369,7 @@ class TriggerEngine {
                 state._triggerConfig = trigger.config;
 
                 if (def.check.call(def, state)) {
-                    await this._invoke(trigger.id);
+                    await this._invoke(trigger.id, {}, settings);
                 }
             }
         } catch (err) {
@@ -378,11 +380,9 @@ class TriggerEngine {
     /**
      * Build application state snapshot for trigger checks.
      */
-    async _buildState() {
-        const [prefs, settings] = await Promise.all([
-            this._stores.preferences.read(),
-            this._settingsStore.read()
-        ]);
+    async _buildState(settings = null) {
+        const prefs = await this._stores.preferences.read();
+        if (!settings) settings = await this._settingsStore.read();
         return {
             workingOn: prefs.workingOn || null,
             onBreak: prefs.onBreak || null,
@@ -393,8 +393,11 @@ class TriggerEngine {
 
     /**
      * Invoke the AI for a triggered event.
+     * @param {string} triggerId
+     * @param {object} eventData
+     * @param {object} [preloadedSettings] - Pre-loaded settings to avoid redundant reads
      */
-    async _invoke(triggerId, eventData = {}) {
+    async _invoke(triggerId, eventData = {}, preloadedSettings = null) {
         const def = BUILT_IN_TRIGGERS[triggerId];
         if (!def) return;
 
@@ -404,8 +407,10 @@ class TriggerEngine {
             return; // still in cooldown
         }
 
+        // Load settings once (reuse preloaded if available)
+        const settings = preloadedSettings || await this._settingsStore.read();
+
         // Check rate limit
-        const settings = await this._settingsStore.read();
         const rateLimit = settings.triggerRateLimit || 100;
         const now = Date.now();
         const oneHourAgo = now - 60 * 60 * 1000;
@@ -415,9 +420,9 @@ class TriggerEngine {
             return;
         }
 
-        // Build prompt
-        const state = await this._buildState();
-        const triggers = await this.getTriggers();
+        // Build prompt — reuse settings we already have
+        const state = await this._buildState(settings);
+        const triggers = await this.getTriggers(settings);
         const triggerInfo = triggers.find(t => t.id === triggerId);
         state._triggerConfig = triggerInfo?.config || {};
         const prompt = def.buildPrompt(state, eventData);
@@ -425,9 +430,10 @@ class TriggerEngine {
         console.log(`[TriggerEngine] Invoking AI for trigger: ${triggerId}`);
 
         try {
-            // Call AI
-            const aiSettings = await this._settingsStore.read();
-            const responseText = await triggerChat(prompt, this._stores, aiSettings);
+            // Call AI — pass settings directly
+            const response = await triggerChat(prompt, this._stores, settings);
+            const responseText = typeof response === 'string' ? response : response?.text;
+            const responseActions = typeof response === 'object' ? response?.actions : null;
 
             if (!responseText || responseText.trim().length === 0) {
                 console.log(`[TriggerEngine] AI returned empty response for ${triggerId}, skipping`);
@@ -436,13 +442,15 @@ class TriggerEngine {
 
             // Save to chat history with trigger metadata
             const chatData = await this._chatStore.read();
-            chatData.messages.push({
+            const msg = {
                 role: 'assistant',
                 content: responseText,
                 timestamp: Date.now(),
                 trigger: triggerId,
                 triggerLabel: def.label
-            });
+            };
+            if (responseActions) msg.actions = responseActions;
+            chatData.messages.push(msg);
 
             // Increment unread count
             chatData.unreadCount = (chatData.unreadCount || 0) + 1;

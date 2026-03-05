@@ -9,10 +9,43 @@
  */
 
 const { getProvider } = require('./provider.cjs');
-const { buildContext, buildSystemPrompt } = require('./context.cjs');
+const { buildContext, buildSystemPrompt, buildTriggerContext, buildTriggerSystemPrompt } = require('./context.cjs');
 const { getToolDefinitions, executeTool, enrichPlan, isReadTool } = require('./tools.cjs');
 
 const MAX_TOOL_ROUNDS = 50;
+
+/**
+ * Extract quick-reply actions from AI response text.
+ * The AI can include a ```actions-json [...] ``` code block with an array of label strings.
+ * Returns { cleanText, actions } where cleanText has the block removed.
+ */
+function extractActions(text) {
+    if (!text) return { cleanText: text, actions: null };
+    // Robust regex: case-insensitive, allows spaces between backticks and tag,
+    // handles varied whitespace/newlines around the JSON content
+    const regex = /```\s*actions-json\s*\n?([\s\S]*?)\n?\s*```/i;
+    const match = text.match(regex);
+    if (!match) {
+        // Debug: check if AI included actions in a different format
+        if (text.includes('actions-json') || text.includes('Actions-json')) {
+            console.log('[extractActions] Found "actions-json" text but regex did not match. Raw tail:', text.slice(-200));
+        }
+        return { cleanText: text, actions: null };
+    }
+    try {
+        const raw = match[1].trim();
+        const actions = JSON.parse(raw);
+        if (!Array.isArray(actions) || actions.length === 0) return { cleanText: text, actions: null };
+        // Ensure all items are strings
+        const labels = actions.filter(a => typeof a === 'string').slice(0, 4);
+        if (labels.length === 0) return { cleanText: text, actions: null };
+        const cleanText = text.replace(regex, '').trim();
+        return { cleanText, actions: labels };
+    } catch (e) {
+        console.log('[extractActions] JSON parse failed:', e.message, 'Raw:', match[1].trim().slice(0, 100));
+        return { cleanText: text, actions: null };
+    }
+}
 
 function getAiConfig(settings) {
     settings = settings || {};
@@ -65,7 +98,8 @@ async function chat(message, history = [], onEvent = null, settings = null, stor
 
         // No tool calls → done — this round's text IS the final answer
         if (!result.toolCalls || result.toolCalls.length === 0) {
-            return { text: result.text || 'I wasn\'t able to find a clear answer. Could you try rephrasing?' };
+            const { cleanText, actions } = extractActions(result.text || 'I wasn\'t able to find a clear answer. Could you try rephrasing?');
+            return { text: cleanText, actions };
         }
 
         // Separate read vs write tool calls
@@ -74,9 +108,11 @@ async function chat(message, history = [], onEvent = null, settings = null, stor
 
         // If there are write tool calls → return them as a plan (don't auto-execute)
         if (writeCalls.length > 0) {
+            const { cleanText, actions } = extractActions(result.text || '');
             return {
-                text: result.text || '',  // Only THIS round's text as intent
-                plan: await enrichPlan(writeCalls, stores)
+                text: cleanText,
+                plan: await enrichPlan(writeCalls, stores),
+                actions
             };
         }
 
@@ -93,28 +129,23 @@ async function chat(message, history = [], onEvent = null, settings = null, stor
             toolCalls: result.toolCalls
         });
 
-        // Execute each read tool and add results to conversation
-        const toolResults = [];
+        // Execute read tools in parallel
         for (const tc of readCalls) {
             emit({ type: 'tool_start', tool: tc.name, args: tc.args });
+        }
+        const toolResults = await Promise.all(readCalls.map(async (tc) => {
             try {
                 const toolResult = await executeTool(tc.name, tc.args, stores);
-                toolResults.push({
-                    toolUseId: tc.id,
-                    name: tc.name,
-                    result: JSON.stringify(toolResult)
-                });
+                const result = JSON.stringify(toolResult);
+                const preview = result.length > 200 ? result.slice(0, 200) + '…' : result;
+                emit({ type: 'tool_done', tool: tc.name, result: preview });
+                return { toolUseId: tc.id, name: tc.name, result };
             } catch (err) {
-                toolResults.push({
-                    toolUseId: tc.id,
-                    name: tc.name,
-                    result: JSON.stringify({ error: err.message })
-                });
+                const result = JSON.stringify({ error: err.message });
+                emit({ type: 'tool_done', tool: tc.name, result });
+                return { toolUseId: tc.id, name: tc.name, result };
             }
-            const resultStr = toolResults[toolResults.length - 1].result;
-            const preview = resultStr.length > 200 ? resultStr.slice(0, 200) + '…' : resultStr;
-            emit({ type: 'tool_done', tool: tc.name, result: preview });
-        }
+        }));
 
         // Add tool results to conversation
         conversation.push({
@@ -124,7 +155,7 @@ async function chat(message, history = [], onEvent = null, settings = null, stor
     }
 
     // Max rounds reached — don't dump narration, just explain
-    return { text: 'I ran out of analysis rounds. Please try a more specific question so I can be more focused.' };
+    return { text: 'I ran out of analysis rounds. Please try a more specific question so I can be more focused.', actions: null };
 }
 
 /**
@@ -289,8 +320,9 @@ async function executeAndContinue(toolCalls, history = [], onEvent = null, setti
 async function triggerChat(prompt, stores, settings = null) {
     const config = getAiConfig(settings);
     const provider = getProvider(config);
-    const context = await buildContext(stores);
-    const systemPrompt = buildSystemPrompt(context);
+    // Lightweight context — only preferences/settings, no items tree or timeline
+    const context = await buildTriggerContext(stores);
+    const systemPrompt = buildTriggerSystemPrompt(context);
     const tools = getToolDefinitions(true); // read-only tools
 
     const conversation = [
@@ -309,14 +341,16 @@ async function triggerChat(prompt, stores, settings = null) {
 
         // No tool calls → done
         if (!result.toolCalls || result.toolCalls.length === 0) {
-            return result.text || '';
+            const { cleanText, actions } = extractActions(result.text || '');
+            return { text: cleanText, actions };
         }
 
         // Only auto-execute read tools; ignore any write tools in trigger mode
         const readCalls = result.toolCalls.filter(tc => isReadTool(tc.name));
         if (readCalls.length === 0) {
             // AI wants to write but triggers can't approve plans — return text
-            return result.text || '';
+            const { cleanText, actions } = extractActions(result.text || '');
+            return { text: cleanText, actions };
         }
 
         conversation.push({
@@ -325,20 +359,20 @@ async function triggerChat(prompt, stores, settings = null) {
             toolCalls: readCalls
         });
 
-        const toolResults = [];
-        for (const tc of readCalls) {
+        // Execute read tools in parallel
+        const toolResults = await Promise.all(readCalls.map(async (tc) => {
             try {
                 const toolResult = await executeTool(tc.name, tc.args, stores);
-                toolResults.push({ toolUseId: tc.id, name: tc.name, result: JSON.stringify(toolResult) });
+                return { toolUseId: tc.id, name: tc.name, result: JSON.stringify(toolResult) };
             } catch (err) {
-                toolResults.push({ toolUseId: tc.id, name: tc.name, result: JSON.stringify({ error: err.message }) });
+                return { toolUseId: tc.id, name: tc.name, result: JSON.stringify({ error: err.message }) };
             }
-        }
+        }));
 
         conversation.push({ role: 'tool', toolResults });
     }
 
-    return 'I ran out of analysis rounds for this check-in.';
+    return { text: 'I ran out of analysis rounds for this check-in.', actions: null };
 }
 
 module.exports = { chat, executeAndContinue, triggerChat };

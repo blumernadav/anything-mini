@@ -75,10 +75,12 @@ function filterTimeline(entries, days = 7) {
  * @param {object} stores - { items, timeline, settings, preferences } store instances
  */
 async function buildContext(stores) {
-    const items = await stores.items.read();
-    const timeline = await stores.timeline.read();
-    const settings = await stores.settings.read();
-    const preferences = await stores.preferences.read();
+    const [items, timeline, settings, preferences] = await Promise.all([
+        stores.items.read(),
+        stores.timeline.read(),
+        stores.settings.read(),
+        stores.preferences.read()
+    ]);
 
     const now = new Date();
 
@@ -193,7 +195,110 @@ TOOL USAGE EFFICIENCY (CRITICAL):
 - For LARGE files (script.js is ~21000 lines): ALWAYS use run_command with grep to find relevant sections, then read_file with startLine/endLine to read just those lines. NEVER try to read the whole file.
 - If a tool call fails or returns too much data, change your approach — do NOT retry the same thing.
 - If you have enough information to answer, STOP calling tools and give the answer.
-- Combine multiple observations into a single response rather than exploring endlessly.`;
+- Combine multiple observations into a single response rather than exploring endlessly.
+
+QUICK-REPLY BUTTONS:
+You can offer the user tappable quick-reply buttons by adding an actions-json code block at the END of your response.
+The block must contain a JSON array of short label strings (2-4 options). Example:
+
+\`\`\`actions-json
+["🧘 Take a 5-min break", "⏱️ Keep going", "👋 I'm good"]
+\`\`\`
+
+When the user taps a button, the label text is sent to you as their next message, and you decide what to do.
+USE THEM WHEN:
+- Suggesting actionable next steps (take a break, start working on X, extend session)
+- Reducing decision paralysis — give 2-3 concrete options instead of open-ended advice
+- In trigger notifications — always offer quick-reply options
+- Any time the user might benefit from low-friction response options
+RULES:
+- Keep labels short and emoji-friendly (ADHD-friendly!)
+- 2-4 options max. Always include a low-pressure opt-out like "👋 I'm good" or "Not now"
+- Do NOT use actions-json for purely informational messages with no actionable follow-up`;
 }
 
-module.exports = { buildContext, buildSystemPrompt, pruneItems, filterTimeline };
+/**
+ * Build a lightweight context for trigger invocations.
+ * Only loads preferences and settings — skips the full items tree and timeline
+ * to minimize I/O and token count for background AI calls.
+ */
+async function buildTriggerContext(stores) {
+    const [settings, preferences] = await Promise.all([
+        stores.settings.read(),
+        stores.preferences.read()
+    ]);
+
+    const now = new Date();
+    const context = {
+        currentTime: now.toISOString(),
+        currentTimeLocal: now.toLocaleString('en-US', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            timeZone: 'Asia/Jerusalem'
+        }),
+    };
+
+    if (preferences?.workingOn) {
+        context.activeTask = {
+            name: preferences.workingOn.itemName,
+            project: preferences.workingOn.projectName,
+            startedAt: new Date(preferences.workingOn.startTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+            runningFor: Math.round((Date.now() - preferences.workingOn.startTime) / 60000) + ' minutes'
+        };
+    }
+
+    if (preferences?.onBreak) {
+        context.onBreak = true;
+    }
+
+    if (settings) {
+        context.dayStart = `${settings.dayStartHour || 8}:${String(settings.dayStartMinute || 0).padStart(2, '0')}`;
+        context.dayEnd = `${settings.dayEndHour || 22}:${String(settings.dayEndMinute || 0).padStart(2, '0')}`;
+    }
+
+    return context;
+}
+
+/**
+ * Build a lightweight system prompt for trigger invocations.
+ * Omits the items tree, timeline, and code capability instructions.
+ */
+function buildTriggerSystemPrompt(context) {
+    return `You are the AI copilot for "Anything Mini", an ADHD-friendly productivity app.
+
+CORE VALUES: ADHD-friendly, simple, low friction.
+- Be concise and actionable
+- Don't overwhelm with too many options
+- Suggest small, concrete next steps
+- Be warm and encouraging
+
+CURRENT STATE:
+- Time: ${context.currentTimeLocal}
+${context.activeTask ? `- Currently working on: "${context.activeTask.name}" (${context.activeTask.project}) — started ${context.activeTask.startedAt}, running for ${context.activeTask.runningFor}` : '- Not currently working on anything'}
+${context.onBreak ? '- Currently on a break' : ''}
+- Day hours: ${context.dayStart} – ${context.dayEnd}
+
+QUICK-REPLY BUTTONS:
+You can offer the user tappable quick-reply buttons by adding an actions-json code block at the END of your response.
+The block must contain a JSON array of short label strings (2-4 options). Example:
+
+\`\`\`actions-json
+["🧘 Take a 5-min break", "⏱️ Keep going", "👋 I'm good"]
+\`\`\`
+
+When the user taps a button, the label text is sent to you as their next message.
+USE THEM WHEN:
+- Suggesting actionable next steps
+- Reducing decision paralysis — give 2-3 concrete options
+- In trigger notifications — always offer quick-reply options
+RULES:
+- Keep labels short and emoji-friendly
+- 2-4 options max. Always include a low-pressure opt-out like "👋 I'm good"
+- Do NOT use actions-json for purely informational messages`;
+}
+
+module.exports = { buildContext, buildSystemPrompt, buildTriggerContext, buildTriggerSystemPrompt, pruneItems, filterTimeline };
