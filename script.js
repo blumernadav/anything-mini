@@ -10183,10 +10183,28 @@ function _renderDayStartIndicator(liveSlot) {
 
     const label = document.createElement('span');
     label.className = 'live-session-indicator-label';
-    label.textContent = 'New Day';
+    label.textContent = 'Good Morning';
+
+    // Over timer: time since planned start
+    const timer = document.createElement('span');
+    timer.className = 'live-session-indicator-timer';
+    const now = new Date();
+    const todayTimes = getEffectiveDayTimes(now);
+    const plannedStart = new Date(now);
+    plannedStart.setHours(todayTimes.dayStartHour, todayTimes.dayStartMinute, 0, 0);
+    timer.dataset.targetEnd = '';
+    timer.dataset.sessionStart = plannedStart.getTime();
+    const overMs = now.getTime() - plannedStart.getTime();
+    if (overMs > 0) {
+        timer.textContent = '+' + _fmtHMS(overMs) + ' over';
+        timer.classList.add('live-session-indicator-overtime');
+    } else {
+        timer.textContent = _fmtHMS(Math.abs(overMs)) + ' left';
+    }
 
     indicator.appendChild(icon);
     indicator.appendChild(label);
+    indicator.appendChild(timer);
 
     // Start Day button
     const startBtn = document.createElement('button');
@@ -14462,10 +14480,11 @@ function startIdleUpdater() {
         // ── Update live session indicator timer ──
         const indicatorTimer = _q('it', '.live-session-indicator-timer');
         if (indicatorTimer) {
-            const iStart = parseInt(indicatorTimer.dataset.sessionStart, 10);
+            const iStart = indicatorTimer.dataset.sessionStart ? parseInt(indicatorTimer.dataset.sessionStart, 10) : null;
             const iTarget = indicatorTimer.dataset.targetEnd ? parseInt(indicatorTimer.dataset.targetEnd, 10) : null;
             const iNow = Date.now();
-            if (iTarget) {
+            if (iTarget && iStart) {
+                // Working/break: countdown to target
                 const rem = iTarget - iNow;
                 if (rem > 0) {
                     indicatorTimer.textContent = _fmtHMS(rem) + ' left';
@@ -14474,7 +14493,27 @@ function startIdleUpdater() {
                     indicatorTimer.textContent = '+' + _fmtHMS(Math.abs(rem)) + ' over';
                     indicatorTimer.classList.add('live-session-indicator-overtime');
                 }
-            } else {
+            } else if (iTarget && !iStart) {
+                // Good Night: countdown to next morning
+                const rem = iTarget - iNow;
+                if (rem > 0) {
+                    indicatorTimer.textContent = _fmtHMS(rem) + ' left';
+                    indicatorTimer.classList.remove('live-session-indicator-overtime');
+                } else {
+                    indicatorTimer.textContent = '+' + _fmtHMS(Math.abs(rem)) + ' over';
+                    indicatorTimer.classList.add('live-session-indicator-overtime');
+                }
+            } else if (iStart && !iTarget) {
+                // Good Morning: elapsed since planned start
+                const overMs = iNow - iStart;
+                if (overMs > 0) {
+                    indicatorTimer.textContent = '+' + _fmtHMS(overMs) + ' over';
+                    indicatorTimer.classList.add('live-session-indicator-overtime');
+                } else {
+                    indicatorTimer.textContent = _fmtHMS(Math.abs(overMs)) + ' left';
+                    indicatorTimer.classList.remove('live-session-indicator-overtime');
+                }
+            } else if (iStart) {
                 indicatorTimer.textContent = _fmtHMS(iNow - iStart);
             }
         }
