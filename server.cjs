@@ -409,11 +409,13 @@ app.post('/api/ai/chat', async (req, res) => {
 
         // Persist AI response
         if (result.text) {
-            chatData.messages.push({
+            const assistantMsg = {
                 role: 'assistant',
                 content: result.text,
                 timestamp: Date.now()
-            });
+            };
+            if (result.actions) assistantMsg.actions = result.actions;
+            chatData.messages.push(assistantMsg);
         }
 
         // Persist plan as a separate message type
@@ -429,7 +431,7 @@ app.post('/api/ai/chat', async (req, res) => {
         await chatStore.write(chatData);
 
         // Send final result
-        sendEvent({ type: 'done', text: result.text, plan: result.plan });
+        sendEvent({ type: 'done', text: result.text, plan: result.plan, actions: result.actions || null });
         res.end();
     } catch (err) {
         console.error('AI chat error:', err);
@@ -503,7 +505,9 @@ app.get('/api/ai/config', async (req, res) => {
     const settings = await settingsStore.read();
     const provider = settings.aiProvider || process.env.AI_PROVIDER || 'gemini';
     const model = settings.aiModel || process.env.AI_MODEL || 'gemini-2.0-flash';
-    const hasKey = !!(settings.aiApiKey || process.env.AI_API_KEY);
+    // Per-provider key resolution
+    const providerKey = settings.aiApiKeys ? settings.aiApiKeys[provider] : undefined;
+    const hasKey = !!(providerKey || settings.aiApiKey || process.env.AI_API_KEY);
     res.json({ provider, model, available: hasKey });
 });
 

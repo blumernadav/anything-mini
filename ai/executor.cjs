@@ -49,10 +49,13 @@ function extractActions(text) {
 
 function getAiConfig(settings) {
     settings = settings || {};
+    const provider = settings.aiProvider || undefined;
+    // Per-provider key resolution: aiApiKeys.{provider} → legacy aiApiKey fallback
+    const providerKey = provider && settings.aiApiKeys ? settings.aiApiKeys[provider] : undefined;
     return {
-        provider: settings.aiProvider || undefined,
+        provider,
         model: settings.aiModel || undefined,
-        apiKey: settings.aiApiKey || undefined
+        apiKey: providerKey || settings.aiApiKey || undefined
     };
 }
 

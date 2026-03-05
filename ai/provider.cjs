@@ -22,11 +22,12 @@ function sanitizeSchemaForGemini(schema, isTopLevel = true) {
 
     const result = { ...schema };
 
-    // Handle union types: type: ['number', 'null'] → type: 'number', nullable: true
+    // Handle union types: type: ['number', 'null'] → just use the non-null type
+    // Gemini's protobuf doesn't support union types or nullable on some model versions
     if (Array.isArray(result.type)) {
         const types = result.type.filter(t => t !== 'null');
-        result.nullable = result.type.includes('null');
         result.type = types[0] || 'string';
+        // Don't set nullable — not reliably supported across Gemini models
     }
 
     // Recursively sanitize properties

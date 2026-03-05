@@ -21278,7 +21278,7 @@ function openDefaultsModal() {
                 <label class="modal-label">🔑 API Key</label>
                 <input type="password" id="defaults-ai-key" class="modal-input" placeholder="Enter API key" autocomplete="off" />
             </div>
-            <div class="modal-hint">Provider and key are stored locally in settings.json. Leave key blank to keep the current one.</div>
+            <div class="modal-hint">API keys are stored per provider — switch freely without re-entering.</div>
             <div class="modal-divider"></div>
             <div class="settings-section-title" style="margin-top:4px">Triggers</div>
             <div class="modal-hint">Proactive AI nudges — the copilot will notify you when events occur.</div>
@@ -21331,11 +21331,23 @@ function openDefaultsModal() {
     document.getElementById('defaults-skin').value = _skinFamily;
 
     // AI settings
-    document.getElementById('defaults-ai-provider').value = state.settings.aiProvider || 'gemini';
+    const aiProviderSelect = document.getElementById('defaults-ai-provider');
+    const aiKeyInput = document.getElementById('defaults-ai-key');
+    const currentProvider = state.settings.aiProvider || 'gemini';
+    aiProviderSelect.value = currentProvider;
     document.getElementById('defaults-ai-model').value = state.settings.aiModel || 'gemini-2.0-flash';
-    if (state.settings.aiApiKey) {
-        document.getElementById('defaults-ai-key').placeholder = '••••••••  (key saved)';
+    // Show key status for the current provider
+    const aiApiKeys = state.settings.aiApiKeys || {};
+    function updateKeyPlaceholder(provider) {
+        const hasKey = !!(aiApiKeys[provider] || (provider === currentProvider && state.settings.aiApiKey));
+        aiKeyInput.value = '';
+        aiKeyInput.placeholder = hasKey ? '••••••••  (key saved)' : 'Enter API key';
     }
+    updateKeyPlaceholder(currentProvider);
+    // When provider changes, update the key placeholder to show if that provider has a saved key
+    aiProviderSelect.addEventListener('change', () => {
+        updateKeyPlaceholder(aiProviderSelect.value);
+    });
 
     // Commitment mode
     document.getElementById('defaults-commitment-mode').value = state.settings.commitmentMode || 'gentle';
@@ -21442,7 +21454,13 @@ function openDefaultsModal() {
         state.settings.aiProvider = document.getElementById('defaults-ai-provider').value;
         state.settings.aiModel = document.getElementById('defaults-ai-model').value;
         const newKey = document.getElementById('defaults-ai-key').value.trim();
-        if (newKey) state.settings.aiApiKey = newKey; // Only overwrite if user typed a new key
+        // Store key per-provider
+        if (!state.settings.aiApiKeys) state.settings.aiApiKeys = {};
+        if (newKey) {
+            state.settings.aiApiKeys[state.settings.aiProvider] = newKey;
+            // Also update legacy field for backwards compat
+            state.settings.aiApiKey = newKey;
+        }
         // Commitment mode
         state.settings.commitmentMode = document.getElementById('defaults-commitment-mode').value;
         // Rate limit
@@ -23081,16 +23099,33 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // ── Message rendering ──
-        function addMessage(role, content, timestamp, skipScroll, triggerLabel) {
+        function addMessage(role, content, timestamp, skipScroll, triggerLabel, actions) {
             if (timestamp) maybeAddDateSeparator(timestamp);
 
             const bubble = document.createElement('div');
             bubble.className = `copilot-message copilot-message-${role === 'assistant' ? 'ai' : role}`;
+
+            // Client-side fallback: extract actions-json block if not already provided
+            let displayContent = content;
+            if ((role === 'assistant' || role === 'ai') && !actions) {
+                const actionsRegex = /```\s*actions-json\s*\n?([\s\S]*?)\n?\s*```/i;
+                const actionsMatch = content.match(actionsRegex);
+                if (actionsMatch) {
+                    try {
+                        const parsed = JSON.parse(actionsMatch[1].trim());
+                        if (Array.isArray(parsed) && parsed.length > 0) {
+                            actions = parsed.filter(a => typeof a === 'string').slice(0, 4);
+                            displayContent = content.replace(actionsRegex, '').trim();
+                        }
+                    } catch { /* ignore parse errors */ }
+                }
+            }
+
             if ((role === 'assistant' || role === 'ai') && typeof marked !== 'undefined') {
-                bubble.innerHTML = marked.parse(content, { breaks: true });
+                bubble.innerHTML = marked.parse(displayContent, { breaks: true });
                 bubble.querySelectorAll('a').forEach(a => { a.target = '_blank'; a.rel = 'noopener'; });
             } else {
-                bubble.textContent = content;
+                bubble.textContent = displayContent;
             }
 
             // Trigger label badge
@@ -23107,6 +23142,29 @@ document.addEventListener('DOMContentLoaded', () => {
                 ts.className = 'copilot-timestamp';
                 ts.textContent = formatTime(timestamp);
                 bubble.appendChild(ts);
+            }
+
+            // Quick-reply action buttons
+            if (actions && Array.isArray(actions) && actions.length > 0) {
+                const actionsContainer = document.createElement('div');
+                actionsContainer.className = 'copilot-actions';
+                for (const label of actions) {
+                    const btn = document.createElement('button');
+                    btn.className = 'copilot-action-btn';
+                    btn.textContent = label;
+                    btn.addEventListener('click', () => {
+                        // Disable all buttons in this group
+                        actionsContainer.querySelectorAll('.copilot-action-btn').forEach(b => {
+                            b.disabled = true;
+                        });
+                        btn.classList.add('copilot-action-btn-selected');
+                        // Send the label as a user message
+                        copilotInput.value = label;
+                        sendMessage();
+                    });
+                    actionsContainer.appendChild(btn);
+                }
+                bubble.appendChild(actionsContainer);
             }
 
             copilotMessages.appendChild(bubble);
@@ -23367,7 +23425,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (msg.role === 'user') {
                         addMessage('user', msg.content, msg.timestamp, true);
                     } else if (msg.role === 'assistant') {
-                        addMessage('assistant', msg.content, msg.timestamp, true, msg.triggerLabel);
+                        addMessage('assistant', msg.content, msg.timestamp, true, msg.triggerLabel, msg.actions);
                     } else if (msg.role === 'plan') {
                         addPlanCard(msg.content, msg.status, planIndex, true);
                         planIndex++;
@@ -23560,7 +23618,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         // Text is shown as intent inside the plan card
                         addPlanCard(finalData.plan, 'pending', planIdx, false, finalData.text);
                     } else if (finalData.text) {
-                        addMessage('assistant', finalData.text, Date.now());
+                        addMessage('assistant', finalData.text, Date.now(), false, null, finalData.actions);
                     }
                 }
 
