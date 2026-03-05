@@ -12296,8 +12296,14 @@ function renderTimeline() {
 
     // ── Good Night / Good Morning: always show at top when applicable ──
     if (!state.workingOn && !state.onBreak) {
-        if (isDayClosed(viewDateKey)) {
-            const closedAt = state.settings.dayOverrides?.[viewDateKey]?.dayClosedAt || dayStart.getTime();
+        // Check the viewed date first, then fall back to active day key for today
+        const viewedDayClosed = isDayClosed(viewDateKey);
+        const activeDayClosed = isDayClosed(); // checks active day key (may be yesterday)
+        if (viewedDayClosed || (viewingToday && !isDayStarted() && activeDayClosed)) {
+            // Show Good Night: either the viewed date is closed, or viewing today
+            // which hasn't started yet but the previous (active) day was closed
+            const closedKey = viewedDayClosed ? viewDateKey : getActiveDayKey();
+            const closedAt = state.settings.dayOverrides?.[closedKey]?.dayClosedAt || dayStart.getTime();
             fragment.appendChild(createSleepTimeBlock(closedAt));
         } else if (viewingToday && !isDayStarted()) {
             fragment.appendChild(createDayStartTimeBlock());
