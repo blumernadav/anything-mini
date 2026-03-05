@@ -9698,6 +9698,57 @@ select.schedule-leadtime-input {
     margin-bottom: 6px;
 }
 
+/* Quick-reply action buttons */
+.copilot-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px solid #808080;
+}
+
+.copilot-action-btn {
+    padding: 3px 10px;
+    border: 2px outset #dfdfdf;
+    border-radius: 0;
+    background: #c0c0c0;
+    color: #000;
+    font-size: 11px;
+    cursor: pointer;
+    font-family: 'MS Sans Serif', Tahoma, sans-serif;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.copilot-action-btn:active {
+    border-style: inset;
+}
+
+.copilot-action-btn:disabled {
+    opacity: 0.4;
+    cursor: default;
+    pointer-events: none;
+}
+
+.copilot-action-btn-selected {
+    border-style: inset;
+    background: #a0a0a0;
+}
+
+/* AI Settings textarea & custom input */
+.modal-textarea {
+    resize: vertical;
+    min-height: 60px;
+    max-height: 160px;
+    line-height: 1.5;
+    font-family: inherit;
+}
+
+.settings-custom-input {
+    margin-top: 6px;
+}
+
 .copilot-clear {
     background: #c0c0c0;
     border: 2px outset #dfdfdf;

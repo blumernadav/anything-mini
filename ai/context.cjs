@@ -148,9 +148,34 @@ function countItems(items) {
 }
 
 /**
+ * Build a USER PREFERENCES block from personality settings.
+ */
+const PERSONALITY_PRESETS = {
+    friendly_coach: 'Be an encouraging, supportive coach. Celebrate small wins. Use motivational language.',
+    straight: 'Be direct and to the point. Skip pleasantries. Give clear, actionable answers with no fluff.',
+    gentle: 'Be warm, empathetic, and patient. Use soft language. Never pressure or rush.',
+    playful: 'Be fun, witty, and use humor. Sprinkle in jokes and playful emoji. Keep things light.'
+};
+
+function buildPersonalityBlock(settings) {
+    if (!settings) return '';
+    const parts = [];
+    if (settings.aiName) parts.push(`- Your name is "${settings.aiName}".`);
+    const personality = settings.aiPersonality;
+    if (personality) {
+        const desc = PERSONALITY_PRESETS[personality] || personality;
+        parts.push(`- Personality: ${desc}`);
+    }
+    if (settings.aiLanguage) parts.push(`- Always respond in ${settings.aiLanguage}.`);
+    if (settings.aiCustomInstructions) parts.push(`- Custom instructions: ${settings.aiCustomInstructions}`);
+    if (parts.length === 0) return '';
+    return `\n\nUSER PREFERENCES:\n${parts.join('\n')}`;
+}
+
+/**
  * Format context into a system prompt string.
  */
-function buildSystemPrompt(context) {
+function buildSystemPrompt(context, settings) {
     return `You are the AI copilot for "Anything Mini", an ADHD-friendly productivity app.
 
 CORE VALUES: ADHD-friendly, simple, low friction.
@@ -214,7 +239,7 @@ USE THEM WHEN:
 RULES:
 - Keep labels short and emoji-friendly (ADHD-friendly!)
 - 2-4 options max. Always include a low-pressure opt-out like "👋 I'm good" or "Not now"
-- Do NOT use actions-json for purely informational messages with no actionable follow-up`;
+- Do NOT use actions-json for purely informational messages with no actionable follow-up` + buildPersonalityBlock(settings);
 }
 
 /**
@@ -267,7 +292,7 @@ async function buildTriggerContext(stores) {
  * Build a lightweight system prompt for trigger invocations.
  * Omits the items tree, timeline, and code capability instructions.
  */
-function buildTriggerSystemPrompt(context) {
+function buildTriggerSystemPrompt(context, settings) {
     return `You are the AI copilot for "Anything Mini", an ADHD-friendly productivity app.
 
 CORE VALUES: ADHD-friendly, simple, low friction.
@@ -298,7 +323,7 @@ USE THEM WHEN:
 RULES:
 - Keep labels short and emoji-friendly
 - 2-4 options max. Always include a low-pressure opt-out like "👋 I'm good"
-- Do NOT use actions-json for purely informational messages`;
+- Do NOT use actions-json for purely informational messages` + buildPersonalityBlock(settings);
 }
 
 module.exports = { buildContext, buildSystemPrompt, buildTriggerContext, buildTriggerSystemPrompt, pruneItems, filterTimeline };

@@ -80,7 +80,7 @@ async function chat(message, history = [], onEvent = null, settings = null, stor
     const config = getAiConfig(settings);
     const provider = getProvider(config);
     const context = await buildContext(stores);
-    const systemPrompt = buildSystemPrompt(context);
+    const systemPrompt = buildSystemPrompt(context, settings);
     const tools = getToolDefinitions(true);
 
     // Build conversation for multi-turn
@@ -203,7 +203,7 @@ async function executeAndContinue(toolCalls, history = [], onEvent = null, setti
     const config = getAiConfig(settings);
     const provider = getProvider(config);
     const context = await buildContext(stores);
-    const systemPrompt = buildSystemPrompt(context);
+    const systemPrompt = buildSystemPrompt(context, settings);
     const tools = getToolDefinitions(true);
 
     // Build continuation conversation
@@ -325,7 +325,7 @@ async function triggerChat(prompt, stores, settings = null) {
     const provider = getProvider(config);
     // Lightweight context — only preferences/settings, no items tree or timeline
     const context = await buildTriggerContext(stores);
-    const systemPrompt = buildTriggerSystemPrompt(context);
+    const systemPrompt = buildTriggerSystemPrompt(context, settings);
     const tools = getToolDefinitions(true); // read-only tools
 
     const conversation = [

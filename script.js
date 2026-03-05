@@ -334,11 +334,40 @@ async function loadAll() {
 // ── AI Notification Sound ──
 const _aiNotificationAudio = new Audio('/sounds/notification.wav');
 _aiNotificationAudio.volume = 1.0;
+const _aiBubbleAudio = new Audio('/sounds/bubble.wav');
+_aiBubbleAudio.volume = 1.0;
+const _clickAudio = new Audio('/sounds/click.wav');
+_clickAudio.volume = 1.0;
+const _dotBubbleAudio = new Audio('/sounds/dot_bubble.wav');
+_dotBubbleAudio.volume = 1.0;
+const _stickyAudio = new Audio('/sounds/sticky.wav');
+_stickyAudio.volume = 1.0;
+const _warningAudio = new Audio('/sounds/warning.wav');
+_warningAudio.volume = 1.0;
+let _timerExpiredPlayed = false; // flag to fire warning sound only once per session
 function _playAiNotificationSound() {
     try {
         _aiNotificationAudio.currentTime = 0;
         _aiNotificationAudio.play().catch(() => { /* autoplay blocked — ignore */ });
     } catch { /* fail silently */ }
+}
+function _playAiBubbleSound() {
+    try {
+        _aiBubbleAudio.currentTime = 0;
+        _aiBubbleAudio.play().catch(() => { /* autoplay blocked — ignore */ });
+    } catch { /* fail silently */ }
+}
+function _playClickSound() {
+    try { _clickAudio.currentTime = 0; _clickAudio.play().catch(() => { }); } catch { }
+}
+function _playDotBubbleSound() {
+    try { _dotBubbleAudio.currentTime = 0; _dotBubbleAudio.play().catch(() => { }); } catch { }
+}
+function _playStickySound() {
+    try { _stickyAudio.currentTime = 0; _stickyAudio.play().catch(() => { }); } catch { }
+}
+function _playWarningSound() {
+    try { _warningAudio.currentTime = 0; _warningAudio.play().catch(() => { }); } catch { }
 }
 
 // ─── Real-Time Sync (SSE) ───
@@ -428,8 +457,12 @@ async function _applySyncEvent(msg) {
             if (panel && typeof window._reloadCopilotHistory === 'function') {
                 window._reloadCopilotHistory();
             }
-            // Play notification sound if panel is not open
-            if (!panel) _playAiNotificationSound();
+            // Play notification sound (bubble if panel open, notification if closed)
+            if (panel) {
+                _playAiBubbleSound();
+            } else {
+                _playAiNotificationSound();
+            }
         }
     } catch (err) {
         console.warn('[sync] Failed to apply remote event:', type, err);
@@ -4369,6 +4402,7 @@ function showProjectContextMenu(e, item) {
         api.patch(`/items/${item.id}`, { done: newDone });
         item.done = newDone;
         if (newDone) {
+            _playDotBubbleSound();
             const ancestorPath = getAncestorPath(item.id);
             const ancestors = ancestorPath
                 ? ancestorPath.map(a => a.name).join(' › ')
@@ -5405,6 +5439,7 @@ function renderProjectLevel(items, parent, depth, query = '', matchingIds = new 
                 api.patch(`/items/${item.id}`, { done: newDone });
                 item.done = newDone;
                 if (newDone) {
+                    _playDotBubbleSound();
                     const ancestorPath = getAncestorPath(item.id);
                     const ancestors = ancestorPath
                         ? ancestorPath.map(a => a.name).join(' › ')
@@ -9196,6 +9231,7 @@ async function startDay() {
     state.settings.dayOverrides[todayKey].dayStarted = true;
     state.settings.dayOverrides[todayKey].dayClosed = false;
 
+    _playStickySound();
     api.put('/settings', state.settings);
     renderAll();
 }
@@ -9227,6 +9263,7 @@ async function closeDay() {
         // Merge streak check-in (commitment-aware)
         await performCheckIn(commitResults);
 
+        _playStickySound();
         api.put('/settings', state.settings);
         renderAll();
     };
@@ -11277,7 +11314,7 @@ function renderTimeline() {
     const quickLog = document.querySelector('.quick-log');
 
     // Clear all rendered blocks (including breadcrumb)
-    container.querySelectorAll('.time-block, .timeline-entry, .epoch-placeholder, .epoch-week-overview, .month-view, .week-view, .session-panel, .live-panel, .week-sleep-divider, .divergence-prompt, .divergence-banner, .compact-past-entry, .compact-project-wrapper').forEach(el => el.remove());
+    container.querySelectorAll('.time-block, .timeline-entry, .epoch-placeholder, .epoch-week-overview, .month-view, .week-view, .session-panel, .live-panel, .week-sleep-divider, .divergence-prompt, .divergence-banner, .compact-past-entry, .compact-project-wrapper, .past-insert-marker, .past-entry-creator').forEach(el => el.remove());
 
     // ── Month horizon: show month view with week cards + day pips ──
     if (state.viewHorizon === 'month') {
@@ -12446,7 +12483,7 @@ function renderTimeline() {
             const gapMs = gapEnd - cursor;
 
             // ── Insert marker for past gaps ──
-            if (gapMs >= 60000 && gapEnd <= nowMs) {
+            if (!hidePast && gapMs >= 60000 && gapEnd <= nowMs) {
                 const gapMarker = createPastInsertMarker(cursor, gapEnd);
                 if (gapMarker) fragment.appendChild(gapMarker);
             }
@@ -14500,6 +14537,11 @@ function startIdleUpdater() {
                     sessionTimer.classList.remove('session-timer-overtime');
                     sessionTimer.classList.add('session-timer-remaining');
                 } else {
+                    // Play warning sound once when timer first crosses zero
+                    if (!_timerExpiredPlayed) {
+                        _timerExpiredPlayed = true;
+                        _playWarningSound();
+                    }
                     sessionTimer.textContent = '+' + _fmtHMS(Math.abs(rem)) + ' over';
                     sessionTimer.classList.remove('session-timer-remaining');
                     sessionTimer.classList.add('session-timer-overtime');
@@ -19166,6 +19208,8 @@ async function startWorking(itemId, itemName, projectName, targetEndTime, retroa
         startTime: retroactiveStartTime || now,
         targetEndTime: targetEndTime || null,
     };
+    _playClickSound();
+    _timerExpiredPlayed = false; // reset for new session
     savePref('workingOn', state.workingOn);
     renderAll();
 }
@@ -19228,6 +19272,7 @@ async function startBreak(targetEndTime) {
         startTime: now,
         targetEndTime: targetEndTime || null,
     };
+    _timerExpiredPlayed = false; // reset for new break session
     savePref('onBreak', state.onBreak);
     renderAll();
 }
@@ -21280,6 +21325,40 @@ function openDefaultsModal() {
             </div>
             <div class="modal-hint">API keys are stored per provider — switch freely without re-entering.</div>
             <div class="modal-divider"></div>
+            <div class="settings-section-title" style="margin-top:4px">Personality</div>
+            <div class="modal-field">
+                <label class="modal-label">🏷️ Name</label>
+                <input type="text" id="defaults-ai-name" class="modal-input" placeholder="e.g. Buddy, Max, Aria" />
+            </div>
+            <div class="modal-field">
+                <label class="modal-label">🎭 Personality</label>
+                <select id="defaults-ai-personality" class="modal-input">
+                    <option value="">Default</option>
+                    <option value="friendly_coach">Friendly Coach</option>
+                    <option value="straight">Straight to the Point</option>
+                    <option value="gentle">Gentle &amp; Warm</option>
+                    <option value="playful">Playful</option>
+                    <option value="custom">Custom…</option>
+                </select>
+                <input type="text" id="defaults-ai-custom-personality" class="modal-input settings-custom-input" placeholder="Describe the personality…" style="display:none;margin-top:6px" />
+            </div>
+            <div class="modal-field">
+                <label class="modal-label">📝 Custom instructions</label>
+                <textarea id="defaults-ai-instructions" class="modal-input modal-textarea" rows="3" placeholder="Tell the copilot about yourself…"></textarea>
+            </div>
+            <div class="modal-field">
+                <label class="modal-label">🌐 Language</label>
+                <select id="defaults-ai-language" class="modal-input">
+                    <option value="">Auto-detect</option>
+                    <option value="English">English</option>
+                    <option value="Hebrew">Hebrew</option>
+                    <option value="Spanish">Spanish</option>
+                    <option value="French">French</option>
+                    <option value="custom">Custom…</option>
+                </select>
+                <input type="text" id="defaults-ai-custom-language" class="modal-input settings-custom-input" placeholder="e.g. Japanese, Arabic…" style="display:none;margin-top:6px" />
+            </div>
+            <div class="modal-divider"></div>
             <div class="settings-section-title" style="margin-top:4px">Triggers</div>
             <div class="modal-hint">Proactive AI nudges — the copilot will notify you when events occur.</div>
             <div id="defaults-triggers-list" class="settings-triggers-list"></div>
@@ -21347,6 +21426,36 @@ function openDefaultsModal() {
     // When provider changes, update the key placeholder to show if that provider has a saved key
     aiProviderSelect.addEventListener('change', () => {
         updateKeyPlaceholder(aiProviderSelect.value);
+    });
+
+    // AI personality settings
+    document.getElementById('defaults-ai-name').value = state.settings.aiName || '';
+    const aiPersonalitySelect = document.getElementById('defaults-ai-personality');
+    const aiCustomPersonality = document.getElementById('defaults-ai-custom-personality');
+    const savedPersonality = state.settings.aiPersonality || '';
+    if (savedPersonality && !['', 'friendly_coach', 'straight', 'gentle', 'playful'].includes(savedPersonality)) {
+        aiPersonalitySelect.value = 'custom';
+        aiCustomPersonality.value = savedPersonality;
+        aiCustomPersonality.style.display = '';
+    } else {
+        aiPersonalitySelect.value = savedPersonality;
+    }
+    aiPersonalitySelect.addEventListener('change', () => {
+        aiCustomPersonality.style.display = aiPersonalitySelect.value === 'custom' ? '' : 'none';
+    });
+    document.getElementById('defaults-ai-instructions').value = state.settings.aiCustomInstructions || '';
+    const aiLanguageSelect = document.getElementById('defaults-ai-language');
+    const aiCustomLanguage = document.getElementById('defaults-ai-custom-language');
+    const savedLanguage = state.settings.aiLanguage || '';
+    if (savedLanguage && !['', 'English', 'Hebrew', 'Spanish', 'French'].includes(savedLanguage)) {
+        aiLanguageSelect.value = 'custom';
+        aiCustomLanguage.value = savedLanguage;
+        aiCustomLanguage.style.display = '';
+    } else {
+        aiLanguageSelect.value = savedLanguage;
+    }
+    aiLanguageSelect.addEventListener('change', () => {
+        aiCustomLanguage.style.display = aiLanguageSelect.value === 'custom' ? '' : 'none';
     });
 
     // Commitment mode
@@ -21461,6 +21570,20 @@ function openDefaultsModal() {
             // Also update legacy field for backwards compat
             state.settings.aiApiKey = newKey;
         }
+        // AI personality settings
+        state.settings.aiName = document.getElementById('defaults-ai-name').value.trim();
+        const persSel = document.getElementById('defaults-ai-personality').value;
+        state.settings.aiPersonality = persSel === 'custom'
+            ? document.getElementById('defaults-ai-custom-personality').value.trim()
+            : persSel;
+        state.settings.aiCustomInstructions = document.getElementById('defaults-ai-instructions').value.trim();
+        const langSel = document.getElementById('defaults-ai-language').value;
+        state.settings.aiLanguage = langSel === 'custom'
+            ? document.getElementById('defaults-ai-custom-language').value.trim()
+            : langSel;
+        // Update copilot panel header name
+        const titleEl = document.getElementById('copilot-title');
+        if (titleEl) titleEl.textContent = state.settings.aiName ? `🤖 ${state.settings.aiName}` : '🤖 Copilot';
         // Commitment mode
         state.settings.commitmentMode = document.getElementById('defaults-commitment-mode').value;
         // Rate limit
@@ -23025,6 +23148,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const copilotSend = document.getElementById('copilot-send');
         const copilotMessages = document.getElementById('copilot-messages');
         const copilotModelLabel = document.getElementById('copilot-model-label');
+        // Show custom AI name in copilot header on load
+        const _copilotTitleEl = document.getElementById('copilot-title');
+        if (_copilotTitleEl && state.settings.aiName) _copilotTitleEl.textContent = `🤖 ${state.settings.aiName}`;
 
         let copilotOpen = false;
         let copilotPendingPlan = null;
