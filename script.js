@@ -12294,9 +12294,19 @@ function renderTimeline() {
 
 
 
+    // ── Good Night / Good Morning: always show at top when applicable ──
+    if (viewingToday && !state.workingOn && !state.onBreak) {
+        if (isDayClosed()) {
+            const closedAt = state.settings.dayOverrides?.[getActiveDayKey()]?.dayClosedAt || dayStart.getTime();
+            fragment.appendChild(createSleepTimeBlock(closedAt));
+        } else if (!isDayStarted()) {
+            fragment.appendChild(createDayStartTimeBlock());
+        }
+    }
+
     // ── When hiding past entries, inject idle/working block before the entry loop ──
     // The idle/working block represents the CURRENT state and should always be visible
-    if (hidePast && ((viewingToday && nowMs > dayStart.getTime() && nowMs < dayEndMs) || dayStillOpen || (viewingToday && isDayClosed()) || (viewingToday && !isDayStarted()))) {
+    if (hidePast && ((viewingToday && nowMs > dayStart.getTime() && nowMs < dayEndMs) || dayStillOpen)) {
         if (state.workingOn) {
             fragment.appendChild(createWorkingTimeBlock(state.workingOn.startTime, nowMs));
         } else if (state.onBreak) {
