@@ -12321,7 +12321,7 @@ function renderTimeline() {
         } else if (state.onBreak) {
             fragment.appendChild(createBreakTimeBlock(state.onBreak.startTime, nowMs));
             // isDayClosed / !isDayStarted handled by standalone block above
-        } else {
+        } else if (!isDayClosed(viewDateKey) && isDayStarted(viewDateKey)) {
             // Show idle from the end of the last block (or day start) to now, cap start at now
             const idleStart = Math.min(lastBlockEndBeforeNow || dayStart.getTime(), nowMs);
             fragment.appendChild(createIdleTimeBlock(idleStart, nowMs, true));
@@ -12346,7 +12346,7 @@ function renderTimeline() {
             } else if (state.onBreak) {
                 fragment.appendChild(createBreakTimeBlock(state.onBreak.startTime, idleEnd));
                 // isDayClosed / !isDayStarted handled by standalone block above
-            } else {
+            } else if (!isDayClosed(viewDateKey) && isDayStarted(viewDateKey)) {
                 fragment.appendChild(createIdleTimeBlock(dayStart.getTime(), idleEnd, idleEnd >= nowMs));
             }
             // Don't advance cursor — free blocks should show full gap with idle in capacity bar
@@ -12468,7 +12468,7 @@ function renderTimeline() {
                 } else if (state.onBreak) {
                     fragment.appendChild(createBreakTimeBlock(state.onBreak.startTime, idleEnd));
                     // isDayClosed / !isDayStarted handled by standalone block above
-                } else {
+                } else if (!isDayClosed(viewDateKey) && isDayStarted(viewDateKey)) {
                     fragment.appendChild(createIdleTimeBlock(entryEnd, idleEnd, idleEnd >= nowMs));
                 }
                 // Don't advance cursor — free blocks should show full gap with idle in capacity bar
