@@ -4356,6 +4356,214 @@ body {
     background: #62d902;
 }
 
+/* ─── Settings Modal (sidebar layout) ─── */
+.settings-modal-box {
+    display: flex;
+    flex-wrap: wrap;
+    min-width: 480px;
+    max-width: 560px;
+}
+
+.settings-sidebar {
+    width: 150px;
+    border-right: 2px solid var(--duo-border);
+    display: flex;
+    flex-direction: column;
+    padding: 16px 0;
+    flex-shrink: 0;
+}
+
+.settings-sidebar-title {
+    padding: 0 16px 12px;
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--duo-text);
+}
+
+.settings-sidebar-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 0 8px;
+}
+
+.settings-sidebar-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    border: none;
+    border-radius: 10px;
+    background: transparent;
+    color: var(--duo-text-soft);
+    font-size: 13px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all var(--dur) var(--ease);
+    text-align: left;
+    white-space: nowrap;
+}
+
+.settings-sidebar-item:hover {
+    background: var(--duo-hover);
+    color: var(--duo-text);
+}
+
+.settings-sidebar-item-active {
+    background: var(--duo-green-dim);
+    color: var(--duo-green);
+    font-weight: 800;
+}
+
+.settings-sidebar-item-active:hover {
+    background: var(--duo-green-dim);
+    color: var(--duo-green);
+}
+
+.settings-sidebar-icon {
+    font-size: 14px;
+    line-height: 1;
+    flex-shrink: 0;
+}
+
+.settings-content {
+    flex: 1;
+    min-width: 0;
+    padding: 16px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+.settings-section {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.settings-section-title {
+    font-size: 14px;
+    font-weight: 800;
+    color: var(--duo-text);
+}
+
+.settings-actions {
+    width: 100%;
+    border-top: 2px solid var(--duo-border);
+}
+
+/* ─── Settings: AI Trigger rows ─── */
+.settings-triggers-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.settings-trigger-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 8px;
+    border-radius: 8px;
+    transition: background var(--dur) var(--ease);
+}
+
+.settings-trigger-row:hover {
+    background: var(--duo-hover);
+}
+
+.settings-trigger-label {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--duo-text-soft);
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.settings-trigger-badge {
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 2px 8px;
+    border-radius: 8px;
+    background: var(--duo-hover);
+    color: var(--duo-text-faint);
+    flex-shrink: 0;
+}
+
+.settings-trigger-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.settings-trigger-config {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 2px 8px 6px 32px;
+}
+
+.settings-trigger-config-field {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--duo-text-faint);
+}
+
+.settings-trigger-config-input {
+    width: 48px;
+    padding: 2px 4px;
+    font-size: 11px;
+    font-weight: 700;
+    border: 2px solid var(--duo-border);
+    border-radius: 8px;
+    background: var(--duo-bg);
+    color: var(--duo-text);
+    text-align: center;
+    font-family: inherit;
+}
+
+/* Mobile: stack sidebar above content */
+@media (max-width: 600px) {
+    .settings-modal-box {
+        min-width: unset;
+        max-width: 95vw;
+        flex-direction: column;
+    }
+
+    .settings-sidebar {
+        width: 100%;
+        border-right: none;
+        border-bottom: 2px solid var(--duo-border);
+        padding: 12px 0 8px;
+    }
+
+    .settings-sidebar-title {
+        padding: 0 16px 8px;
+    }
+
+    .settings-sidebar-nav {
+        flex-direction: row;
+        overflow-x: auto;
+        gap: 4px;
+        padding: 0 12px;
+    }
+
+    .settings-content {
+        max-height: 50vh;
+    }
+}
+
 /* ─── Schedule Calendar Modal ─── */
 .schedule-modal-box {
     min-width: 320px;
@@ -10947,12 +11155,13 @@ select.schedule-leadtime-input {
 }
 
 .copilot-sticky-date {
-    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     padding: 6px 0;
     flex-shrink: 0;
     font-size: 11px;
     color: #999;
-    cursor: pointer;
     background: #f5f5f5;
     border-bottom: 1px solid #e5e5e5;
     transition: background 0.15s, color 0.15s;
@@ -10964,8 +11173,28 @@ select.schedule-leadtime-input {
     color: #333;
 }
 
-.copilot-sticky-date:empty {
-    display: none;
+.copilot-sticky-date-btn {
+    background: none;
+    border: none;
+    color: inherit;
+    cursor: pointer;
+    font-size: 14px;
+    padding: 0 6px;
+    opacity: 0.5;
+    transition: opacity 0.15s;
+}
+
+.copilot-sticky-date-btn:hover {
+    opacity: 1;
+}
+
+.copilot-sticky-date-btn:disabled {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.copilot-sticky-date-label {
+    cursor: pointer;
 }
 
 .copilot-timestamp {
@@ -10978,6 +11207,18 @@ select.schedule-leadtime-input {
 
 .copilot-message-user .copilot-timestamp {
     color: rgba(255, 255, 255, 0.6);
+}
+
+.copilot-trigger-badge {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 600;
+    color: #818cf8;
+    background: rgba(129, 140, 248, 0.12);
+    border: 1px solid rgba(129, 140, 248, 0.25);
+    border-radius: 6px;
+    padding: 2px 6px;
+    margin-bottom: 6px;
 }
 
 .copilot-clear {

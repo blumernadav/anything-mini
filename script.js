@@ -331,6 +331,16 @@ async function loadAll() {
     connectSync();
 }
 
+// ── AI Notification Sound ──
+const _aiNotificationAudio = new Audio('/sounds/notification.wav');
+_aiNotificationAudio.volume = 1.0;
+function _playAiNotificationSound() {
+    try {
+        _aiNotificationAudio.currentTime = 0;
+        _aiNotificationAudio.play().catch(() => { /* autoplay blocked — ignore */ });
+    } catch { /* fail silently */ }
+}
+
 // ─── Real-Time Sync (SSE) ───
 let _syncSource = null;
 let _lastSseActivity = Date.now();
@@ -356,7 +366,7 @@ function connectSync() {
         try {
             const msg = JSON.parse(event.data);
             if (msg.type === 'connected') return; // handshake
-            await _applySyncEvent(msg.type);
+            await _applySyncEvent(msg);
         } catch { /* ignore parse errors */ }
     };
 
@@ -370,7 +380,8 @@ function connectSync() {
 }
 
 // Apply a remote sync event by re-fetching the specific domain
-async function _applySyncEvent(type) {
+async function _applySyncEvent(msg) {
+    const type = typeof msg === 'string' ? msg : msg.type;
     try {
         if (type === 'items') {
             state.items = await api.get('/items');
@@ -410,6 +421,15 @@ async function _applySyncEvent(type) {
             state.settings = { ...state.settings, ...s };
             syncSettingsUI();
             renderAll();
+        } else if (type === 'ai_unread') {
+            updateCopilotBadge(msg.count || 0);
+            // If copilot panel is open, reload messages to show the new trigger message
+            const panel = document.querySelector('.copilot-panel-open');
+            if (panel && typeof window._reloadCopilotHistory === 'function') {
+                window._reloadCopilotHistory();
+            }
+            // Play notification sound if panel is not open
+            if (!panel) _playAiNotificationSound();
         }
     } catch (err) {
         console.warn('[sync] Failed to apply remote event:', type, err);
@@ -21128,7 +21148,7 @@ function openGoalModal(itemId, itemName) {
     });
 }
 
-// ─── Default Day Times Modal ───
+// ─── Settings Modal (sidebar navigation) ───
 function openDefaultsModal() {
     // Close if already open
     const existing = document.getElementById('defaults-modal-overlay');
@@ -21139,10 +21159,43 @@ function openDefaultsModal() {
     overlay.className = 'modal-overlay';
 
     const modal = document.createElement('div');
-    modal.className = 'modal-box';
-    modal.innerHTML = `
-        <div class="modal-header">Settings</div>
-        <div class="modal-body">
+    modal.className = 'modal-box settings-modal-box';
+
+    // ── Sidebar ──
+    const sections = [
+        { id: 'general', icon: '⚙', label: 'General' },
+        { id: 'appearance', icon: '🎨', label: 'Appearance' },
+        { id: 'commitments', icon: '⚡', label: 'Commitments' },
+        { id: 'ai', icon: '🤖', label: 'AI' },
+    ];
+
+    const sidebar = document.createElement('div');
+    sidebar.className = 'settings-sidebar';
+
+    const sidebarTitle = document.createElement('div');
+    sidebarTitle.className = 'settings-sidebar-title';
+    sidebarTitle.textContent = 'Settings';
+    sidebar.appendChild(sidebarTitle);
+
+    const sidebarNav = document.createElement('div');
+    sidebarNav.className = 'settings-sidebar-nav';
+    for (const sec of sections) {
+        const item = document.createElement('button');
+        item.className = 'settings-sidebar-item';
+        item.dataset.section = sec.id;
+        item.innerHTML = `<span class="settings-sidebar-icon">${sec.icon}</span> ${sec.label}`;
+        sidebarNav.appendChild(item);
+    }
+    sidebar.appendChild(sidebarNav);
+
+    // ── Content area ──
+    const content = document.createElement('div');
+    content.className = 'settings-content';
+
+    content.innerHTML = `
+        <!-- General -->
+        <div class="settings-section" data-section="general">
+            <div class="settings-section-title">General</div>
             <div class="modal-field">
                 <label class="modal-label">🌅 Day starts at</label>
                 <input type="time" id="defaults-start-time" class="modal-input" />
@@ -21171,7 +21224,10 @@ function openDefaultsModal() {
                 <input type="checkbox" id="defaults-sleep-guard" class="modal-toggle" />
                 <span class="modal-hint">Confirm before starting work during sleep</span>
             </div>
-            <div class="modal-divider"></div>
+        </div>
+        <!-- Appearance -->
+        <div class="settings-section" data-section="appearance" style="display:none">
+            <div class="settings-section-title">Appearance</div>
             <div class="modal-field">
                 <label class="modal-label" for="defaults-past-card-style">📋 Past entries card style</label>
                 <select id="defaults-past-card-style" class="modal-input">
@@ -21189,7 +21245,10 @@ function openDefaultsModal() {
                     <option value="pencil">Pencil & Paper</option>
                 </select>
             </div>
-            <div class="modal-divider"></div>
+        </div>
+        <!-- Commitments -->
+        <div class="settings-section" data-section="commitments" style="display:none">
+            <div class="settings-section-title">Commitments</div>
             <div class="modal-field">
                 <label class="modal-label" for="defaults-commitment-mode">⚡ Commitment mode</label>
                 <select id="defaults-commitment-mode" class="modal-input">
@@ -21197,11 +21256,14 @@ function openDefaultsModal() {
                     <option value="balanced">⚖️ Balanced — need 80% kept</option>
                     <option value="strict">🎯 Strict — any broken resets streak</option>
                 </select>
-                <span class="modal-hint">How broken commitments affect your streak</span>
             </div>
-            <div class="modal-divider"></div>
+            <div class="modal-hint">How broken commitments affect your streak</div>
+        </div>
+        <!-- AI -->
+        <div class="settings-section" data-section="ai" style="display:none">
+            <div class="settings-section-title">AI</div>
             <div class="modal-field">
-                <label class="modal-label">🤖 AI Provider</label>
+                <label class="modal-label">🤖 Provider</label>
                 <select id="defaults-ai-provider" class="modal-input">
                     <option value="gemini">Gemini</option>
                     <option value="claude">Claude</option>
@@ -21209,25 +21271,56 @@ function openDefaultsModal() {
                 </select>
             </div>
             <div class="modal-field">
-                <label class="modal-label">🧠 AI Model</label>
+                <label class="modal-label">🧠 Model</label>
                 <input type="text" id="defaults-ai-model" class="modal-input" placeholder="e.g. gemini-2.0-flash" />
             </div>
             <div class="modal-field">
-                <label class="modal-label">🔑 AI API Key</label>
+                <label class="modal-label">🔑 API Key</label>
                 <input type="password" id="defaults-ai-key" class="modal-input" placeholder="Enter API key" autocomplete="off" />
             </div>
             <div class="modal-hint">Provider and key are stored locally in settings.json. Leave key blank to keep the current one.</div>
-
-        </div>
-        <div class="modal-actions">
-            <button class="modal-btn modal-btn-cancel" id="defaults-cancel">Cancel</button>
-            <button class="modal-btn modal-btn-save" id="defaults-save">Save</button>
+            <div class="modal-divider"></div>
+            <div class="settings-section-title" style="margin-top:4px">Triggers</div>
+            <div class="modal-hint">Proactive AI nudges — the copilot will notify you when events occur.</div>
+            <div id="defaults-triggers-list" class="settings-triggers-list"></div>
+            <div class="modal-divider"></div>
+            <div class="modal-field">
+                <label class="modal-label" for="defaults-trigger-rate-limit">📊 Rate limit (per hour)</label>
+                <input type="number" id="defaults-trigger-rate-limit" class="modal-input" min="1" max="1000" step="1" />
+            </div>
         </div>
     `;
+
+    // ── Actions bar ──
+    const actions = document.createElement('div');
+    actions.className = 'modal-actions settings-actions';
+    actions.innerHTML = `
+        <button class="modal-btn modal-btn-cancel" id="defaults-cancel">Cancel</button>
+        <button class="modal-btn modal-btn-save" id="defaults-save">Save</button>
+    `;
+
+    modal.appendChild(sidebar);
+    modal.appendChild(content);
+    modal.appendChild(actions);
     overlay.appendChild(modal);
     document.body.appendChild(overlay);
 
-    // Populate with current defaults
+    // ── Sidebar switching ──
+    let activeSection = 'general';
+    function switchSection(id) {
+        activeSection = id;
+        modal.querySelectorAll('.settings-section').forEach(s => s.style.display = s.dataset.section === id ? '' : 'none');
+        modal.querySelectorAll('.settings-sidebar-item').forEach(b => {
+            b.classList.toggle('settings-sidebar-item-active', b.dataset.section === id);
+        });
+    }
+    switchSection('general');
+    sidebarNav.addEventListener('click', (e) => {
+        const btn = e.target.closest('.settings-sidebar-item');
+        if (btn) switchSection(btn.dataset.section);
+    });
+
+    // ── Populate with current defaults ──
     document.getElementById('defaults-start-time').value =
         `${String(state.settings.dayStartHour).padStart(2, '0')}:${String(state.settings.dayStartMinute).padStart(2, '0')}`;
     document.getElementById('defaults-end-time').value =
@@ -21240,13 +21333,84 @@ function openDefaultsModal() {
     // AI settings
     document.getElementById('defaults-ai-provider').value = state.settings.aiProvider || 'gemini';
     document.getElementById('defaults-ai-model').value = state.settings.aiModel || 'gemini-2.0-flash';
-    // Don't pre-fill key for security — just show placeholder if set
     if (state.settings.aiApiKey) {
         document.getElementById('defaults-ai-key').placeholder = '••••••••  (key saved)';
     }
 
     // Commitment mode
     document.getElementById('defaults-commitment-mode').value = state.settings.commitmentMode || 'gentle';
+
+    // Rate limit
+    document.getElementById('defaults-trigger-rate-limit').value = state.settings.triggerRateLimit || 100;
+
+    // Populate triggers list dynamically
+    (async function loadTriggerToggles() {
+        try {
+            const res = await fetch(`${API}/triggers`);
+            const triggers = await res.json();
+            const container = document.getElementById('defaults-triggers-list');
+            if (!container || !Array.isArray(triggers)) return;
+            container.innerHTML = '';
+            for (const t of triggers) {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'settings-trigger-wrapper';
+                const row = document.createElement('div');
+                row.className = 'settings-trigger-row';
+                const toggle = document.createElement('input');
+                toggle.type = 'checkbox';
+                toggle.className = 'modal-toggle';
+                toggle.checked = t.enabled;
+                toggle.dataset.triggerId = t.id;
+                toggle.addEventListener('change', async () => {
+                    await fetch(`${API}/triggers/${t.id}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ enabled: toggle.checked })
+                    });
+                });
+                const label = document.createElement('span');
+                label.className = 'settings-trigger-label';
+                label.textContent = t.label;
+                const hint = document.createElement('span');
+                hint.className = 'settings-trigger-badge';
+                hint.textContent = t.isEventDriven ? 'event' : 'timer';
+                row.appendChild(toggle);
+                row.appendChild(label);
+                row.appendChild(hint);
+                wrapper.appendChild(row);
+
+                // Per-trigger config fields from configSchema
+                if (t.configSchema && t.configSchema.length > 0) {
+                    const configRow = document.createElement('div');
+                    configRow.className = 'settings-trigger-config';
+                    for (const field of t.configSchema) {
+                        const fieldWrap = document.createElement('label');
+                        fieldWrap.className = 'settings-trigger-config-field';
+                        fieldWrap.innerHTML = `<span>${field.label}</span>`;
+                        const input = document.createElement('input');
+                        input.type = field.type || 'number';
+                        input.className = 'settings-trigger-config-input';
+                        input.value = t.config[field.key] ?? '';
+                        if (field.min !== undefined) input.min = field.min;
+                        if (field.max !== undefined) input.max = field.max;
+                        input.addEventListener('change', async () => {
+                            const val = input.type === 'number' ? Number(input.value) : input.value;
+                            await fetch(`${API}/triggers/${t.id}`, {
+                                method: 'PUT',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ config: { [field.key]: val } })
+                            });
+                        });
+                        fieldWrap.appendChild(input);
+                        configRow.appendChild(fieldWrap);
+                    }
+                    wrapper.appendChild(configRow);
+                }
+
+                container.appendChild(wrapper);
+            }
+        } catch { /* API unavailable */ }
+    })();
 
     // Close on overlay click
     overlay.addEventListener('click', (e) => {
@@ -21281,6 +21445,9 @@ function openDefaultsModal() {
         if (newKey) state.settings.aiApiKey = newKey; // Only overwrite if user typed a new key
         // Commitment mode
         state.settings.commitmentMode = document.getElementById('defaults-commitment-mode').value;
+        // Rate limit
+        const rateLimit = parseInt(document.getElementById('defaults-trigger-rate-limit').value, 10);
+        if (rateLimit > 0) state.settings.triggerRateLimit = rateLimit;
         api.put('/settings', state.settings);
         // Reload copilot config label
         try {
@@ -22794,6 +22961,41 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // ============================================================
+    // ── AI Copilot Badge (global scope) ──
+    // ============================================================
+    let _copilotBadgeEl = null;
+    window.updateCopilotBadge = function (count) {
+        if (!_copilotBadgeEl) {
+            const fab = document.getElementById('copilot-fab');
+            if (!fab) return;
+            fab.style.position = 'relative';
+            _copilotBadgeEl = document.createElement('span');
+            _copilotBadgeEl.className = 'copilot-badge';
+            fab.appendChild(_copilotBadgeEl);
+        }
+        const n = parseInt(count, 10) || 0;
+        _copilotBadgeEl.textContent = n > 99 ? '99+' : n;
+        _copilotBadgeEl.style.display = n > 0 ? '' : 'none';
+        if (n > 0) {
+            _copilotBadgeEl.classList.remove('copilot-badge-pulse');
+            void _copilotBadgeEl.offsetWidth; // force reflow for re-triggering animation
+            _copilotBadgeEl.classList.add('copilot-badge-pulse');
+        }
+    };
+
+    // Expose for SSE handler
+    function updateCopilotBadge(count) { window.updateCopilotBadge(count); }
+
+    // Fetch initial unread count
+    (async function loadInitialUnread() {
+        try {
+            const res = await fetch(`${API}/ai/unread`);
+            const data = await res.json();
+            updateCopilotBadge(data.count || 0);
+        } catch { /* ignore */ }
+    })();
+
+    // ============================================================
     // ── AI Copilot Module ──
     // ============================================================
     {
@@ -22811,6 +23013,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let copilotPendingPlanIndex = -1;
         let copilotLoading = false;
         let copilotHistoryLoaded = false;
+        let _copilotHistoryFingerprint = null; // track last loaded state to avoid flicker
 
         // ── Helpers ──
         function formatTime(ts) {
@@ -22835,8 +23038,11 @@ document.addEventListener('DOMContentLoaded', () => {
             copilotPanel.classList.toggle('copilot-panel-open', copilotOpen);
             copilotOverlay.classList.toggle('copilot-overlay-visible', copilotOpen);
             if (copilotOpen) {
-                if (!copilotHistoryLoaded) loadChatHistory();
+                loadChatHistory(); // Always reload to pick up trigger messages
                 setTimeout(() => copilotInput.focus(), 300);
+                // Clear unread badge when panel opens
+                fetch(`${API}/ai/unread/clear`, { method: 'POST' }).catch(() => { });
+                updateCopilotBadge(0);
             }
         }
 
@@ -22875,7 +23081,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // ── Message rendering ──
-        function addMessage(role, content, timestamp, skipScroll) {
+        function addMessage(role, content, timestamp, skipScroll, triggerLabel) {
             if (timestamp) maybeAddDateSeparator(timestamp);
 
             const bubble = document.createElement('div');
@@ -22885,6 +23091,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 bubble.querySelectorAll('a').forEach(a => { a.target = '_blank'; a.rel = 'noopener'; });
             } else {
                 bubble.textContent = content;
+            }
+
+            // Trigger label badge
+            if (triggerLabel) {
+                const badge = document.createElement('span');
+                badge.className = 'copilot-trigger-badge';
+                badge.textContent = triggerLabel;
+                bubble.insertBefore(badge, bubble.firstChild);
             }
 
             // Timestamp
@@ -23114,12 +23328,26 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // ── Load chat history ──
-        async function loadChatHistory() {
+        function _chatFingerprint(messages) {
+            if (!messages || messages.length === 0) return 'empty';
+            const last = messages[messages.length - 1];
+            // Include count, last timestamp, and last status (for plan status changes)
+            return `${messages.length}:${last.timestamp || 0}:${last.status || ''}`;
+        }
+
+        async function loadChatHistory(force) {
             try {
                 const res = await fetch('/api/ai/history');
                 const data = await res.json();
 
-                // Clear welcome message
+                // Skip re-render if nothing changed (avoids flicker on panel open)
+                const fp = _chatFingerprint(data.messages);
+                if (!force && _copilotHistoryFingerprint === fp) {
+                    return; // no new messages — keep existing DOM
+                }
+                _copilotHistoryFingerprint = fp;
+
+                // Clear and re-render
                 copilotMessages.innerHTML = '';
                 _lastRenderedDate = '';
 
@@ -23139,7 +23367,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (msg.role === 'user') {
                         addMessage('user', msg.content, msg.timestamp, true);
                     } else if (msg.role === 'assistant') {
-                        addMessage('assistant', msg.content, msg.timestamp, true);
+                        addMessage('assistant', msg.content, msg.timestamp, true, msg.triggerLabel);
                     } else if (msg.role === 'plan') {
                         addPlanCard(msg.content, msg.status, planIndex, true);
                         planIndex++;
@@ -23155,8 +23383,15 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
+        // Expose for SSE handler to trigger live refresh
+        window._reloadCopilotHistory = loadChatHistory;
+
         // ── Sticky date pill ──
         const stickyDatePill = document.getElementById('copilot-sticky-date');
+        const stickyDateLabel = document.getElementById('copilot-sticky-date-label');
+        const stickyDatePrev = document.getElementById('copilot-sticky-date-prev');
+        const stickyDateNext = document.getElementById('copilot-sticky-date-next');
+        let _stickyDateCurrentIndex = 0;
 
         function updateStickyDatePill() {
             const seps = copilotMessages.querySelectorAll('.copilot-date-sep');
@@ -23172,16 +23407,21 @@ document.addEventListener('DOMContentLoaded', () => {
             const seps = copilotMessages.querySelectorAll('.copilot-date-sep');
             if (!seps.length) return;
             const scrollTop = copilotMessages.scrollTop;
-            let current = seps[0];
-            for (const sep of seps) {
-                if (sep.offsetTop - copilotMessages.offsetTop <= scrollTop + 4) {
-                    current = sep;
+            let currentIdx = 0;
+            for (let i = 0; i < seps.length; i++) {
+                if (seps[i].offsetTop - copilotMessages.offsetTop <= scrollTop + 4) {
+                    currentIdx = i;
                 } else {
                     break;
                 }
             }
-            stickyDatePill.textContent = current.textContent;
-            stickyDatePill.dataset.date = current.dataset.date;
+            _stickyDateCurrentIndex = currentIdx;
+            stickyDateLabel.textContent = seps[currentIdx].textContent;
+            stickyDatePill.dataset.date = seps[currentIdx].dataset.date;
+
+            // Hide prev on first date, next on last date
+            stickyDatePrev.disabled = currentIdx === 0;
+            stickyDateNext.disabled = currentIdx === seps.length - 1;
         }
 
         let _stickyDateScrollTimer = null;
@@ -23190,12 +23430,31 @@ document.addEventListener('DOMContentLoaded', () => {
             _stickyDateScrollTimer = setTimeout(syncStickyDateText, 30);
         });
 
-        stickyDatePill.addEventListener('click', () => {
+        // Center label click — scroll to start of current date
+        stickyDateLabel.addEventListener('click', () => {
             const targetDate = stickyDatePill.dataset.date;
             if (!targetDate) return;
             const sep = copilotMessages.querySelector(`.copilot-date-sep[data-date="${targetDate}"]`);
             if (sep) {
                 sep.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        });
+
+        // Prev button — scroll to previous date
+        stickyDatePrev.addEventListener('click', () => {
+            const seps = copilotMessages.querySelectorAll('.copilot-date-sep');
+            const prevIdx = _stickyDateCurrentIndex - 1;
+            if (prevIdx >= 0 && seps[prevIdx]) {
+                seps[prevIdx].scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        });
+
+        // Next button — scroll to next date
+        stickyDateNext.addEventListener('click', () => {
+            const seps = copilotMessages.querySelectorAll('.copilot-date-sep');
+            const nextIdx = _stickyDateCurrentIndex + 1;
+            if (nextIdx < seps.length && seps[nextIdx]) {
+                seps[nextIdx].scrollIntoView({ behavior: 'smooth', block: 'start' });
             }
         });
 
