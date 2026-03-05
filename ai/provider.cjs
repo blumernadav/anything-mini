@@ -8,6 +8,49 @@
 const { GoogleGenerativeAI, SchemaType } = require('@google/generative-ai');
 const Anthropic = require('@anthropic-ai/sdk');
 
+// ============ Gemini Schema Sanitization ============
+
+/**
+ * Recursively sanitize a JSON Schema to be compatible with Gemini's API.
+ * Gemini rejects:
+ *   - Union types like type: ['number', 'null'] → pick first non-null, add nullable
+ *   - 'required' arrays inside nested object schemas (only top-level is ok)
+ *   - Nested object items with their own 'required' field
+ */
+function sanitizeSchemaForGemini(schema, isTopLevel = true) {
+    if (!schema || typeof schema !== 'object') return schema;
+
+    const result = { ...schema };
+
+    // Handle union types: type: ['number', 'null'] → type: 'number', nullable: true
+    if (Array.isArray(result.type)) {
+        const types = result.type.filter(t => t !== 'null');
+        result.nullable = result.type.includes('null');
+        result.type = types[0] || 'string';
+    }
+
+    // Recursively sanitize properties
+    if (result.properties) {
+        const cleanProps = {};
+        for (const [key, val] of Object.entries(result.properties)) {
+            cleanProps[key] = sanitizeSchemaForGemini(val, false);
+        }
+        result.properties = cleanProps;
+    }
+
+    // Recursively sanitize array items
+    if (result.items) {
+        result.items = sanitizeSchemaForGemini(result.items, false);
+    }
+
+    // Remove 'required' from nested schemas (Gemini only supports top-level required)
+    if (!isTopLevel && result.required) {
+        delete result.required;
+    }
+
+    return result;
+}
+
 // ============ Gemini Adapter ============
 
 function createGeminiAdapter(apiKey, model) {
@@ -18,11 +61,11 @@ function createGeminiAdapter(apiKey, model) {
         model,
 
         async chat({ systemPrompt, messages, tools, temperature = 0.7 }) {
-            // Convert tools to Gemini function declarations
+            // Convert tools to Gemini function declarations with sanitized schemas
             const functionDeclarations = tools ? tools.map(t => ({
                 name: t.name,
                 description: t.description,
-                parameters: t.parameters || undefined
+                parameters: t.parameters ? sanitizeSchemaForGemini(t.parameters, true) : undefined
             })) : undefined;
 
             const generativeModel = genAI.getGenerativeModel({
