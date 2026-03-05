@@ -9743,8 +9743,45 @@ select.schedule-leadtime-input {
     /* ── Touch action visibility (no hover on mobile) ── */
     .plan-start-btn,
     .plan-delete-btn,
-    .bookmarks-item-remove {
+    .bookmarks-item-remove,
+    .idle-start-btn,
+    .idle-break-btn,
+    .segment-queue-start,
+    .segment-queue-done {
         opacity: 0.5;
+    }
+
+    /* Session indicator: expand stop/next/pause buttons */
+    .live-session-stop-btn {
+        width: 20px;
+        opacity: 0.7;
+        margin-left: 4px;
+    }
+
+    /* Horizon layer stop/pause/next buttons */
+    .live-layer-stop-btn {
+        opacity: 0.7;
+    }
+
+    /* Queue All button in live indicator */
+    .live-queue-all-btn {
+        max-width: 60px;
+        opacity: 0.7;
+        padding: 0 6px;
+    }
+
+    /* Project tree action buttons */
+    .project-actions {
+        opacity: 0.6;
+        max-width: 90px;
+        transform: scale(1);
+    }
+
+    /* Locate-in-sidebar icons */
+    .action-locate-btn {
+        max-width: 20px;
+        opacity: 0.3;
+        margin-right: 4px;
     }
 
     /* ── Context menu viewport clamping ── */
@@ -10430,6 +10467,43 @@ select.schedule-leadtime-input {
 /* ============================================================ */
 
 /* copilot-fab is now a top-bar-btn — no special styling needed */
+
+.copilot-badge {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    border-radius: 8px;
+    background: #ef4444;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 16px;
+    text-align: center;
+    pointer-events: none;
+    box-shadow: 0 1px 4px rgba(239, 68, 68, 0.4);
+    z-index: 1;
+}
+
+@keyframes copilot-badge-pulse {
+    0% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.3);
+    }
+
+    100% {
+        transform: scale(1);
+    }
+}
+
+.copilot-badge-pulse {
+    animation: copilot-badge-pulse 0.4s ease-out;
+}
 
 .copilot-overlay {
     position: fixed;
