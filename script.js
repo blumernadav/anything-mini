@@ -12038,10 +12038,13 @@ function renderTimeline() {
     const dayEndMs = dayEnd.getTime();
     const nowMs = now.getTime();
     const viewingToday = isCurrentDay(state.timelineViewDate);
+    // Day is past configured end but user hasn't closed it yet — still "live"
+    const viewDateKey = getDateKey(state.timelineViewDate);
+    const dayStillOpen = !viewingToday && isDayStarted(viewDateKey) && !isDayClosed(viewDateKey) && nowMs >= dayEndMs;
 
     // Collect entries within the day range (dayStart → dayEnd)
     // This correctly handles cross-date days
-    const pushBoundary = Math.max(dayStart.getTime(), viewingToday ? nowMs : 0);
+    const pushBoundary = Math.max(dayStart.getTime(), (viewingToday || dayStillOpen) ? nowMs : 0);
     const allDayEntries = state.timeline.entries
         .filter(e => (e.timestamp >= dayStart.getTime() || e.dynamicStart) && e.timestamp < dayEnd.getTime())
         .sort((a, b) => a.timestamp - b.timestamp) // chronological
@@ -12158,7 +12161,7 @@ function renderTimeline() {
 
     // ── When hiding past entries, inject idle/working block before the entry loop ──
     // The idle/working block represents the CURRENT state and should always be visible
-    if (hidePast && viewingToday && nowMs > dayStart.getTime() && nowMs < dayEndMs) {
+    if (hidePast && ((viewingToday && nowMs > dayStart.getTime() && nowMs < dayEndMs) || dayStillOpen)) {
         if (state.workingOn) {
             fragment.appendChild(createWorkingTimeBlock(state.workingOn.startTime, nowMs));
         } else if (state.onBreak) {
@@ -12173,9 +12176,10 @@ function renderTimeline() {
 
     // ── If no block entries before now and viewing today, idle/working from day start to now ──
     // Skip when hidePast already injected the idle/working block above
-    if (!hidePast && viewingToday && !lastBlockBeforeNow && nowMs > dayStart.getTime() && nowMs < dayEndMs) {
+    if (!hidePast && ((viewingToday && !lastBlockBeforeNow && nowMs > dayStart.getTime() && nowMs < dayEndMs) || (dayStillOpen && !lastBlockBeforeNow))) {
         const firstBlock = dayBlockEntries[0];
-        const idleEnd = firstBlock ? Math.min(nowMs, firstBlock.timestamp) : Math.min(nowMs, dayEndMs);
+        const effectiveEnd = dayStillOpen ? nowMs : dayEndMs;
+        const idleEnd = firstBlock ? Math.min(nowMs, firstBlock.timestamp) : Math.min(nowMs, effectiveEnd);
 
         // ── Insert marker: gap from day start to first block ──
         const dayStartMarker = createPastInsertMarker(dayStart.getTime(), idleEnd);
@@ -12299,7 +12303,7 @@ function renderTimeline() {
         // ── Idle/Working block: inject after the last block before "now" ──
         const isLastBeforeNow = entryTime === lastBlockBeforeNow;
 
-        if (viewingToday && isLastBeforeNow && nowMs > entryEnd) {
+        if ((viewingToday || dayStillOpen) && isLastBeforeNow && nowMs > entryEnd) {
             const nextBlock = dayBlockEntries[i + 1];
             const idleEnd = nextBlock ? Math.min(nowMs, nextBlock.timestamp) : nowMs;
             if (idleEnd > entryEnd) {
