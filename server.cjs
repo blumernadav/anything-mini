@@ -296,7 +296,16 @@ app.get('/api/settings', async (req, res) => {
 
 app.put('/api/settings', async (req, res) => {
     const current = await settingsStore.read();
-    const updated = { ...current, ...req.body };
+    // Deep merge: for nested objects, merge keys instead of replacing entirely
+    const updated = { ...current };
+    for (const [key, val] of Object.entries(req.body)) {
+        if (val && typeof val === 'object' && !Array.isArray(val) && current[key] && typeof current[key] === 'object' && !Array.isArray(current[key])) {
+            // Merge nested object (dayOverrides, streak, triggers, aiApiKeys, etc.)
+            updated[key] = { ...current[key], ...val };
+        } else {
+            updated[key] = val;
+        }
+    }
     await settingsStore.write(updated);
     notifyClients('settings', req.headers['x-client-id']);
     res.json(updated);
