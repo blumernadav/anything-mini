@@ -12484,6 +12484,16 @@ function renderTimeline() {
     // ── Day End block ──
     fragment.appendChild(createDayBoundaryBlock('day-end', dayEnd, now));
 
+    // ── Good Night / Good Morning block after Day End ──
+    if (!state.workingOn && !state.onBreak) {
+        if (isDayClosed()) {
+            const closedAt = state.settings.dayOverrides?.[getActiveDayKey()]?.dayClosedAt || dayEnd.getTime();
+            fragment.appendChild(createSleepTimeBlock(closedAt));
+        } else if (!isDayStarted() && viewingToday) {
+            fragment.appendChild(createDayStartTimeBlock());
+        }
+    }
+
     // ── Night indicator AFTER Day End (this day's end → next day's start) ──
     const nextDay = new Date(viewDate);
     nextDay.setDate(nextDay.getDate() + 1);
