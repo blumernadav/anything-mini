@@ -5733,6 +5733,47 @@ function renderActions(opts) {
         return;
     }
 
+    // ── Day not started: show "Good Morning" instead of actions ──
+    if (!isDayStarted() && !isDayClosed() && !state.workingOn && !state.onBreak) {
+        container.querySelectorAll('.action-card, .action-item, .action-group-header, .overflow-preview').forEach(el => el.remove());
+        empty.style.display = '';
+        empty.innerHTML = '';
+        const icon = document.createElement('span');
+        icon.className = 'empty-icon';
+        icon.textContent = '☀️';
+        empty.appendChild(icon);
+        const msg = document.createElement('span');
+        msg.textContent = 'Good Morning';
+        empty.appendChild(msg);
+        // Over timer: how long past planned start
+        const todayTimes = getEffectiveDayTimes(new Date());
+        const plannedStart = new Date();
+        plannedStart.setHours(todayTimes.dayStartHour, todayTimes.dayStartMinute, 0, 0);
+        const overMs = Date.now() - plannedStart.getTime();
+        if (overMs > 0) {
+            const hint = document.createElement('span');
+            hint.className = 'empty-hint';
+            hint.textContent = `+${_fmtHMS(overMs)} over planned start`;
+            empty.appendChild(hint);
+        } else {
+            const hint = document.createElement('span');
+            hint.className = 'empty-hint';
+            hint.textContent = 'ready when you are';
+            empty.appendChild(hint);
+        }
+        // Start Day button
+        const startBtn = document.createElement('button');
+        startBtn.className = 'live-queue-all-btn live-start-day-btn';
+        startBtn.textContent = '☀️ Start Day';
+        startBtn.style.marginTop = '12px';
+        startBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            startDay();
+        });
+        empty.appendChild(startBtn);
+        return;
+    }
+
     // Remove existing items but not the empty state and bulk bar
     container.querySelectorAll('.action-card, .action-item, .action-group-header, .overflow-preview').forEach(el => el.remove());
 
@@ -11496,6 +11537,26 @@ function renderTimeline() {
             header.innerHTML = `<span class="live-panel-icon">🌙</span> <span class="live-panel-title">Good Night</span>`;
             panel.appendChild(header);
 
+            // Timer: countdown to next day's start / over timer
+            const timerRow = document.createElement('div');
+            timerRow.className = 'live-panel-timer-row';
+            timerRow.id = 'live-panel-timer';
+            const now = new Date();
+            const todayTimes = getEffectiveDayTimes(now);
+            const nextStart = new Date(now);
+            nextStart.setHours(todayTimes.dayStartHour, todayTimes.dayStartMinute, 0, 0);
+            if (nextStart <= now) nextStart.setDate(nextStart.getDate() + 1);
+            timerRow.dataset.targetEnd = nextStart.getTime();
+            timerRow.dataset.sessionStart = '';
+            const rem = nextStart.getTime() - now.getTime();
+            if (rem > 0) {
+                timerRow.textContent = `⏱️ ${_fmtDur(rem)} until morning`;
+            } else {
+                timerRow.textContent = `⏱️ +${_fmtDur(Math.abs(rem))} over — good morning?`;
+                timerRow.classList.add('live-panel-overtime');
+            }
+            panel.appendChild(timerRow);
+
             const msg = document.createElement('div');
             msg.className = 'live-panel-message';
             msg.textContent = 'Day closed — you earned it.';
@@ -11509,6 +11570,46 @@ function renderTimeline() {
             reopenBtn.addEventListener('click', () => reopenDay());
             reopenRow.appendChild(reopenBtn);
             panel.appendChild(reopenRow);
+
+        } else if (!isDayStarted()) {
+            // ── New Day (Good Morning) state ──
+            const header = document.createElement('div');
+            header.className = 'live-panel-header live-panel-daystart';
+            header.innerHTML = `<span class="live-panel-icon">☀️</span> <span class="live-panel-title">Good Morning</span>`;
+            panel.appendChild(header);
+
+            // Over timer: how long past planned start
+            const timerRow = document.createElement('div');
+            timerRow.className = 'live-panel-timer-row';
+            timerRow.id = 'live-panel-timer';
+            const now = new Date();
+            const todayTimes = getEffectiveDayTimes(now);
+            const plannedStart = new Date(now);
+            plannedStart.setHours(todayTimes.dayStartHour, todayTimes.dayStartMinute, 0, 0);
+            timerRow.dataset.targetEnd = '';
+            timerRow.dataset.sessionStart = plannedStart.getTime();
+            const overMs = now.getTime() - plannedStart.getTime();
+            if (overMs > 0) {
+                timerRow.textContent = `⏱️ +${_fmtDur(overMs)} over planned start`;
+                timerRow.classList.add('live-panel-overtime');
+            } else {
+                timerRow.textContent = `⏱️ ${_fmtDur(Math.abs(overMs))} until planned start`;
+            }
+            panel.appendChild(timerRow);
+
+            const msg = document.createElement('div');
+            msg.className = 'live-panel-message';
+            msg.textContent = 'Ready when you are.';
+            panel.appendChild(msg);
+
+            const startRow = document.createElement('div');
+            startRow.className = 'live-panel-actions';
+            const startBtn = document.createElement('button');
+            startBtn.className = 'live-panel-start-btn';
+            startBtn.textContent = '☀️ Start Day';
+            startBtn.addEventListener('click', () => startDay());
+            startRow.appendChild(startBtn);
+            panel.appendChild(startRow);
 
         } else {
             // ── Idle state ──
@@ -12166,6 +12267,11 @@ function renderTimeline() {
             fragment.appendChild(createWorkingTimeBlock(state.workingOn.startTime, nowMs));
         } else if (state.onBreak) {
             fragment.appendChild(createBreakTimeBlock(state.onBreak.startTime, nowMs));
+        } else if (isDayClosed()) {
+            const closedAt = state.settings.dayOverrides?.[getActiveDayKey()]?.dayClosedAt || dayStart.getTime();
+            fragment.appendChild(createSleepTimeBlock(closedAt));
+        } else if (!isDayStarted()) {
+            fragment.appendChild(createDayStartTimeBlock());
         } else {
             // Show idle from the end of the last block (or day start) to now, cap start at now
             const idleStart = Math.min(lastBlockEndBeforeNow || dayStart.getTime(), nowMs);
@@ -12190,6 +12296,11 @@ function renderTimeline() {
                 fragment.appendChild(createWorkingTimeBlock(state.workingOn.startTime, idleEnd));
             } else if (state.onBreak) {
                 fragment.appendChild(createBreakTimeBlock(state.onBreak.startTime, idleEnd));
+            } else if (isDayClosed()) {
+                const closedAt = state.settings.dayOverrides?.[getActiveDayKey()]?.dayClosedAt || dayStart.getTime();
+                fragment.appendChild(createSleepTimeBlock(closedAt));
+            } else if (!isDayStarted()) {
+                fragment.appendChild(createDayStartTimeBlock());
             } else {
                 fragment.appendChild(createIdleTimeBlock(dayStart.getTime(), idleEnd, idleEnd >= nowMs));
             }
@@ -12311,6 +12422,11 @@ function renderTimeline() {
                     fragment.appendChild(createWorkingTimeBlock(state.workingOn.startTime, idleEnd));
                 } else if (state.onBreak) {
                     fragment.appendChild(createBreakTimeBlock(state.onBreak.startTime, idleEnd));
+                } else if (isDayClosed()) {
+                    const closedAt = state.settings.dayOverrides?.[getActiveDayKey()]?.dayClosedAt || entryEnd;
+                    fragment.appendChild(createSleepTimeBlock(closedAt));
+                } else if (!isDayStarted()) {
+                    fragment.appendChild(createDayStartTimeBlock());
                 } else {
                     fragment.appendChild(createIdleTimeBlock(entryEnd, idleEnd, idleEnd >= nowMs));
                 }
@@ -13339,6 +13455,123 @@ function createIdleTimeBlock(startMs, endMs, isLive) {
     return el;
 }
 
+function createSleepTimeBlock(startMs) {
+    const el = document.createElement('div');
+    el.className = 'time-block time-block-sleep';
+    el.dataset.startTime = startMs;
+
+    // Compute next day's planned start time
+    const now = new Date();
+    const todayTimes = getEffectiveDayTimes(now);
+    const nextStart = new Date(now);
+    nextStart.setHours(todayTimes.dayStartHour, todayTimes.dayStartMinute, 0, 0);
+    if (nextStart <= now) {
+        nextStart.setDate(nextStart.getDate() + 1);
+    }
+    el.dataset.targetEnd = nextStart.getTime();
+
+    const icon = document.createElement('div');
+    icon.className = 'time-block-icon';
+    icon.textContent = '🌙';
+
+    const content = document.createElement('div');
+    content.className = 'time-block-content';
+
+    const label = document.createElement('div');
+    label.className = 'time-block-label';
+    label.textContent = 'Good Night';
+
+    const time = document.createElement('div');
+    time.className = 'time-block-time sleep-time-range';
+    time.textContent = `${formatTime(startMs)} – ${formatTime(Date.now())}`;
+
+    const status = document.createElement('div');
+    status.className = 'time-block-status sleep-duration';
+    const remaining = nextStart.getTime() - Date.now();
+    if (remaining > 0) {
+        status.textContent = _fmtHMS(remaining) + ' left';
+    } else {
+        status.textContent = '+' + _fmtHMS(Math.abs(remaining)) + ' over';
+        el.classList.add('time-block-sleep-over');
+    }
+
+    content.appendChild(label);
+    content.appendChild(time);
+    content.appendChild(status);
+
+    el.appendChild(icon);
+    el.appendChild(content);
+
+    // Reopen Day button
+    const reopenBtn = document.createElement('button');
+    reopenBtn.className = 'idle-log-btn';
+    reopenBtn.textContent = '↩️';
+    reopenBtn.title = 'Reopen Day';
+    reopenBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        reopenDay();
+    });
+    el.appendChild(reopenBtn);
+
+    return el;
+}
+
+function createDayStartTimeBlock() {
+    const el = document.createElement('div');
+    el.className = 'time-block time-block-daystart';
+
+    // Compute planned start time for today
+    const now = new Date();
+    const todayTimes = getEffectiveDayTimes(now);
+    const plannedStart = new Date(now);
+    plannedStart.setHours(todayTimes.dayStartHour, todayTimes.dayStartMinute, 0, 0);
+    el.dataset.plannedStart = plannedStart.getTime();
+
+    const icon = document.createElement('div');
+    icon.className = 'time-block-icon';
+    icon.textContent = '☀️';
+
+    const content = document.createElement('div');
+    content.className = 'time-block-content';
+
+    const label = document.createElement('div');
+    label.className = 'time-block-label';
+    label.textContent = 'Good Morning';
+
+    const time = document.createElement('div');
+    time.className = 'time-block-time daystart-time-range';
+    time.textContent = `Planned start: ${formatTime(plannedStart.getTime())}`;
+
+    const status = document.createElement('div');
+    status.className = 'time-block-status daystart-duration';
+    const overMs = Date.now() - plannedStart.getTime();
+    if (overMs > 0) {
+        status.textContent = '+' + _fmtHMS(overMs) + ' over';
+    } else {
+        status.textContent = _fmtHMS(Math.abs(overMs)) + ' left';
+    }
+
+    content.appendChild(label);
+    content.appendChild(time);
+    content.appendChild(status);
+
+    el.appendChild(icon);
+    el.appendChild(content);
+
+    // Start Day button
+    const startBtn = document.createElement('button');
+    startBtn.className = 'idle-start-btn';
+    startBtn.textContent = '☀️';
+    startBtn.title = 'Start Day';
+    startBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        startDay();
+    });
+    el.appendChild(startBtn);
+
+    return el;
+}
+
 // ── Idle Start Picker: quick-pick to start working retroactively from idle ──
 function openIdleStartPicker(anchorEl, idleStartMs) {
     // Close any existing picker/editor
@@ -14262,11 +14495,12 @@ function startIdleUpdater() {
 
         // ── Update live panel timer (timeline area) ──
         const panelTimer = _q('pt', 'live-panel-timer', true);
-        if (panelTimer && panelTimer.dataset.sessionStart) {
-            const pStart = parseInt(panelTimer.dataset.sessionStart, 10);
+        if (panelTimer) {
+            const pStart = panelTimer.dataset.sessionStart ? parseInt(panelTimer.dataset.sessionStart, 10) : null;
             const pTarget = panelTimer.dataset.targetEnd ? parseInt(panelTimer.dataset.targetEnd, 10) : null;
             const pNow = Date.now();
-            if (pTarget) {
+            if (pTarget && pStart) {
+                // Working/break: countdown to target, then overtime
                 const rem = pTarget - pNow;
                 if (rem > 0) {
                     panelTimer.textContent = `⏱️ ${_fmtHMS(rem)} remaining`;
@@ -14275,7 +14509,27 @@ function startIdleUpdater() {
                     panelTimer.textContent = `⏱️ +${_fmtHMS(Math.abs(rem))} overtime`;
                     panelTimer.classList.add('live-panel-overtime');
                 }
-            } else {
+            } else if (pTarget && !pStart) {
+                // Good Night: countdown to next morning
+                const rem = pTarget - pNow;
+                if (rem > 0) {
+                    panelTimer.textContent = `⏱️ ${_fmtHMS(rem)} until morning`;
+                    panelTimer.classList.remove('live-panel-overtime');
+                } else {
+                    panelTimer.textContent = `⏱️ +${_fmtHMS(Math.abs(rem))} over — good morning?`;
+                    panelTimer.classList.add('live-panel-overtime');
+                }
+            } else if (pStart && !pTarget) {
+                // Good Morning: elapsed since planned start
+                const overMs = pNow - pStart;
+                if (overMs > 0) {
+                    panelTimer.textContent = `⏱️ +${_fmtHMS(overMs)} over planned start`;
+                    panelTimer.classList.add('live-panel-overtime');
+                } else {
+                    panelTimer.textContent = `⏱️ ${_fmtHMS(Math.abs(overMs))} until planned start`;
+                    panelTimer.classList.remove('live-panel-overtime');
+                }
+            } else if (pStart) {
                 panelTimer.textContent = `⏱️ ${_fmtHMS(pNow - pStart)} elapsed`;
             }
         }
@@ -14401,6 +14655,52 @@ function startIdleUpdater() {
             // Update capacity bar remaining time
             _updateLiveCapacityBar(breakBlock, targetEnd);
             return; // break block takes priority over idle
+        }
+
+        // Update sleep block if present
+        const sleepBlock = _q('sb', '.time-block-sleep');
+        if (sleepBlock) {
+            const targetEnd = sleepBlock.dataset.targetEnd ? parseInt(sleepBlock.dataset.targetEnd, 10) : null;
+            const startMs = parseInt(sleepBlock.dataset.startTime, 10);
+            const nowMs = Date.now();
+
+            const durationEl = sleepBlock.querySelector('.sleep-duration');
+            if (durationEl && targetEnd) {
+                const rem = targetEnd - nowMs;
+                if (rem > 0) {
+                    durationEl.textContent = _fmtHMS(rem) + ' left';
+                    sleepBlock.classList.remove('time-block-sleep-over');
+                } else {
+                    durationEl.textContent = '+' + _fmtHMS(Math.abs(rem)) + ' over';
+                    sleepBlock.classList.add('time-block-sleep-over');
+                }
+            }
+
+            const timeEl = sleepBlock.querySelector('.sleep-time-range');
+            if (timeEl) {
+                timeEl.textContent = `${formatTime(startMs)} – ${formatTime(nowMs)}`;
+            }
+            _tickCapacityBar();
+            return;
+        }
+
+        // Update daystart block if present
+        const daystartBlock = _q('ds', '.time-block-daystart');
+        if (daystartBlock) {
+            const plannedStart = daystartBlock.dataset.plannedStart ? parseInt(daystartBlock.dataset.plannedStart, 10) : null;
+            const nowMs = Date.now();
+
+            const durationEl = daystartBlock.querySelector('.daystart-duration');
+            if (durationEl && plannedStart) {
+                const overMs = nowMs - plannedStart;
+                if (overMs > 0) {
+                    durationEl.textContent = '+' + _fmtHMS(overMs) + ' over';
+                } else {
+                    durationEl.textContent = _fmtHMS(Math.abs(overMs)) + ' left';
+                }
+            }
+            _tickCapacityBar();
+            return;
         }
 
         // Update idle block if present
@@ -17324,28 +17624,47 @@ function computeDayCapacity(viewDate) {
     const viewingToday = isCurrentDay(viewDate);
     const totalMins = Math.round((dayEndMs - dayStartMs) / 60000);
 
-    // ── Done: sum of completed work/break entries in the day ──
+    // ── Done: union of completed work/break intervals in the day ──
+    // Entries can overlap (e.g. a long break spanning work entries), so we
+    // merge intervals before summing to avoid double-counting.
     const dayEntries = (state.timeline?.entries || [])
         .filter(e => e.endTime && (e.type === 'work' || e.type === 'break'))
         .filter(e => e.timestamp < dayEndMs && e.endTime > dayStartMs);
 
-    let doneMs = 0;
+    // Collect all intervals clamped to day boundaries
+    const intervals = [];
     for (const e of dayEntries) {
         const s = Math.max(e.timestamp, dayStartMs);
         const end = Math.min(e.endTime, dayEndMs);
-        if (end > s) doneMs += end - s;
+        if (end > s) intervals.push([s, end]);
     }
 
     // Include live work/break as done-in-progress
     if (viewingToday && state.workingOn) {
         const s = Math.max(state.workingOn.startTime, dayStartMs);
         const end = Math.min(nowMs, dayEndMs);
-        if (end > s) doneMs += end - s;
+        if (end > s) intervals.push([s, end]);
     }
     if (viewingToday && state.onBreak) {
         const s = Math.max(state.onBreak.startTime, dayStartMs);
         const end = Math.min(nowMs, dayEndMs);
-        if (end > s) doneMs += end - s;
+        if (end > s) intervals.push([s, end]);
+    }
+
+    // Merge overlapping intervals and sum
+    let doneMs = 0;
+    if (intervals.length > 0) {
+        intervals.sort((a, b) => a[0] - b[0]);
+        let [curStart, curEnd] = intervals[0];
+        for (let i = 1; i < intervals.length; i++) {
+            if (intervals[i][0] <= curEnd) {
+                curEnd = Math.max(curEnd, intervals[i][1]);
+            } else {
+                doneMs += curEnd - curStart;
+                [curStart, curEnd] = intervals[i];
+            }
+        }
+        doneMs += curEnd - curStart;
     }
 
     const doneMins = Math.round(doneMs / 60000);
@@ -17386,28 +17705,44 @@ function computeSessionCapacity(session) {
     const totalMs = session.endMs - session.startMs;
     const totalMins = Math.round(totalMs / 60000);
 
-    // Done: completed entries within session window
+    // Done: completed entries within session window (merge overlapping intervals)
     const sessionEntries = (state.timeline?.entries || [])
         .filter(e => e.endTime && (e.type === 'work' || e.type === 'break'))
         .filter(e => e.timestamp < session.endMs && e.endTime > session.startMs);
 
-    let doneMs = 0;
+    const intervals = [];
     for (const e of sessionEntries) {
         const s = Math.max(e.timestamp, session.startMs);
         const end = Math.min(e.endTime, session.endMs);
-        if (end > s) doneMs += end - s;
+        if (end > s) intervals.push([s, end]);
     }
 
     // Live work/break
     if (state.workingOn) {
         const s = Math.max(state.workingOn.startTime, session.startMs);
         const end = Math.min(nowMs, session.endMs);
-        if (end > s) doneMs += end - s;
+        if (end > s) intervals.push([s, end]);
     }
     if (state.onBreak) {
         const s = Math.max(state.onBreak.startTime, session.startMs);
         const end = Math.min(nowMs, session.endMs);
-        if (end > s) doneMs += end - s;
+        if (end > s) intervals.push([s, end]);
+    }
+
+    // Merge overlapping intervals
+    let doneMs = 0;
+    if (intervals.length > 0) {
+        intervals.sort((a, b) => a[0] - b[0]);
+        let [curStart, curEnd] = intervals[0];
+        for (let i = 1; i < intervals.length; i++) {
+            if (intervals[i][0] <= curEnd) {
+                curEnd = Math.max(curEnd, intervals[i][1]);
+            } else {
+                doneMs += curEnd - curStart;
+                [curStart, curEnd] = intervals[i];
+            }
+        }
+        doneMs += curEnd - curStart;
     }
 
     const doneMins = Math.round(doneMs / 60000);

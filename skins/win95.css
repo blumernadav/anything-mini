@@ -4838,6 +4838,53 @@ select.schedule-leadtime-input {
     border-color: var(--w-darker) var(--w-white) var(--w-white) var(--w-darker);
 }
 
+/* Sleep (Good Night) block */
+.time-block-sleep {
+    border: 1px dashed #6600aa;
+    background: #f8f0ff;
+}
+
+.time-block-sleep .time-block-label {
+    color: #6600aa;
+}
+
+.time-block-sleep .time-block-status {
+    color: #6600aa;
+    font-variant-numeric: tabular-nums;
+}
+
+.time-block-sleep-over .time-block-status {
+    color: #cc8800;
+}
+
+.time-block-sleep:hover .idle-log-btn {
+    opacity: 1;
+}
+
+/* Day Start (Good Morning) block */
+.time-block-daystart {
+    border: 1px dashed #996600;
+    background: #fffff0;
+}
+
+.time-block-daystart .time-block-label {
+    color: #996600;
+}
+
+.time-block-daystart .time-block-status {
+    color: #996600;
+    font-variant-numeric: tabular-nums;
+}
+
+.time-block-daystart:hover .idle-start-btn {
+    opacity: 1;
+}
+
+/* Live panel Good Morning header */
+.live-panel-daystart {
+    background: #fffff0;
+}
+
 /* Working Time */
 .time-block-working {
     border: 2px solid;
