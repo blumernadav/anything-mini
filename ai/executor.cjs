@@ -276,5 +276,70 @@ async function executeAndContinue(toolCalls, history = [], onEvent = null, setti
     return { results: allResults, summary: summaryText };
 }
 
-module.exports = { chat, executeAndContinue };
+/**
+ * Lightweight AI chat for trigger-initiated background invocations.
+ * No SSE streaming, no plan approval — just returns text.
+ * Uses read-tool loop but caps at 10 rounds for speed.
+ * 
+ * @param {string} prompt - The trigger prompt
+ * @param {object} stores - { items, timeline, settings, preferences }
+ * @param {object} [settings] - App settings for AI config
+ * @returns {Promise<string>} - AI response text
+ */
+async function triggerChat(prompt, stores, settings = null) {
+    const config = getAiConfig(settings);
+    const provider = getProvider(config);
+    const context = await buildContext(stores);
+    const systemPrompt = buildSystemPrompt(context);
+    const tools = getToolDefinitions(true); // read-only tools
+
+    const conversation = [
+        { role: 'user', content: prompt }
+    ];
+
+    const MAX_TRIGGER_ROUNDS = 10; // lighter cap for background invocations
+
+    for (let round = 0; round < MAX_TRIGGER_ROUNDS; round++) {
+        const result = await provider.chat({
+            systemPrompt,
+            messages: conversation,
+            tools: tools.length > 0 ? tools : undefined,
+            temperature: 0.7
+        });
+
+        // No tool calls → done
+        if (!result.toolCalls || result.toolCalls.length === 0) {
+            return result.text || '';
+        }
+
+        // Only auto-execute read tools; ignore any write tools in trigger mode
+        const readCalls = result.toolCalls.filter(tc => isReadTool(tc.name));
+        if (readCalls.length === 0) {
+            // AI wants to write but triggers can't approve plans — return text
+            return result.text || '';
+        }
+
+        conversation.push({
+            role: 'assistant',
+            content: result.text || '',
+            toolCalls: readCalls
+        });
+
+        const toolResults = [];
+        for (const tc of readCalls) {
+            try {
+                const toolResult = await executeTool(tc.name, tc.args, stores);
+                toolResults.push({ toolUseId: tc.id, name: tc.name, result: JSON.stringify(toolResult) });
+            } catch (err) {
+                toolResults.push({ toolUseId: tc.id, name: tc.name, result: JSON.stringify({ error: err.message }) });
+            }
+        }
+
+        conversation.push({ role: 'tool', toolResults });
+    }
+
+    return 'I ran out of analysis rounds for this check-in.';
+}
+
+module.exports = { chat, executeAndContinue, triggerChat };
 

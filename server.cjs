@@ -70,12 +70,18 @@ function initStores() {
 
 const sseClients = new Map(); // clientId -> res
 
-function notifyClients(type, excludeClientId) {
-    const msg = `data: ${JSON.stringify({ type })}\n\n`;
+function notifyClients(type, excludeClientId, extraData) {
+    const payload = extraData ? { type, ...extraData } : { type };
+    const msg = `data: ${JSON.stringify(payload)}\n\n`;
     for (const [cid, res] of sseClients) {
         if (cid === excludeClientId) continue;
         try { res.write(msg); } catch { /* client gone */ }
     }
+}
+
+// Push unread AI message count to all SSE clients
+function notifyAiUnread(count) {
+    notifyClients('ai_unread', null, { count });
 }
 
 // Middleware
@@ -305,6 +311,54 @@ app.get('/api/preferences', async (req, res) => {
 app.put('/api/preferences', async (req, res) => {
     const current = await preferencesStore.read();
     const updated = { ...current, ...req.body };
+
+    // Detect session_started event: workingOn went from falsy to truthy
+    console.log('[Trigger Debug] PUT /api/preferences — workingOn: current:', !!current.workingOn, 'body has workingOn:', 'workingOn' in req.body, 'updated:', !!updated.workingOn, 'triggerEngine:', !!triggerEngine);
+    if (!current.workingOn && updated.workingOn && triggerEngine) {
+        const targetDurationMin = updated.workingOn.targetEndTime
+            ? Math.round((updated.workingOn.targetEndTime - updated.workingOn.startTime) / 60000)
+            : null;
+        triggerEngine.fireEvent('session_started', {
+            itemName: updated.workingOn.itemName || updated.workingOn.text || 'unknown',
+            itemId: updated.workingOn.itemId,
+            targetDurationMin,
+            isBreak: false
+        }).catch(err => console.error('[Trigger] session_started event error:', err.message));
+    }
+
+    // Detect break started: onBreak went from falsy to truthy
+    if (!current.onBreak && updated.onBreak && triggerEngine) {
+        const targetDurationMin = updated.onBreak.targetEndTime
+            ? Math.round((updated.onBreak.targetEndTime - updated.onBreak.startTime) / 60000)
+            : null;
+        triggerEngine.fireEvent('session_started', {
+            itemName: 'Break',
+            targetDurationMin,
+            isBreak: true
+        }).catch(err => console.error('[Trigger] break_started event error:', err.message));
+    }
+
+    // Detect session_completed event: workingOn went from truthy to falsy
+    if (current.workingOn && !updated.workingOn && triggerEngine) {
+        const durationMs = current.workingOn.startTime ? (Date.now() - current.workingOn.startTime) : null;
+        triggerEngine.fireEvent('session_completed', {
+            itemName: current.workingOn.itemName || current.workingOn.text || 'unknown',
+            itemId: current.workingOn.itemId,
+            durationMs,
+            isBreak: false
+        }).catch(err => console.error('[Trigger] session_completed event error:', err.message));
+    }
+
+    // Detect break completed: onBreak went from truthy to falsy
+    if (current.onBreak && !updated.onBreak && triggerEngine) {
+        const durationMs = current.onBreak.startTime ? (Date.now() - current.onBreak.startTime) : null;
+        triggerEngine.fireEvent('session_completed', {
+            itemName: 'Break',
+            durationMs,
+            isBreak: true
+        }).catch(err => console.error('[Trigger] break_completed event error:', err.message));
+    }
+
     await preferencesStore.write(updated);
     notifyClients('preferences', req.headers['x-client-id']);
     res.json(updated);
@@ -313,6 +367,8 @@ app.put('/api/preferences', async (req, res) => {
 // ============ AI Copilot API ============
 
 const { chat: aiChat, executeAndContinue } = require('./ai/executor.cjs');
+const { TriggerEngine } = require('./ai/triggers.cjs');
+let triggerEngine = null;
 
 app.post('/api/ai/chat', async (req, res) => {
     try {
@@ -458,8 +514,40 @@ app.get('/api/ai/history', async (req, res) => {
 });
 
 app.delete('/api/ai/history', async (req, res) => {
-    await chatStore.write({ messages: [] });
+    await chatStore.write({ messages: [], unreadCount: 0 });
     res.json({ cleared: true });
+});
+
+// Unread count for AI-initiated messages
+app.get('/api/ai/unread', async (req, res) => {
+    const chatData = await chatStore.read();
+    res.json({ count: chatData.unreadCount || 0 });
+});
+
+app.post('/api/ai/unread/clear', async (req, res) => {
+    const chatData = await chatStore.read();
+    chatData.unreadCount = 0;
+    await chatStore.write(chatData);
+    res.json({ cleared: true });
+});
+
+// ============ Trigger Engine API ============
+
+app.get('/api/triggers', async (req, res) => {
+    if (!triggerEngine) return res.json([]);
+    const triggers = await triggerEngine.getTriggers();
+    res.json(triggers);
+});
+
+app.put('/api/triggers/:id', async (req, res) => {
+    if (!triggerEngine) return res.status(503).json({ error: 'Trigger engine not available' });
+    try {
+        const triggers = await triggerEngine.updateTrigger(req.params.id, req.body);
+        notifyClients('settings', req.headers['x-client-id']);
+        res.json(triggers);
+    } catch (err) {
+        res.status(400).json({ error: err.message });
+    }
 });
 
 // Update plan status (applied/cancelled)
@@ -497,6 +585,16 @@ async function start() {
         await initDb();
         console.log('PostgreSQL connected and initialized');
     }
+
+    // Initialize Trigger Engine
+    triggerEngine = new TriggerEngine({
+        stores: { items: itemsStore, timeline: timelineStore, settings: settingsStore, preferences: preferencesStore },
+        chatStore,
+        settingsStore,
+        notifyAiUnread
+    });
+    triggerEngine.start();
+
     app.listen(PORT, () => {
         console.log(`Anything Mini running at http://localhost:${PORT}`);
         console.log(`Storage mode: ${isDbAvailable() ? 'PostgreSQL' : 'JSON files'}`);

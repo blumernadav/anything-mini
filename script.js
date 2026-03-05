@@ -23699,6 +23699,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <span class="copilot-welcome-text">Hey! I'm your AI copilot. Ask me anything about your tasks, or let me help you organize.</span>
                 </div>`;
             _lastRenderedDate = '';
+            _copilotHistoryFingerprint = null;
             copilotPendingPlan = null;
             updateStickyDatePill();
         });
