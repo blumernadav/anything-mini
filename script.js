@@ -128,6 +128,19 @@ let _nextTempId = -1;
 // In-flight POST promises keyed by temp ID — allows PATCH/DELETE to wait for the real server ID
 const _inflightPosts = new Map();
 
+// Counter of in-flight item PATCHes — SSE-triggered full reloads are suppressed while > 0
+let _inflightItemPatches = 0;
+
+// Optimistic item PATCH — applies locally first, tracks in-flight count so SSE can't overwrite
+function patchItemOptimistic(itemId, updates) {
+    const item = findItemById(itemId);
+    if (item) Object.assign(item, updates);
+    _inflightItemPatches++;
+    return api.patch(`/items/${itemId}`, updates).finally(() => {
+        _inflightItemPatches--;
+    });
+}
+
 // Resolve a temp ID to the real server ID (awaits if POST is still in-flight)
 async function _resolveEntryId(entryId) {
     if (entryId >= 0) return entryId;
@@ -344,6 +357,10 @@ const _stickyAudio = new Audio('/sounds/sticky.wav');
 _stickyAudio.volume = 1.0;
 const _warningAudio = new Audio('/sounds/warning.wav');
 _warningAudio.volume = 1.0;
+const _knockAudio = new Audio('/sounds/knock.wav');
+_knockAudio.volume = 1.0;
+const _startAudio = new Audio('/sounds/start.wav');
+_startAudio.volume = 1.0;
 let _timerExpiredPlayed = false; // flag to fire warning sound only once per session
 function _playAiNotificationSound() {
     try {
@@ -368,6 +385,12 @@ function _playStickySound() {
 }
 function _playWarningSound() {
     try { _warningAudio.currentTime = 0; _warningAudio.play().catch(() => { }); } catch { }
+}
+function _playKnockSound() {
+    try { _knockAudio.currentTime = 0; _knockAudio.play().catch(() => { }); } catch { }
+}
+function _playStartSound() {
+    try { _startAudio.currentTime = 0; _startAudio.play().catch(() => { }); } catch { }
 }
 
 // ─── Real-Time Sync (SSE) ───
@@ -413,8 +436,10 @@ async function _applySyncEvent(msg) {
     const type = typeof msg === 'string' ? msg : msg.type;
     try {
         if (type === 'items') {
+            // Skip SSE-driven reload if we have in-flight PATCHes or a pending bulk save —
+            // local state is authoritative until those settle.
+            if (_inflightItemPatches > 0 || _saveItemsTimer) return;
             state.items = await api.get('/items');
-            ensureInbox();
             renderProjects();
             renderActions();
         } else if (type === 'timeline') {
@@ -1517,6 +1542,7 @@ function setContextDone(item, contextKey, done) {
     if (!item.contextDone) item.contextDone = {};
     if (done) {
         item.contextDone[contextKey] = Date.now();
+        _playDotBubbleSound();
     } else {
         delete item.contextDone[contextKey];
     }
@@ -2147,6 +2173,7 @@ function detectOutOfHoursWork(viewDate, nowMs) {
 
 // Accept Log for a single idle segment — create a manual idle entry
 function _resolveSegmentAcceptLog_Idle(planEntry, seg) {
+    _playKnockSound();
     postTimelineOptimistic({
         text: 'Idle',
         type: 'idle',
@@ -2158,6 +2185,7 @@ function _resolveSegmentAcceptLog_Idle(planEntry, seg) {
 
 // Accept Log for a single different-work segment — mark the work entry as manual
 function _resolveSegmentAcceptLog_Different(seg) {
+    _playKnockSound();
     const workEntry = seg.workEntry;
     if (!workEntry) return;
     patchTimelineOptimistic(workEntry.id, { manual: true });
@@ -2165,6 +2193,7 @@ function _resolveSegmentAcceptLog_Different(seg) {
 
 // Accept Log for ALL segments of a plan at once
 function _resolveAllSegmentsAsLog(divergence) {
+    _playKnockSound();
     for (const seg of (divergence.allSegments || divergence.segments || [])) {
         if (seg.type === 'covered') continue;
         if (seg.type === 'idle') {
@@ -2178,18 +2207,21 @@ function _resolveAllSegmentsAsLog(divergence) {
 
 // Accept unplanned work — mark it as manual (intentional)
 function resolveDivergenceAcceptUnplanned(workEntryId) {
+    _playKnockSound();
     patchTimelineOptimistic(workEntryId, { manual: true });
     renderAll();
 }
 
 // Reject unplanned work — delete the log entry (nothing was planned, dismiss it)
 function resolveDivergenceRejectUnplanned(workEntryId) {
+    _playKnockSound();
     delTimelineOptimistic(workEntryId);
     renderAll();
 }
 
 // Accept Plan for idle segment — create retroactive manual work entry for the gap
 function _resolveSegmentAcceptPlan_Idle(planEntry, seg) {
+    _playKnockSound();
     const planName = planEntry.text || 'Planned session';
     const itemId = planEntry.itemId || null;
     const projectName = planEntry.projectName || null;
@@ -2209,6 +2241,7 @@ function _resolveSegmentAcceptPlan_Idle(planEntry, seg) {
 
 // Accept Plan for different-work segment — re-attribute the work entry to the planned project
 function _resolveSegmentAcceptPlan_Different(planEntry, seg) {
+    _playKnockSound();
     const planName = planEntry.text || 'Planned session';
     const workEntry = seg.workEntry;
     if (!workEntry) return;
@@ -2226,6 +2259,7 @@ function _resolveSegmentAcceptPlan_Different(planEntry, seg) {
 
 // Accept Plan for ALL idle segments of a plan at once
 function resolveDivergenceDidIt(entry) {
+    _playKnockSound();
     const planName = entry.text || 'Planned session';
     const itemId = entry.itemId || null;
     const projectName = entry.projectName || null;
@@ -4399,8 +4433,7 @@ function showProjectContextMenu(e, item) {
         ev.stopPropagation();
         dismissProjectContextMenu();
         const newDone = !item.done;
-        api.patch(`/items/${item.id}`, { done: newDone });
-        item.done = newDone;
+        patchItemOptimistic(item.id, { done: newDone });
         if (newDone) {
             _playDotBubbleSound();
             const ancestorPath = getAncestorPath(item.id);
@@ -5176,6 +5209,59 @@ function handleDrop() {
     clearDropIndicators();
 }
 
+// ─── Drop-into-action target helper ───
+// Attaches dragover/dragleave/drop handlers to an element so that items
+// dragged from the projects tree, actions area, timeline, or overflow can
+// be dropped onto it, reparenting them under `targetId` in the tree.
+function _attachActionDropTarget(el, targetId) {
+    el.addEventListener('dragover', (e) => {
+        // Accept drops carrying an action id
+        if (!e.dataTransfer.types.includes('application/x-action-id')) return;
+        const draggedId = dragState.draggedId;
+        if (!draggedId || draggedId === targetId) return;
+        // Descendant guard – prevent circular reparenting
+        const targetItem = findItemById(targetId);
+        if (targetItem) {
+            const descIds = collectDescendantIds(targetItem);
+            if (descIds.includes(draggedId)) return;
+        }
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        // Visual feedback – clear others first
+        document.querySelectorAll('.action-drop-target').forEach(x => x.classList.remove('action-drop-target'));
+        el.classList.add('action-drop-target');
+    });
+    el.addEventListener('dragleave', () => {
+        el.classList.remove('action-drop-target');
+    });
+    el.addEventListener('drop', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        document.querySelectorAll('.action-drop-target').forEach(x => x.classList.remove('action-drop-target'));
+        const draggedId = dragState.draggedId;
+        if (!draggedId || draggedId === targetId) return;
+        // Multi-select: move all selected items if applicable
+        const ids = window._draggedActionIds || [String(draggedId)];
+        let anyMoved = false;
+        for (const id of ids) {
+            const numId = Number(id) || id;
+            if (numId === targetId) continue;
+            // Descendant guard per-item
+            const tItem = findItemById(targetId);
+            if (tItem && collectDescendantIds(tItem).includes(numId)) continue;
+            const ok = moveItem(numId, { id: targetId, position: 'inside' });
+            if (ok) anyMoved = true;
+        }
+        if (anyMoved) {
+            saveItems();
+            renderAll();
+        }
+        dragState.draggedId = null;
+        dragState.dropTarget = null;
+        clearDropIndicators();
+    });
+}
+
 function renderProjectLevel(items, parent, depth, query = '', matchingIds = new Set()) {
     const isSearching = !!query;
     let isFirstRenderedAtLevel = true;
@@ -5263,6 +5349,7 @@ function renderProjectLevel(items, parent, depth, query = '', matchingIds = new 
                 document.querySelectorAll('.time-block-drag-over').forEach(el => el.classList.remove('time-block-drag-over'));
                 document.querySelectorAll('.horizon-layer-drag-over').forEach(el => el.classList.remove('horizon-layer-drag-over'));
                 document.querySelectorAll('.date-nav-btn-drag-over').forEach(el => el.classList.remove('date-nav-btn-drag-over'));
+                document.querySelectorAll('.action-drop-target').forEach(el => el.classList.remove('action-drop-target'));
                 _restoreHorizonLayers();
             });
         }
@@ -5436,8 +5523,7 @@ function renderProjectLevel(items, parent, depth, query = '', matchingIds = new 
             doneBtn.addEventListener('click', async (e) => {
                 e.stopPropagation();
                 const newDone = !item.done;
-                api.patch(`/items/${item.id}`, { done: newDone });
-                item.done = newDone;
+                patchItemOptimistic(item.id, { done: newDone });
                 if (newDone) {
                     _playDotBubbleSound();
                     const ancestorPath = getAncestorPath(item.id);
@@ -5737,7 +5823,11 @@ function showItemInput(parentId = null, childDepth = 0) {
                 name: input.value.trim(),
                 parentId: parentId,
                 timeContexts: getCurrentTimeContexts()
-            }).then(() => reloadItems()).catch(err => {
+            }).then(serverItem => {
+                // Reconcile server-assigned ID into local optimistic entry
+                const local = findItemById(tempId);
+                if (local && serverItem && serverItem.id) local.id = serverItem.id;
+            }).catch(err => {
                 console.error('[optimistic] Item creation failed:', err);
                 _showSaveError('item creation');
             });
@@ -6310,6 +6400,9 @@ function renderActions(opts) {
             header.appendChild(hdrButtons);
         }
 
+        // ── Drop target: allow items to be dropped onto this context header ──
+        _attachActionDropTarget(header, headerId);
+
         // Collapse/expand click — only on chevron/name/count, not on buttons
         header.addEventListener('click', (e) => {
             if (e.target.closest('.action-btn, .action-estimate-badge, .action-investment-badge, .action-group-buttons')) return;
@@ -6643,6 +6736,9 @@ function renderActions(opts) {
                 aggButtons.appendChild(schedBtn);
                 header.appendChild(aggButtons);
             }
+
+            // ── Drop target: allow items to be dropped onto this group header ──
+            _attachActionDropTarget(header, rootId);
 
             header.addEventListener('click', (e) => {
                 if (e.target.closest('.action-btn, .action-group-buttons')) return;
@@ -7174,6 +7270,7 @@ function _createOverflowItemRow(action, overflow, sourceCtx, container) {
         document.querySelectorAll('.time-block-drag-over').forEach(el => el.classList.remove('time-block-drag-over'));
         document.querySelectorAll('.horizon-layer-drag-over').forEach(el => el.classList.remove('horizon-layer-drag-over'));
         document.querySelectorAll('.date-nav-btn-drag-over').forEach(el => el.classList.remove('date-nav-btn-drag-over'));
+        document.querySelectorAll('.action-drop-target').forEach(el => el.classList.remove('action-drop-target'));
         _restoreHorizonLayers();
     });
 
@@ -7877,9 +7974,13 @@ function createActionElement(action) {
             document.querySelectorAll('.time-block-drag-over').forEach(el => el.classList.remove('time-block-drag-over'));
             document.querySelectorAll('.horizon-layer-drag-over').forEach(el => el.classList.remove('horizon-layer-drag-over'));
             document.querySelectorAll('.date-nav-btn-drag-over').forEach(el => el.classList.remove('date-nav-btn-drag-over'));
+            document.querySelectorAll('.action-drop-target').forEach(el => el.classList.remove('action-drop-target'));
             _restoreHorizonLayers();
         });
     }
+
+    // ── Drop target: allow items to be dropped onto this action item ──
+    _attachActionDropTarget(item, action.id);
 
     // Right-click context menu (selection-aware)
     item.addEventListener('contextmenu', (e) => {
@@ -8925,7 +9026,10 @@ function setupActionInput() {
             parentId,
             timeContexts,
             contextDurations
-        }).then(() => reloadItems()).catch(err => {
+        }).then(serverItem => {
+            const local = findItemById(tempId);
+            if (local && serverItem && serverItem.id) local.id = serverItem.id;
+        }).catch(err => {
             console.error('[optimistic] Item creation failed:', err);
             _showSaveError('item creation');
         });
@@ -10550,7 +10654,10 @@ function renderWeekView(container) {
                 const newLocalItem = { id: tempId, name, children: [], expanded: false, createdAt: Date.now(), done: false, timeContexts: [dateKey] };
                 state.items.items.push(newLocalItem);
                 // Fire-and-forget to server
-                api.post('/items', { name, parentId: null, timeContexts: [dateKey] }).then(() => reloadItems()).catch(err => {
+                api.post('/items', { name, parentId: null, timeContexts: [dateKey] }).then(serverItem => {
+                    const local = findItemById(tempId);
+                    if (local && serverItem && serverItem.id) local.id = serverItem.id;
+                }).catch(err => {
                     console.error('[optimistic] Item creation failed:', err);
                     _showSaveError('item creation');
                 });
@@ -19208,7 +19315,7 @@ async function startWorking(itemId, itemName, projectName, targetEndTime, retroa
         startTime: retroactiveStartTime || now,
         targetEndTime: targetEndTime || null,
     };
-    _playClickSound();
+    _playStartSound();
     _timerExpiredPlayed = false; // reset for new session
     savePref('workingOn', state.workingOn);
     renderAll();
@@ -19216,6 +19323,7 @@ async function startWorking(itemId, itemName, projectName, targetEndTime, retroa
 
 async function stopWorking() {
     if (!state.workingOn) return;
+    _playClickSound();
 
     const endTime = Date.now();
     const durationMs = endTime - state.workingOn.startTime;
@@ -19272,6 +19380,7 @@ async function startBreak(targetEndTime) {
         startTime: now,
         targetEndTime: targetEndTime || null,
     };
+    _playStartSound();
     _timerExpiredPlayed = false; // reset for new break session
     savePref('onBreak', state.onBreak);
     renderAll();
@@ -19279,6 +19388,7 @@ async function startBreak(targetEndTime) {
 
 async function stopBreak() {
     if (!state.onBreak) return;
+    _playClickSound();
 
     const endTime = Date.now();
     const durationMs = endTime - state.onBreak.startTime;
