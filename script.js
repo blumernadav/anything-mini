@@ -144,8 +144,10 @@ function patchItemOptimistic(itemId, updates) {
 // Resolve a temp ID to the real server ID (awaits if POST is still in-flight)
 async function _resolveEntryId(entryId) {
     if (entryId >= 0) return entryId;
+    // Already settled: use the permanent resolved map
+    if (_resolvedIds.has(entryId)) return _resolvedIds.get(entryId);
     const pending = _inflightPosts.get(entryId);
-    if (!pending) return entryId; // already reconciled or unknown
+    if (!pending) return entryId; // unknown temp ID — best-effort
     const serverEntry = await pending;
     return serverEntry.id;
 }
@@ -162,9 +164,13 @@ function postTimelineOptimistic(payload) {
 
     // Background: POST to server, reconcile ID
     const postPromise = api.post('/timeline', payload).then(serverEntry => {
+        // Record the permanent tempId → realId mapping
+        _resolvedIds.set(tempId, serverEntry.id);
+        // Mutate the entry in-place so any caller holding a reference to `entry`
+        // automatically gets the real server ID (avoids stale tempId on later DELETEs)
         const idx = state.timeline.entries.findIndex(e => e.id === tempId);
         if (idx !== -1) {
-            state.timeline.entries[idx] = serverEntry;
+            Object.assign(state.timeline.entries[idx], serverEntry);
         }
         return serverEntry;
     }).catch(err => {
