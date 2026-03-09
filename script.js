@@ -6302,7 +6302,19 @@ function renderActions(opts) {
                 }
                 // Skip the header item itself — its duration is the budget
                 if (node.id === headerId) return childSum;
-                const dur = getContextDuration(node, chViewCtx);
+                // Only count own duration if the node has a timeContext matching
+                // the current view (same context-aware fix as group headers).
+                const tcs = node.timeContexts || [];
+                const matchingCtx = tcs.find(tc => {
+                    if (tc === chViewCtx) return true;
+                    const parsed = parseTimeContext(tc);
+                    const parsedView = parseTimeContext(chViewCtx);
+                    if (parsed?.date && parsedView?.date) return parsed.date === parsedView.date;
+                    return false;
+                });
+                if (!matchingCtx && !hasChild) return 0;
+                if (!matchingCtx) return childSum;
+                const dur = node.contextDurations?.[matchingCtx] ?? node.estimatedDuration ?? 0;
                 if (hasChild) return Math.max(dur, childSum);
                 return dur;
             }
@@ -6733,7 +6745,22 @@ function renderActions(opts) {
                     }
                     // Skip the root item itself — its duration is the budget
                     if (node.id === grpRootItem.id) return childSum;
-                    const dur = getContextDuration(node, grpViewCtx);
+                    // Only count own duration if the node has a timeContext matching
+                    // the current view (mirrors computeSubtreePlanned logic).
+                    // Without this check, getContextDuration falls back to
+                    // estimatedDuration for ALL descendants, inflating the total.
+                    const tcs = node.timeContexts || [];
+                    const matchingCtx = tcs.find(tc => {
+                        if (tc === grpViewCtx) return true;
+                        // Fuzzy: segment contexts overlap with their parent date
+                        const parsed = parseTimeContext(tc);
+                        const parsedView = parseTimeContext(grpViewCtx);
+                        if (parsed?.date && parsedView?.date) return parsed.date === parsedView.date;
+                        return false;
+                    });
+                    if (!matchingCtx && !hasChild) return 0;
+                    if (!matchingCtx) return childSum; // pass-through children only
+                    const dur = node.contextDurations?.[matchingCtx] ?? node.estimatedDuration ?? 0;
                     if (hasChild) return Math.max(dur, childSum);
                     return dur;
                 }
