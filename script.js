@@ -39,6 +39,7 @@ const state = {
     reflectionHistoryIds: new Set(), // set of item IDs showing work entry history
     deepView: false, // when true, actions show items from all layers of the selected project context
     showInvestmentBadge: true, // when true, show tri-state investment bar instead of simple duration badge
+    aggregateMode: 'auto', // 'flat' | 'auto' | 'always' — controls action group headers
     bookmarks: [], // array of item IDs for quick-access bookmarks
     focusQueue: [], // ordered array of { itemId, itemName, projectName } — live queue
     focusQueueSettings: { autoAdvance: false, breakMinutes: 0 }, // queue behavior settings
@@ -311,6 +312,8 @@ async function loadAll() {
     state.divergencePlansExpanded = new Set(prefs.divergencePlansExpanded || []);
     state.deepView = prefs.deepView === true;
     state.showInvestmentBadge = prefs.showInvestmentBadge !== false; // default true
+    const validAggModes = ['flat', 'auto', 'always'];
+    state.aggregateMode = validAggModes.includes(prefs.aggregateMode) ? prefs.aggregateMode : 'auto';
     // Restore bookmarks (prune any IDs that no longer exist)
     if (Array.isArray(prefs.bookmarks)) {
         state.bookmarks = prefs.bookmarks.filter(id => findItemById(id));
@@ -562,6 +565,7 @@ function syncToggleUI() {
         deepViewBtn.classList.toggle('active', state.deepView);
         deepViewBtn.title = state.deepView ? 'Showing all layers' : 'Show all layers';
     }
+    syncAggregateModeBtn();
     syncBookmarksBtn();
 }
 
@@ -583,6 +587,16 @@ function syncBookmarksBtn() {
     btn.title = state.bookmarks.length > 0
         ? `Bookmarks (${state.bookmarks.length})`
         : 'Bookmarks';
+}
+
+function syncAggregateModeBtn() {
+    const btn = document.getElementById('aggregate-mode-btn');
+    if (!btn) return;
+    const labels = { flat: ['📋', 'Flat: no grouping'], auto: ['📦', 'Auto: group when >1'], always: ['🗂️', 'Always: group all'] };
+    const [emoji, title] = labels[state.aggregateMode] || labels.auto;
+    btn.textContent = emoji;
+    btn.title = title;
+    btn.classList.toggle('active', state.aggregateMode !== 'auto');
 }
 
 function dismissBookmarksDropdown() {
@@ -6543,7 +6557,13 @@ function renderActions(opts) {
         }
     }
 
-    if (distinctRoots >= 2 || (distinctRoots >= 1 && contextHeaderIds.size > 0)) {
+    const _shouldGroup = state.aggregateMode === 'always'
+        ? distinctRoots >= 1
+        : state.aggregateMode === 'flat'
+            ? false
+            : (distinctRoots >= 2 || (distinctRoots >= 1 && contextHeaderIds.size > 0));
+
+    if (_shouldGroup) {
         // Render with group headers
         state._actionGroupingActive = true;
         for (const [rootId, group] of rootGroups) {
@@ -6552,8 +6572,8 @@ function renderActions(opts) {
             const regularCount = regularGroupActions.length;
             const contextHeaderCount = group.actions.length - regularCount;
 
-            // Skip aggregate header when: no root (ungrouped), or ≤1 regular actions with no context headers
-            if (!group.root || (regularCount <= 1 && contextHeaderCount === 0)) {
+            // Skip aggregate header when: no root (ungrouped), or (in auto mode) ≤1 regular actions with no context headers
+            if (!group.root || (state.aggregateMode !== 'always' && regularCount <= 1 && contextHeaderCount === 0)) {
                 // Mark single regular action for breadcrumb display
                 if (regularCount === 1) {
                     regularGroupActions[0]._singleGroup = true;
@@ -22294,6 +22314,19 @@ document.addEventListener('DOMContentLoaded', () => {
         state.scheduleFilter = cycle[(idx + 1) % cycle.length];
         savePref('scheduleFilter', state.scheduleFilter);
         syncScheduleFilterBtn(showUnschedBtn);
+        state._animateActions = true;
+        renderAll();
+    });
+
+    // Aggregate mode cycling button
+    const aggModeBtn = document.getElementById('aggregate-mode-btn');
+    syncAggregateModeBtn();
+    aggModeBtn.addEventListener('click', () => {
+        const cycle = ['auto', 'always', 'flat'];
+        const idx = cycle.indexOf(state.aggregateMode);
+        state.aggregateMode = cycle[(idx + 1) % cycle.length];
+        savePref('aggregateMode', state.aggregateMode);
+        syncAggregateModeBtn();
         state._animateActions = true;
         renderAll();
     });
