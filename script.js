@@ -128,6 +128,9 @@ let _nextTempId = -1;
 // In-flight POST promises keyed by temp ID — allows PATCH/DELETE to wait for the real server ID
 const _inflightPosts = new Map();
 
+// Permanent mapping of temp IDs → real server IDs (survives after the POST promise settles)
+const _resolvedIds = new Map();
+
 // Counter of in-flight item PATCHes — SSE-triggered full reloads are suppressed while > 0
 let _inflightItemPatches = 0;
 
