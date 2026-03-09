@@ -1263,6 +1263,19 @@ body {
     background: rgba(255, 243, 168, 0.55);
 }
 
+/* ── Drop-into-action target highlight ── */
+.action-item.action-drop-target {
+    outline: 1.5px dashed var(--blue-pen, #2b6cb0);
+    outline-offset: -1px;
+    background: rgba(43, 108, 176, 0.08);
+}
+
+.action-group-header.action-drop-target {
+    outline: 1.5px dashed var(--blue-pen, #2b6cb0);
+    outline-offset: -1px;
+    background: rgba(43, 108, 176, 0.08);
+}
+
 /* ── Bulk Action Bar ── */
 .bulk-action-bar {
     display: flex;
@@ -9059,6 +9072,70 @@ select.schedule-leadtime-input {
     color: var(--pencil-ghost);
     font-size: 15px;
     font-family: 'Caveat', cursive;
+}
+
+/* ─── Aggregate Mode Dropdown ─── */
+.aggregate-mode-dropdown {
+    min-width: 170px;
+    background: var(--paper);
+    border: 1px dashed var(--pencil-ghost);
+    border-radius: var(--radius);
+    box-shadow: 2px 3px 6px rgba(0, 0, 0, 0.06);
+    padding: 4px;
+}
+
+.aggregate-mode-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: all var(--dur) var(--ease);
+    user-select: none;
+}
+
+.aggregate-mode-option:hover {
+    background: rgba(255, 243, 168, 0.3);
+}
+
+.aggregate-mode-option.selected {
+    background: rgba(255, 243, 168, 0.5);
+}
+
+.aggregate-mode-icon {
+    font-size: 14px;
+    flex-shrink: 0;
+    width: 20px;
+    text-align: center;
+}
+
+.aggregate-mode-text {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    flex: 1;
+    min-width: 0;
+}
+
+.aggregate-mode-name {
+    font-size: 15px;
+    font-family: 'Caveat', cursive;
+    color: var(--pencil);
+    font-weight: 600;
+}
+
+.aggregate-mode-desc {
+    font-size: 13px;
+    font-family: 'Caveat', cursive;
+    color: var(--pencil-ghost);
+}
+
+.aggregate-mode-check {
+    font-size: 12px;
+    color: #5eab5e;
+    font-weight: 600;
+    flex-shrink: 0;
 }
 
 /* ─── Top bar overflow (desktop: inline, mobile: dropdown) ─── */

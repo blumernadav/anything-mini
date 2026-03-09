@@ -1337,6 +1337,21 @@ body {
     background: rgba(88, 204, 2, 0.18);
 }
 
+/* ── Drop-into-action target highlight ── */
+.action-item.action-drop-target {
+    outline: 2px dashed var(--duo-green, #58cc02);
+    outline-offset: -2px;
+    background: var(--duo-green-dim, rgba(88, 204, 2, 0.12));
+    box-shadow: inset 0 0 0 1px rgba(88, 204, 2, 0.15), 0 0 8px rgba(88, 204, 2, 0.1);
+}
+
+.action-group-header.action-drop-target {
+    outline: 2px dashed var(--duo-green, #58cc02);
+    outline-offset: -2px;
+    background: var(--duo-green-dim, rgba(88, 204, 2, 0.12));
+    box-shadow: inset 0 0 0 1px rgba(88, 204, 2, 0.15), 0 0 8px rgba(88, 204, 2, 0.1);
+}
+
 /* ── Bulk Action Bar ── */
 .bulk-action-bar {
     display: flex;
@@ -9760,6 +9775,70 @@ select.schedule-leadtime-input {
     color: var(--duo-text-faint);
     font-size: 13px;
     font-weight: 700;
+}
+
+/* ─── Aggregate Mode Dropdown ─── */
+.aggregate-mode-dropdown {
+    min-width: 180px;
+    background: var(--duo-white);
+    border: 2px solid var(--duo-border);
+    border-radius: var(--duo-radius-sm);
+    box-shadow: 0 4px 0 var(--duo-border);
+    padding: 4px;
+}
+
+.aggregate-mode-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all var(--dur) var(--ease);
+    user-select: none;
+}
+
+.aggregate-mode-option:hover {
+    background: var(--duo-green-dim);
+}
+
+.aggregate-mode-option.selected {
+    background: rgba(88, 204, 2, 0.15);
+    border: 1px solid var(--duo-green);
+}
+
+.aggregate-mode-icon {
+    font-size: 14px;
+    flex-shrink: 0;
+    width: 20px;
+    text-align: center;
+}
+
+.aggregate-mode-text {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    flex: 1;
+    min-width: 0;
+}
+
+.aggregate-mode-name {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--duo-text);
+}
+
+.aggregate-mode-desc {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--duo-text-faint);
+}
+
+.aggregate-mode-check {
+    font-size: 12px;
+    color: var(--duo-green);
+    font-weight: 800;
+    flex-shrink: 0;
 }
 
 /* ─── Top bar overflow (desktop: inline, mobile: dropdown) ─── */

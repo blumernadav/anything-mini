@@ -624,8 +624,10 @@ function showAggregateModeDropdown() {
 
     const dropdown = document.createElement('div');
     dropdown.className = 'aggregate-mode-dropdown';
+    dropdown.style.position = 'fixed';
     dropdown.style.top = `${rect.bottom + 4}px`;
     dropdown.style.right = `${window.innerWidth - rect.right}px`;
+    dropdown.style.zIndex = '99999';
 
     const options = [
         { key: 'flat', emoji: '📋', label: 'Flat', desc: "don't aggregate" },

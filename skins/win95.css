@@ -1127,6 +1127,19 @@ body {
     background: var(--w-title);
 }
 
+/* ── Drop-into-action target highlight ── */
+.action-item.action-drop-target {
+    outline: 2px dashed var(--w-title, #000080);
+    outline-offset: -2px;
+    background: #d0d0ff;
+}
+
+.action-group-header.action-drop-target {
+    outline: 2px dashed var(--w-title, #000080);
+    outline-offset: -2px;
+    background: #d0d0ff;
+}
+
 /* ── Bulk Action Bar ── */
 .bulk-action-bar {
     display: flex;
@@ -8400,6 +8413,67 @@ select.schedule-leadtime-input {
     text-align: center;
     color: var(--w-disabled);
     font-size: 12px;
+}
+
+/* ─── Aggregate Mode Dropdown ─── */
+.aggregate-mode-dropdown {
+    min-width: 170px;
+    background: var(--w-bg, #c0c0c0);
+    border: 2px solid;
+    border-color: var(--w-white, #fff) var(--w-darker, #404040) var(--w-darker, #404040) var(--w-white, #fff);
+    padding: 2px;
+}
+
+.aggregate-mode-option {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    cursor: pointer;
+    user-select: none;
+    font-size: 11px;
+}
+
+.aggregate-mode-option:hover {
+    background: var(--w-highlight, #000080);
+    color: white;
+}
+
+.aggregate-mode-option.selected {
+    background: var(--w-highlight, #000080);
+    color: white;
+}
+
+.aggregate-mode-icon {
+    font-size: 13px;
+    flex-shrink: 0;
+    width: 18px;
+    text-align: center;
+}
+
+.aggregate-mode-text {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 0;
+}
+
+.aggregate-mode-name {
+    font-size: 11px;
+    font-weight: 700;
+    color: inherit;
+}
+
+.aggregate-mode-desc {
+    font-size: 10px;
+    color: inherit;
+    opacity: 0.7;
+}
+
+.aggregate-mode-check {
+    font-size: 11px;
+    font-weight: 700;
+    flex-shrink: 0;
 }
 
 /* ─── Top bar overflow (desktop: inline, mobile: dropdown) ─── */
