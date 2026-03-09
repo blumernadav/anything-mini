@@ -599,6 +599,85 @@ function syncAggregateModeBtn() {
     btn.classList.toggle('active', state.aggregateMode !== 'auto');
 }
 
+function dismissAggregateModeDropdown() {
+    const existing = document.querySelector('.aggregate-mode-dropdown');
+    if (existing) existing.remove();
+    document.removeEventListener('click', _aggModeOutsideClick);
+}
+
+function _aggModeOutsideClick(e) {
+    const dropdown = document.querySelector('.aggregate-mode-dropdown');
+    const btn = document.getElementById('aggregate-mode-btn');
+    if (dropdown && !dropdown.contains(e.target) && e.target !== btn) {
+        dismissAggregateModeDropdown();
+    }
+}
+
+function showAggregateModeDropdown() {
+    if (document.querySelector('.aggregate-mode-dropdown')) {
+        dismissAggregateModeDropdown();
+        return;
+    }
+
+    const btn = document.getElementById('aggregate-mode-btn');
+    const rect = btn.getBoundingClientRect();
+
+    const dropdown = document.createElement('div');
+    dropdown.className = 'aggregate-mode-dropdown';
+    dropdown.style.top = `${rect.bottom + 4}px`;
+    dropdown.style.right = `${window.innerWidth - rect.right}px`;
+
+    const options = [
+        { key: 'flat', emoji: '📋', label: 'Flat', desc: "don't aggregate" },
+        { key: 'auto', emoji: '📦', label: 'Auto', desc: 'aggregate > 1' },
+        { key: 'always', emoji: '🗂️', label: 'Always', desc: 'aggregate all' },
+    ];
+
+    for (const opt of options) {
+        const row = document.createElement('div');
+        row.className = 'aggregate-mode-option';
+        if (state.aggregateMode === opt.key) row.classList.add('selected');
+
+        const icon = document.createElement('span');
+        icon.className = 'aggregate-mode-icon';
+        icon.textContent = opt.emoji;
+        row.appendChild(icon);
+
+        const textWrap = document.createElement('div');
+        textWrap.className = 'aggregate-mode-text';
+        const nameEl = document.createElement('span');
+        nameEl.className = 'aggregate-mode-name';
+        nameEl.textContent = opt.label;
+        textWrap.appendChild(nameEl);
+        const descEl = document.createElement('span');
+        descEl.className = 'aggregate-mode-desc';
+        descEl.textContent = opt.desc;
+        textWrap.appendChild(descEl);
+        row.appendChild(textWrap);
+
+        if (state.aggregateMode === opt.key) {
+            const check = document.createElement('span');
+            check.className = 'aggregate-mode-check';
+            check.textContent = '✓';
+            row.appendChild(check);
+        }
+
+        row.addEventListener('click', (e) => {
+            e.stopPropagation();
+            state.aggregateMode = opt.key;
+            savePref('aggregateMode', state.aggregateMode);
+            syncAggregateModeBtn();
+            dismissAggregateModeDropdown();
+            state._animateActions = true;
+            renderAll();
+        });
+        dropdown.appendChild(row);
+    }
+
+    document.body.appendChild(dropdown);
+    setTimeout(() => document.addEventListener('click', _aggModeOutsideClick), 0);
+}
+
 function dismissBookmarksDropdown() {
     const existing = document.querySelector('.bookmarks-dropdown');
     if (existing) existing.remove();
@@ -22318,17 +22397,12 @@ document.addEventListener('DOMContentLoaded', () => {
         renderAll();
     });
 
-    // Aggregate mode cycling button
+    // Aggregate mode dropdown button
     const aggModeBtn = document.getElementById('aggregate-mode-btn');
     syncAggregateModeBtn();
-    aggModeBtn.addEventListener('click', () => {
-        const cycle = ['auto', 'always', 'flat'];
-        const idx = cycle.indexOf(state.aggregateMode);
-        state.aggregateMode = cycle[(idx + 1) % cycle.length];
-        savePref('aggregateMode', state.aggregateMode);
-        syncAggregateModeBtn();
-        state._animateActions = true;
-        renderAll();
+    aggModeBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        showAggregateModeDropdown();
     });
 
     // Bookmarks button
