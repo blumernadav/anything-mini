@@ -1374,6 +1374,75 @@ body {
     color: var(--w-title);
 }
 
+.action-btn-block:hover {
+    color: #cc9900;
+}
+
+.action-btn-blocked {
+    color: #cc9900;
+}
+
+.action-btn-blocked:hover {
+    color: #006600;
+}
+
+/* ─── Blocked / Waiting Badge ─── */
+.action-blocked-badge {
+    font-size: 10px;
+    padding: 1px 6px;
+    border: 1px solid var(--w-btn-highlight);
+    border-bottom-color: var(--w-btn-shadow);
+    border-right-color: var(--w-btn-shadow);
+    background: var(--w-bg);
+    color: #cc9900;
+    cursor: pointer;
+    max-width: 180px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.action-blocked-badge:hover {
+    background: var(--w-highlight);
+    color: var(--w-highlight-text);
+}
+
+.action-blocked-badge-editing {
+    max-width: 260px;
+}
+
+.blocked-reason-input {
+    border: none;
+    background: transparent;
+    font: inherit;
+    font-size: 10px;
+    color: #cc9900;
+    outline: none;
+    padding: 0;
+    width: 120px;
+    max-width: 160px;
+}
+
+.blocked-reason-input::placeholder {
+    color: var(--w-disabled);
+}
+
+.action-item.action-item-blocked {
+    opacity: 0.55;
+}
+
+.action-item.action-item-blocked:hover {
+    opacity: 0.8;
+}
+
+.project-item.project-item-blocked .project-name {
+    opacity: 0.45;
+}
+
+.project-item.project-item-blocked:hover .project-name {
+    opacity: 0.7;
+}
+
 .action-content {
     flex: 1;
     min-width: 0;
@@ -3935,14 +4004,14 @@ body {
 
 /* ─── Schedule Calendar Modal ─── */
 .schedule-modal-box {
-    min-width: 300px;
-    max-width: 320px;
+    min-width: 320px;
+    max-width: 360px;
 }
 
 .schedule-modal-body {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 6px;
 }
 
 .schedule-mode-toggle {
@@ -4744,6 +4813,185 @@ select.schedule-leadtime-input {
 
 .schedule-session-lt-slot:empty {
     display: none;
+
+/* ── New Schedule Pill Bar & Panels (Redesign) ── */
+.schedule-pill-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px;
+    justify-content: center;
+}
+
+.schedule-pill {
+    padding: 2px 8px;
+    font-size: 10px;
+    font-family: inherit;
+    border: 2px solid;
+    border-color: var(--w-white) var(--w-darker) var(--w-darker) var(--w-white);
+    background: var(--w-bg);
+    color: var(--w-dark);
+    cursor: pointer;
+    position: relative;
+    white-space: nowrap;
+    border-radius: 0;
+}
+
+.schedule-pill:hover {
+    background: #e8e8e8;
+}
+
+.schedule-pill:active {
+    border-color: var(--w-darker) var(--w-white) var(--w-white) var(--w-darker);
+}
+
+.schedule-pill-active {
+    background: var(--w-title);
+    color: var(--w-white);
+    font-weight: bold;
+}
+
+.schedule-pill-active:hover {
+    opacity: 0.9;
+}
+
+.schedule-pill-assigned {
+    background: #d0ffd0;
+    color: #006400;
+}
+
+.schedule-pill-assigned:hover {
+    background: #b8ffb8;
+}
+
+.schedule-pill-dot {
+    display: inline-block;
+    width: 5px;
+    height: 5px;
+    border-radius: 0;
+    background: #008000;
+    margin-left: 3px;
+    vertical-align: middle;
+}
+
+.schedule-epoch-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    align-items: center;
+}
+
+.schedule-month-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    align-items: center;
+}
+
+.schedule-month-assign-btn {
+    width: 100%;
+    padding: 4px 8px;
+    text-align: center;
+    font-size: 11px;
+    color: var(--w-dark);
+    background: var(--w-bg);
+    border: 1px dashed var(--w-dark);
+    cursor: pointer;
+    border-radius: 0;
+}
+
+.schedule-month-assign-btn:hover {
+    background: var(--w-title);
+    color: var(--w-white);
+}
+
+.schedule-month-assigned {
+    background: var(--w-title);
+    color: var(--w-white);
+    border-style: solid;
+    font-weight: bold;
+}
+
+.schedule-month-assigned:hover {
+    opacity: 0.85;
+}
+
+.schedule-cal-area {
+    transition: opacity 150ms ease;
+}
+
+.schedule-cal-dimmed {
+    opacity: 0.3;
+    pointer-events: none;
+}
+
+.schedule-cal-week-mode .schedule-cal-day {
+    transition: all 100ms ease;
+}
+
+.schedule-cal-day.schedule-cal-week-hover {
+    background: #e8e8e8;
+}
+
+.schedule-cal-day-week-assigned {
+    background: #ffffc0;
+    font-weight: 700;
+    box-shadow: inset 0 0 0 1px #808000;
+}
+
+.schedule-cal-day-week-assigned.schedule-cal-day.schedule-cal-week-hover {
+    background: #ffff90;
+}
+
+/* ── Month mode ── */
+.schedule-cal-month-mode .schedule-cal-day {
+    transition: all 100ms ease;
+}
+
+.schedule-cal-day.schedule-cal-month-hover {
+    background: #e8e8e8;
+}
+
+.schedule-cal-day-month-assigned {
+    background: #ffffc0;
+    font-weight: 700;
+    box-shadow: inset 0 0 0 1px #808000;
+}
+
+.schedule-cal-day-month-assigned.schedule-cal-day.schedule-cal-month-hover {
+    background: #ffff90;
+}
+
+.schedule-week-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.schedule-week-info-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 3px 6px;
+    font-size: 11px;
+    color: var(--w-text);
+    background: var(--w-field);
+    border: 1px solid var(--w-dark);
+    border-radius: 0;
+}
+
+.schedule-session-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.schedule-hint {
+    text-align: center;
+    font-size: 10px;
+    color: var(--w-disabled);
+    padding-top: 2px;
+}
+
 }
 
 /* ─── Time Blocks ─── */

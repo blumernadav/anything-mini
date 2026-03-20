@@ -31,6 +31,7 @@
                         title="More options">⋯</button>
                     <div class="top-bar-overflow-menu" id="top-bar-overflow-menu">
                         <button class="top-bar-btn top-bar-toggle" id="hide-done-btn" title="Show done">✓</button>
+                        <button class="top-bar-btn top-bar-toggle" id="show-blocked-btn" title="Hide blocked">⏳</button>
                         <button class="top-bar-btn top-bar-toggle" id="hide-past-btn" title="Hide past">⏳</button>
                         <button class="top-bar-btn top-bar-toggle" id="deep-view-btn"
                             title="Show all layers">🔽</button>
@@ -55,9 +56,7 @@
             <div class="sidebar-header">
                 <h2 class="sidebar-title"><span class="title-icon">📁</span> Projects</h2>
             </div>
-            <!-- Pinned Inbox (always at top) -->
-            <div class="project-inbox-pinned" id="project-inbox-pinned"></div>
-            <!-- Project Scope Navigator (mirrors Time horizon layers) -->
+            <!-- Inbox now appears as parent row in the scope navigator -->
             <div class="project-scope-nav" id="project-scope-nav">
                 <div class="project-scope-parent" id="project-scope-parent" style="display:none;">
                     <span class="project-scope-parent-label" id="project-scope-parent-label"></span>
@@ -467,6 +466,53 @@
             to {
                 opacity: 0;
             }
+        }
+
+        /* Undo/redo toast */
+        .undo-toast {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 100001;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 18px;
+            border-radius: 10px;
+            background: var(--bg-panel, var(--duo-card, rgba(30, 41, 59, 0.95)));
+            color: var(--text, var(--duo-text, #f1f5f9));
+            font-size: 13px;
+            font-family: inherit;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+            animation: toastIn 0.25s ease-out;
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+        }
+
+        .undo-toast-msg {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 300px;
+        }
+
+        .undo-toast-btn {
+            background: var(--accent, var(--duo-green, #3b82f6));
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            padding: 4px 14px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 12px;
+            font-family: inherit;
+            transition: opacity 0.15s;
+            white-space: nowrap;
+        }
+
+        .undo-toast-btn:hover {
+            opacity: 0.85;
         }
     </style>
 </body>

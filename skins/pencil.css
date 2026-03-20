@@ -1544,6 +1544,78 @@ body {
     color: var(--blue-pen);
 }
 
+.action-btn-block:hover {
+    border-color: #d4a017;
+    color: #d4a017;
+}
+
+.action-btn-blocked {
+    border-color: #d4a017;
+    color: #d4a017;
+}
+
+.action-btn-blocked:hover {
+    border-color: var(--pencil);
+    color: var(--pencil);
+}
+
+/* ─── Blocked / Waiting Badge ─── */
+.action-blocked-badge {
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 8px;
+    background: rgba(212, 160, 23, 0.1);
+    color: #d4a017;
+    border: 1px solid rgba(212, 160, 23, 0.3);
+    white-space: nowrap;
+    cursor: pointer;
+    transition: all var(--dur) var(--ease);
+    max-width: 180px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.action-blocked-badge:hover {
+    background: rgba(212, 160, 23, 0.2);
+    border-color: #d4a017;
+}
+
+.action-blocked-badge-editing {
+    max-width: 260px;
+}
+
+.blocked-reason-input {
+    border: none;
+    background: transparent;
+    font: inherit;
+    font-size: 10px;
+    color: #d4a017;
+    outline: none;
+    padding: 0;
+    width: 120px;
+    max-width: 160px;
+}
+
+.blocked-reason-input::placeholder {
+    color: rgba(212, 160, 23, 0.5);
+}
+
+.action-item.action-item-blocked {
+    opacity: 0.55;
+}
+
+.action-item.action-item-blocked:hover {
+    opacity: 0.8;
+}
+
+.project-item.project-item-blocked .project-name {
+    opacity: 0.45;
+}
+
+.project-item.project-item-blocked:hover .project-name {
+    opacity: 0.7;
+}
+
 .action-content {
     flex: 1;
     min-width: 0;
@@ -4291,14 +4363,14 @@ body {
 
 /* ─── Schedule Calendar Modal ─── */
 .schedule-modal-box {
-    min-width: 300px;
-    max-width: 330px;
+    min-width: 320px;
+    max-width: 370px;
 }
 
 .schedule-modal-body {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 8px;
 }
 
 .schedule-mode-toggle {
@@ -5149,6 +5221,197 @@ select.schedule-leadtime-input {
 
 .schedule-session-lt-slot:empty {
     display: none;
+
+/* ── New Schedule Pill Bar & Panels (Redesign) ── */
+.schedule-pill-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    justify-content: center;
+}
+
+.schedule-pill {
+    padding: 3px 10px;
+    font-size: 13px;
+    font-weight: 600;
+    font-family: 'Caveat', cursive;
+    border: 1.5px dashed var(--pencil-light);
+    border-radius: 14px;
+    background: var(--pencil-paper);
+    color: var(--pencil-faint);
+    cursor: pointer;
+    transition: all var(--dur) var(--ease);
+    position: relative;
+    white-space: nowrap;
+}
+
+.schedule-pill:hover {
+    border-color: var(--pencil);
+    color: var(--pencil);
+    border-style: solid;
+}
+
+.schedule-pill-active {
+    background: var(--pencil);
+    color: var(--pencil-paper);
+    border-color: var(--pencil);
+    border-style: solid;
+    font-weight: 700;
+}
+
+.schedule-pill-active:hover {
+    opacity: 0.85;
+}
+
+.schedule-pill-assigned {
+    border-color: var(--blue-pen);
+    color: var(--blue-pen);
+    border-style: solid;
+}
+
+.schedule-pill-assigned:hover {
+    background: rgba(43, 87, 154, 0.06);
+}
+
+.schedule-pill-dot {
+    display: inline-block;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--blue-pen);
+    margin-left: 4px;
+    vertical-align: middle;
+}
+
+.schedule-epoch-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    align-items: center;
+}
+
+.schedule-month-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    align-items: center;
+}
+
+.schedule-month-assign-btn {
+    width: 100%;
+    padding: 8px 12px;
+    text-align: center;
+    font-size: 14px;
+    font-family: 'Caveat', cursive;
+    font-weight: 600;
+    color: var(--pencil-faint);
+    background: var(--pencil-paper);
+    border: 1.5px dashed var(--pencil-light);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all var(--dur) var(--ease);
+}
+
+.schedule-month-assign-btn:hover {
+    border-color: var(--pencil);
+    color: var(--pencil);
+}
+
+.schedule-month-assigned {
+    background: var(--pencil);
+    color: var(--pencil-paper);
+    border-style: solid;
+    border-color: var(--pencil);
+}
+
+.schedule-month-assigned:hover {
+    opacity: 0.85;
+}
+
+.schedule-cal-area {
+    transition: opacity var(--dur) var(--ease);
+}
+
+.schedule-cal-dimmed {
+    opacity: 0.3;
+    pointer-events: none;
+}
+
+.schedule-cal-week-mode .schedule-cal-day {
+    transition: all 100ms var(--ease);
+}
+
+.schedule-cal-day.schedule-cal-week-hover {
+    background: rgba(255, 243, 168, 0.4);
+    color: var(--pencil);
+}
+
+.schedule-cal-day-week-assigned {
+    background: rgba(255, 243, 168, 0.5);
+    font-weight: 700;
+    border: 1px dashed var(--pencil-soft);
+    border-radius: var(--radius);
+}
+
+.schedule-cal-day-week-assigned.schedule-cal-day.schedule-cal-week-hover {
+    background: rgba(255, 243, 168, 0.7);
+}
+
+/* ── Month mode ── */
+.schedule-cal-month-mode .schedule-cal-day {
+    transition: all 100ms var(--ease);
+}
+
+.schedule-cal-day.schedule-cal-month-hover {
+    background: rgba(255, 243, 168, 0.4);
+    color: var(--pencil);
+}
+
+.schedule-cal-day-month-assigned {
+    background: rgba(255, 243, 168, 0.5);
+    font-weight: 700;
+    border: 1px dashed var(--pencil-soft);
+    border-radius: var(--radius);
+}
+
+.schedule-cal-day-month-assigned.schedule-cal-day.schedule-cal-month-hover {
+    background: rgba(255, 243, 168, 0.7);
+}
+
+.schedule-week-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.schedule-week-info-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 5px 10px;
+    font-size: 13px;
+    font-family: 'Caveat', cursive;
+    color: var(--pencil-soft);
+    background: var(--pencil-paper);
+    border: 1.5px solid var(--pencil-light);
+    border-radius: 6px;
+}
+
+.schedule-session-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.schedule-hint {
+    text-align: center;
+    font-size: 13px;
+    font-family: 'Caveat', cursive;
+    color: var(--pencil-faint);
+    opacity: 0.5;
+    padding-top: 2px;
+}
+
 }
 
 /* ─── Time Blocks ─── */

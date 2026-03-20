@@ -288,6 +288,14 @@ app.delete('/api/timeline/:id', async (req, res) => {
     res.json({ message: 'Deleted' });
 });
 
+// Bulk save the full timeline (for undo/redo restore)
+app.put('/api/timeline', async (req, res) => {
+    const incoming = req.body;
+    await timelineStore.write(incoming);
+    notifyClients('timeline', req.headers['x-client-id']);
+    res.json(incoming);
+});
+
 // ============ Settings API ============
 
 app.get('/api/settings', async (req, res) => {

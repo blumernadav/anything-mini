@@ -17,6 +17,7 @@ const state = {
     pastDisplayMode: 'show', // 'hide' | 'show' — whether past entries are visible in timeline
     pastCardStyle: 'compact', // 'compact' | 'full' — card style for past entries (configured in Settings)
     showDone: false, // when true, done items are visible in actions and project tree
+    showBlocked: true, // when true, blocked/waiting items are visible (default: show)
     scheduleFilter: 'scheduled+unscheduled', // 'scheduled' | 'scheduled+unscheduled' | 'all'
     viewHorizon: 'day', // 'day' | 'month' | 'week' | 'epoch' | 'session' | 'live' — horizon level for timeline navigation
     epochFilter: 'ongoing', // 'past' | 'ongoing' | 'future' — which sub-epoch is active at epoch horizon
@@ -239,6 +240,93 @@ function _showSaveError(domain) {
     setTimeout(() => toast.remove(), 4000);
 }
 
+// ─── Undo / Redo Engine ───
+const _undoStack = [];  // Array of { items, timeline, label, timestamp }
+const _redoStack = [];
+const UNDO_MAX = 30;
+let _undoToastTimer = null;
+
+// Capture a deep snapshot of items + timeline before a mutation.
+// `label` is what the user sees in the toast (e.g., "Delete 'Buy groceries'").
+function pushUndo(label) {
+    _undoStack.push({
+        items: JSON.parse(JSON.stringify(state.items)),
+        timeline: JSON.parse(JSON.stringify(state.timeline)),
+        label: label || 'action',
+        timestamp: Date.now()
+    });
+    if (_undoStack.length > UNDO_MAX) _undoStack.shift();
+    _redoStack.length = 0; // new action invalidates redo history
+}
+
+function performUndo() {
+    if (_undoStack.length === 0) return;
+    const snapshot = _undoStack.pop();
+    // Save current state for redo
+    _redoStack.push({
+        items: JSON.parse(JSON.stringify(state.items)),
+        timeline: JSON.parse(JSON.stringify(state.timeline)),
+        label: snapshot.label,
+        timestamp: Date.now()
+    });
+    // Restore snapshot
+    state.items = snapshot.items;
+    state.timeline = snapshot.timeline;
+    // Persist both domains (fire-and-forget)
+    api.put('/items', state.items).catch(err => console.error('[undo] items save failed:', err));
+    api.put('/timeline', state.timeline).catch(err => console.error('[undo] timeline save failed:', err));
+    renderAll();
+    showUndoToast(`Undid: ${snapshot.label}`, 'redo');
+}
+
+function performRedo() {
+    if (_redoStack.length === 0) return;
+    const snapshot = _redoStack.pop();
+    _undoStack.push({
+        items: JSON.parse(JSON.stringify(state.items)),
+        timeline: JSON.parse(JSON.stringify(state.timeline)),
+        label: snapshot.label,
+        timestamp: Date.now()
+    });
+    state.items = snapshot.items;
+    state.timeline = snapshot.timeline;
+    api.put('/items', state.items).catch(err => console.error('[redo] items save failed:', err));
+    api.put('/timeline', state.timeline).catch(err => console.error('[redo] timeline save failed:', err));
+    renderAll();
+    showUndoToast(`Redid: ${snapshot.label}`, 'undo');
+}
+
+function showUndoToast(message, oppositeAction) {
+    // Remove any existing toast
+    const existing = document.querySelector('.undo-toast');
+    if (existing) existing.remove();
+    if (_undoToastTimer) clearTimeout(_undoToastTimer);
+
+    const toast = document.createElement('div');
+    toast.className = 'undo-toast';
+
+    const msg = document.createElement('span');
+    msg.className = 'undo-toast-msg';
+    msg.textContent = message;
+    toast.appendChild(msg);
+
+    if (oppositeAction) {
+        const btn = document.createElement('button');
+        btn.className = 'undo-toast-btn';
+        btn.textContent = oppositeAction === 'undo' ? 'Undo' : 'Redo';
+        btn.addEventListener('click', () => {
+            toast.remove();
+            if (_undoToastTimer) clearTimeout(_undoToastTimer);
+            if (oppositeAction === 'undo') performUndo();
+            else performRedo();
+        });
+        toast.appendChild(btn);
+    }
+
+    document.body.appendChild(toast);
+    _undoToastTimer = setTimeout(() => toast.remove(), 5000);
+}
+
 // ─── Load Data ───
 async function loadAll() {
     const [items, timeline, prefs] = await Promise.all([
@@ -289,6 +377,7 @@ async function loadAll() {
         state.pastCardStyle = 'compact';
     }
     state.showDone = prefs.showDone === true;
+    state.showBlocked = prefs.showBlocked !== false; // default true (show blocked items)
     const validFilters = ['scheduled', 'scheduled+unscheduled', 'all'];
     state.scheduleFilter = validFilters.includes(prefs.scheduleFilter) ? prefs.scheduleFilter : 'scheduled+unscheduled';
     const validHorizons = ['day', 'month', 'week', 'epoch', 'session', 'live'];
@@ -571,6 +660,11 @@ function syncToggleUI() {
     if (deepViewBtn) {
         deepViewBtn.classList.toggle('active', state.deepView);
         deepViewBtn.title = state.deepView ? 'Showing all layers' : 'Show all layers';
+    }
+    const showBlockedBtn = document.getElementById('show-blocked-btn');
+    if (showBlockedBtn) {
+        showBlockedBtn.classList.toggle('active', !state.showBlocked);
+        showBlockedBtn.title = state.showBlocked ? 'Hide blocked' : 'Show blocked';
     }
 
     syncBookmarksBtn();
@@ -1395,6 +1489,7 @@ async function sendToMonth(itemId, monthKey, sourceDuration) {
     itemId = Number(itemId);
     const item = findItemById(itemId);
     if (!item) return;
+    pushUndo(`Send '${item.name}' to month`);
     item.timeContexts = [monthKey];
     if (!item.contextDurations) item.contextDurations = {};
     const dur = sourceDuration != null ? sourceDuration : (item.contextDurations[Object.keys(item.contextDurations)[0]] ?? undefined);
@@ -3822,6 +3917,7 @@ async function toggleTimeContext(itemId, dateKey) {
 async function addTimeContext(itemId, dateKey, seedDuration) {
     const item = findItemById(itemId);
     if (!item) return;
+    pushUndo(`Schedule '${item.name}'`);
     if (!item.timeContexts) item.timeContexts = [];
     let changed = false;
     if (!item.timeContexts.includes(dateKey)) {
@@ -3848,6 +3944,7 @@ async function sendToEpoch(itemId, epochName, sourceDuration) {
     itemId = Number(itemId);
     const item = findItemById(itemId);
     if (!item) return;
+    pushUndo(`Send '${item.name}' to ${epochName}`);
     // Strip all date/segment/entry/week contexts, keep only the target epoch
     item.timeContexts = [epochName];
     // Clean segment durations since we removed segment contexts,
@@ -3867,6 +3964,7 @@ async function sendToWeek(itemId, weekKey, sourceDuration) {
     itemId = Number(itemId);
     const item = findItemById(itemId);
     if (!item) return;
+    pushUndo(`Send '${item.name}' to week`);
     // Strip all date/segment/entry/epoch contexts, add week
     item.timeContexts = [weekKey];
     if (!item.contextDurations) item.contextDurations = {};
@@ -4391,6 +4489,7 @@ function startInlineRename(nameEl, item) {
     const commitRename = async () => {
         const val = input.value.trim();
         if (val && val !== currentName) {
+            pushUndo(`Rename '${currentName}' to '${val}'`);
             item.name = val;
             saveItems();
         }
@@ -4459,6 +4558,7 @@ function showProjectContextMenu(e, item) {
         ev.stopPropagation();
         dismissProjectContextMenu();
         const newDone = !item.done;
+        pushUndo(newDone ? `Mark '${item.name}' done` : `Mark '${item.name}' undone`);
         patchItemOptimistic(item.id, { done: newDone });
         if (newDone) {
             _playDotBubbleSound();
@@ -4518,6 +4618,23 @@ function showProjectContextMenu(e, item) {
             renderAll();
         });
         menu.appendChild(queueOpt);
+
+        // Blocked toggle
+        const blockedOpt = document.createElement('div');
+        blockedOpt.className = 'project-context-menu-item';
+        blockedOpt.textContent = item.blocked ? '✅ Unblock' : '⏳ Mark as Blocked';
+        blockedOpt.addEventListener('click', (ev) => {
+            ev.stopPropagation();
+            dismissProjectContextMenu();
+            pushUndo(item.blocked ? `Unblock '${item.name}'` : `Block '${item.name}'`);
+            if (item.blocked) {
+                patchItemOptimistic(item.id, { blocked: false, blockedReason: '' });
+            } else {
+                patchItemOptimistic(item.id, { blocked: true, blockedReason: '' });
+            }
+            renderAll();
+        });
+        menu.appendChild(blockedOpt);
     }
 
     // ── Commitment option ──
@@ -4623,6 +4740,7 @@ function showProjectContextMenu(e, item) {
     deleteOpt.addEventListener('click', async (ev) => {
         ev.stopPropagation();
         dismissProjectContextMenu();
+        pushUndo(`Delete '${item.name}'`);
         api.del(`/items/${item.id}`).catch(err => { console.error('[optimistic] Item delete failed:', err); _showSaveError('item deletion'); });
         if (state.selectedItemId === item.id) {
             state.selectedItemId = null;
@@ -4770,6 +4888,39 @@ function showActionContextMenu(e, action) {
             renderAll();
         });
         menu.appendChild(queueOpt);
+    }
+    // Bulk: Add to Queue (multi-select)
+    if (isBulk) {
+        // Bulk blocked toggle
+        const bulkBlockedOpt = document.createElement('div');
+        bulkBlockedOpt.className = 'project-context-menu-item';
+        bulkBlockedOpt.textContent = `⏳ Mark as Blocked${bulkSuffix}`;
+        bulkBlockedOpt.addEventListener('click', (ev) => {
+            ev.stopPropagation();
+            dismissProjectContextMenu();
+            for (const id of state.selectedActionIds) {
+                patchItemOptimistic(parseInt(id, 10), { blocked: true, blockedReason: '' });
+            }
+            renderAll();
+        });
+        menu.appendChild(bulkBlockedOpt);
+    } else if (!isDoneInCtx) {
+        // Single blocked toggle (only for non-done items)
+        const blockedOpt = document.createElement('div');
+        blockedOpt.className = 'project-context-menu-item';
+        const isBlocked = actionItem && actionItem.blocked;
+        blockedOpt.textContent = isBlocked ? '✅ Unblock' : '⏳ Mark as Blocked';
+        blockedOpt.addEventListener('click', (ev) => {
+            ev.stopPropagation();
+            dismissProjectContextMenu();
+            if (isBlocked) {
+                patchItemOptimistic(action.id, { blocked: false, blockedReason: '' });
+            } else {
+                patchItemOptimistic(action.id, { blocked: true, blockedReason: '' });
+            }
+            renderAll();
+        });
+        menu.appendChild(blockedOpt);
     }
 
     // Bulk: Add to Queue (multi-select)
@@ -4967,6 +5118,7 @@ function startActionInlineRename(nameEl, action) {
     const commitRename = async () => {
         const val = input.value.trim();
         if (val && val !== currentName) {
+            pushUndo(`Rename '${currentName}' to '${val}'`);
             const originalItem = findItemById(action.id);
             if (originalItem) {
                 originalItem.name = val;
@@ -5007,6 +5159,8 @@ function collectSearchMatches(items, query, matchingIds) {
         // Skip done leaves when showDone is off — they shouldn't appear in search results
         const leaf = isLeaf(item);
         if (!state.showDone && leaf && !item.isInbox && item.done) continue; // global done only for search
+        // Skip blocked items when showBlocked is off
+        if (!state.showBlocked && item.blocked) continue;
 
         const nameMatch = item.name.toLowerCase().includes(query);
         let childMatch = false;
@@ -5227,9 +5381,17 @@ function renderProjectScopeNav() {
     if (!parentRow || !currentLabel) return;
 
     if (!state.projectFocusId) {
-        // Root level — no parent, no sibling nav
+        // Root level — Inbox as parent, All Projects as current
+        const inbox = state.items.items.find(i => i.isInbox);
+        const inboxSelected = inbox && state.selectedItemId === inbox.id;
         parentRow.style.display = '';
-        parentLabel.textContent = '\u00a0'; // placeholder to maintain height
+        parentLabel.innerHTML = '';
+        const inboxIcon = document.createElement('span');
+        inboxIcon.className = 'project-scope-parent-icon';
+        inboxIcon.textContent = '📥';
+        parentLabel.appendChild(inboxIcon);
+        parentLabel.appendChild(document.createTextNode(' Inbox'));
+        parentRow.classList.toggle('inbox-active', !!inboxSelected);
         currentIcon.textContent = '';
         currentLabel.textContent = 'All Projects';
         currentCount.textContent = '';
@@ -5237,6 +5399,9 @@ function renderProjectScopeNav() {
         nextBtn.style.visibility = 'hidden';
         return;
     }
+
+    // Clear inbox-active when not at root
+    parentRow.classList.remove('inbox-active');
 
     const focused = findItemById(state.projectFocusId);
     if (!focused) return;
@@ -5301,17 +5466,7 @@ function renderProjects() {
     // Update the scope navigator bar
     renderProjectScopeNav();
 
-    // Render pinned Inbox above navigator
-    const inboxContainer = document.getElementById('project-inbox-pinned');
-    if (inboxContainer) {
-        inboxContainer.innerHTML = '';
-        const inbox = state.items.items.find(i => i.isInbox);
-        if (inbox) {
-            const inboxFragment = document.createDocumentFragment();
-            renderProjectLevel([inbox], inboxFragment, 0, query, matchingIds);
-            inboxContainer.appendChild(inboxFragment);
-        }
-    }
+    // Inbox is now shown in the navigator parent row — no separate rendering needed
 
     const fragment = document.createDocumentFragment();
 
@@ -5467,6 +5622,8 @@ function clearDropIndicators() {
 
 function handleDrop() {
     if (!dragState.draggedId || !dragState.dropTarget) return;
+    const draggedItem = findItemById(dragState.draggedId);
+    pushUndo(`Move '${draggedItem ? draggedItem.name : 'item'}'`);
     const success = moveItem(dragState.draggedId, dragState.dropTarget);
     if (success) {
         saveItems();
@@ -5543,6 +5700,10 @@ function renderProjectLevel(items, parent, depth, query = '', matchingIds = new 
         if (!state.showDone && !isInbox && item.done) {
             continue;
         }
+        // Skip blocked items when not showing blocked
+        if (!state.showBlocked && !isInbox && item.blocked) {
+            continue;
+        }
 
         // Skip items that don't match search (and have no matching descendants)
         if (isSearching && !matchingIds.has(item.id)) continue;
@@ -5570,7 +5731,8 @@ function renderProjectLevel(items, parent, depth, query = '', matchingIds = new 
         row.className = 'project-item'
             + (isInbox ? ' project-inbox' : '')
             + ((leaf || inScopeMode) && !isInbox ? ' project-leaf' : '')
-            + (state.selectedItemId === item.id ? ' selected' : '');
+            + (state.selectedItemId === item.id ? ' selected' : '')
+            + (item.blocked ? ' project-item-blocked' : '');
         row.style.paddingLeft = `${10 + depth * 18}px`;
         row.dataset.id = item.id;
 
@@ -5634,26 +5796,30 @@ function renderProjectLevel(items, parent, depth, query = '', matchingIds = new 
 
                 clearDropIndicators();
 
-                // In scope mode (flat list), disable 'inside' — only allow before/after reordering
+                // In scope mode (flat list): edges reorder, middle reparents
                 const allowBefore = needsBeforeZone;
                 if (inScopeMode && !isInbox) {
-                    // Flat list: one drop zone per gap.
-                    // Only the first item has a "before" zone (top half).
-                    // Every item has an "after" zone; for non-first items
-                    // the whole row maps to "after" so there's exactly one
-                    // indicator between any two adjacent items.
-                    if (needsBeforeZone && zone < 0.5) {
+                    // Flat list: 3 zones — edges for reorder, middle for reparent.
+                    // Only the first item gets a "before" edge; others use "after"
+                    // so there is exactly one reorder indicator per gap.
+                    if (needsBeforeZone && zone < 0.25) {
+                        // Top edge of first item → insert before
                         const indicator = document.createElement('div');
                         indicator.className = 'drop-indicator drop-indicator-before';
                         indicator.style.marginLeft = row.style.paddingLeft;
                         node.insertBefore(indicator, row);
                         dragState.dropTarget = { id: item.id, position: 'before' };
-                    } else {
+                    } else if (zone > 0.75) {
+                        // Bottom edge → insert after
                         const indicator = document.createElement('div');
                         indicator.className = 'drop-indicator drop-indicator-after';
                         indicator.style.marginLeft = row.style.paddingLeft;
                         row.after(indicator);
                         dragState.dropTarget = { id: item.id, position: 'after' };
+                    } else {
+                        // Middle → drop inside (reparent)
+                        row.classList.add('drop-target-inside');
+                        dragState.dropTarget = { id: item.id, position: 'inside' };
                     }
                 } else if (allowBefore && zone < 0.25) {
                     // Drop before (first item only)
@@ -5752,6 +5918,15 @@ function renderProjectLevel(items, parent, depth, query = '', matchingIds = new 
         }
         row.appendChild(name);
 
+        // Tooltip for truncated names — check on hover when layout is stable
+        name.addEventListener('mouseenter', () => {
+            if (name.scrollWidth > name.clientWidth) {
+                name.title = item.name;
+            } else {
+                name.removeAttribute('title');
+            }
+        });
+
         // Goal badge on project items
         if (item.goal) {
             const progress = getGoalProgress(item);
@@ -5807,6 +5982,7 @@ function renderProjectLevel(items, parent, depth, query = '', matchingIds = new 
             doneBtn.addEventListener('click', async (e) => {
                 e.stopPropagation();
                 const newDone = !item.done;
+                pushUndo(newDone ? `Mark '${item.name}' done` : `Mark '${item.name}' undone`);
                 patchItemOptimistic(item.id, { done: newDone });
                 if (newDone) {
                     _playDotBubbleSound();
@@ -5867,7 +6043,7 @@ function renderProjectLevel(items, parent, depth, query = '', matchingIds = new 
             delBtn.title = 'Delete';
             delBtn.addEventListener('click', async (e) => {
                 e.stopPropagation();
-                if (!confirm(`Delete "${item.name}"? This cannot be undone.`)) return;
+                pushUndo(`Delete '${item.name}'`);
                 api.del(`/items/${item.id}`).catch(err => { console.error('[optimistic] Item delete failed:', err); _showSaveError('item deletion'); });
                 if (state.selectedItemId === item.id) {
                     state.selectedItemId = null;
@@ -6318,18 +6494,8 @@ function renderActions(opts) {
     }
     empty.style.display = 'none';
 
-    // Sort: 3-tier — undone+goal first, undone second, done last. Tree order within each tier.
-    const indexed = filteredActions.map((a, i) => ({ ...a, _treeIdx: i }));
-    const _sortCtx = getCurrentViewContext();
-    const sorted = indexed.sort((a, b) => {
-        const aDone = isContextDone(a, _sortCtx);
-        const bDone = isContextDone(b, _sortCtx);
-        if (aDone !== bDone) return aDone ? 1 : -1;
-        const aHasGoal = hasActiveGoal(a);
-        const bHasGoal = hasActiveGoal(b);
-        if (aHasGoal !== bHasGoal) return aHasGoal ? -1 : 1;
-        return a._treeIdx - b._treeIdx;
-    });
+    // Preserve tree order (assign _treeIdx for stable ordering through absorption)
+    const sorted = filteredActions.map((a, i) => ({ ...a, _treeIdx: i }));
 
     // Prune stale selections (items no longer visible)
     const visibleSet = new Set(sorted.map(a => String(a.id)));
@@ -6479,13 +6645,17 @@ function _absorbChildrenIntoParents(actions) {
                     _path: parentPath,
                     _absorbedCount: childTotal,
                     _absorbedDone: childDone,
-                    _synthesized: true, // flag: this item was created by absorption, not in original list
+                    _synthesized: true,
+                    _treeIdx: Math.min(...group.items.map(i => i._treeIdx ?? Infinity)),
                 };
                 nextResult.push(synth);
             }
         }
         result = nextResult;
     }
+
+    // Sort by tree index so synthesized parents appear in tree order
+    result.sort((a, b) => (a._treeIdx ?? Infinity) - (b._treeIdx ?? Infinity));
 
     return result;
 }
@@ -6498,6 +6668,10 @@ function getFilteredActions() {
     const _viewCtx = getCurrentViewContext();
     if (!state.showDone) {
         allLeaves = allLeaves.filter(a => !isContextDone(a, _viewCtx));
+    }
+    // Filter out blocked items unless showBlocked is on
+    if (!state.showBlocked) {
+        allLeaves = allLeaves.filter(a => !a.blocked);
     }
 
     // ── Horizon + Schedule filter ──
@@ -7349,6 +7523,7 @@ function updateBulkActionBar() {
 async function bulkMarkDone() {
     const ids = [...state.selectedActionIds];
     if (ids.length === 0) return;
+    pushUndo(`Bulk done ${ids.length} items`);
 
     const viewCtx = getCurrentViewContext();
     for (const id of ids) {
@@ -7376,7 +7551,7 @@ function bulkSchedule() {
 async function bulkDecline() {
     const ids = [...state.selectedActionIds];
     if (ids.length === 0) return;
-    if (!confirm(`Remove ${ids.length} item(s) from this context?`)) return;
+    pushUndo(`Bulk remove ${ids.length} items from context`);
 
     const ctx = getCurrentViewContext();
     for (const id of ids) {
@@ -7394,7 +7569,45 @@ document.addEventListener('DOMContentLoaded', () => {
     const scopeNextBtn = document.getElementById('project-scope-next');
     const scopeCurrentDisplay = document.getElementById('project-scope-current-display');
 
-    if (scopeParentRow) scopeParentRow.addEventListener('click', () => projectScopeGoUp());
+    if (scopeParentRow) scopeParentRow.addEventListener('click', () => {
+        if (!state.projectFocusId) {
+            // At root: toggle inbox selection
+            const inbox = state.items.items.find(i => i.isInbox);
+            if (inbox) {
+                const newId = state.selectedItemId === inbox.id ? null : inbox.id;
+                const doUpdate = () => {
+                    state.selectedItemId = newId;
+                    savePref('selectedItemId', newId || '');
+                    state._animateActions = true;
+                    renderAll();
+                };
+                if (!state.selectedItemId && newId) {
+                    animateActionsZoomIn(doUpdate);
+                } else if (state.selectedItemId && !newId) {
+                    animateActionsZoomOut(doUpdate);
+                } else {
+                    doUpdate();
+                }
+            }
+        } else {
+            projectScopeGoUp();
+        }
+    });
+    // Click on "All Projects" current display: deselect inbox at root
+    if (scopeCurrentDisplay) scopeCurrentDisplay.addEventListener('click', () => {
+        if (!state.projectFocusId) {
+            // At root: deselect inbox if selected
+            const inbox = state.items.items.find(i => i.isInbox);
+            if (inbox && state.selectedItemId === inbox.id) {
+                animateActionsZoomOut(() => {
+                    state.selectedItemId = null;
+                    savePref('selectedItemId', '');
+                    state._animateActions = true;
+                    renderAll();
+                });
+            }
+        }
+    });
     if (scopePrevBtn) scopePrevBtn.addEventListener('click', () => projectScopePrevSibling());
     if (scopeNextBtn) scopeNextBtn.addEventListener('click', () => projectScopeNextSibling());
     _setupReflectionPanelHandler();
@@ -7547,7 +7760,8 @@ function createActionElement(action) {
     const _actViewCtx = getCurrentViewContext();
     const _actionDone = isContextDone(_actionItem, _actViewCtx);
     const _actionCommitted = isCommittedInContext(_actionItem, _actViewCtx);
-    item.className = 'action-item' + (_actionDone ? ' done' : '') + (state.selectedActionIds.has(actionIdStr) ? ' selected' : '') + (isLiveWorking ? ' action-item-working' : '') + (_actionCommitted ? ' committed' : '');
+    const _actionBlocked = _actionItem && _actionItem.blocked;
+    item.className = 'action-item' + (_actionDone ? ' done' : '') + (state.selectedActionIds.has(actionIdStr) ? ' selected' : '') + (isLiveWorking ? ' action-item-working' : '') + (_actionCommitted ? ' committed' : '') + (_actionBlocked ? ' action-item-blocked' : '');
     item.dataset.id = action.id;
 
     // ── Multiselect click handler ──
@@ -7740,6 +7954,40 @@ function createActionElement(action) {
 
     // Duration / Investment badge (context-aware)
     const estimateItem = findItemById(action.id);
+
+    // Blocked badge (click to edit reason inline)
+    if (_actionBlocked) {
+        const blockedBadge = document.createElement('span');
+        blockedBadge.className = 'action-blocked-badge';
+        const reason = _actionItem.blockedReason;
+        blockedBadge.textContent = reason ? `⏳ ${reason}` : '⏳ Blocked';
+        blockedBadge.title = 'Click to edit reason';
+        blockedBadge.addEventListener('click', (e) => {
+            e.stopPropagation();
+            // Replace badge with inline input for editing reason
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'blocked-reason-input';
+            input.value = _actionItem.blockedReason || '';
+            input.placeholder = 'Reason (optional)…';
+            blockedBadge.textContent = '⏳ ';
+            blockedBadge.appendChild(input);
+            blockedBadge.classList.add('action-blocked-badge-editing');
+            input.focus();
+            const commitReason = () => {
+                const val = input.value.trim();
+                patchItemOptimistic(action.id, { blockedReason: val });
+                renderAll();
+            };
+            input.addEventListener('keydown', (ev) => {
+                ev.stopPropagation();
+                if (ev.key === 'Enter') { ev.preventDefault(); commitReason(); }
+                if (ev.key === 'Escape') { ev.preventDefault(); renderAll(); }
+            });
+            input.addEventListener('blur', () => setTimeout(commitReason, 100));
+        });
+        badgesRow.appendChild(blockedBadge);
+    }
     if (!_actionDone) {
         if (state.showInvestmentBadge) {
             const inv = computeTimeInvestment(estimateItem);
@@ -7933,6 +8181,7 @@ function createActionElement(action) {
         const item = findItemById(action.id);
         if (!item) return;
         const wasDone = isContextDone(item, _actViewCtx);
+        pushUndo(wasDone ? `Mark '${action.name}' undone` : `Mark '${action.name}' done`);
         setContextDone(item, _actViewCtx, !wasDone);
 
         if (!wasDone) {
@@ -7959,12 +8208,14 @@ function createActionElement(action) {
         declineBtn.classList.add('ghost-action-dismiss');
         declineBtn.addEventListener('click', async (e) => {
             e.stopPropagation();
+            pushUndo(`Dismiss '${action.name}' from context`);
             await dismissLeadTimeGhost(action.id, _shadowDeadlineCtx, getCurrentViewContext());
         });
     } else {
         declineBtn.title = 'Remove from this context';
         declineBtn.addEventListener('click', async (e) => {
             e.stopPropagation();
+            pushUndo(`Remove '${action.name}' from context`);
             removeSourceContext(action.id, getCurrentViewContext());
             renderAll();
         });
@@ -8123,11 +8374,42 @@ function createActionElement(action) {
         scheduleBtn.disabled = true;
     }
 
+    // Block/Unblock toggle button
+    const blockBtn = document.createElement('button');
+    blockBtn.className = 'action-btn action-btn-block';
+    if (_actionBlocked) {
+        blockBtn.textContent = '✅';
+        blockBtn.title = 'Unblock this item';
+        blockBtn.classList.add('action-btn-blocked');
+        blockBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            patchItemOptimistic(action.id, { blocked: false, blockedReason: '' });
+            renderAll();
+        });
+    } else if (!_actionDone) {
+        blockBtn.textContent = '⏳';
+        blockBtn.title = 'Mark as blocked';
+        blockBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            patchItemOptimistic(action.id, { blocked: true, blockedReason: '' });
+            renderAll();
+            // Auto-open inline reason editor after render settles
+            setTimeout(() => {
+                const badge = document.querySelector(`.action-item[data-id="${action.id}"] .action-blocked-badge`);
+                if (badge) badge.click();
+            }, 50);
+        });
+    } else {
+        blockBtn.textContent = '⏳';
+        blockBtn.disabled = true;
+    }
+
     buttons.appendChild(workBtn);
     buttons.appendChild(doneBtn);
     buttons.appendChild(declineBtn);
     if (ghostScheduleBtn) buttons.appendChild(ghostScheduleBtn);
     buttons.appendChild(scheduleBtn);
+    buttons.appendChild(blockBtn);
     buttons.appendChild(followupBtn);
 
     item.appendChild(content);
@@ -15480,6 +15762,7 @@ function createCompactPastEntry(entry) {
         delBtn.title = 'Remove entry';
         delBtn.addEventListener('click', async (e) => {
             e.stopPropagation();
+            pushUndo(`Delete timeline entry`);
             degradeEntryContexts(entry.id);
             delTimelineOptimistic(entry.id);
             renderTimeline();
@@ -15937,6 +16220,7 @@ function createWorkEntryBlock(entry) {
     delBtn.title = 'Remove entry';
     delBtn.addEventListener('click', async (e) => {
         e.stopPropagation();
+        pushUndo(`Delete timeline entry`);
         degradeEntryContexts(entry.id);
         delTimelineOptimistic(entry.id);
         renderTimeline();
@@ -19378,6 +19662,7 @@ function commitToContext(itemId, contextKey) {
     if (!item) return;
     if (!item.committedContexts) item.committedContexts = [];
     if (item.committedContexts.includes(contextKey)) return; // already committed
+    pushUndo(`Commit '${item.name}'`);
     item.committedContexts.push(contextKey);
     api.patch(`/items/${itemId}`, { committedContexts: item.committedContexts }).catch(err => {
         console.error('[commitments] PATCH failed:', err);
@@ -19391,6 +19676,7 @@ function uncommitFromContext(itemId, contextKey) {
     if (!item || !item.committedContexts) return;
     const idx = item.committedContexts.indexOf(contextKey);
     if (idx === -1) return;
+    pushUndo(`Uncommit '${item.name}'`);
     // Soft penalty: record as broken commitment
     _recordCommitmentResult(contextKey, itemId, item.name, false);
     item.committedContexts.splice(idx, 1);
@@ -20034,8 +20320,8 @@ function openScheduleModal(itemIdOrIds, itemName) {
 
     let assignedContexts = getAssignedContexts();
 
-    // Schedule mode: 'one-time' (replace) vs 'multi' (additive)
-    let scheduleMode = 'one-time';
+    // Active pill: 'session' | 'day' | 'week' | 'month' | 'ongoing' | 'future'
+    let activePill = 'day';
 
     // Calendar state
     const calNow = new Date(state.timelineViewDate);
@@ -20044,12 +20330,6 @@ function openScheduleModal(itemIdOrIds, itemName) {
 
     // Session date nav state (independent)
     let sessionViewDate = new Date(state.timelineViewDate);
-
-    // Month nav state (independent)
-    let monthViewDate = new Date(state.timelineViewDate);
-
-    // Week nav state (independent)
-    let weekViewDate = new Date(state.timelineViewDate);
 
     const overlay = document.createElement('div');
     overlay.id = 'schedule-modal-overlay';
@@ -20062,9 +20342,6 @@ function openScheduleModal(itemIdOrIds, itemName) {
 
     function isEpochAssigned(ep) {
         return assignedContexts.has(ep);
-    }
-    function isOngoingAssigned() {
-        return isEpochAssigned('ongoing');
     }
 
     function getSessionDateKey() {
@@ -20111,7 +20388,6 @@ function openScheduleModal(itemIdOrIds, itemName) {
 
     async function toggleEpoch(epochName) {
         if (isEpochAssigned(epochName)) {
-            // Remove this epoch
             for (const id of itemIds) {
                 const itm = findItemById(id);
                 if (itm) {
@@ -20120,7 +20396,6 @@ function openScheduleModal(itemIdOrIds, itemName) {
                 }
             }
         } else {
-            // Set to this epoch — remove all date/segment contexts
             await setContexts([epochName]);
             return;
         }
@@ -20128,89 +20403,7 @@ function openScheduleModal(itemIdOrIds, itemName) {
         buildContent();
     }
 
-    async function toggleOngoing() { return toggleEpoch('ongoing'); }
-
-    function getScheduleMonthKey() {
-        return getMonthKey(monthViewDate);
-    }
-
-    function formatMonthLabel(d) {
-        const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
-            'July', 'August', 'September', 'October', 'November', 'December'];
-        return `${monthNames[d.getMonth()]} ${d.getFullYear()}`;
-    }
-
-    async function toggleMonth() {
-        const mk = getScheduleMonthKey();
-        if (assignedContexts.has(mk)) {
-            // Remove this month context
-            for (const id of itemIds) {
-                const itm = findItemById(id);
-                if (itm) {
-                    itm.timeContexts = (itm.timeContexts || []).filter(tc => tc !== mk);
-                    api.patch(`/items/${id}`, { timeContexts: itm.timeContexts });
-                }
-            }
-        } else if (scheduleMode === 'one-time') {
-            await setContexts([mk]);
-            return;
-        } else {
-            for (const id of itemIds) {
-                const itm = findItemById(id);
-                if (itm) {
-                    itm.timeContexts = (itm.timeContexts || []).filter(tc => !EPOCH_CONTEXTS.includes(tc));
-                    if (!itm.timeContexts.includes(mk)) itm.timeContexts.push(mk);
-                    api.patch(`/items/${id}`, { timeContexts: itm.timeContexts });
-                }
-            }
-        }
-        assignedContexts = getAssignedContexts();
-        buildContent();
-    }
-
-    function getScheduleWeekKey() {
-        return getWeekKey(weekViewDate);
-    }
-
-    function formatWeekRange(d) {
-        const wk = getWeekKey(d);
-        const range = getWeekDateRange(wk);
-        if (!range) return '';
-        const fmt = (dt) => dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        return `${fmt(range.start)} – ${fmt(range.end)}`;
-    }
-
-    async function toggleWeek() {
-        const wk = getScheduleWeekKey();
-        if (assignedContexts.has(wk)) {
-            // Remove this week context
-            for (const id of itemIds) {
-                const itm = findItemById(id);
-                if (itm) {
-                    itm.timeContexts = (itm.timeContexts || []).filter(tc => tc !== wk);
-                    api.patch(`/items/${id}`, { timeContexts: itm.timeContexts });
-                }
-            }
-        } else if (scheduleMode === 'one-time') {
-            // One-time: replace all contexts with just this week
-            await setContexts([wk]);
-            return;
-        } else {
-            // Multi: add week context, remove ongoing
-            for (const id of itemIds) {
-                const itm = findItemById(id);
-                if (itm) {
-                    itm.timeContexts = (itm.timeContexts || []).filter(tc => !EPOCH_CONTEXTS.includes(tc));
-                    if (!itm.timeContexts.includes(wk)) itm.timeContexts.push(wk);
-                    api.patch(`/items/${id}`, { timeContexts: itm.timeContexts });
-                }
-            }
-        }
-        assignedContexts = getAssignedContexts();
-        buildContent();
-    }
-
-    async function toggleDate(dateKey) {
+    async function toggleDate(dateKey, additive) {
         if (assignedContexts.has(dateKey)) {
             // Remove this date and any segments for it
             for (const id of itemIds) {
@@ -20220,12 +20413,12 @@ function openScheduleModal(itemIdOrIds, itemName) {
                     api.patch(`/items/${id}`, { timeContexts: itm.timeContexts });
                 }
             }
-        } else if (scheduleMode === 'one-time') {
+        } else if (!additive) {
             // One-time: replace all contexts with just this date
             await setContexts([dateKey]);
             return;
         } else {
-            // Multi: add date, remove ongoing
+            // Additive: add date, remove ongoing
             for (const id of itemIds) {
                 const itm = findItemById(id);
                 if (itm) {
@@ -20239,11 +20432,62 @@ function openScheduleModal(itemIdOrIds, itemName) {
         buildContent();
     }
 
+    async function toggleWeek(weekKey, additive) {
+        if (assignedContexts.has(weekKey)) {
+            for (const id of itemIds) {
+                const itm = findItemById(id);
+                if (itm) {
+                    itm.timeContexts = (itm.timeContexts || []).filter(tc => tc !== weekKey);
+                    api.patch(`/items/${id}`, { timeContexts: itm.timeContexts });
+                }
+            }
+        } else if (!additive) {
+            await setContexts([weekKey]);
+            return;
+        } else {
+            for (const id of itemIds) {
+                const itm = findItemById(id);
+                if (itm) {
+                    itm.timeContexts = (itm.timeContexts || []).filter(tc => !EPOCH_CONTEXTS.includes(tc));
+                    if (!itm.timeContexts.includes(weekKey)) itm.timeContexts.push(weekKey);
+                    api.patch(`/items/${id}`, { timeContexts: itm.timeContexts });
+                }
+            }
+        }
+        assignedContexts = getAssignedContexts();
+        buildContent();
+    }
+
+    async function toggleMonth(monthKey, additive) {
+        if (assignedContexts.has(monthKey)) {
+            for (const id of itemIds) {
+                const itm = findItemById(id);
+                if (itm) {
+                    itm.timeContexts = (itm.timeContexts || []).filter(tc => tc !== monthKey);
+                    api.patch(`/items/${id}`, { timeContexts: itm.timeContexts });
+                }
+            }
+        } else if (!additive) {
+            await setContexts([monthKey]);
+            return;
+        } else {
+            for (const id of itemIds) {
+                const itm = findItemById(id);
+                if (itm) {
+                    itm.timeContexts = (itm.timeContexts || []).filter(tc => !EPOCH_CONTEXTS.includes(tc));
+                    if (!itm.timeContexts.includes(monthKey)) itm.timeContexts.push(monthKey);
+                    api.patch(`/items/${id}`, { timeContexts: itm.timeContexts });
+                }
+            }
+        }
+        assignedContexts = getAssignedContexts();
+        buildContent();
+    }
+
     async function toggleDeadline(dateKey) {
         const sampleItem = findItemById(itemIds[0]);
         const isDeadline = sampleItem?.contextLeadTimes?.[dateKey] != null;
         if (isDeadline) {
-            // Animate deadline bar out before removing
             const dlWrapper = modal.querySelector('.schedule-deadline-bar-wrapper');
             if (dlWrapper) {
                 dlWrapper.classList.remove('has-deadline');
@@ -20251,9 +20495,7 @@ function openScheduleModal(itemIdOrIds, itemName) {
             }
             for (const id of itemIds) await setLeadTime(id, dateKey, null);
         } else {
-            // Enforce single deadline: remove any existing deadline first
             if (sampleItem?.contextLeadTimes) {
-                // Animate out existing bar before switching deadlines
                 const dlWrapper = modal.querySelector('.schedule-deadline-bar-wrapper');
                 if (dlWrapper) dlWrapper.classList.remove('has-deadline');
                 await new Promise(r => setTimeout(r, 260));
@@ -20275,14 +20517,13 @@ function openScheduleModal(itemIdOrIds, itemName) {
             }
         }
         buildContent();
-        renderAll(); // update background views
+        renderAll();
     }
 
     async function toggleSession(block) {
         const segKey = segmentKeyForBlock(block);
         const dateKey = getDateKey(new Date(block.timestamp));
         if (assignedContexts.has(segKey)) {
-            // Remove this segment
             for (const id of itemIds) {
                 const itm = findItemById(id);
                 if (itm) {
@@ -20290,21 +20531,9 @@ function openScheduleModal(itemIdOrIds, itemName) {
                     api.patch(`/items/${id}`, { timeContexts: itm.timeContexts });
                 }
             }
-        } else if (scheduleMode === 'one-time') {
-            // One-time: replace all contexts with just this session + its date
+        } else {
             await setContexts([dateKey, segKey]);
             return;
-        } else {
-            // Multi: add segment + date, remove ongoing
-            for (const id of itemIds) {
-                const itm = findItemById(id);
-                if (itm) {
-                    itm.timeContexts = (itm.timeContexts || []).filter(tc => !EPOCH_CONTEXTS.includes(tc));
-                    if (!itm.timeContexts.includes(dateKey)) itm.timeContexts.push(dateKey);
-                    if (!itm.timeContexts.includes(segKey)) itm.timeContexts.push(segKey);
-                    api.patch(`/items/${id}`, { timeContexts: itm.timeContexts });
-                }
-            }
         }
         assignedContexts = getAssignedContexts();
         buildContent();
@@ -20319,65 +20548,25 @@ function openScheduleModal(itemIdOrIds, itemName) {
         const currentYear = todayDate.getFullYear();
         const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
             'July', 'August', 'September', 'October', 'November', 'December'];
+        const wsd = state.settings.weekStartDay ?? 0;
         const dayNames = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+        // Rotate day names to match week start day
+        const rotatedDayNames = [...dayNames.slice(wsd), ...dayNames.slice(0, wsd)];
 
         const canGoPrev = viewYear > currentYear || (viewYear === currentYear && viewMonth > currentMonth);
         const firstDay = new Date(viewYear, viewMonth, 1).getDay();
+        // Offset relative to week start day
+        const firstDayOffset = (firstDay - wsd + 7) % 7;
         const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
 
-        // Session section data
-        const sessionDateStr = formatSessionDate(sessionViewDate);
-        const sessionBlocks = getPlannedBlocksForDate(sessionViewDate);
-        const sessionDateKey = getSessionDateKey();
-        const canSessionPrev = sessionDateKey > todayKey;
-
-        // Snapshot current open/closed state of <details> sections before rebuild
-        const detailsSections = modal.querySelectorAll('details.schedule-section');
-        const prevOpenState = {};
-        let hasSnapshot = detailsSections.length > 0;
-        detailsSections.forEach(det => {
-            const key = det.dataset.tier || '';
-            prevOpenState[key] = det.open;
-        });
-
-        // Determine which tiers already have assignments (used for first render only)
+        // Determine pill states
         const hasOngoing = isEpochAssigned('ongoing');
         const hasFuture = isEpochAssigned('future');
-        const hasPast = isEpochAssigned('past');
-        const hasAnyEpoch = hasOngoing || hasFuture || hasPast;
-        const hasMonth = [...assignedContexts].some(tc => isMonthContext(tc));
-        const hasWeek = [...assignedContexts].some(tc => isWeekContext(tc));
-        const hasDate = [...assignedContexts].some(tc => /^\d{4}-\d{2}-\d{2}$/.test(tc));
-        const hasSession = [...assignedContexts].some(tc => tc.includes('@'));
-
-        // Count assigned contexts per tier (for badges on collapsed headers)
-        const countEpoch = (hasOngoing ? 1 : 0) + (hasFuture ? 1 : 0) + (hasPast ? 1 : 0);
-        const countMonth = [...assignedContexts].filter(tc => isMonthContext(tc)).length;
-        const countWeek = [...assignedContexts].filter(tc => isWeekContext(tc)).length;
-        const countDay = [...assignedContexts].filter(tc => /^\d{4}-\d{2}-\d{2}$/.test(tc)).length;
-        const countSession = [...assignedContexts].filter(tc => tc.includes('@')).length;
-        function badgeHtml(count) {
-            return count > 0 ? `<span class="schedule-section-badge">${count}</span>` : '';
-        }
-
-        // Month section data
-        const scheduleMk = getScheduleMonthKey();
-        const monthLabel = formatMonthLabel(monthViewDate);
-        const isMonthAssigned = assignedContexts.has(scheduleMk);
-        const currentMonthKey = getMonthKey(getLogicalToday());
-        const canMonthPrev = scheduleMk > currentMonthKey;
-
-        // Week section data
-        const scheduleWk = getScheduleWeekKey();
-        const weekRangeLabel = formatWeekRange(weekViewDate);
-        const isWeekAssigned = assignedContexts.has(scheduleWk);
-        const currentWeekKey = getWeekKey(getLogicalToday());
-        const canWeekPrev = scheduleWk > currentWeekKey;
 
         // Compute lead-time prep windows for calendar highlighting
         const sampleItem = findItemById(itemIds[0]);
-        const leadTimeWindows = new Map(); // dateKey -> true (prep day)
-        const deadlineContexts = new Set(); // dateKeys that are deadlines
+        const leadTimeWindows = new Map();
+        const deadlineContexts = new Set();
         if (sampleItem?.contextLeadTimes) {
             for (const [ctx, leadSec] of Object.entries(sampleItem.contextLeadTimes)) {
                 const deadlineDate = parseDateFromContext(ctx);
@@ -20395,103 +20584,77 @@ function openScheduleModal(itemIdOrIds, itemName) {
             }
         }
 
-        // Week lead time chip label
-        const weekLeadTimeSec = sampleItem ? getContextLeadTime(sampleItem, scheduleWk) : null;
-        const weekLTLabel = weekLeadTimeSec != null ? `⏱ ${_formatLeadTimeBrief(weekLeadTimeSec)}` : null;
-
-        // ── Context-done state for each tier ──
+        // Context-done helper
         function _isCtxDone(ctx) {
             return sampleItem ? isContextDone(sampleItem, ctx) : false;
         }
-        const isOngoingDone = _isCtxDone('ongoing');
-        const isFutureDone = _isCtxDone('future');
-        const isMonthDone = _isCtxDone(scheduleMk);
-        const isWeekDone = _isCtxDone(scheduleWk);
 
-        function sectionOpen(tier, fallback) {
-            return hasSnapshot ? (prevOpenState[tier] ?? fallback) : fallback;
-        }
+        // Month key for the calendar view
+        const viewMonthKey = getMonthKey(new Date(viewYear, viewMonth, 1));
+        const isViewMonthAssigned = assignedContexts.has(viewMonthKey);
 
-        // ── Ongoing section ──
+        // ── Pill bar ──
+        const pills = [
+            { id: 'session', label: '⏱ Session', active: activePill === 'session' },
+            { id: 'day', label: '📅 Day', active: activePill === 'day' },
+            { id: 'week', label: '📆 Week', active: activePill === 'week' },
+            { id: 'month', label: '🗓 Month', active: activePill === 'month' },
+            { id: 'ongoing', label: `📦 Ongoing`, active: activePill === 'ongoing', assigned: hasOngoing },
+            { id: 'future', label: `🔮 Future`, active: activePill === 'future', assigned: hasFuture },
+        ];
+
         let html = `
             <div class="modal-header">Schedule: ${itemName}</div>
             <div class="modal-body schedule-modal-body">
-                <div class="schedule-mode-toggle">
-                    <button class="schedule-mode-btn${scheduleMode === 'one-time' ? ' schedule-mode-btn-active' : ''}" data-mode="one-time">One-time</button>
-                    <button class="schedule-mode-btn${scheduleMode === 'multi' ? ' schedule-mode-btn-active' : ''}" data-mode="multi">Multi</button>
+                <div class="schedule-pill-bar">
+                    ${pills.map(p => `<button class="schedule-pill${p.active ? ' schedule-pill-active' : ''}${p.assigned ? ' schedule-pill-assigned' : ''}" data-pill="${p.id}">${p.label}${p.assigned && !p.active ? '<span class="schedule-pill-dot"></span>' : ''}</button>`).join('')}
                 </div>
-                <details class="schedule-section" data-tier="epoch"${sectionOpen('epoch', hasAnyEpoch) ? ' open' : ''}>
-                    <summary class="schedule-section-header">🌐 Epoch${badgeHtml(countEpoch)}</summary>
-                    <div class="schedule-section-content-wrapper"><div class="schedule-section-content">
-                        ${hasPast ? `<div class="schedule-epoch-toggle schedule-epoch-past schedule-epoch-active" data-epoch="past">
-                            📜 Past (auto-assigned)
-                        </div>` : ''}
-                        <div class="schedule-epoch-toggle ${hasOngoing ? 'schedule-epoch-active' : ''}" data-epoch="ongoing" id="schedule-epoch-ongoing-btn">
-                            📦 ${hasOngoing ? '✓ Ongoing' : 'Move to Ongoing'}${hasOngoing && isOngoingDone ? '<span class="schedule-done-chip schedule-done-chip-active" data-done-ctx="ongoing">✓ Done</span>' : hasOngoing ? '<span class="schedule-done-chip" data-done-ctx="ongoing">Mark Done</span>' : ''}
-                        </div>
-                        <div class="schedule-epoch-toggle ${hasFuture ? 'schedule-epoch-active' : ''}" data-epoch="future" id="schedule-epoch-future-btn">
-                            🔮 ${hasFuture ? '✓ Future' : 'Move to Future'}${hasFuture && isFutureDone ? '<span class="schedule-done-chip schedule-done-chip-active" data-done-ctx="future">✓ Done</span>' : hasFuture ? '<span class="schedule-done-chip" data-done-ctx="future">Mark Done</span>' : ''}
-                        </div>
-                    </div></div>
-                </details>
         `;
 
-        // ── Month section ──
+        // ── Ongoing/Future active state ──
+        if (activePill === 'ongoing' || activePill === 'future') {
+            const ep = activePill;
+            const isAssigned = isEpochAssigned(ep);
+            const isDone = _isCtxDone(ep);
+            html += `
+                <div class="schedule-epoch-panel">
+                    <div class="schedule-epoch-toggle ${isAssigned ? 'schedule-epoch-active' : ''}" data-epoch="${ep}">
+                        ${isAssigned ? `✓ Assigned to ${ep === 'ongoing' ? 'Ongoing' : 'Future'}` : `Assign to ${ep === 'ongoing' ? 'Ongoing' : 'Future'}`}
+                    </div>
+                    ${isAssigned ? `<button class="schedule-done-chip ${isDone ? 'schedule-done-chip-active' : ''}" data-done-ctx="${ep}">${isDone ? '✓ Done' : 'Mark Done'}</button>` : ''}
+                </div>
+            `;
+        }
+
+
+
+        // ── Calendar (always visible) ──
+        const calDimmed = activePill === 'ongoing' || activePill === 'future';
         html += `
-                <details class="schedule-section" data-tier="month"${sectionOpen('month', hasMonth) ? ' open' : ''}>
-                    <summary class="schedule-section-header">🗓️ Month${badgeHtml(countMonth)}</summary>
-                    <div class="schedule-section-content-wrapper"><div class="schedule-section-content">
-                        <div class="schedule-week-nav">
-                            <button class="schedule-cal-nav-btn${canMonthPrev ? '' : ' schedule-cal-nav-btn-disabled'}" id="schedule-month-prev"${canMonthPrev ? '' : ' disabled'}>‹</button>
-                            <span class="schedule-week-label">${monthLabel}</span>
-                            <button class="schedule-cal-nav-btn" id="schedule-month-next">›</button>
-                        </div>
-                        <div class="schedule-week-toggle ${isMonthAssigned ? 'schedule-week-active' : ''}" id="schedule-month-btn">
-                            ${isMonthAssigned ? '✓ Assigned to this Month' : 'Assign to this Month'}${isMonthAssigned && isMonthDone ? '<span class="schedule-done-chip schedule-done-chip-active" data-done-ctx="' + scheduleMk + '">✓ Done</span>' : isMonthAssigned ? '<span class="schedule-done-chip" data-done-ctx="' + scheduleMk + '">Mark Done</span>' : ''}
-                        </div>
-                    </div></div>
-                </details>
+                <div class="schedule-cal-area${calDimmed ? ' schedule-cal-dimmed' : ''}">
+                    <div class="schedule-cal-nav">
+                        <button class="schedule-cal-nav-btn${canGoPrev ? '' : ' schedule-cal-nav-btn-disabled'}" id="schedule-prev-month"${canGoPrev ? '' : ' disabled'}>‹</button>
+                        <span class="schedule-cal-month">${monthNames[viewMonth]} ${viewYear}</span>
+                        <button class="schedule-cal-nav-btn" id="schedule-next-month">›</button>
+                    </div>
+                    <div class="schedule-cal-grid${activePill === 'week' ? ' schedule-cal-week-mode' : ''}${activePill === 'month' ? ' schedule-cal-month-mode' : ''}">
         `;
 
-        // ── Week section ──
-        html += `
-                <details class="schedule-section" data-tier="week"${sectionOpen('week', hasWeek) ? ' open' : ''}>
-                    <summary class="schedule-section-header">📆 Week${badgeHtml(countWeek)}</summary>
-                    <div class="schedule-section-content-wrapper"><div class="schedule-section-content">
-                        <div class="schedule-week-nav">
-                            <button class="schedule-cal-nav-btn${canWeekPrev ? '' : ' schedule-cal-nav-btn-disabled'}" id="schedule-week-prev"${canWeekPrev ? '' : ' disabled'}>‹</button>
-                            <span class="schedule-week-label">${weekRangeLabel}</span>
-                            <button class="schedule-cal-nav-btn" id="schedule-week-next">›</button>
-                        </div>
-                        <div class="schedule-week-toggle ${isWeekAssigned ? 'schedule-week-active' : ''}" id="schedule-week-btn">
-                            ${isWeekAssigned ? '✓ Assigned to this Week' : 'Assign to this Week'}${weekLTLabel ? `<span class="schedule-leadtime-chip">${weekLTLabel}</span>` : ''}${isWeekAssigned && isWeekDone ? '<span class="schedule-done-chip schedule-done-chip-active" data-done-ctx="' + scheduleWk + '">✓ Done</span>' : isWeekAssigned ? '<span class="schedule-done-chip" data-done-ctx="' + scheduleWk + '">Mark Done</span>' : ''}
-                        </div>
-                    </div></div>
-                </details>
-        `;
-
-        // ── Day section ──
-        html += `
-                <details class="schedule-section" data-tier="day"${sectionOpen('day', hasDate) ? ' open' : ''}>
-                    <summary class="schedule-section-header">📅 Day${badgeHtml(countDay)}</summary>
-                    <div class="schedule-section-content-wrapper"><div class="schedule-section-content">
-                        <div class="schedule-cal-nav">
-                            <button class="schedule-cal-nav-btn${canGoPrev ? '' : ' schedule-cal-nav-btn-disabled'}" id="schedule-prev-month"${canGoPrev ? '' : ' disabled'}>‹</button>
-                            <span class="schedule-cal-month">${monthNames[viewMonth]} ${viewYear}</span>
-                            <button class="schedule-cal-nav-btn" id="schedule-next-month">›</button>
-                        </div>
-                        <div class="schedule-cal-grid">
-        `;
-
-        for (const dn of dayNames) {
+        for (const dn of rotatedDayNames) {
             html += `<div class="schedule-cal-header">${dn}</div>`;
         }
-        for (let i = 0; i < firstDay; i++) {
+        for (let i = 0; i < firstDayOffset; i++) {
             html += `<div class="schedule-cal-empty"></div>`;
         }
+
+        // Build week rows for week-mode highlighting
+        // Each day cell tracks its week key for week-mode interactions
         for (let d = 1; d <= daysInMonth; d++) {
             const dateKey = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+            const cellDate = new Date(viewYear, viewMonth, d);
+            const weekKey = getWeekKey(cellDate);
             const isAssigned = assignedContexts.has(dateKey);
+            const isWeekAssigned = assignedContexts.has(weekKey);
             const isDeadline = deadlineContexts.has(dateKey);
             const isToday = dateKey === todayKey;
             const isPast = dateKey < todayKey;
@@ -20499,27 +20662,30 @@ function openScheduleModal(itemIdOrIds, itemName) {
             let cls = 'schedule-cal-day';
             if (isPast) cls += ' schedule-cal-day-disabled';
             if (isAssigned) cls += ' schedule-cal-day-assigned';
+            if (activePill === 'week' && isWeekAssigned) cls += ' schedule-cal-day-week-assigned';
+            if (activePill === 'month' && isViewMonthAssigned) cls += ' schedule-cal-day-month-assigned';
             if (isDeadline) cls += ' schedule-cal-day-deadline';
             if (isLeadTimePrep) cls += ' schedule-cal-day-leadtime';
             if (isToday) cls += ' schedule-cal-day-today';
-            // 🎯 button appears on hover for non-past days
-            const deadlineBtn = !isPast ? `<button class="schedule-cal-deadline-btn" data-deadline-date="${dateKey}" title="${isDeadline ? 'Remove deadline' : 'Set as deadline'}">🎯</button>` : '';
+            // Done state
             const dayDone = isAssigned && _isCtxDone(dateKey);
-            const doneBtn = isAssigned ? `<button class="schedule-cal-done-btn${dayDone ? ' schedule-cal-done-btn-active' : ''}" data-done-date="${dateKey}" title="${dayDone ? 'Mark not done' : 'Mark done'}">${dayDone ? '↩' : '✓'}</button>` : '';
             if (dayDone) cls += ' schedule-cal-day-done';
-            html += `<div class="${cls}" data-date="${dateKey}">${d}${deadlineBtn}${doneBtn}</div>`;
+            // Deadline button (non-past, non-dimmed)
+            const deadlineBtn = !isPast && !calDimmed ? `<button class="schedule-cal-deadline-btn" data-deadline-date="${dateKey}" title="${isDeadline ? 'Remove deadline' : 'Set as deadline'}">🎯</button>` : '';
+            // Done button (assigned days only)
+            const doneBtn = isAssigned ? `<button class="schedule-cal-done-btn${dayDone ? ' schedule-cal-done-btn-active' : ''}" data-done-date="${dateKey}" title="${dayDone ? 'Mark not done' : 'Mark done'}">${dayDone ? '↩' : '✓'}</button>` : '';
+            html += `<div class="${cls}" data-date="${dateKey}" data-week="${weekKey}">${d}${deadlineBtn}${doneBtn}</div>`;
         }
-        // Pad only to complete the last row (no fixed 6-row height)
-        const totalCells = firstDay + daysInMonth;
+        // Pad to complete the last row
+        const totalCells = firstDayOffset + daysInMonth;
         const padCells = (7 - (totalCells % 7)) % 7;
         for (let i = 0; i < padCells; i++) {
             html += `<div class="schedule-cal-empty"></div>`;
         }
 
         html += `
-                        </div>
-                    </div></div>
-                </details>
+                    </div>
+                </div>
         `;
 
         // ── Inline deadline bar (single deadline) ──
@@ -20563,40 +20729,87 @@ function openScheduleModal(itemIdOrIds, itemName) {
         }
         html += `<div class="schedule-deadline-bar-wrapper">${dlBarInner}</div>`;
 
-        // ── Session section ──
-        html += `
-                <details class="schedule-section" data-tier="session"${sectionOpen('session', hasSession) ? ' open' : ''}>
-                    <summary class="schedule-section-header">⏱️ Session${badgeHtml(countSession)}</summary>
-                    <div class="schedule-section-content-wrapper"><div class="schedule-section-content">
-                        <div class="schedule-session-nav">
-                            <button class="schedule-cal-nav-btn${canSessionPrev ? '' : ' schedule-cal-nav-btn-disabled'}" id="schedule-session-prev"${canSessionPrev ? '' : ' disabled'}>‹</button>
-                            <span class="schedule-session-date">${sessionDateStr}</span>
-                            <button class="schedule-cal-nav-btn" id="schedule-session-next">›</button>
-                        </div>
-                        <div class="schedule-session-list">
-        `;
-
-        if (sessionBlocks.length === 0) {
-            html += `<div class="schedule-session-empty">No planned sessions</div>`;
-        } else {
-            for (const block of sessionBlocks) {
-                const segKey = segmentKeyForBlock(block);
-                const isAssigned = assignedContexts.has(segKey);
-                const label = block.text || 'Planned';
-                const timeRange = `${formatTime(block.timestamp)} – ${formatTime(block.endTime)}`;
-                const sessDone = isAssigned && _isCtxDone(segKey);
-                html += `<div class="schedule-session-item${isAssigned ? ' schedule-session-item-assigned' : ''}${sessDone ? ' schedule-session-done' : ''}" data-seg-key="${segKey}" data-block-ts="${block.timestamp}">
-                    <span class="schedule-session-icon">📌</span>
-                    <span class="schedule-session-label">${label}</span>
-                    <span class="schedule-session-time">${timeRange}</span>${isAssigned ? `<span class="schedule-done-chip${sessDone ? ' schedule-done-chip-active' : ''}" data-done-ctx="${segKey}">${sessDone ? '✓' : '○'}</span>` : ''}
-                </div>`;
+        // ── Week info bar (when in week mode and a week is assigned) ──
+        if (activePill === 'week') {
+            // Show which weeks are assigned
+            const assignedWeeks = [...assignedContexts].filter(tc => isWeekContext(tc));
+            if (assignedWeeks.length > 0) {
+                html += `<div class="schedule-week-info">`;
+                for (const wk of assignedWeeks) {
+                    const range = getWeekDateRange(wk);
+                    const fmt = (dt) => dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                    const label = range ? `${fmt(range.start)} – ${fmt(range.end)}` : wk;
+                    const wkDone = _isCtxDone(wk);
+                    html += `<div class="schedule-week-info-item">
+                        <span>📆 ${label}</span>
+                        <button class="schedule-done-chip ${wkDone ? 'schedule-done-chip-active' : ''}" data-done-ctx="${wk}">${wkDone ? '✓ Done' : 'Mark Done'}</button>
+                    </div>`;
+                }
+                html += `</div>`;
             }
         }
 
+        // ── Month info bar (when in month mode and a month is assigned) ──
+        if (activePill === 'month') {
+            const assignedMonths = [...assignedContexts].filter(tc => /^\d{4}-\d{2}$/.test(tc));
+            if (assignedMonths.length > 0) {
+                html += `<div class="schedule-week-info">`;
+                for (const mk of assignedMonths) {
+                    const [y, m] = mk.split('-').map(Number);
+                    const label = `${monthNames[m - 1]} ${y}`;
+                    const mkDone = _isCtxDone(mk);
+                    html += `<div class="schedule-week-info-item">
+                        <span>🗓 ${label}</span>
+                        <button class="schedule-done-chip ${mkDone ? 'schedule-done-chip-active' : ''}" data-done-ctx="${mk}">${mkDone ? '✓ Done' : 'Mark Done'}</button>
+                    </div>`;
+                }
+                html += `</div>`;
+            }
+        }
+
+        // ── Session section (below calendar, when Session pill is active) ──
+        if (activePill === 'session') {
+            const sessionDateStr = formatSessionDate(sessionViewDate);
+            const sessionBlocks = getPlannedBlocksForDate(sessionViewDate);
+            const sessionDateKey = getSessionDateKey();
+            const canSessionPrev = sessionDateKey > todayKey;
+
+            html += `
+                <div class="schedule-session-panel">
+                    <div class="schedule-session-nav">
+                        <button class="schedule-cal-nav-btn${canSessionPrev ? '' : ' schedule-cal-nav-btn-disabled'}" id="schedule-session-prev"${canSessionPrev ? '' : ' disabled'}>‹</button>
+                        <span class="schedule-session-date">${sessionDateStr}</span>
+                        <button class="schedule-cal-nav-btn" id="schedule-session-next">›</button>
+                    </div>
+                    <div class="schedule-session-list">
+            `;
+
+            if (sessionBlocks.length === 0) {
+                html += `<div class="schedule-session-empty">No planned sessions</div>`;
+            } else {
+                for (const block of sessionBlocks) {
+                    const segKey = segmentKeyForBlock(block);
+                    const isAssigned = assignedContexts.has(segKey);
+                    const label = block.text || 'Planned';
+                    const timeRange = `${formatTime(block.timestamp)} – ${formatTime(block.endTime)}`;
+                    const sessDone = isAssigned && _isCtxDone(segKey);
+                    html += `<div class="schedule-session-item${isAssigned ? ' schedule-session-item-assigned' : ''}${sessDone ? ' schedule-session-done' : ''}" data-seg-key="${segKey}" data-block-ts="${block.timestamp}">
+                        <span class="schedule-session-icon">📌</span>
+                        <span class="schedule-session-label">${label}</span>
+                        <span class="schedule-session-time">${timeRange}</span>${isAssigned ? `<span class="schedule-done-chip${sessDone ? ' schedule-done-chip-active' : ''}" data-done-ctx="${segKey}">${sessDone ? '✓' : '○'}</span>` : ''}
+                    </div>`;
+                }
+            }
+
+            html += `
+                    </div>
+                </div>
+            `;
+        }
+
+        // ── Footer ──
         html += `
-                        </div>
-                    </div></div>
-                </details>
+                <div class="schedule-hint">Hold ⌘ to schedule on multiple</div>
             </div>
             <div class="modal-actions">
                 <button class="modal-btn modal-btn-cancel" id="schedule-close">Close</button>
@@ -20613,99 +20826,96 @@ function openScheduleModal(itemIdOrIds, itemName) {
 
         // ── Wire up events ──
 
-        // Mode toggle
-        modal.querySelectorAll('.schedule-mode-btn').forEach(btn => {
+        // Pill bar
+        modal.querySelectorAll('.schedule-pill').forEach(btn => {
             btn.addEventListener('click', () => {
-                scheduleMode = btn.dataset.mode;
-                buildContent();
+                const pill = btn.dataset.pill;
+                if (pill === 'ongoing' || pill === 'future') {
+                    // If already on this pill, toggle the epoch assignment
+                    if (activePill === pill) {
+                        toggleEpoch(pill);
+                        return;
+                    }
+                    // Switch to this pill view
+                    activePill = pill;
+                    buildContent();
+                } else {
+                    activePill = pill;
+                    buildContent();
+                }
             });
         });
 
-        // Epoch toggles (ongoing + future only — past is auto)
-        modal.querySelector('#schedule-epoch-ongoing-btn')?.addEventListener('click', () => toggleEpoch('ongoing'));
-        modal.querySelector('#schedule-epoch-future-btn')?.addEventListener('click', () => toggleEpoch('future'));
-
-        // Month toggle
-        modal.querySelector('#schedule-month-btn')?.addEventListener('click', toggleMonth);
-
-        // Month nav
-        if (canMonthPrev) {
-            modal.querySelector('#schedule-month-prev').addEventListener('click', () => {
-                monthViewDate = new Date(monthViewDate);
-                monthViewDate.setMonth(monthViewDate.getMonth() - 1);
-                buildContent();
-            });
-        }
-        modal.querySelector('#schedule-month-next')?.addEventListener('click', () => {
-            monthViewDate = new Date(monthViewDate);
-            monthViewDate.setMonth(monthViewDate.getMonth() + 1);
-            buildContent();
+        // Epoch toggle (when in ongoing/future view)
+        modal.querySelector('.schedule-epoch-toggle[data-epoch]')?.addEventListener('click', () => {
+            toggleEpoch(activePill);
         });
 
-        // Week toggle
-        modal.querySelector('#schedule-week-btn')?.addEventListener('click', toggleWeek);
 
-        // Week nav
-        if (canWeekPrev) {
-            modal.querySelector('#schedule-week-prev').addEventListener('click', () => {
-                weekViewDate = new Date(weekViewDate);
-                weekViewDate.setDate(weekViewDate.getDate() - 7);
-                buildContent();
-            });
-        }
-        modal.querySelector('#schedule-week-next')?.addEventListener('click', () => {
-            weekViewDate = new Date(weekViewDate);
-            weekViewDate.setDate(weekViewDate.getDate() + 7);
-            buildContent();
-        });
 
         // Calendar month nav
-        function buildContentAnimateCal() {
-            const oldGrid = modal.querySelector('.schedule-cal-grid');
-            const oldH = oldGrid ? oldGrid.offsetHeight : null;
-            buildContent();
-            if (oldH != null) {
-                const newGrid = modal.querySelector('.schedule-cal-grid');
-                if (newGrid) {
-                    const newH = newGrid.offsetHeight;
-                    if (oldH !== newH) {
-                        newGrid.style.height = oldH + 'px';
-                        newGrid.style.overflow = 'hidden';
-                        newGrid.style.transition = 'height 200ms ease';
-                        requestAnimationFrame(() => requestAnimationFrame(() => {
-                            newGrid.style.height = newH + 'px';
-                            newGrid.addEventListener('transitionend', () => {
-                                newGrid.style.height = '';
-                                newGrid.style.overflow = '';
-                                newGrid.style.transition = '';
-                            }, { once: true });
-                        }));
-                    }
-                }
-            }
-        }
         if (canGoPrev) {
             modal.querySelector('#schedule-prev-month').addEventListener('click', () => {
                 viewMonth--;
                 if (viewMonth < 0) { viewMonth = 11; viewYear--; }
-                buildContentAnimateCal();
+                buildContent();
             });
         }
-        modal.querySelector('#schedule-next-month').addEventListener('click', () => {
+        modal.querySelector('#schedule-next-month')?.addEventListener('click', () => {
             viewMonth++;
             if (viewMonth > 11) { viewMonth = 0; viewYear++; }
-            buildContentAnimateCal();
+            buildContent();
         });
 
-        // Day clicks — click the day number to toggle work assignment
+        // Day/Week/Month/Session clicks on calendar cells
         modal.querySelectorAll('.schedule-cal-day:not(.schedule-cal-day-disabled)').forEach(cell => {
             cell.addEventListener('click', (e) => {
-                // Don't toggle work day if the deadline or done button was clicked
                 if (e.target.classList.contains('schedule-cal-deadline-btn')) return;
                 if (e.target.classList.contains('schedule-cal-done-btn')) return;
-                toggleDate(cell.dataset.date);
+                if (calDimmed) return; // Calendar is reference-only in ongoing/future mode
+
+                const dateKey = cell.dataset.date;
+                const weekKey = cell.dataset.week;
+                const additive = e.metaKey || e.ctrlKey;
+
+                if (activePill === 'day' || activePill === 'session') {
+                    toggleDate(dateKey, additive);
+                    // In session mode, also update the session view date
+                    if (activePill === 'session') {
+                        sessionViewDate = new Date(dateKey + 'T00:00:00');
+                    }
+                } else if (activePill === 'week') {
+                    toggleWeek(weekKey, additive);
+                } else if (activePill === 'month') {
+                    toggleMonth(viewMonthKey, additive);
+                }
             });
         });
+
+        // Week-mode: add hover class to all cells in same week row
+        if (activePill === 'week') {
+            modal.querySelectorAll('.schedule-cal-day:not(.schedule-cal-day-disabled)').forEach(cell => {
+                cell.addEventListener('mouseenter', () => {
+                    const wk = cell.dataset.week;
+                    modal.querySelectorAll(`.schedule-cal-day[data-week="${wk}"]`).forEach(c => c.classList.add('schedule-cal-week-hover'));
+                });
+                cell.addEventListener('mouseleave', () => {
+                    modal.querySelectorAll('.schedule-cal-day.schedule-cal-week-hover').forEach(c => c.classList.remove('schedule-cal-week-hover'));
+                });
+            });
+        }
+
+        // Month-mode: add hover class to ALL non-disabled cells
+        if (activePill === 'month') {
+            modal.querySelectorAll('.schedule-cal-day:not(.schedule-cal-day-disabled)').forEach(cell => {
+                cell.addEventListener('mouseenter', () => {
+                    modal.querySelectorAll('.schedule-cal-day:not(.schedule-cal-day-disabled)').forEach(c => c.classList.add('schedule-cal-month-hover'));
+                });
+                cell.addEventListener('mouseleave', () => {
+                    modal.querySelectorAll('.schedule-cal-day.schedule-cal-month-hover').forEach(c => c.classList.remove('schedule-cal-month-hover'));
+                });
+            });
+        }
 
         // 🎯 Deadline buttons on calendar days
         modal.querySelectorAll('.schedule-cal-deadline-btn').forEach(btn => {
@@ -20723,7 +20933,7 @@ function openScheduleModal(itemIdOrIds, itemName) {
             });
         });
 
-        // ✓ Done chips on epoch/month/week/session tiers
+        // ✓ Done chips (epoch/month/week/session tiers)
         modal.querySelectorAll('.schedule-done-chip').forEach(chip => {
             chip.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -20732,26 +20942,11 @@ function openScheduleModal(itemIdOrIds, itemName) {
             });
         });
 
-        // Deadline section — preset buttons
-        modal.querySelectorAll('.schedule-deadline-preset').forEach(btn => {
-            btn.addEventListener('click', async (e) => {
-                e.stopPropagation();
-                const ctx = btn.dataset.dlCtx;
-                const sec = parseInt(btn.dataset.dlSec, 10);
-                const currentLT = getContextLeadTime(sampleItem, ctx);
-                // Toggle: if already set to this value, remove it
-                const newSec = currentLT === sec ? 0 : sec;
-                for (const id of itemIds) await setLeadTime(id, ctx, newSec || 0);
-                buildContent();
-            });
-        });
-
-        // Deadline section — remove buttons
+        // Deadline bar — remove buttons
         modal.querySelectorAll('.schedule-deadline-remove').forEach(btn => {
             btn.addEventListener('click', async (e) => {
                 e.stopPropagation();
                 const ctx = btn.dataset.deadlineRm;
-                // Animate out, then remove and rebuild
                 const dlWrapper = modal.querySelector('.schedule-deadline-bar-wrapper');
                 if (dlWrapper) {
                     dlWrapper.classList.remove('has-deadline');
@@ -20782,75 +20977,31 @@ function openScheduleModal(itemIdOrIds, itemName) {
         }
 
         // Session date nav
-        if (canSessionPrev) {
-            modal.querySelector('#schedule-session-prev').addEventListener('click', () => {
+        if (activePill === 'session') {
+            const canSessionPrev = getSessionDateKey() > todayKey;
+            if (canSessionPrev) {
+                modal.querySelector('#schedule-session-prev')?.addEventListener('click', () => {
+                    sessionViewDate = new Date(sessionViewDate);
+                    sessionViewDate.setDate(sessionViewDate.getDate() - 1);
+                    buildContent();
+                });
+            }
+            modal.querySelector('#schedule-session-next')?.addEventListener('click', () => {
                 sessionViewDate = new Date(sessionViewDate);
-                sessionViewDate.setDate(sessionViewDate.getDate() - 1);
+                sessionViewDate.setDate(sessionViewDate.getDate() + 1);
                 buildContent();
             });
         }
-        modal.querySelector('#schedule-session-next').addEventListener('click', () => {
-            sessionViewDate = new Date(sessionViewDate);
-            sessionViewDate.setDate(sessionViewDate.getDate() + 1);
-            buildContent();
-        });
 
         // Session block clicks
         modal.querySelectorAll('.schedule-session-item').forEach(row => {
             row.addEventListener('click', () => {
                 const ts = Number(row.dataset.blockTs);
+                const sessionBlocks = getPlannedBlocksForDate(sessionViewDate);
                 const block = sessionBlocks.find(b => b.timestamp === ts);
                 if (block) toggleSession(block);
             });
         });
-
-        // Animated accordion — click summary to toggle with smooth animation
-        modal.querySelectorAll('details.schedule-section').forEach(det => {
-            const summary = det.querySelector('summary');
-            summary.addEventListener('click', (e) => {
-                e.preventDefault();
-                const wrapper = det.querySelector('.schedule-section-content-wrapper');
-                if (det.open) {
-                    // Collapse: animate grid-template-rows 1fr → 0fr, then remove open
-                    det.classList.add('schedule-section-closing');
-                    let done = false;
-                    const finish = () => {
-                        if (done) return;
-                        done = true;
-                        det.open = false;
-                        det.classList.remove('schedule-section-closing');
-                    };
-                    wrapper.addEventListener('transitionend', finish, { once: true });
-                    setTimeout(finish, 300);
-                } else {
-                    // Close others first (accordion)
-                    modal.querySelectorAll('details.schedule-section').forEach(other => {
-                        if (other !== det && other.open) {
-                            other.classList.add('schedule-section-closing');
-                            const ow = other.querySelector('.schedule-section-content-wrapper');
-                            let oDone = false;
-                            const oFinish = () => {
-                                if (oDone) return;
-                                oDone = true;
-                                other.open = false;
-                                other.classList.remove('schedule-section-closing');
-                            };
-                            ow.addEventListener('transitionend', oFinish, { once: true });
-                            setTimeout(oFinish, 300);
-                        }
-                    });
-                    // Open this one — force wrapper to 0fr first, then let CSS transition to 1fr
-                    wrapper.style.gridTemplateRows = '0fr';
-                    det.open = true;
-                    // Force reflow so browser registers the 0fr starting point
-                    wrapper.offsetHeight;
-                    // Remove inline style to let the CSS [open] rule (1fr) take over and animate
-                    wrapper.style.gridTemplateRows = '';
-                }
-            });
-        });
-
-        // (Old inline lead-time rows removed — replaced by Deadlines section above)
 
         // Close
         modal.querySelector('#schedule-close').addEventListener('click', () => {
@@ -20871,6 +21022,10 @@ function openScheduleModal(itemIdOrIds, itemName) {
         }
     });
 }
+
+
+
+
 
 // ─── Move To Modal ───
 function openMoveToModal(itemId, itemName) {
@@ -20944,6 +21099,7 @@ function openMoveToModal(itemId, itemName) {
     tree.className = 'move-to-tree';
 
     function performMove(targetId, position) {
+        pushUndo(`Move '${itemName}'`);
         const success = moveItem(itemId, { id: targetId, position });
         if (success) {
             saveItems();
@@ -22304,6 +22460,20 @@ document.addEventListener('DOMContentLoaded', () => {
         renderAll();
     });
 
+    // Show-blocked toggle (default: ON = blocked items visible)
+    // showBlocked state is restored in loadAll() from backend preferences
+    const showBlockedBtn = document.getElementById('show-blocked-btn');
+    showBlockedBtn.classList.toggle('active', !state.showBlocked);
+    showBlockedBtn.title = state.showBlocked ? 'Hide blocked' : 'Show blocked';
+    showBlockedBtn.addEventListener('click', () => {
+        state.showBlocked = !state.showBlocked;
+        savePref('showBlocked', state.showBlocked);
+        showBlockedBtn.classList.toggle('active', !state.showBlocked);
+        showBlockedBtn.title = state.showBlocked ? 'Hide blocked' : 'Show blocked';
+        state._animateActions = true;
+        renderAll();
+    });
+
     // Deep view toggle: show items from all layers of the selected project
     const deepViewBtn = document.getElementById('deep-view-btn');
     deepViewBtn.classList.toggle('active', state.deepView);
@@ -23254,6 +23424,22 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    // ─── Global Undo/Redo Keyboard Shortcuts ───
+    document.addEventListener('keydown', (e) => {
+        // Don't intercept when typing in inputs/textareas
+        const tag = document.activeElement?.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+
+        if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) {
+            e.preventDefault();
+            performUndo();
+        }
+        if ((e.metaKey || e.ctrlKey) && e.key === 'z' && e.shiftKey) {
+            e.preventDefault();
+            performRedo();
+        }
+    });
+
     // ============================================================
     // ── AI Copilot Badge (global scope) ──
     // ============================================================
@@ -23939,6 +24125,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const execLog = createExecLog();
 
             try {
+                pushUndo('AI action');
                 const res = await fetch('/api/ai/execute', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
