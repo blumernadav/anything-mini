@@ -401,6 +401,99 @@ body {
     margin-right: 4px;
 }
 
+/* ── Project Scope Navigator ── */
+.project-scope-nav {
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    border-bottom: 2px solid var(--duo-border);
+}
+
+.project-scope-parent {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px 10px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--duo-text-faint);
+    opacity: 0.5;
+    transition: background var(--dur) var(--ease), opacity var(--dur) var(--ease);
+}
+
+.project-scope-parent:hover {
+    opacity: 0.8;
+    background: var(--duo-hover);
+}
+
+.project-scope-parent-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.project-scope-current {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 10px;
+    font-size: 14px;
+    color: var(--duo-text);
+    font-weight: 800;
+    transition: background var(--dur) var(--ease);
+}
+
+.project-scope-current-display {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-width: 0;
+    cursor: pointer;
+    transition: color var(--dur) var(--ease);
+}
+
+.project-scope-current-display:hover {
+    color: var(--duo-green);
+}
+
+.project-scope-current-icon {
+    font-size: 14px;
+    flex-shrink: 0;
+}
+
+.project-scope-current-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 14px;
+    font-weight: 800;
+}
+
+.project-scope-current-count {
+    font-size: 11px;
+    font-weight: 800;
+    color: var(--duo-text-faint);
+    background: var(--duo-bg);
+    padding: 0 6px;
+    border-radius: 20px;
+    flex-shrink: 0;
+}
+
+.project-scope-current-count:empty {
+    display: none;
+}
+
+.project-scope-prev,
+.project-scope-next {
+    width: 28px;
+    height: 28px;
+    flex-shrink: 0;
+}
+
 .btn-icon {
     width: 32px;
     height: 32px;
@@ -1003,7 +1096,7 @@ body {
 
 /* ── Consolidated toolbar sub-containers ── */
 .header-breadcrumb-what {
-    display: flex;
+    display: none;
     align-items: center;
     flex-wrap: wrap;
     gap: 0;
@@ -2704,6 +2797,199 @@ body {
     box-shadow: none;
 }
 
+/* ─── Orphan Recovery Modal ─── */
+.orphan-recovery-modal {
+    max-width: 400px;
+    padding: 24px;
+    text-align: center;
+}
+
+.orphan-recovery-title {
+    font-size: 18px;
+    font-weight: 800;
+    margin-bottom: 4px;
+    color: var(--duo-text);
+}
+
+.orphan-recovery-subtitle {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--duo-text-soft);
+    margin-bottom: 16px;
+}
+
+.orphan-recovery-list {
+    text-align: left;
+    margin-bottom: 16px;
+}
+
+.orphan-recovery-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    border-radius: var(--duo-radius-sm);
+    margin-bottom: 6px;
+    background: var(--duo-bg);
+    border: 2px solid var(--duo-border);
+    transition: all var(--dur) var(--ease);
+}
+
+.orphan-recovery-row.orphan-recovery-resolved {
+    opacity: 0.5;
+    border-color: var(--duo-green);
+    background: rgba(88, 204, 2, 0.08);
+}
+
+.orphan-recovery-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.orphan-recovery-date {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--duo-text);
+}
+
+.orphan-recovery-time-hint {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--duo-text-faint);
+}
+
+.orphan-recovery-actions {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+
+.orphan-recovery-btn {
+    padding: 6px 14px;
+    border: 2px solid var(--duo-border);
+    background: var(--duo-white);
+    border-radius: var(--duo-radius-sm);
+    font-size: 12px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all var(--dur) var(--ease);
+    color: var(--duo-text);
+    box-shadow: 0 2px 0 var(--duo-border);
+}
+
+.orphan-recovery-btn:hover {
+    transform: translateY(-1px);
+}
+
+.orphan-recovery-btn:active {
+    transform: translateY(1px);
+    box-shadow: none;
+}
+
+.orphan-recovery-btn:disabled {
+    opacity: 0.4;
+    cursor: default;
+    transform: none;
+}
+
+.orphan-recovery-btn-plan:hover {
+    border-color: var(--duo-green);
+    background: var(--duo-green);
+    color: white;
+    box-shadow: 0 2px 0 var(--duo-green-dark);
+}
+
+.orphan-recovery-btn-custom:hover {
+    border-color: var(--duo-blue, #1cb0f6);
+    background: var(--duo-blue, #1cb0f6);
+    color: white;
+}
+
+.orphan-recovery-btn-confirm {
+    padding: 6px 10px;
+    border-color: var(--duo-green);
+    background: var(--duo-green);
+    color: white;
+    box-shadow: 0 2px 0 var(--duo-green-dark);
+}
+
+.orphan-recovery-time-picker {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    width: 100%;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--duo-border);
+}
+
+.orphan-recovery-time-input {
+    flex: 1;
+    padding: 6px 10px;
+    border: 2px solid var(--duo-border);
+    border-radius: var(--duo-radius-sm);
+    font-size: 14px;
+    font-weight: 700;
+    font-family: inherit;
+    background: var(--duo-white);
+    color: var(--duo-text);
+    outline: none;
+}
+
+.orphan-recovery-time-input:focus {
+    border-color: var(--duo-green);
+}
+
+.orphan-recovery-batch {
+    display: flex;
+    justify-content: center;
+    padding-top: 8px;
+    border-top: 1px solid var(--duo-border);
+}
+
+.orphan-recovery-btn-batch {
+    padding: 10px 24px;
+    font-size: 14px;
+    font-weight: 800;
+    border-color: var(--duo-green);
+    background: var(--duo-green-dim);
+    color: var(--duo-green);
+}
+
+.orphan-recovery-btn-batch:hover {
+    background: var(--duo-green);
+    color: white;
+    box-shadow: 0 2px 0 var(--duo-green-dark);
+}
+
+.live-orphan-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: rgba(255, 180, 0, 0.15);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    animation: orphan-pulse 2s ease-in-out infinite;
+    flex-shrink: 0;
+}
+
+.live-orphan-badge:hover {
+    background: rgba(255, 180, 0, 0.3);
+    transform: scale(1.15);
+}
+
+@keyframes orphan-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+}
+
 /* ─── Streak Expansion Panel ─── */
 .streak-expansion-overlay {
     position: fixed;
@@ -2722,6 +3008,8 @@ body {
     padding: 16px;
     min-width: 240px;
     max-width: 320px;
+    max-height: calc(100vh - 16px);
+    overflow-y: auto;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
     z-index: 10001;
 }
@@ -9972,6 +10260,7 @@ select.schedule-leadtime-input {
     }
 
     .header-breadcrumb-what {
+        display: flex;
         max-width: 100%;
         font-size: 12px;
     }
@@ -10484,6 +10773,42 @@ select.schedule-leadtime-input {
 .actions-zoom-in {
     animation: actions-zoom-in 150ms ease-in forwards;
 }
+
+/* ── Project tree zoom transitions ── */
+@keyframes projects-zoom-in {
+    from { transform: scale(1); opacity: 1; }
+    to   { transform: scale(1.08); opacity: 0; }
+}
+@keyframes projects-zoom-out {
+    from { transform: scale(1); opacity: 1; }
+    to   { transform: scale(0.92); opacity: 0; }
+}
+@keyframes projects-zoom-in-enter {
+    from { transform: scale(0.92); opacity: 0; }
+    to   { transform: scale(1); opacity: 1; }
+}
+@keyframes projects-zoom-out-enter {
+    from { transform: scale(1.08); opacity: 0; }
+    to   { transform: scale(1); opacity: 1; }
+}
+.projects-zoom-in,
+.projects-zoom-out {
+    animation-duration: 180ms;
+    animation-timing-function: ease-in-out;
+    animation-fill-mode: forwards;
+    overflow: hidden;
+}
+.projects-zoom-in  { animation-name: projects-zoom-in; }
+.projects-zoom-out { animation-name: projects-zoom-out; }
+.projects-zoom-in-enter,
+.projects-zoom-out-enter {
+    animation-duration: 180ms;
+    animation-timing-function: ease-out;
+    animation-fill-mode: forwards;
+    overflow: hidden;
+}
+.projects-zoom-in-enter  { animation-name: projects-zoom-in-enter; }
+.projects-zoom-out-enter { animation-name: projects-zoom-out-enter; }
 
 /* ── Epoch Tab Styles ── */
 .epoch-tab {

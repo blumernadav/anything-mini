@@ -38,7 +38,7 @@
                             style="display:none">📅</button>
                         <button class="top-bar-btn top-bar-toggle" id="bookmarks-btn" title="Bookmarks">⭐</button>
                         <button class="top-bar-btn top-bar-toggle" id="aggregate-mode-btn"
-                            title="Aggregate mode">📦</button>
+                            title="Aggregate mode" style="display:none">📦</button>
                         <button class="top-bar-btn project-search-toggle" id="project-search-toggle"
                             title="Search projects">🔍</button>
                     </div>
@@ -54,6 +54,23 @@
         <aside class="sidebar sidebar-left" id="sidebar-projects">
             <div class="sidebar-header">
                 <h2 class="sidebar-title"><span class="title-icon">📁</span> Projects</h2>
+            </div>
+            <!-- Pinned Inbox (always at top) -->
+            <div class="project-inbox-pinned" id="project-inbox-pinned"></div>
+            <!-- Project Scope Navigator (mirrors Time horizon layers) -->
+            <div class="project-scope-nav" id="project-scope-nav">
+                <div class="project-scope-parent" id="project-scope-parent" style="display:none;">
+                    <span class="project-scope-parent-label" id="project-scope-parent-label"></span>
+                </div>
+                <div class="project-scope-current" id="project-scope-current">
+                    <button class="date-nav-btn project-scope-prev" id="project-scope-prev" title="Previous sibling">‹</button>
+                    <div class="project-scope-current-display" id="project-scope-current-display">
+                        <span class="project-scope-current-icon" id="project-scope-current-icon">📁</span>
+                        <span class="project-scope-current-label" id="project-scope-current-label">All Projects</span>
+                        <span class="project-scope-current-count" id="project-scope-current-count"></span>
+                    </div>
+                    <button class="date-nav-btn project-scope-next" id="project-scope-next" title="Next sibling">›</button>
+                </div>
             </div>
             <div class="project-search project-search-hidden" id="project-search">
                 <input type="text" id="project-search-input" class="project-search-input" placeholder="Search..."
@@ -351,6 +368,11 @@
         }
     </script>
     <style>
+        /* Hidden for now — concept shifting from "selected" to "focused" */
+        .scroll-to-selected-banner {
+            display: none !important;
+        }
+
         @keyframes slideDown {
             from {
                 transform: translateY(-100%);

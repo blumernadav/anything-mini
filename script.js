@@ -24,6 +24,7 @@ const state = {
     ongoingFutureWeeks: 4, // how many weeks forward from current week Ongoing extends
     sessionIndex: 0, // index into buildPlanSegments() — which session is active at session horizon
     projectSearchQuery: '', // current search term for the project tree
+    projectFocusId: null, // ID of the currently focused scope node (null = root level)
     workingOn: null, // { itemId, itemName, projectName, startTime } — active work timer
     onBreak: null, // { startTime } — active break timer
     focusStack: [], // array of { startMs, endMs, label, type, icon, tier } — multi-tier focus stack
@@ -39,7 +40,7 @@ const state = {
     reflectionHistoryIds: new Set(), // set of item IDs showing work entry history
     deepView: false, // when true, actions show items from all layers of the selected project context
     showInvestmentBadge: true, // when true, show tri-state investment bar instead of simple duration badge
-    aggregateMode: 'auto', // 'flat' | 'auto' | 'always' — controls action group headers
+
     bookmarks: [], // array of item IDs for quick-access bookmarks
     focusQueue: [], // ordered array of { itemId, itemName, projectName } — live queue
     focusQueueSettings: { autoAdvance: false, breakMinutes: 0 }, // queue behavior settings
@@ -297,7 +298,7 @@ async function loadAll() {
     if (typeof prefs.ongoingPastWeeks === 'number' && prefs.ongoingPastWeeks >= 0) state.ongoingPastWeeks = prefs.ongoingPastWeeks;
     if (typeof prefs.ongoingFutureWeeks === 'number' && prefs.ongoingFutureWeeks >= 0) state.ongoingFutureWeeks = prefs.ongoingFutureWeeks;
     if (typeof prefs.sessionIndex === 'number') state.sessionIndex = prefs.sessionIndex;
-    state.collapsedGroups = new Set(prefs.collapsedGroups || []);
+
     state.weekCollapsedDays = prefs.weekCollapsedDays || {};
     // Restore week group expand state: stored as { key: [...ids] }, convert to { key: Set }
     const rawWEG = prefs.weekExpandedGroups || {};
@@ -312,8 +313,7 @@ async function loadAll() {
     state.divergencePlansExpanded = new Set(prefs.divergencePlansExpanded || []);
     state.deepView = prefs.deepView === true;
     state.showInvestmentBadge = prefs.showInvestmentBadge !== false; // default true
-    const validAggModes = ['flat', 'auto', 'always'];
-    state.aggregateMode = validAggModes.includes(prefs.aggregateMode) ? prefs.aggregateMode : 'auto';
+
     // Restore bookmarks (prune any IDs that no longer exist)
     if (Array.isArray(prefs.bookmarks)) {
         state.bookmarks = prefs.bookmarks.filter(id => findItemById(id));
@@ -335,6 +335,13 @@ async function loadAll() {
     // Restore project tree scroll position
     if (typeof prefs.projectTreeScrollTop === 'number') {
         state._pendingProjectTreeScroll = prefs.projectTreeScrollTop;
+    }
+    // Restore project scope focus (validate the item still exists)
+    if (prefs.projectFocusId) {
+        const focusId = parseInt(prefs.projectFocusId, 10);
+        if (findItemById(focusId)) {
+            state.projectFocusId = focusId;
+        }
     }
 
     // Auto-clean past schedules (fire-and-forget, don't block render)
@@ -565,7 +572,7 @@ function syncToggleUI() {
         deepViewBtn.classList.toggle('active', state.deepView);
         deepViewBtn.title = state.deepView ? 'Showing all layers' : 'Show all layers';
     }
-    syncAggregateModeBtn();
+
     syncBookmarksBtn();
 }
 
@@ -589,96 +596,6 @@ function syncBookmarksBtn() {
         : 'Bookmarks';
 }
 
-function syncAggregateModeBtn() {
-    const btn = document.getElementById('aggregate-mode-btn');
-    if (!btn) return;
-    const labels = { flat: ['📋', 'Flat: no grouping'], auto: ['📦', 'Auto: group when >1'], always: ['🗂️', 'Always: group all'] };
-    const [emoji, title] = labels[state.aggregateMode] || labels.auto;
-    btn.textContent = emoji;
-    btn.title = title;
-    btn.classList.toggle('active', state.aggregateMode !== 'auto');
-}
-
-function dismissAggregateModeDropdown() {
-    const existing = document.querySelector('.aggregate-mode-dropdown');
-    if (existing) existing.remove();
-    document.removeEventListener('click', _aggModeOutsideClick);
-}
-
-function _aggModeOutsideClick(e) {
-    const dropdown = document.querySelector('.aggregate-mode-dropdown');
-    const btn = document.getElementById('aggregate-mode-btn');
-    if (dropdown && !dropdown.contains(e.target) && e.target !== btn) {
-        dismissAggregateModeDropdown();
-    }
-}
-
-function showAggregateModeDropdown() {
-    if (document.querySelector('.aggregate-mode-dropdown')) {
-        dismissAggregateModeDropdown();
-        return;
-    }
-
-    const btn = document.getElementById('aggregate-mode-btn');
-    const rect = btn.getBoundingClientRect();
-
-    const dropdown = document.createElement('div');
-    dropdown.className = 'aggregate-mode-dropdown';
-    dropdown.style.position = 'fixed';
-    dropdown.style.top = `${rect.bottom + 4}px`;
-    dropdown.style.right = `${window.innerWidth - rect.right}px`;
-    dropdown.style.zIndex = '99999';
-
-    const options = [
-        { key: 'flat', emoji: '📋', label: 'Flat', desc: "don't aggregate" },
-        { key: 'auto', emoji: '📦', label: 'Auto', desc: 'aggregate > 1' },
-        { key: 'always', emoji: '🗂️', label: 'Always', desc: 'aggregate all' },
-    ];
-
-    for (const opt of options) {
-        const row = document.createElement('div');
-        row.className = 'aggregate-mode-option';
-        if (state.aggregateMode === opt.key) row.classList.add('selected');
-
-        const icon = document.createElement('span');
-        icon.className = 'aggregate-mode-icon';
-        icon.textContent = opt.emoji;
-        row.appendChild(icon);
-
-        const textWrap = document.createElement('div');
-        textWrap.className = 'aggregate-mode-text';
-        const nameEl = document.createElement('span');
-        nameEl.className = 'aggregate-mode-name';
-        nameEl.textContent = opt.label;
-        textWrap.appendChild(nameEl);
-        const descEl = document.createElement('span');
-        descEl.className = 'aggregate-mode-desc';
-        descEl.textContent = opt.desc;
-        textWrap.appendChild(descEl);
-        row.appendChild(textWrap);
-
-        if (state.aggregateMode === opt.key) {
-            const check = document.createElement('span');
-            check.className = 'aggregate-mode-check';
-            check.textContent = '✓';
-            row.appendChild(check);
-        }
-
-        row.addEventListener('click', (e) => {
-            e.stopPropagation();
-            state.aggregateMode = opt.key;
-            savePref('aggregateMode', state.aggregateMode);
-            syncAggregateModeBtn();
-            dismissAggregateModeDropdown();
-            state._animateActions = true;
-            renderAll();
-        });
-        dropdown.appendChild(row);
-    }
-
-    document.body.appendChild(dropdown);
-    setTimeout(() => document.addEventListener('click', _aggModeOutsideClick), 0);
-}
 
 function dismissBookmarksDropdown() {
     const existing = document.querySelector('.bookmarks-dropdown');
@@ -845,6 +762,11 @@ function renderAll() {
     });
 }
 function _renderAllCore() {
+    // Note: projectFocusId is managed by navigation functions (projectScopeDrillIn,
+    // navigateProjectTo, etc.) and should NOT be overridden here. Those functions
+    // handle the coordination between selectedItemId and projectFocusId correctly,
+    // including the leaf-node case (where focus stays on the leaf, showing an empty scope).
+
     // ── Day rollover detection ──
     // If the logical day has changed since last render, clean past schedules
     const currentDayKey = getDateKey(getLogicalToday());
@@ -5140,10 +5062,223 @@ function collectTimeContextMatches(items, dateKey, visibleIds) {
     return anyVisible;
 }
 
-// ─── Projects Rendering (full tree hierarchy) ───
+// ─── Project Scope Navigation ───
+
+// Get the items array that the focused scope should display
+function _getProjectScopeItems() {
+    if (!state.projectFocusId) return state.items.items;
+    const focused = findItemById(state.projectFocusId);
+    if (!focused) {
+        // Focus target was deleted — reset to root
+        state.projectFocusId = null;
+        savePref('projectFocusId', '');
+        return state.items.items;
+    }
+    return focused.children || [];
+}
+
+// Get the siblings array and index of the focused item
+function _getProjectScopeSiblings() {
+    if (!state.projectFocusId) return { siblings: [], index: -1 };
+    const result = findParentArray(state.projectFocusId);
+    if (!result) return { siblings: [], index: -1 };
+    // Filter out Inbox from sibling navigation
+    const nonInbox = result.array.filter(i => !i.isInbox);
+    const idx = nonInbox.findIndex(i => i.id === state.projectFocusId);
+    return { siblings: nonInbox, index: idx };
+}
+
+// Navigate: drill into a child (set it as the new focus)
+function projectScopeDrillIn(itemId) {
+    const item = findItemById(itemId);
+    if (!item) return;
+    animateProjectScopeTransition('down', 'in', () => {
+        state.projectFocusId = itemId;
+        savePref('projectFocusId', itemId);
+        state.selectedItemId = itemId;
+        savePref('selectedItemId', itemId);
+        renderAll();
+    });
+}
+
+// Navigate: go up to parent
+function projectScopeGoUp() {
+    if (!state.projectFocusId) return;
+    animateProjectScopeTransition('up', 'out', () => {
+        const ancestors = getAncestorPath(state.projectFocusId);
+        if (ancestors && ancestors.length > 0) {
+            const parent = ancestors[ancestors.length - 1];
+            state.projectFocusId = parent.id;
+            savePref('projectFocusId', parent.id);
+            state.selectedItemId = parent.id;
+            savePref('selectedItemId', parent.id);
+        } else {
+            state.projectFocusId = null;
+            savePref('projectFocusId', '');
+            state.selectedItemId = null;
+            savePref('selectedItemId', '');
+        }
+        renderAll();
+    });
+}
+
+// Navigate: go to previous sibling
+function projectScopePrevSibling() {
+    const { siblings, index } = _getProjectScopeSiblings();
+    if (index <= 0) return;
+    animateProjectScopeTransition('right', 'right', () => {
+        const prev = siblings[index - 1];
+        state.projectFocusId = prev.id;
+        savePref('projectFocusId', prev.id);
+        state.selectedItemId = prev.id;
+        savePref('selectedItemId', prev.id);
+        renderAll();
+    });
+}
+
+// Navigate: go to next sibling
+function projectScopeNextSibling() {
+    const { siblings, index } = _getProjectScopeSiblings();
+    if (index < 0 || index >= siblings.length - 1) return;
+    animateProjectScopeTransition('left', 'left', () => {
+        const next = siblings[index + 1];
+        state.projectFocusId = next.id;
+        savePref('projectFocusId', next.id);
+        state.selectedItemId = next.id;
+        savePref('selectedItemId', next.id);
+        renderAll();
+    });
+}
+
+// Unified animated navigation to any project item (from actions area, bookmarks, etc.)
+// Determines the animation direction automatically using getProjectNavRelationship.
+function navigateProjectTo(newId) {
+    const oldId = state.projectFocusId;
+
+    // Same target or no change needed
+    if (newId === oldId) return;
+
+    // Navigating to root
+    if (!newId) {
+        animateProjectScopeTransition('up', 'out', () => {
+            state.projectFocusId = null;
+            savePref('projectFocusId', '');
+            state.selectedItemId = null;
+            savePref('selectedItemId', '');
+            renderAll();
+        });
+        return;
+    }
+
+    const targetItem = findItemById(newId);
+    if (!targetItem) return;
+
+    // No current focus → drill in from root
+    if (!oldId) {
+        animateProjectScopeTransition('down', 'in', () => {
+            state.projectFocusId = newId;
+            savePref('projectFocusId', newId);
+            state.selectedItemId = newId;
+            savePref('selectedItemId', newId);
+            renderAll();
+        });
+        return;
+    }
+
+    // Determine relationship for animation direction
+    const rel = getProjectNavRelationship(oldId, newId);
+    let navDir, treeDir;
+    switch (rel.type) {
+        case 'descendant':
+            navDir = 'down'; treeDir = 'in'; break;
+        case 'ancestor':
+            navDir = 'up'; treeDir = 'out'; break;
+        case 'sibling':
+            navDir = rel.swipeDirection === 'left' ? 'left' : 'right';
+            treeDir = navDir;
+            break;
+        case 'unrelated':
+        default:
+            navDir = rel.swipeDirection === 'left' ? 'left' : 'right';
+            treeDir = navDir;
+            break;
+    }
+
+    animateProjectScopeTransition(navDir, treeDir, () => {
+        state.projectFocusId = newId;
+        savePref('projectFocusId', newId);
+        state.selectedItemId = newId;
+        savePref('selectedItemId', newId);
+        renderAll();
+    });
+}
+
+// Render the scope navigator bar
+function renderProjectScopeNav() {
+    const parentRow = document.getElementById('project-scope-parent');
+    const parentLabel = document.getElementById('project-scope-parent-label');
+    const currentDisplay = document.getElementById('project-scope-current-display');
+    const currentIcon = document.getElementById('project-scope-current-icon');
+    const currentLabel = document.getElementById('project-scope-current-label');
+    const currentCount = document.getElementById('project-scope-current-count');
+    const prevBtn = document.getElementById('project-scope-prev');
+    const nextBtn = document.getElementById('project-scope-next');
+
+    if (!parentRow || !currentLabel) return;
+
+    if (!state.projectFocusId) {
+        // Root level — no parent, no sibling nav
+        parentRow.style.display = '';
+        parentLabel.textContent = '\u00a0'; // placeholder to maintain height
+        currentIcon.textContent = '';
+        currentLabel.textContent = 'All Projects';
+        currentCount.textContent = '';
+        prevBtn.style.visibility = 'hidden';
+        nextBtn.style.visibility = 'hidden';
+        return;
+    }
+
+    const focused = findItemById(state.projectFocusId);
+    if (!focused) return;
+
+    // Parent row
+    const ancestors = getAncestorPath(state.projectFocusId);
+    if (ancestors && ancestors.length > 0) {
+        parentRow.style.display = '';
+        const parent = ancestors[ancestors.length - 1];
+        parentLabel.textContent = parent.name;
+    } else {
+        // Direct child of root
+        parentRow.style.display = '';
+        parentLabel.textContent = 'All Projects';
+    }
+
+    // Current node
+    currentIcon.textContent = '';
+    currentLabel.textContent = focused.name;
+    currentCount.textContent = '';
+
+    // Sibling nav
+    const { siblings, index } = _getProjectScopeSiblings();
+    prevBtn.style.display = '';
+    nextBtn.style.display = '';
+    prevBtn.style.visibility = '';
+    nextBtn.style.visibility = '';
+    prevBtn.disabled = index <= 0;
+    prevBtn.style.opacity = index <= 0 ? '0.25' : '';
+    nextBtn.disabled = index < 0 || index >= siblings.length - 1;
+    nextBtn.style.opacity = (index < 0 || index >= siblings.length - 1) ? '0.25' : '';
+}
+
+// ─── Projects Rendering (scoped to focused node) ───
+let _lastRenderedProjectFocusId = undefined; // track scope changes to reset scroll only then
 function renderProjects() {
     const container = document.getElementById('project-tree');
-    const savedScrollTop = container.scrollTop;
+    // Only reset scroll when the scope actually changes (drill in/out/sibling nav),
+    // NOT on every re-render within the same scope (add, rename, done, etc.)
+    const scopeChanged = state.projectFocusId !== _lastRenderedProjectFocusId;
+    const savedScrollTop = scopeChanged ? 0 : container.scrollTop;
+    _lastRenderedProjectFocusId = state.projectFocusId;
     const empty = document.getElementById('projects-empty');
 
     // Clear everything except empty state
@@ -5163,22 +5298,51 @@ function renderProjects() {
         collectSearchMatches(state.items.items, query, matchingIds);
     }
 
+    // Update the scope navigator bar
+    renderProjectScopeNav();
+
+    // Render pinned Inbox above navigator
+    const inboxContainer = document.getElementById('project-inbox-pinned');
+    if (inboxContainer) {
+        inboxContainer.innerHTML = '';
+        const inbox = state.items.items.find(i => i.isInbox);
+        if (inbox) {
+            const inboxFragment = document.createDocumentFragment();
+            renderProjectLevel([inbox], inboxFragment, 0, query, matchingIds);
+            inboxContainer.appendChild(inboxFragment);
+        }
+    }
+
     const fragment = document.createDocumentFragment();
 
-    // Render all root-level items (Inbox is always first via ensureInbox)
-    renderProjectLevel(state.items.items, fragment, 0, query, matchingIds);
+    // Get the items to render based on current scope, excluding Inbox
+    const scopeItems = query ? state.items.items : _getProjectScopeItems();
+    // In scope mode, pass the actual children array directly (Inbox is never a child)
+    // so insert markers can splice into the real tree. At root level, filter out Inbox.
+    const nonInboxItems = (state.projectFocusId && !query)
+        ? scopeItems  // already focused.children — direct reference
+        : scopeItems.filter(i => !i.isInbox);
+
+    // Render scoped items (or full tree during search), without Inbox
+    renderProjectLevel(nonInboxItems, fragment, 0, query, matchingIds);
+
+    // When scoped to a node with no children (e.g. leaf), show a single insert
+    // marker so the user can still add items.
+    if (nonInboxItems.length === 0 && state.projectFocusId && !query) {
+        fragment.appendChild(createInsertMarker(nonInboxItems, 0, 0));
+    }
 
     // Root drop zone — always visible to allow dragging items to root level
     {
         const rootDropZone = document.createElement('div');
         rootDropZone.className = 'project-root-dropzone';
-        rootDropZone.textContent = 'Drop here to move to root';
+        rootDropZone.textContent = state.projectFocusId ? 'Drop here to add to scope' : 'Drop here to move to root';
         rootDropZone.addEventListener('dragover', (e) => {
             e.preventDefault();
             e.dataTransfer.dropEffect = 'move';
             clearDropIndicators();
             rootDropZone.classList.add('drop-target-active');
-            dragState.dropTarget = { id: '_root', position: 'inside' };
+            dragState.dropTarget = { id: state.projectFocusId || '_root', position: 'inside' };
         });
         rootDropZone.addEventListener('dragleave', () => {
             rootDropZone.classList.remove('drop-target-active');
@@ -5377,10 +5541,7 @@ function renderProjectLevel(items, parent, depth, query = '', matchingIds = new 
 
         // Skip done items when not showing done
         if (!state.showDone && !isInbox && item.done) {
-            if (leaf) continue;
-            // Branch: skip if ALL descendant leaves are done
-            const leaves = collectLeaves([item]);
-            if (leaves.length === 0 || leaves.every(l => l.done)) continue;
+            continue;
         }
 
         // Skip items that don't match search (and have no matching descendants)
@@ -5405,9 +5566,10 @@ function renderProjectLevel(items, parent, depth, query = '', matchingIds = new 
         node.dataset.itemId = item.id;
 
         const row = document.createElement('div');
+        const inScopeMode = !isSearching;
         row.className = 'project-item'
             + (isInbox ? ' project-inbox' : '')
-            + (leaf && !isInbox ? ' project-leaf' : '')
+            + ((leaf || inScopeMode) && !isInbox ? ' project-leaf' : '')
             + (state.selectedItemId === item.id ? ' selected' : '');
         row.style.paddingLeft = `${10 + depth * 18}px`;
         row.dataset.id = item.id;
@@ -5472,10 +5634,24 @@ function renderProjectLevel(items, parent, depth, query = '', matchingIds = new 
 
                 clearDropIndicators();
 
-                // First item at this level gets a 'before' zone; subsequent items only get 'inside' + 'after'
-                // (prevents duplicate indicators — 'after A' already covers the gap between A and B)
+                // In scope mode (flat list), disable 'inside' — only allow before/after reordering
                 const allowBefore = needsBeforeZone;
-                if (allowBefore && zone < 0.25) {
+                if (inScopeMode && !isInbox) {
+                    // Flat list: top half = before, bottom half = after
+                    if (zone < 0.5) {
+                        const indicator = document.createElement('div');
+                        indicator.className = 'drop-indicator drop-indicator-before';
+                        indicator.style.marginLeft = row.style.paddingLeft;
+                        node.insertBefore(indicator, row);
+                        dragState.dropTarget = { id: item.id, position: 'before' };
+                    } else {
+                        const indicator = document.createElement('div');
+                        indicator.className = 'drop-indicator drop-indicator-after';
+                        indicator.style.marginLeft = row.style.paddingLeft;
+                        row.after(indicator);
+                        dragState.dropTarget = { id: item.id, position: 'after' };
+                    }
+                } else if (allowBefore && zone < 0.25) {
                     // Drop before (first item only)
                     const indicator = document.createElement('div');
                     indicator.className = 'drop-indicator drop-indicator-before';
@@ -5509,7 +5685,7 @@ function renderProjectLevel(items, parent, depth, query = '', matchingIds = new 
         // Toggle arrow
         const hasChildren = item.children && item.children.length > 0;
         const toggle = document.createElement('button');
-        toggle.className = 'project-toggle' + (hasChildren ? (item.expanded ? ' expanded' : '') : ' leaf');
+        toggle.className = 'project-toggle' + (hasChildren && !inScopeMode ? (item.expanded ? ' expanded' : '') : ' leaf');
         toggle.textContent = '▶';
         if (hasChildren) {
             toggle.addEventListener('click', (e) => {
@@ -5600,7 +5776,7 @@ function renderProjectLevel(items, parent, depth, query = '', matchingIds = new 
         }
 
         // Count badge for branches (items with children)
-        if (hasChildren || isInbox) {
+        if ((hasChildren || isInbox) && !inScopeMode) {
             let leaves = collectLeaves([item]);
             // Show total non-done leaves — no time context filter since sidebar is
             // the context provider, not the consumer.
@@ -5668,15 +5844,17 @@ function renderProjectLevel(items, parent, depth, query = '', matchingIds = new 
             actions.appendChild(playBtn);
         }
 
-        const addBtn = document.createElement('button');
-        addBtn.className = 'project-action-btn';
-        addBtn.textContent = '+';
-        addBtn.title = 'Add child';
-        addBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            showItemInput(item.id, depth + 1);
-        });
-        actions.appendChild(addBtn);
+        if (!inScopeMode || isInbox) {
+            const addBtn = document.createElement('button');
+            addBtn.className = 'project-action-btn';
+            addBtn.textContent = '+';
+            addBtn.title = 'Add child';
+            addBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                showItemInput(item.id, depth + 1);
+            });
+            actions.appendChild(addBtn);
+        }
 
         if (!isInbox) {
             const delBtn = document.createElement('button');
@@ -5698,41 +5876,47 @@ function renderProjectLevel(items, parent, depth, query = '', matchingIds = new 
 
         row.appendChild(actions);
 
-        // Click selects item (as project filter) with directional animation
+        // Click: drill into branches, select leaves
         // Skip if a rename input is active to avoid toggling during editing
         row.addEventListener('click', (e) => {
             if (row.querySelector('.rename-inline-input')) return;
-            const oldId = state.selectedItemId;
-            const newId = oldId === item.id ? null : item.id;
-            const doUpdate = () => {
-                state.selectedItemId = newId;
-                savePref('selectedItemId', newId || '');
-                state._animateActions = true;
-                renderAll();
-            };
-            // Determine animation based on tree relationship
-            if (!oldId && newId) {
-                // First selection: zoom in
-                animateActionsZoomIn(doUpdate);
-            } else if (oldId && !newId) {
-                // Deselecting: zoom out
-                animateActionsZoomOut(doUpdate);
-            } else if (oldId && newId) {
-                const rel = getProjectNavRelationship(oldId, newId);
-                if (rel.type === 'descendant') animateActionsZoomIn(doUpdate);
-                else if (rel.type === 'ancestor') animateActionsZoomOut(doUpdate);
-                else doUpdate();
+            if (!item.isInbox) {
+                // Drill into this item (branch or leaf)
+                projectScopeDrillIn(item.id);
             } else {
-                doUpdate();
+                // Leaf or Inbox: toggle selection (original behavior)
+                const oldId = state.selectedItemId;
+                const newId = oldId === item.id ? null : item.id;
+                const doUpdate = () => {
+                    state.selectedItemId = newId;
+                    savePref('selectedItemId', newId || '');
+                    state._animateActions = true;
+                    renderAll();
+                };
+                if (!oldId && newId) {
+                    animateActionsZoomIn(doUpdate);
+                } else if (oldId && !newId) {
+                    animateActionsZoomOut(doUpdate);
+                } else if (oldId && newId) {
+                    const rel = getProjectNavRelationship(oldId, newId);
+                    if (rel.type === 'descendant') animateActionsZoomIn(doUpdate);
+                    else if (rel.type === 'ancestor') animateActionsZoomOut(doUpdate);
+                    else doUpdate();
+                } else {
+                    doUpdate();
+                }
             }
         });
 
         node.appendChild(row);
 
         // Children — auto-expand during search if descendants match
-        const shouldShowChildren = isSearching
-            ? hasChildren  // always show children during search (the filter will hide non-matches)
-            : item.expanded && hasChildren;
+        // In scope mode, show flat list (no child recursion) unless searching
+        const shouldShowChildren = inScopeMode
+            ? false  // flat list in scope mode
+            : isSearching
+                ? hasChildren
+                : item.expanded && hasChildren;
 
         if (shouldShowChildren) {
             const childContainer = document.createElement('div');
@@ -6015,6 +6199,15 @@ function renderActions(opts) {
         startBtn.className = 'live-queue-all-btn live-start-day-btn';
         startBtn.textContent = '☀️ Start Day';
         startBtn.style.marginTop = '12px';
+        // Show orphan hint if there are unclosed past days
+        const _orphans = detectOrphanedDays();
+        if (_orphans.length > 0) {
+            const orphanHint = document.createElement('span');
+            orphanHint.className = 'empty-hint';
+            orphanHint.style.color = '#f59e0b';
+            orphanHint.textContent = `⚠️ ${_orphans.length} unclosed day${_orphans.length > 1 ? 's' : ''}`;
+            empty.appendChild(orphanHint);
+        }
         startBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             startDay();
@@ -6134,829 +6327,93 @@ function renderActions(opts) {
         return a._treeIdx - b._treeIdx;
     });
 
-    // Store visible sorted IDs for shift-click range selection
-    state._visibleActionIds = sorted.map(a => String(a.id));
-
     // Prune stale selections (items no longer visible)
-    const visibleSet = new Set(state._visibleActionIds);
+    const visibleSet = new Set(sorted.map(a => String(a.id)));
     for (const id of state.selectedActionIds) {
         if (!visibleSet.has(id)) state.selectedActionIds.delete(id);
     }
 
-    // ── Context-header detection ──
-    // When an item AND its ancestor both appear in the filtered actions for the same
-    // time context, the ancestor is promoted to a header (like aggregate group headers).
-    // Multi-level nesting is supported.
-    const filteredIdSet = new Set(sorted.map(a => a.id));
-    const contextHeaderIds = new Set();
-    for (const action of sorted) {
-        if (!action._path) continue;
-        // Walk path (excluding self, which is the last element)
-        for (let i = 0; i < action._path.length - 1; i++) {
-            if (filteredIdSet.has(action._path[i].id)) {
-                contextHeaderIds.add(action._path[i].id);
-            }
-        }
-    }
+    // ── Parent absorption: when a parent and its children both appear,
+    // hide the children and show only the parent with a child count badge ──
+    const displayed = _absorbChildrenIntoParents(sorted);
 
-    // Separate context headers from regular actions
-    const contextHeaders = contextHeaderIds.size > 0
-        ? sorted.filter(a => contextHeaderIds.has(a.id))
-        : [];
-    const regularActions = contextHeaderIds.size > 0
-        ? sorted.filter(a => !contextHeaderIds.has(a.id))
-        : sorted;
-
-    // Build context-header tree: for each regular action, find its nearest context-header ancestor
-    // contextHeaderChildren: headerId → [actions]
-    // For nested headers: headerId → [sub-header actions]
-    const contextHeaderChildren = new Map();
-    const contextHeaderSubHeaders = new Map(); // headerId → [child header ids]
-    const topLevelContextHeaders = new Set(); // headers that are not children of another header
-
-    if (contextHeaderIds.size > 0) {
-        // Determine parent-child relationships among context headers themselves
-        const headerParent = new Map(); // headerId → parentHeaderId
-        for (const hdr of contextHeaders) {
-            if (!hdr._path) continue;
-            let nearestParent = null;
-            // Walk from immediate parent down to find nearest context-header ancestor
-            for (let i = hdr._path.length - 2; i >= 0; i--) {
-                if (contextHeaderIds.has(hdr._path[i].id)) {
-                    nearestParent = hdr._path[i].id;
-                    break;
-                }
-            }
-            if (nearestParent !== null) {
-                headerParent.set(hdr.id, nearestParent);
-                if (!contextHeaderSubHeaders.has(nearestParent)) {
-                    contextHeaderSubHeaders.set(nearestParent, []);
-                }
-                contextHeaderSubHeaders.get(nearestParent).push(hdr.id);
-            } else {
-                topLevelContextHeaders.add(hdr.id);
-            }
-        }
-
-        // For headers with no parent header, mark as top-level
-        for (const hdr of contextHeaders) {
-            if (!headerParent.has(hdr.id) && !topLevelContextHeaders.has(hdr.id)) {
-                topLevelContextHeaders.add(hdr.id);
-            }
-        }
-
-        // Map regular actions to their nearest context-header ancestor
-        for (const action of regularActions) {
-            if (!action._path) continue;
-            let nearestHeader = null;
-            for (let i = action._path.length - 2; i >= 0; i--) {
-                if (contextHeaderIds.has(action._path[i].id)) {
-                    nearestHeader = action._path[i].id;
-                    break;
-                }
-            }
-            if (nearestHeader !== null) {
-                if (!contextHeaderChildren.has(nearestHeader)) {
-                    contextHeaderChildren.set(nearestHeader, []);
-                }
-                contextHeaderChildren.get(nearestHeader).push(action);
-            }
-        }
-    }
-
-    // Actions NOT under any context header (rendered normally)
-    const unheaderedActions = contextHeaderIds.size > 0
-        ? regularActions.filter(a => {
-            if (!a._path) return true;
-            for (let i = a._path.length - 2; i >= 0; i--) {
-                if (contextHeaderIds.has(a._path[i].id)) return false;
-            }
-            return true;
-        })
-        : regularActions;
-
-    // Helper: create a context-header element (reuses action-group-header styling)
-    function _createContextHeader(headerId, childActions, subHeaderIds) {
-        const headerItem = findItemById(headerId);
-        const isCollapsed = state.collapsedGroups.has(headerId);
-        const header = document.createElement('div');
-        header.className = 'action-group-header' + (isCollapsed ? ' collapsed' : '');
-        header.dataset.rootId = headerId;
-        header.dataset.contextHeader = 'true';
-
-        const chevron = document.createElement('span');
-        chevron.className = 'action-group-chevron' + (isCollapsed ? '' : ' expanded');
-        chevron.textContent = '▶';
-        header.appendChild(chevron);
-
-        // Locate-in-sidebar icon (hover-reveal, like action items)
-        const locateBtn = document.createElement('span');
-        locateBtn.className = 'action-locate-btn';
-        locateBtn.textContent = '◉';
-        locateBtn.title = 'Locate in projects';
-        locateBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            animateActionsZoomIn(() => {
-                state.selectedItemId = headerId;
-                savePref('selectedItemId', headerId);
-                state._animateActions = true;
-                renderAll();
-                requestAnimationFrame(() => scrollToSelectedItem());
-            });
-        });
-        header.appendChild(locateBtn);
-
-        const nameEl = document.createElement('span');
-        nameEl.className = 'action-group-name';
-        nameEl.textContent = headerItem ? headerItem.name : 'Unknown';
-        header.appendChild(nameEl);
-
-        // Count: direct children + sub-header descendant counts
-        const totalCount = (childActions ? childActions.length : 0)
-            + (subHeaderIds ? subHeaderIds.reduce((sum, shId) => {
-                return sum + _countContextHeaderDescendants(shId);
-            }, 0) : 0);
-        const countEl = document.createElement('span');
-        countEl.className = 'action-group-count';
-        countEl.textContent = totalCount;
-        header.appendChild(countEl);
-
-        // ── Capacity bar for context headers (recursive descendants) ──
-        if (headerItem && !isContextDone(headerItem, getCurrentViewContext())) {
-            const chViewCtx = getCurrentViewContext();
-            const chBudget = getContextDuration(headerItem, chViewCtx);
-            const chInv = computeTimeInvestment(headerItem, chViewCtx);
-            const chInvested = chInv ? chInv.invested : 0;
-
-            // Compute planned from descendants using recursive absorption
-            function _chDescPlanned(node) {
-                if (!node || isContextDone(node, chViewCtx)) return 0;
-                let childSum = 0;
-                let hasChild = false;
-                if (node.children && node.children.length > 0) {
-                    for (const ch of node.children) {
-                        const cp = _chDescPlanned(ch);
-                        if (cp > 0) hasChild = true;
-                        childSum += cp;
-                    }
-                }
-                // Skip the header item itself — its duration is the budget
-                if (node.id === headerId) return childSum;
-                // Only count own duration if the node has a timeContext matching
-                // the current view (same context-aware fix as group headers).
-                const tcs = node.timeContexts || [];
-                const matchingCtx = tcs.find(tc => {
-                    if (tc === chViewCtx) return true;
-                    const parsed = parseTimeContext(tc);
-                    const parsedView = parseTimeContext(chViewCtx);
-                    if (parsed?.date && parsedView?.date) return parsed.date === parsedView.date;
-                    return false;
-                });
-                if (!matchingCtx && !hasChild) return 0;
-                if (!matchingCtx) return childSum;
-                const dur = node.contextDurations?.[matchingCtx] ?? node.estimatedDuration ?? 0;
-                if (hasChild) return Math.max(dur, childSum);
-                return dur;
-            }
-            const chPlanned = _chDescPlanned(headerItem);
-
-            if (state.showInvestmentBadge && (chBudget > 0 || chInvested > 0 || chPlanned > 0)) {
-                const total = chBudget > 0 ? chBudget : (chInvested + chPlanned);
-                const invPct = total > 0 ? Math.min(100, (chInvested / total) * 100) : 0;
-                const planPct = total > 0 ? Math.min(100 - invPct, (chPlanned / total) * 100) : 0;
-                const invBadge = document.createElement('div');
-                invBadge.className = 'action-investment-badge';
-                const parts = [];
-                if (chInvested > 0) parts.push(`${_formatDuration(chInvested)} invested`);
-                if (chPlanned > 0) parts.push(`${_formatDuration(chPlanned)} planned`);
-                if (chBudget > 0) {
-                    const rem = chBudget - chInvested - chPlanned;
-                    if (rem >= 0) {
-                        parts.push(`${_formatDuration(rem)} remaining`);
-                    } else {
-                        parts.push(`${_formatDuration(-rem)} over`);
-                    }
-                }
-                const hoverText = parts.join(' / ');
-                if (chBudget > 0 && chInvested + chPlanned > chBudget) {
-                    invBadge.classList.add('investment-over');
-                }
-                const bar = document.createElement('div');
-                bar.className = 'investment-bar';
-                const fillInv = document.createElement('div');
-                fillInv.className = 'investment-fill-invested';
-                fillInv.style.width = `${invPct}%`;
-                bar.appendChild(fillInv);
-                const fillPlan = document.createElement('div');
-                fillPlan.className = 'investment-fill-planned';
-                fillPlan.style.width = `${planPct}%`;
-                bar.appendChild(fillPlan);
-                invBadge.appendChild(bar);
-                const lbl = document.createElement('span');
-                lbl.className = 'investment-label';
-                const defaultText = _formatDuration(total);
-                lbl.textContent = defaultText;
-                invBadge.appendChild(lbl);
-                function _swapLblCh(text) {
-                    lbl.classList.add('investment-label-out');
-                    setTimeout(() => {
-                        lbl.textContent = text;
-                        lbl.classList.remove('investment-label-out');
-                        lbl.classList.add('investment-label-in');
-                        requestAnimationFrame(() => { requestAnimationFrame(() => { lbl.classList.remove('investment-label-in'); }); });
-                    }, 120);
-                }
-                invBadge.addEventListener('mouseenter', () => _swapLblCh(hoverText));
-                invBadge.addEventListener('mouseleave', () => _swapLblCh(defaultText));
-                invBadge.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    showEstimatePicker(invBadge, headerId);
-                });
-                header.appendChild(invBadge);
-            } else {
-                // Fallback: simple estimate badge
-                const dur = chBudget > 0 ? chBudget : chPlanned;
-                const estimateBadge = document.createElement('span');
-                estimateBadge.className = 'action-estimate-badge';
-                if (dur > 0) {
-                    estimateBadge.textContent = _formatDuration(dur);
-                    estimateBadge.classList.add('has-estimate');
-                } else {
-                    estimateBadge.textContent = '⏱';
-                    estimateBadge.classList.add('no-estimate');
-                }
-                estimateBadge.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    showEstimatePicker(estimateBadge, headerId);
-                });
-                header.appendChild(estimateBadge);
-            }
-        }
-
-        // ── Action buttons for context headers (scheduled items) ──
-        const hdrButtons = document.createElement('div');
-        hdrButtons.className = 'action-group-buttons';
-
-        if (headerItem && !isContextDone(headerItem, getCurrentViewContext())) {
-            // Play/stop button
-            const workBtn = document.createElement('button');
-            workBtn.className = 'action-btn action-btn-work';
-            const isWorking = state.workingOn && state.workingOn.itemId === headerId;
-            workBtn.textContent = isWorking ? '⏹' : '▶';
-            workBtn.title = isWorking ? 'Stop working' : 'Start working';
-            if (isWorking) workBtn.classList.add('action-btn-working');
-            workBtn.addEventListener('click', async (e) => {
-                e.stopPropagation();
-                if (state.workingOn && state.workingOn.itemId === headerId) {
-                    await stopWorking();
-                } else {
-                    const ancestors = getAncestorPath(headerId) || [];
-                    const ancestorStr = ancestors.map(a => a.name).join(' › ');
-                    showDurationPicker(workBtn, headerId, headerItem.name, ancestorStr);
-                }
-            });
-            hdrButtons.appendChild(workBtn);
-
-            // Done button
-            const doneBtn = document.createElement('button');
-            doneBtn.className = 'action-btn action-btn-done';
-            doneBtn.textContent = '✓';
-            doneBtn.title = 'Mark as done';
-            doneBtn.addEventListener('click', async (e) => {
-                e.stopPropagation();
-                setContextDone(headerItem, getCurrentViewContext(), true);
-                const ancestors = getAncestorPath(headerId) || [];
-                const ancestorStr = ancestors.map(a => a.name).join(' › ');
-                postTimelineOptimistic({
-                    text: `Done: ${headerItem.name}`,
-                    projectName: ancestorStr || null,
-                    type: 'completion'
-                });
-                renderAll();
-            });
-            hdrButtons.appendChild(doneBtn);
-
-            // Followup button — marks header done & creates a next-sibling
-            const hdrFollowupBtn = document.createElement('button');
-            hdrFollowupBtn.className = 'action-btn action-btn-followup';
-            hdrFollowupBtn.textContent = '➜';
-            hdrFollowupBtn.title = 'Mark done & create follow-up';
-            hdrFollowupBtn.addEventListener('click', async (e) => {
-                e.stopPropagation();
-                // 1. Mark as done
-                setContextDone(headerItem, getCurrentViewContext(), true);
-                // 2. Log to timeline
-                const ancestors = getAncestorPath(headerId) || [];
-                const ancestorStr = ancestors.map(a => a.name).join(' › ');
-                postTimelineOptimistic({
-                    text: `Done: ${headerItem.name}`,
-                    projectName: ancestorStr || null,
-                    type: 'completion'
-                });
-                // 3. Create next-sibling
-                const location = findParentArray(headerId);
-                if (location) {
-                    const newItem = {
-                        id: state.items.nextId++,
-                        name: '',
-                        children: [],
-                        expanded: false,
-                        createdAt: Date.now(),
-                        done: false,
-                        timeContexts: headerItem.timeContexts ? [...headerItem.timeContexts] : [],
-                        contextDurations: headerItem.contextDurations ? { ...headerItem.contextDurations } : {},
-                    };
-                    location.array.splice(location.index + 1, 0, newItem);
-                    saveItems();
-                    renderAll();
-                    setTimeout(() => {
-                        const newActionEl = document.querySelector(`.action-item[data-id="${newItem.id}"] .action-name`);
-                        if (newActionEl) {
-                            const input = document.createElement('input');
-                            input.type = 'text';
-                            input.className = 'followup-inline-input';
-                            input.placeholder = 'Follow-up task...';
-                            input.style.cssText = 'width:100%;border:none;background:transparent;font:inherit;color:inherit;outline:none;padding:0;';
-                            newActionEl.textContent = '';
-                            newActionEl.appendChild(input);
-                            input.focus();
-                            const commitFollowup = async () => {
-                                const val = input.value.trim();
-                                const itemInTree = findItemById(newItem.id);
-                                if (val && itemInTree) {
-                                    itemInTree.name = val;
-                                    saveItems();
-                                    renderAll();
-                                } else if (!val && itemInTree) {
-                                    const loc = findParentArray(newItem.id);
-                                    if (loc) {
-                                        loc.array.splice(loc.index, 1);
-                                        saveItems();
-                                        renderAll();
-                                    }
-                                }
-                            };
-                            input.addEventListener('keydown', (ev) => {
-                                if (ev.key === 'Enter') { ev.preventDefault(); commitFollowup(); }
-                                if (ev.key === 'Escape') {
-                                    const loc = findParentArray(newItem.id);
-                                    if (loc) { loc.array.splice(loc.index, 1); saveItems(); renderAll(); }
-                                }
-                            });
-                            input.addEventListener('blur', () => { setTimeout(commitFollowup, 150); });
-                        }
-                    }, 50);
-                } else {
-                    renderAll();
-                }
-            });
-            hdrButtons.appendChild(hdrFollowupBtn);
-        }
-        if (hdrButtons.children.length > 0) {
-            header.appendChild(hdrButtons);
-        }
-
-        // ── Drop target: allow items to be dropped onto this context header ──
-        _attachActionDropTarget(header, headerId);
-
-        // Collapse/expand click — only on chevron/name/count, not on buttons
-        header.addEventListener('click', (e) => {
-            if (e.target.closest('.action-btn, .action-estimate-badge, .action-investment-badge, .action-group-buttons')) return;
-            const wasCollapsed = state.collapsedGroups.has(headerId);
-            if (wasCollapsed) {
-                state.collapsedGroups.delete(headerId);
-                savePref('collapsedGroups', [...state.collapsedGroups]);
-                renderActions({ expandedGroupId: headerId });
-            } else {
-                // Animate children out, then collapse
-                _animateGroupCollapse(header, () => {
-                    state.collapsedGroups.add(headerId);
-                    savePref('collapsedGroups', [...state.collapsedGroups]);
-                    renderActions({ collapseOnly: true });
-                });
-            }
-        });
-
-        return { header, isCollapsed };
-    }
-
-    // Helper: count all descendants under a context header (recursive)
-    function _countContextHeaderDescendants(headerId) {
-        const children = contextHeaderChildren.get(headerId) || [];
-        const subHeaders = contextHeaderSubHeaders.get(headerId) || [];
-        return children.length + subHeaders.reduce((sum, shId) => {
-            return sum + _countContextHeaderDescendants(shId);
-        }, 0);
-    }
-
-    // Helper: recursively render a context header and its children into a fragment
-    function _renderContextHeaderTree(headerId, parentFragment, rootIdForDataset) {
-        const childActions = contextHeaderChildren.get(headerId) || [];
-        const subHeaders = contextHeaderSubHeaders.get(headerId) || [];
-        const { header, isCollapsed } = _createContextHeader(headerId, childActions, subHeaders);
-        if (rootIdForDataset !== undefined) header.dataset.rootId = rootIdForDataset;
-        parentFragment.appendChild(header);
-
-        if (!isCollapsed) {
-            const childrenContainer = document.createElement('div');
-            childrenContainer.className = 'action-group-children';
-            // Render sub-headers first (preserving tree order)
-            for (const shId of subHeaders) {
-                _renderContextHeaderTree(shId, childrenContainer, rootIdForDataset);
-            }
-            // Render direct child actions
-            for (const action of childActions) {
-                const el = createActionElement(action);
-                if (rootIdForDataset !== undefined) el.dataset.rootId = rootIdForDataset;
-                childrenContainer.appendChild(el);
-                renderedIds.push(String(action.id));
-            }
-            parentFragment.appendChild(childrenContainer);
-        }
-    }
-
-    // ── Grouping by ancestor ──
-    // When no project context: group by root ancestor (_path[0])
-    // When project context is active: group by the first child below the selected project
-    let rootGroups = null;
-    let distinctRoots = 0;
-    // Track which _path index is used for the grouping ancestor (for breadcrumb stripping)
-    let groupAncestorPathIdx = 0;
-
-    // For grouping, use unheaderedActions (actions not under context headers)
-    // plus top-level context headers themselves as groupable items
-    const groupableItems = [...unheaderedActions];
-    // Add top-level context headers as pseudo-actions for grouping purposes
-    for (const hdrId of topLevelContextHeaders) {
-        const hdrAction = sorted.find(a => a.id === hdrId);
-        if (hdrAction) groupableItems.push({ ...hdrAction, _isContextHeader: true });
-    }
-
-    {
-        rootGroups = new Map(); // groupId → { root: {id,name}, actions: [] }
-        for (const action of groupableItems) {
-            let groupAncestor = null;
-            if (state.selectedItemId && action._path) {
-                // Find the selected project's position in the path
-                const selIdx = action._path.findIndex(p => p.id === state.selectedItemId);
-                if (selIdx >= 0 && selIdx + 1 < action._path.length - 1) {
-                    // Group by the first child below the selected project
-                    groupAncestor = action._path[selIdx + 1];
-                    groupAncestorPathIdx = selIdx + 1;
-                }
-                // else: item is a direct child of selected → no sub-group
-            } else if (action._path && action._path.length > 0) {
-                groupAncestor = action._path[0];
-                groupAncestorPathIdx = 0;
-            }
-            const groupId = groupAncestor ? groupAncestor.id : 0;
-            if (!rootGroups.has(groupId)) {
-                rootGroups.set(groupId, { root: groupAncestor, actions: [] });
-            }
-            rootGroups.get(groupId).actions.push(action);
-        }
-        distinctRoots = rootGroups.size;
-    }
+    // Store visible sorted IDs for shift-click range selection (post-absorption)
+    state._visibleActionIds = displayed.map(a => String(a.id));
 
     const fragment = document.createDocumentFragment();
-    // Track actually-rendered action IDs (excluding collapsed)
     const renderedIds = [];
 
-    // Helper: render a list of actions (mixing regular + context headers) into a fragment
-    function _renderActionList(actions, parentFragment, rootIdForDataset, wrapInCards) {
-        for (const action of actions) {
-            if (action._isContextHeader || contextHeaderIds.has(action.id)) {
-                if (wrapInCards) {
-                    const card = document.createElement('div');
-                    card.className = 'action-card';
-                    _renderContextHeaderTree(action.id, card, rootIdForDataset);
-                    parentFragment.appendChild(card);
-                } else {
-                    _renderContextHeaderTree(action.id, parentFragment, rootIdForDataset);
-                }
-            } else {
-                const el = createActionElement(action);
-                if (rootIdForDataset !== undefined) el.dataset.rootId = rootIdForDataset;
-                if (wrapInCards) {
-                    const card = document.createElement('div');
-                    card.className = 'action-card';
-                    card.appendChild(el);
-                    parentFragment.appendChild(card);
-                } else {
-                    parentFragment.appendChild(el);
-                }
-                renderedIds.push(String(action.id));
-            }
-        }
+    for (const action of displayed) {
+        const el = createActionElement(action);
+        const card = document.createElement('div');
+        card.className = 'action-card';
+        card.appendChild(el);
+        fragment.appendChild(card);
+        renderedIds.push(String(action.id));
     }
 
-    const _shouldGroup = state.aggregateMode === 'always'
-        ? distinctRoots >= 1
-        : state.aggregateMode === 'flat'
-            ? false
-            : (distinctRoots >= 2 || (distinctRoots >= 1 && contextHeaderIds.size > 0));
-
-    if (_shouldGroup) {
-        // Render with group headers
-        state._actionGroupingActive = true;
-        for (const [rootId, group] of rootGroups) {
-            // Check how many regular (non-context-header) actions are in this group
-            const regularGroupActions = group.actions.filter(a => !a._isContextHeader && !contextHeaderIds.has(a.id));
-            const regularCount = regularGroupActions.length;
-            const contextHeaderCount = group.actions.length - regularCount;
-
-            // Skip aggregate header when: no root (ungrouped), or (in auto mode) ≤1 regular actions with no context headers
-            if (!group.root || (state.aggregateMode !== 'always' && regularCount <= 1 && contextHeaderCount === 0)) {
-                // Mark single regular action for breadcrumb display
-                if (regularCount === 1) {
-                    regularGroupActions[0]._singleGroup = true;
-                }
-                // Render everything directly (context headers + the single regular action)
-                _renderActionList(group.actions, fragment, rootId, true);
-                continue;
-            }
-
-            // If the group's root IS a context header, skip the aggregate header —
-            // the context header itself will serve as the header
-            if (contextHeaderIds.has(rootId)) {
-                _renderActionList(group.actions, fragment, rootId, true);
-                continue;
-            }
-
-            const isCollapsed = state.collapsedGroups.has(rootId);
-            // Create group header
-            const header = document.createElement('div');
-            header.className = 'action-group-header' + (isCollapsed ? ' collapsed' : '');
-            header.dataset.rootId = rootId;
-
-            const chevron = document.createElement('span');
-            chevron.className = 'action-group-chevron' + (isCollapsed ? '' : ' expanded');
-            chevron.textContent = '▶';
-            header.appendChild(chevron);
-
-            // Locate-in-sidebar icon (hover-reveal, like action items)
-            const locateBtn = document.createElement('span');
-            locateBtn.className = 'action-locate-btn';
-            locateBtn.textContent = '◉';
-            locateBtn.title = 'Locate in projects';
-            locateBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                animateActionsZoomIn(() => {
-                    state.selectedItemId = group.root.id;
-                    savePref('selectedItemId', group.root.id);
-                    state._animateActions = true;
-                    renderAll();
-                    requestAnimationFrame(() => scrollToSelectedItem());
-                });
-            });
-            header.appendChild(locateBtn);
-
-            const nameEl = document.createElement('span');
-            nameEl.className = 'action-group-name';
-            nameEl.textContent = group.root ? group.root.name : 'Ungrouped';
-            header.appendChild(nameEl);
-
-            const countEl = document.createElement('span');
-            countEl.className = 'action-group-count';
-            countEl.textContent = group.actions.length;
-            header.appendChild(countEl);
-
-            // ── Group header capacity bar (recursive descendants) ──
-            // Resolve to actual item (group.root is a path entry {id, name})
-            const grpRootItem = group.root ? findItemById(group.root.id) : null;
-            if (grpRootItem) {
-                const grpViewCtx = getCurrentViewContext();
-                const grpBudget = getContextDuration(grpRootItem, grpViewCtx);
-                const grpInv = computeTimeInvestment(grpRootItem, grpViewCtx);
-                const grpInvested = grpInv ? grpInv.invested : 0;
-
-                // Compute planned from descendants using recursive absorption
-                // (same logic as the capacity bar: max(own, childrenSum) at each node)
-                function _descPlanned(node) {
-                    if (!node || isContextDone(node, grpViewCtx)) return 0;
-                    let childSum = 0;
-                    let hasChild = false;
-                    if (node.children && node.children.length > 0) {
-                        for (const ch of node.children) {
-                            const cp = _descPlanned(ch);
-                            if (cp > 0) hasChild = true;
-                            childSum += cp;
-                        }
-                    }
-                    // Skip the root item itself — its duration is the budget
-                    if (node.id === grpRootItem.id) return childSum;
-                    // Only count own duration if the node has a timeContext matching
-                    // the current view (mirrors computeSubtreePlanned logic).
-                    // Without this check, getContextDuration falls back to
-                    // estimatedDuration for ALL descendants, inflating the total.
-                    const tcs = node.timeContexts || [];
-                    const matchingCtx = tcs.find(tc => {
-                        if (tc === grpViewCtx) return true;
-                        // Fuzzy: segment contexts overlap with their parent date
-                        const parsed = parseTimeContext(tc);
-                        const parsedView = parseTimeContext(grpViewCtx);
-                        if (parsed?.date && parsedView?.date) return parsed.date === parsedView.date;
-                        return false;
-                    });
-                    if (!matchingCtx && !hasChild) return 0;
-                    if (!matchingCtx) return childSum; // pass-through children only
-                    const dur = node.contextDurations?.[matchingCtx] ?? node.estimatedDuration ?? 0;
-                    if (hasChild) return Math.max(dur, childSum);
-                    return dur;
-                }
-                const grpPlanned = _descPlanned(grpRootItem);
-
-                if (state.showInvestmentBadge && (grpBudget > 0 || grpInvested > 0 || grpPlanned > 0)) {
-                    const total = grpBudget > 0 ? grpBudget : (grpInvested + grpPlanned);
-                    const invPct = total > 0 ? Math.min(100, (grpInvested / total) * 100) : 0;
-                    const planPct = total > 0 ? Math.min(100 - invPct, (grpPlanned / total) * 100) : 0;
-                    const invBadge = document.createElement('div');
-                    invBadge.className = 'action-investment-badge';
-                    const parts = [];
-                    if (grpInvested > 0) parts.push(`${_formatDuration(grpInvested)} invested`);
-                    if (grpPlanned > 0) parts.push(`${_formatDuration(grpPlanned)} planned`);
-                    if (grpBudget > 0) {
-                        const rem = grpBudget - grpInvested - grpPlanned;
-                        if (rem >= 0) {
-                            parts.push(`${_formatDuration(rem)} remaining`);
-                        } else {
-                            parts.push(`${_formatDuration(-rem)} over`);
-                        }
-                    }
-                    const hoverText = parts.join(' / ');
-                    // Over-commitment visual cue
-                    if (grpBudget > 0 && grpInvested + grpPlanned > grpBudget) {
-                        invBadge.classList.add('investment-over');
-                    }
-                    const bar = document.createElement('div');
-                    bar.className = 'investment-bar';
-                    const fillInv = document.createElement('div');
-                    fillInv.className = 'investment-fill-invested';
-                    fillInv.style.width = `${invPct}%`;
-                    bar.appendChild(fillInv);
-                    const fillPlan = document.createElement('div');
-                    fillPlan.className = 'investment-fill-planned';
-                    fillPlan.style.width = `${planPct}%`;
-                    bar.appendChild(fillPlan);
-                    invBadge.appendChild(bar);
-                    const lbl = document.createElement('span');
-                    lbl.className = 'investment-label';
-                    const defaultText = _formatDuration(total);
-                    lbl.textContent = defaultText;
-                    invBadge.appendChild(lbl);
-                    function _swapLabel(text) {
-                        lbl.classList.add('investment-label-out');
-                        setTimeout(() => {
-                            lbl.textContent = text;
-                            lbl.classList.remove('investment-label-out');
-                            lbl.classList.add('investment-label-in');
-                            requestAnimationFrame(() => { requestAnimationFrame(() => { lbl.classList.remove('investment-label-in'); }); });
-                        }, 120);
-                    }
-                    invBadge.addEventListener('mouseenter', () => _swapLabel(hoverText));
-                    invBadge.addEventListener('mouseleave', () => _swapLabel(defaultText));
-                    header.appendChild(invBadge);
-                } else if (!state.showInvestmentBadge) {
-                    // Simple duration badge — use root's envelope or fall back to children sum
-                    const groupTotalMins = grpBudget > 0 ? grpBudget : grpPlanned;
-                    if (groupTotalMins > 0) {
-                        const durEl = document.createElement('span');
-                        durEl.className = 'action-group-duration';
-                        durEl.textContent = groupTotalMins >= 60
-                            ? `${Math.floor(groupTotalMins / 60)}h${groupTotalMins % 60 ? groupTotalMins % 60 + 'm' : ''}`
-                            : `${groupTotalMins}m`;
-                        header.appendChild(durEl);
-                    }
-                }
-            } else {
-                // No root item — fall back to flat sum of group actions
-                if (state.showInvestmentBadge) {
-                    let gInvested = 0, gPlanned = 0;
-                    for (const a of group.actions) {
-                        const itm = findItemById(a.id);
-                        const inv = computeTimeInvestment(itm);
-                        if (inv) { gInvested += inv.invested; gPlanned += inv.planned; }
-                    }
-                    // (skip rendering if nothing to show)
-                } else {
-                    const groupTotalMins = group.actions.reduce((sum, a) => {
-                        const item = findItemById(a.id);
-                        return sum + getContextDuration(item);
-                    }, 0);
-                    if (groupTotalMins > 0) {
-                        const durEl = document.createElement('span');
-                        durEl.className = 'action-group-duration';
-                        durEl.textContent = groupTotalMins >= 60
-                            ? `${Math.floor(groupTotalMins / 60)}h${groupTotalMins % 60 ? groupTotalMins % 60 + 'm' : ''}`
-                            : `${groupTotalMins}m`;
-                        header.appendChild(durEl);
-                    }
-                }
-            }
-
-            // ── Schedule button for aggregate headers (not yet scheduled as an item) ──
-            if (group.root) {
-                const aggButtons = document.createElement('div');
-                aggButtons.className = 'action-group-buttons';
-                const schedBtn = document.createElement('button');
-                schedBtn.className = 'action-btn action-btn-schedule';
-                schedBtn.textContent = '📌';
-                schedBtn.title = 'Schedule this item for the current time context';
-                schedBtn.addEventListener('click', async (e) => {
-                    e.stopPropagation();
-                    const ctxs = getCurrentTimeContexts();
-                    for (const ctx of ctxs) {
-                        await addTimeContext(group.root.id, ctx);
-                    }
-                    renderAll();
-                });
-                aggButtons.appendChild(schedBtn);
-                header.appendChild(aggButtons);
-            }
-
-            // ── Drop target: allow items to be dropped onto this group header ──
-            _attachActionDropTarget(header, rootId);
-
-            header.addEventListener('click', (e) => {
-                if (e.target.closest('.action-btn, .action-group-buttons')) return;
-                const wasCollapsed = state.collapsedGroups.has(rootId);
-                if (wasCollapsed) {
-                    state.collapsedGroups.delete(rootId);
-                    savePref('collapsedGroups', [...state.collapsedGroups]);
-                    renderActions({ expandedGroupId: rootId });
-                } else {
-                    _animateGroupCollapse(header, () => {
-                        state.collapsedGroups.add(rootId);
-                        savePref('collapsedGroups', [...state.collapsedGroups]);
-                        renderActions({ collapseOnly: true });
-                    });
-                }
-            });
-
-            const card = document.createElement('div');
-            card.className = 'action-card';
-            card.appendChild(header);
-
-            if (!isCollapsed) {
-                const childrenContainer = document.createElement('div');
-                childrenContainer.className = 'action-group-children';
-                _renderActionList(group.actions, childrenContainer, rootId);
-                card.appendChild(childrenContainer);
-            }
-            fragment.appendChild(card);
-        }
-    } else {
-        // Flat (no grouping) — but may still have context headers
-        state._actionGroupingActive = contextHeaderIds.size > 0;
-        _renderActionList(groupableItems, fragment, undefined, true);
-    }
-
-    // Update visible IDs to only include rendered (non-collapsed) actions
+    // Update visible IDs to rendered list
     state._visibleActionIds = renderedIds;
 
     container.appendChild(fragment);
 
     // ── Staggered fade-in animation ──
-    const shouldAnimate = (state._animateActions || (opts && opts.expandedGroupId)) && !(opts && opts.collapseOnly);
+    const shouldAnimate = state._animateActions;
     state._animateActions = false;
     if (shouldAnimate) {
-        const expandedGroup = opts && opts.expandedGroupId;
-        if (expandedGroup) {
-            // Animate the children container as a single block (fade + slide)
-            const childrenContainers = container.querySelectorAll(
-                `.action-group-children`
-            );
-            // Find the container that follows the expanded group's header
-            childrenContainers.forEach(cc => {
-                const prevHeader = cc.previousElementSibling;
-                if (prevHeader && prevHeader.dataset && prevHeader.dataset.rootId === String(expandedGroup)) {
-                    cc.classList.add('action-group-expand');
-                    cc.addEventListener('animationend', () => {
-                        cc.classList.remove('action-group-expand');
-                    }, { once: true });
-                }
-            });
-        } else {
-            // Full list animation (zoom-in from project selection etc.)
-            let animTargets = container.querySelectorAll('.action-card, .action-item:not(.action-card .action-item), .action-group-header:not(.action-card .action-group-header)');
-            const staggerMs = Math.min(30, animTargets.length > 0 ? 500 / animTargets.length : 30);
-            animTargets.forEach((el, i) => {
-                el.classList.add('action-enter');
-                el.style.animationDelay = `${i * staggerMs}ms`;
-                const cleanup = () => {
-                    el.classList.remove('action-enter');
-                    el.style.animationDelay = '';
-                };
-                el.addEventListener('animationend', cleanup, { once: true });
-            });
-        }
+        const animTargets = container.querySelectorAll('.action-card');
+        const staggerMs = Math.min(30, animTargets.length > 0 ? 500 / animTargets.length : 30);
+        animTargets.forEach((el, i) => {
+            el.classList.add('action-enter');
+            el.style.animationDelay = `${i * staggerMs}ms`;
+            const cleanup = () => {
+                el.classList.remove('action-enter');
+                el.style.animationDelay = '';
+            };
+            el.addEventListener('animationend', cleanup, { once: true });
+        });
     }
+
 
     // Restore scroll position after rebuild
     container.scrollTop = savedScrollTop;
 
     updateBulkActionBar();
     updateCapacitySummary(sorted);
+}
+
+// ── Parent Absorption: collapse parent+children into just the parent ──
+// When a parent item and its descendants both appear in the actions list,
+// remove the descendants and annotate the parent with _absorbedCount.
+function _absorbChildrenIntoParents(actions) {
+    const idSet = new Set(actions.map(a => a.id));
+    const absorbedIds = new Set();
+
+    // Mark items that have any ancestor also in the list
+    for (const action of actions) {
+        if (!action._path) continue;
+        for (let i = action._path.length - 2; i >= 0; i--) {
+            if (idSet.has(action._path[i].id)) {
+                absorbedIds.add(action.id);
+                break;
+            }
+        }
+    }
+
+    // Surviving items (parents that absorb their children)
+    const result = actions.filter(a => !absorbedIds.has(a.id));
+
+    // Count absorbed descendants for each survivor
+    for (const action of result) {
+        let count = 0;
+        for (const absorbed of actions) {
+            if (!absorbedIds.has(absorbed.id)) continue;
+            if (absorbed._path?.some(p => p.id === action.id)) count++;
+        }
+        if (count > 0) action._absorbedCount = count;
+    }
+
+    return result;
 }
 
 function getFilteredActions() {
@@ -7253,13 +6710,7 @@ function _createOverflowItemRow(action, overflow, sourceCtx, container) {
     locateBtn.title = 'Locate in projects';
     locateBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        animateActionsZoomIn(() => {
-            state.selectedItemId = action.id;
-            savePref('selectedItemId', action.id);
-            state._animateActions = true;
-            renderAll();
-            requestAnimationFrame(() => scrollToSelectedItem());
-        });
+        navigateProjectTo(action.id);
     });
     row.appendChild(locateBtn);
 
@@ -7863,6 +7314,15 @@ async function bulkDecline() {
 
 // ── Ambient deselection: clicking empty space in actions list clears selection ──
 document.addEventListener('DOMContentLoaded', () => {
+    // ── Project Scope Navigator ──
+    const scopeParentRow = document.getElementById('project-scope-parent');
+    const scopePrevBtn = document.getElementById('project-scope-prev');
+    const scopeNextBtn = document.getElementById('project-scope-next');
+    const scopeCurrentDisplay = document.getElementById('project-scope-current-display');
+
+    if (scopeParentRow) scopeParentRow.addEventListener('click', () => projectScopeGoUp());
+    if (scopePrevBtn) scopePrevBtn.addEventListener('click', () => projectScopePrevSibling());
+    if (scopeNextBtn) scopeNextBtn.addEventListener('click', () => projectScopeNextSibling());
     _setupReflectionPanelHandler();
 
     // Re-check header overlap when the header container resizes (window resize, column drag, etc.)
@@ -8149,13 +7609,7 @@ function createActionElement(action) {
     locateBtn.title = 'Locate in projects';
     locateBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        animateActionsZoomIn(() => {
-            state.selectedItemId = action.id;
-            savePref('selectedItemId', action.id);
-            state._animateActions = true;
-            renderAll();
-            requestAnimationFrame(() => scrollToSelectedItem());
-        });
+        navigateProjectTo(action.id);
     });
     nameRow.insertBefore(locateBtn, name);
 
@@ -8174,18 +7628,13 @@ function createActionElement(action) {
     badgesRow.className = 'action-badges';
 
     // Show ancestor path as breadcrumb tag
-    // When grouping is active, strip the group ancestor from the breadcrumb (already shown in header)
-    // When a project context is active, strip the selected project and its ancestors too
+    // When a project context is active, strip the selected project and its ancestors
     if (action._path && action._path.length > 1) {
         let startIdx = 0;
         if (state.selectedItemId) {
             // Find selected project in path, start breadcrumb AFTER it
             const selIdx = action._path.findIndex(p => p.id === state.selectedItemId);
             if (selIdx >= 0) startIdx = selIdx + 1;
-        }
-        if (state._actionGroupingActive && !action._singleGroup) {
-            // Also skip the group header ancestor (but not for single-item groups — they have no header)
-            startIdx = Math.max(startIdx, (state.selectedItemId ? startIdx : 0) + 1);
         }
         const ancestors = action._path.slice(startIdx, -1); // -1 to exclude the item itself
         if (ancestors.length === 0) { /* no breadcrumb needed, root is already the header */ }
@@ -8323,6 +7772,15 @@ function createActionElement(action) {
             ctxBadge.textContent = label;
             badgesRow.appendChild(ctxBadge);
         }
+    }
+
+    // Absorbed children badge — shown when this item has absorbed its children
+    if (action._absorbedCount > 0) {
+        const countBadge = document.createElement('span');
+        countBadge.className = 'action-absorbed-count';
+        countBadge.textContent = `${action._absorbedCount} task${action._absorbedCount > 1 ? 's' : ''}`;
+        countBadge.title = `${action._absorbedCount} sub-task${action._absorbedCount > 1 ? 's' : ''} — use ◉ to drill in`;
+        badgesRow.appendChild(countBadge);
     }
 
     // Show goal progress badge (if this action or an ancestor has a goal)
@@ -9442,9 +8900,17 @@ function getActiveDayKey() {
     const yesterdayKey = getDateKey(yesterday);
     const yesterdayOverride = state.settings.dayOverrides?.[yesterdayKey];
 
-    // Yesterday started but not closed → still active (wind-down)
+    // Yesterday started but not closed → wind-down ONLY if today's planned start hasn't passed yet.
+    // Once today's start time passes, yesterday becomes an "orphan" — not the active day.
     if (yesterdayOverride?.dayStarted && !yesterdayOverride?.dayClosed) {
-        return yesterdayKey;
+        const _todayTimes = getEffectiveDayTimes(new Date());
+        const _now = new Date();
+        const _todayStart = new Date(_now);
+        _todayStart.setHours(_todayTimes.dayStartHour, _todayTimes.dayStartMinute, 0, 0);
+        if (_now < _todayStart) {
+            return yesterdayKey; // still pre-morning → wind-down is correct
+        }
+        // Past today's start → fall through to return todayKey (orphan handling elsewhere)
     }
 
     // Yesterday was closed and we're before today's planned start → persist Good Night
@@ -9462,6 +8928,18 @@ function getActiveDayKey() {
 }
 
 async function startDay() {
+    // Check for orphaned (unclosed) past days before starting a new one
+    const orphans = detectOrphanedDays();
+    if (orphans.length > 0) {
+        showOrphanRecoveryModal(orphans, () => {
+            _doStartDay();
+        });
+        return;
+    }
+    _doStartDay();
+}
+
+function _doStartDay() {
     const todayKey = getTodayLogicalDateKey();
     if (!state.settings.dayOverrides) state.settings.dayOverrides = {};
     if (!state.settings.dayOverrides[todayKey]) state.settings.dayOverrides[todayKey] = {};
@@ -9527,6 +9005,276 @@ async function reopenDay() {
 
     api.put('/settings', state.settings);
     renderAll();
+}
+
+// ─── Orphaned Day Detection & Recovery ───
+// Detects days that were started but never closed, and whose next day's
+// planned start has already passed ("orphaned" days).
+
+function detectOrphanedDays() {
+    const overrides = state.settings.dayOverrides || {};
+    const todayKey = getTodayLogicalDateKey();
+    const now = new Date();
+    const orphans = [];
+
+    for (const [key, override] of Object.entries(overrides)) {
+        // Only care about started-but-not-closed days that are before today
+        if (!override.dayStarted || override.dayClosed) continue;
+        if (key >= todayKey) continue; // today or future — not an orphan
+
+        // Check if the NEXT day's planned start has passed
+        const [y, m, d] = key.split('-').map(Number);
+        const nextDay = new Date(y, m - 1, d);
+        nextDay.setDate(nextDay.getDate() + 1);
+        const nextDayTimes = getEffectiveDayTimes(nextDay);
+        const nextDayStart = new Date(nextDay);
+        nextDayStart.setHours(nextDayTimes.dayStartHour, nextDayTimes.dayStartMinute, 0, 0);
+
+        if (now >= nextDayStart) {
+            orphans.push({ dateKey: key, override });
+        }
+    }
+
+    // Sort chronologically
+    orphans.sort((a, b) => a.dateKey.localeCompare(b.dateKey));
+    return orphans;
+}
+
+async function closeOrphanedDay(dateKey, endHour, endMinute) {
+    if (!state.settings.dayOverrides) state.settings.dayOverrides = {};
+    if (!state.settings.dayOverrides[dateKey]) state.settings.dayOverrides[dateKey] = {};
+
+    state.settings.dayOverrides[dateKey].dayEndHour = endHour;
+    state.settings.dayOverrides[dateKey].dayEndMinute = endMinute;
+    state.settings.dayOverrides[dateKey].dayClosed = true;
+
+    // Build a plausible dayClosedAt timestamp (end of that day at the specified time)
+    const [y, m, d] = dateKey.split('-').map(Number);
+    const closedAt = new Date(y, m - 1, d);
+    closedAt.setHours(endHour, endMinute, 0, 0);
+    // If end time is before start time, it's the next calendar day
+    const override = state.settings.dayOverrides[dateKey];
+    if (override.dayStartHour !== undefined && endHour < override.dayStartHour) {
+        closedAt.setDate(closedAt.getDate() + 1);
+    }
+    state.settings.dayOverrides[dateKey].dayClosedAt = closedAt.getTime();
+
+    // Evaluate commitments for that day (respects commitmentMode)
+    const commitResults = evaluateCommitments(dateKey);
+
+    // Record commitment results
+    for (const item of commitResults.kept) {
+        _recordCommitmentResult(item.context, item.itemId, item.name, true);
+    }
+    for (const item of commitResults.broken) {
+        _recordCommitmentResult(item.context, item.itemId, item.name, false);
+    }
+
+    // Streak check-in for the orphaned day
+    // Use a modified check-in that targets the orphan's date instead of today
+    const streak = getStreakData();
+    const mode = state.settings.commitmentMode || 'gentle';
+    let shouldContinue = true;
+
+    if (commitResults && mode !== 'gentle') {
+        const total = commitResults.kept.length + commitResults.broken.length;
+        if (total > 0) {
+            if (mode === 'strict') {
+                shouldContinue = commitResults.broken.length === 0;
+            } else if (mode === 'balanced') {
+                const pct = (commitResults.kept.length / total) * 100;
+                shouldContinue = pct >= 80;
+            }
+        }
+    }
+
+    // Only update streak if this day is more recent than the last check-in
+    if (!streak.lastCheckInDate || dateKey > streak.lastCheckInDate) {
+        if (shouldContinue && (streak.lastCheckInDate && isAdjacentDay(streak.lastCheckInDate, dateKey) || !streak.lastCheckInDate)) {
+            streak.count += 1;
+        } else if (!shouldContinue) {
+            streak.count = 1;
+        }
+        streak.lastCheckInDate = dateKey;
+        if (streak.count > (streak.longestStreak || 0)) {
+            streak.longestStreak = streak.count;
+        }
+        state.settings.streak = streak;
+    }
+
+    _playStickySound();
+    api.put('/settings', state.settings);
+}
+
+// Check if two date keys are adjacent calendar days
+function isAdjacentDay(dateKeyA, dateKeyB) {
+    const [y1, m1, d1] = dateKeyA.split('-').map(Number);
+    const [y2, m2, d2] = dateKeyB.split('-').map(Number);
+    const a = new Date(y1, m1 - 1, d1);
+    const b = new Date(y2, m2 - 1, d2);
+    const diffMs = Math.abs(b.getTime() - a.getTime());
+    return diffMs <= 86400000; // within 1 day
+}
+
+function showOrphanRecoveryModal(orphans, onComplete) {
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay orphan-recovery-overlay';
+
+    const modal = document.createElement('div');
+    modal.className = 'modal-box orphan-recovery-modal';
+
+    const title = document.createElement('h3');
+    title.className = 'orphan-recovery-title';
+    title.textContent = orphans.length === 1 ? 'Unclosed Day' : `${orphans.length} Unclosed Days`;
+    modal.appendChild(title);
+
+    const subtitle = document.createElement('div');
+    subtitle.className = 'orphan-recovery-subtitle';
+    subtitle.textContent = 'These days were never closed. How did they end?';
+    modal.appendChild(subtitle);
+
+    const list = document.createElement('div');
+    list.className = 'orphan-recovery-list';
+
+    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+    let resolvedCount = 0;
+
+    for (const orphan of orphans) {
+        const { dateKey, override } = orphan;
+        const [y, m, d] = dateKey.split('-').map(Number);
+        const date = new Date(y, m - 1, d);
+        const dayName = dayNames[date.getDay()];
+        const monthName = monthNames[date.getMonth()];
+
+        // Get the planned end time for this day
+        const dayTimes = getEffectiveDayTimes(date);
+        const plannedEndH = dayTimes.dayEndHour;
+        const plannedEndM = dayTimes.dayEndMinute;
+        const plannedStr = `${String(plannedEndH).padStart(2, '0')}:${String(plannedEndM).padStart(2, '0')}`;
+
+        const row = document.createElement('div');
+        row.className = 'orphan-recovery-row';
+
+        const info = document.createElement('div');
+        info.className = 'orphan-recovery-info';
+
+        const dateLabel = document.createElement('span');
+        dateLabel.className = 'orphan-recovery-date';
+        dateLabel.textContent = `📅 ${dayName}, ${monthName} ${d}`;
+        info.appendChild(dateLabel);
+
+        const timeHint = document.createElement('span');
+        timeHint.className = 'orphan-recovery-time-hint';
+        timeHint.textContent = `Planned end: ${plannedStr}`;
+        info.appendChild(timeHint);
+
+        const actions = document.createElement('div');
+        actions.className = 'orphan-recovery-actions';
+
+        // Plan button — close at planned time
+        const planBtn = document.createElement('button');
+        planBtn.className = 'orphan-recovery-btn orphan-recovery-btn-plan';
+        planBtn.textContent = `Plan (${plannedStr})`;
+        planBtn.title = `Close at planned end time: ${plannedStr}`;
+        planBtn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            await closeOrphanedDay(dateKey, plannedEndH, plannedEndM);
+            row.classList.add('orphan-recovery-resolved');
+            planBtn.disabled = true;
+            customBtn.disabled = true;
+            resolvedCount++;
+            _checkAllResolved();
+        });
+
+        // Custom button — show inline time picker
+        const customBtn = document.createElement('button');
+        customBtn.className = 'orphan-recovery-btn orphan-recovery-btn-custom';
+        customBtn.textContent = 'Custom';
+        customBtn.title = 'Enter the actual end time';
+        customBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            // Toggle inline time picker
+            const existing = row.querySelector('.orphan-recovery-time-picker');
+            if (existing) { existing.remove(); return; }
+
+            const picker = document.createElement('div');
+            picker.className = 'orphan-recovery-time-picker';
+
+            const timeInput = document.createElement('input');
+            timeInput.type = 'time';
+            timeInput.className = 'orphan-recovery-time-input';
+            timeInput.value = plannedStr;
+
+            const confirmBtn = document.createElement('button');
+            confirmBtn.className = 'orphan-recovery-btn orphan-recovery-btn-confirm';
+            confirmBtn.textContent = '✓';
+            confirmBtn.addEventListener('click', async (ev) => {
+                ev.stopPropagation();
+                const [h, min] = timeInput.value.split(':').map(Number);
+                if (isNaN(h) || isNaN(min)) return;
+                await closeOrphanedDay(dateKey, h, min);
+                row.classList.add('orphan-recovery-resolved');
+                planBtn.disabled = true;
+                customBtn.disabled = true;
+                picker.remove();
+                resolvedCount++;
+                _checkAllResolved();
+            });
+
+            picker.appendChild(timeInput);
+            picker.appendChild(confirmBtn);
+            row.appendChild(picker);
+            timeInput.focus();
+        });
+
+        actions.appendChild(planBtn);
+        actions.appendChild(customBtn);
+
+        row.appendChild(info);
+        row.appendChild(actions);
+        list.appendChild(row);
+    }
+    modal.appendChild(list);
+
+    // Batch "Close All (Plan)" button
+    if (orphans.length > 1) {
+        const batchRow = document.createElement('div');
+        batchRow.className = 'orphan-recovery-batch';
+
+        const batchBtn = document.createElement('button');
+        batchBtn.className = 'orphan-recovery-btn orphan-recovery-btn-batch';
+        batchBtn.textContent = '🌙 Close All (Plan)';
+        batchBtn.title = 'Close all orphaned days at their planned end times';
+        batchBtn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            for (const orphan of orphans) {
+                const dayTimes = getEffectiveDayTimes(new Date(...orphan.dateKey.split('-').map((v, i) => i === 1 ? Number(v) - 1 : Number(v))));
+                await closeOrphanedDay(orphan.dateKey, dayTimes.dayEndHour, dayTimes.dayEndMinute);
+            }
+            overlay.remove();
+            renderAll();
+            if (onComplete) onComplete();
+        });
+
+        batchRow.appendChild(batchBtn);
+        modal.appendChild(batchRow);
+    }
+
+    function _checkAllResolved() {
+        if (resolvedCount >= orphans.length) {
+            // Small delay for visual feedback before closing
+            setTimeout(() => {
+                overlay.remove();
+                renderAll();
+                if (onComplete) onComplete();
+            }, 400);
+        }
+    }
+
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
 }
 
 // ─── Horizon Layer Stack ───
@@ -10533,6 +10281,22 @@ function _renderDayStartIndicator(liveSlot) {
 
     // DnD: drop onto day-start → schedule to today
     _attachLiveIndicatorDnD(indicator, 'idle');
+
+    // Orphan badge: show when there are unclosed past days
+    const _orphans = detectOrphanedDays();
+    if (_orphans.length > 0) {
+        const orphanBadge = document.createElement('span');
+        orphanBadge.className = 'live-orphan-badge';
+        orphanBadge.textContent = '🌙';
+        orphanBadge.title = `${_orphans.length} unclosed day${_orphans.length > 1 ? 's' : ''}`;
+        orphanBadge.addEventListener('click', (e) => {
+            e.stopPropagation();
+            showOrphanRecoveryModal(_orphans, () => {
+                renderAll();
+            });
+        });
+        indicator.appendChild(orphanBadge);
+    }
 
     liveSlot.appendChild(indicator);
 }
@@ -13137,13 +12901,7 @@ function createFreeTimeBlock(startMs, endMs) {
             locateBtn.title = 'Locate in projects';
             locateBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
-                animateActionsZoomIn(() => {
-                    state.selectedItemId = action.id;
-                    savePref('selectedItemId', action.id);
-                    state._animateActions = true;
-                    renderAll();
-                    requestAnimationFrame(() => scrollToSelectedItem());
-                });
+                navigateProjectTo(action.id);
             });
 
             // Done button (toggle)
@@ -14436,13 +14194,7 @@ function _attachEntryDropAndQueue(el, contextStr, deadlineMs) {
             locateBtn2.title = 'Locate in projects';
             locateBtn2.addEventListener('click', (e) => {
                 e.stopPropagation();
-                animateActionsZoomIn(() => {
-                    state.selectedItemId = action.id;
-                    savePref('selectedItemId', action.id);
-                    state._animateActions = true;
-                    renderAll();
-                    requestAnimationFrame(() => scrollToSelectedItem());
-                });
+                navigateProjectTo(action.id);
             });
 
             // Done button (toggle)
@@ -14552,13 +14304,7 @@ function createWorkingTimeBlock(startMs, endMs) {
         locateBtn.title = 'Locate in projects';
         locateBtn.addEventListener('click', (e) => {
             e.stopPropagation();
-            animateActionsZoomIn(() => {
-                state.selectedItemId = state.workingOn.itemId;
-                savePref('selectedItemId', state.workingOn.itemId);
-                state._animateActions = true;
-                renderAll();
-                requestAnimationFrame(() => scrollToSelectedItem());
-            });
+            navigateProjectTo(state.workingOn.itemId);
         });
         label.appendChild(locateBtn);
         label.appendChild(labelText);
@@ -16322,13 +16068,7 @@ function createPlannedTimeBlock(entry, isPhantom = false) {
         locateBtn.title = 'Locate in projects';
         locateBtn.addEventListener('click', (e) => {
             e.stopPropagation();
-            animateActionsZoomIn(() => {
-                state.selectedItemId = entry.itemId;
-                savePref('selectedItemId', entry.itemId);
-                state._animateActions = true;
-                renderAll();
-                requestAnimationFrame(() => scrollToSelectedItem());
-            });
+            navigateProjectTo(entry.itemId);
         });
         label.appendChild(locateBtn);
         label.appendChild(labelText);
@@ -16637,13 +16377,7 @@ function createPlannedTimeBlock(entry, isPhantom = false) {
             locateBtn3.title = 'Locate in projects';
             locateBtn3.addEventListener('click', (e) => {
                 e.stopPropagation();
-                animateActionsZoomIn(() => {
-                    state.selectedItemId = action.id;
-                    savePref('selectedItemId', action.id);
-                    state._animateActions = true;
-                    renderAll();
-                    requestAnimationFrame(() => scrollToSelectedItem());
-                });
+                navigateProjectTo(action.id);
             });
 
             // Done button (toggle)
@@ -17311,10 +17045,7 @@ function updateContextLabels() {
             allSeg.title = 'Clear project filter';
             allSeg.addEventListener('click', () => {
                 animateActionsZoomOut(() => {
-                    state.selectedItemId = null;
-                    savePref('selectedItemId', '');
-                    state._animateActions = true;
-                    renderAll();
+                    navigateProjectTo(null);
                 });
             });
             whatContainer.appendChild(allSeg);
@@ -17334,11 +17065,7 @@ function updateContextLabels() {
                     seg.title = ancestor.name;
                     seg.addEventListener('click', () => {
                         animateActionsZoomOut(() => {
-                            state.selectedItemId = ancestor.id;
-                            savePref('selectedItemId', ancestor.id);
-                            state._animateActions = true;
-                            renderAll();
-                            requestAnimationFrame(() => scrollToSelectedItem());
+                            navigateProjectTo(ancestor.id);
                         });
                     });
                     whatContainer.appendChild(seg);
@@ -18942,13 +18669,7 @@ function renderReflectionPanel() {
             locateBtn.title = 'Locate in projects';
             locateBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
-                animateActionsZoomIn(() => {
-                    state.selectedItemId = item.id;
-                    savePref('selectedItemId', item.id);
-                    state._animateActions = true;
-                    renderAll();
-                    requestAnimationFrame(() => scrollToSelectedItem());
-                });
+                navigateProjectTo(item.id);
             });
             row.appendChild(locateBtn);
 
@@ -19844,16 +19565,34 @@ function showStreakExpansion() {
 
     overlay.appendChild(panel);
 
-    // Position panel near streak widget
+    // Position panel near streak widget, clamped to viewport
     const widget = document.getElementById('streak-widget');
+    document.body.appendChild(overlay);
     if (widget) {
         const wr = widget.getBoundingClientRect();
         panel.style.position = 'fixed';
-        panel.style.top = `${wr.bottom + 8}px`;
-        panel.style.right = `${window.innerWidth - wr.right}px`;
+        // Initial position below the widget, right-aligned
+        let top = wr.bottom + 8;
+        let right = window.innerWidth - wr.right;
+        // Clamp after render so we know the panel's actual size
+        requestAnimationFrame(() => {
+            const pr = panel.getBoundingClientRect();
+            // If panel overflows bottom, push it up
+            if (pr.bottom > window.innerHeight - 8) {
+                top = Math.max(8, window.innerHeight - 8 - pr.height);
+            }
+            // If panel overflows right, push it left
+            if (right < 8) right = 8;
+            // If panel overflows left, push it right
+            if (window.innerWidth - right - pr.width < 8) {
+                right = Math.max(8, window.innerWidth - pr.width - 8);
+            }
+            panel.style.top = `${top}px`;
+            panel.style.right = `${right}px`;
+        });
+        panel.style.top = `${top}px`;
+        panel.style.right = `${right}px`;
     }
-
-    document.body.appendChild(overlay);
 }
 
 // ─── Streak System ───
@@ -21566,11 +21305,7 @@ function openDefaultsModal() {
                 <label class="modal-label">🧠 Model</label>
                 <input type="text" id="defaults-ai-model" class="modal-input" placeholder="e.g. gemini-2.0-flash" />
             </div>
-            <div class="modal-field">
-                <label class="modal-label">🔑 API Key</label>
-                <input type="password" id="defaults-ai-key" class="modal-input" placeholder="Enter API key" autocomplete="off" />
-            </div>
-            <div class="modal-hint">API keys are stored per provider — switch freely without re-entering.</div>
+            <div class="modal-hint">🔑 API key is configured in <code>.env</code> file (AI_API_KEY)</div>
             <div class="modal-divider"></div>
             <div class="settings-section-title" style="margin-top:4px">Personality</div>
             <div class="modal-field">
@@ -21658,22 +21393,9 @@ function openDefaultsModal() {
 
     // AI settings
     const aiProviderSelect = document.getElementById('defaults-ai-provider');
-    const aiKeyInput = document.getElementById('defaults-ai-key');
     const currentProvider = state.settings.aiProvider || 'gemini';
     aiProviderSelect.value = currentProvider;
     document.getElementById('defaults-ai-model').value = state.settings.aiModel || 'gemini-2.0-flash';
-    // Show key status for the current provider
-    const aiApiKeys = state.settings.aiApiKeys || {};
-    function updateKeyPlaceholder(provider) {
-        const hasKey = !!(aiApiKeys[provider] || (provider === currentProvider && state.settings.aiApiKey));
-        aiKeyInput.value = '';
-        aiKeyInput.placeholder = hasKey ? '••••••••  (key saved)' : 'Enter API key';
-    }
-    updateKeyPlaceholder(currentProvider);
-    // When provider changes, update the key placeholder to show if that provider has a saved key
-    aiProviderSelect.addEventListener('change', () => {
-        updateKeyPlaceholder(aiProviderSelect.value);
-    });
 
     // AI personality settings
     document.getElementById('defaults-ai-name').value = state.settings.aiName || '';
@@ -21809,14 +21531,7 @@ function openDefaultsModal() {
         // AI settings
         state.settings.aiProvider = document.getElementById('defaults-ai-provider').value;
         state.settings.aiModel = document.getElementById('defaults-ai-model').value;
-        const newKey = document.getElementById('defaults-ai-key').value.trim();
-        // Store key per-provider
-        if (!state.settings.aiApiKeys) state.settings.aiApiKeys = {};
-        if (newKey) {
-            state.settings.aiApiKeys[state.settings.aiProvider] = newKey;
-            // Also update legacy field for backwards compat
-            state.settings.aiApiKey = newKey;
-        }
+        // API key is managed via .env file, not settings
         // AI personality settings
         state.settings.aiName = document.getElementById('defaults-ai-name').value.trim();
         const persSel = document.getElementById('defaults-ai-personality').value;
@@ -22058,7 +21773,6 @@ function animateNavTransition(direction, updateFn) {
         // Safety fallback
         setTimeout(cleanup, 200);
     };
-
     _navAnimating = true;
     timeline.addEventListener('animationend', onSlideOutDone, { once: true });
     // Safety fallback in case animationend doesn't fire
@@ -22067,15 +21781,129 @@ function animateNavTransition(direction, updateFn) {
     }, 200);
 }
 
-// ── Group collapse (no animation – expand-only policy) ──
-function _animateGroupCollapse(headerEl, callback) {
-    // Toggle chevron immediately for responsiveness
-    const chevron = headerEl.querySelector('.action-group-chevron');
-    if (chevron) chevron.classList.remove('expanded');
+// ── Project Scope transition animation ──
+// navDirection: 'left'|'right' for sibling nav, 'up'|'down' for drill/go-up
+// treeDirection: 'in' (drill down = zoom in) or 'out' (go up = zoom out) or 'left'|'right' for sibling
+function animateProjectScopeTransition(navDirection, treeDirection, updateFn) {
+    const currentDisplay = document.getElementById('project-scope-current-display');
+    const parentLabel = document.getElementById('project-scope-parent-label');
+    const projectTree = document.getElementById('project-tree');
+    if (!currentDisplay || !projectTree) { updateFn(); return; }
 
-    // No collapse animation — call back immediately
-    callback();
+    const isVertical = navDirection === 'up' || navDirection === 'down';
+
+    // Collect all animated targets
+    const allClasses = [
+        'nav-slide-out-left', 'nav-slide-out-right', 'nav-slide-in-left', 'nav-slide-in-right',
+        'tower-slide-out-up', 'tower-slide-out-down', 'tower-slide-in-up', 'tower-slide-in-down',
+        'projects-zoom-in', 'projects-zoom-out', 'projects-zoom-in-enter', 'projects-zoom-out-enter'
+    ];
+    const animTargets = [currentDisplay, projectTree];
+    if (parentLabel) animTargets.push(parentLabel);
+
+    // Cancel in-flight animations
+    for (const el of animTargets) {
+        allClasses.forEach(c => el.classList.remove(c));
+        el.getAnimations().forEach(a => a.cancel());
+    }
+
+    // Also animate the actions area in sync (Phase 1: fade out old content)
+    const actionsContainer = document.getElementById('actions-list');
+    const actionsZoomClass = (navDirection === 'down') ? 'actions-zoom-in' : 'actions-zoom-out';
+    if (actionsContainer) {
+        actionsContainer.classList.remove('actions-zoom-in', 'actions-zoom-out');
+        actionsContainer.getAnimations().forEach(a => a.cancel());
+        actionsContainer.classList.add(actionsZoomClass);
+    }
+
+    // Wrap updateFn to clean up actions zoom before re-render
+    const wrappedUpdateFn = () => {
+        if (actionsContainer) {
+            actionsContainer.classList.remove('actions-zoom-in', 'actions-zoom-out');
+        }
+        updateFn();
+    };
+
+    let done = false;
+
+    if (isVertical) {
+        // Vertical: tower-style translateY for labels, one-phase zoom for tree
+        const labelOutClass = navDirection === 'down' ? 'tower-slide-out-up' : 'tower-slide-out-down';
+        const labelInClass = navDirection === 'down' ? 'tower-slide-in-up' : 'tower-slide-in-down';
+        const treeZoomClass = treeDirection === 'in' ? 'projects-zoom-in' : 'projects-zoom-out';
+
+        // Phase 1: animate out old content
+        currentDisplay.classList.add(labelOutClass);
+        if (parentLabel) parentLabel.classList.add(labelOutClass);
+        projectTree.classList.remove(treeZoomClass);
+        projectTree.getAnimations().forEach(a => a.cancel());
+        projectTree.classList.add(treeZoomClass);
+
+        const onOutDone = () => {
+            if (done) return;
+            done = true;
+            currentDisplay.classList.remove(labelOutClass);
+            if (parentLabel) parentLabel.classList.remove(labelOutClass);
+            projectTree.classList.remove(treeZoomClass);
+
+            // Phase 2: swap content (new content appears fresh — same pattern as timeline)
+            wrappedUpdateFn();
+
+            // Phase 3: labels slide in (re-query parentLabel since DOM may have changed)
+            const freshParentLabel = document.getElementById('project-scope-parent-label');
+            currentDisplay.classList.add(labelInClass);
+            if (freshParentLabel) freshParentLabel.classList.add(labelInClass);
+
+            const cleanup = () => {
+                currentDisplay.classList.remove(labelInClass);
+                if (freshParentLabel) freshParentLabel.classList.remove(labelInClass);
+            };
+            currentDisplay.addEventListener('animationend', cleanup, { once: true });
+            setTimeout(cleanup, 300);
+        };
+
+        currentDisplay.addEventListener('animationend', onOutDone, { once: true });
+        setTimeout(() => { if (!done) onOutDone(); }, 250);
+
+    } else {
+        // Horizontal: slide display label + tree left/right, arrows stay
+        const outClass = navDirection === 'left' ? 'nav-slide-out-left' : 'nav-slide-out-right';
+        const inClass = navDirection === 'left' ? 'nav-slide-in-left' : 'nav-slide-in-right';
+
+        // Phase 1: slide out old content
+        currentDisplay.classList.add(outClass);
+        projectTree.classList.remove(outClass);
+        projectTree.getAnimations().forEach(a => a.cancel());
+        projectTree.classList.add(outClass);
+
+        const onOutDone = () => {
+            if (done) return;
+            done = true;
+            currentDisplay.classList.remove(outClass);
+            projectTree.classList.remove(outClass);
+
+            // Phase 2: swap content
+            wrappedUpdateFn();
+
+            // Phase 3: slide in new content (deferred to ensure DOM is settled)
+            requestAnimationFrame(() => {
+                currentDisplay.classList.add(inClass);
+                projectTree.classList.add(inClass);
+
+                const cleanup = () => {
+                    currentDisplay.classList.remove(inClass);
+                    projectTree.classList.remove(inClass);
+                };
+                currentDisplay.addEventListener('animationend', cleanup, { once: true });
+                setTimeout(cleanup, 300);
+            });
+        };
+
+        currentDisplay.addEventListener('animationend', onOutDone, { once: true });
+        setTimeout(() => { if (!done) onOutDone(); }, 250);
+    }
 }
+
 
 // ── Actions zoom-out (breadcrumb navigate to broader focus) ──
 function animateActionsZoomOut(updateFn) {
@@ -22426,13 +22254,6 @@ document.addEventListener('DOMContentLoaded', () => {
         renderAll();
     });
 
-    // Aggregate mode dropdown button
-    const aggModeBtn = document.getElementById('aggregate-mode-btn');
-    syncAggregateModeBtn();
-    aggModeBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        showAggregateModeDropdown();
-    });
 
     // Bookmarks button
     document.getElementById('bookmarks-btn').addEventListener('click', (e) => {

@@ -514,9 +514,8 @@ app.get('/api/ai/config', async (req, res) => {
     const settings = await settingsStore.read();
     const provider = settings.aiProvider || process.env.AI_PROVIDER || 'gemini';
     const model = settings.aiModel || process.env.AI_MODEL || 'gemini-2.0-flash';
-    // Per-provider key resolution
-    const providerKey = settings.aiApiKeys ? settings.aiApiKeys[provider] : undefined;
-    const hasKey = !!(providerKey || settings.aiApiKey || process.env.AI_API_KEY);
+    // API key resolved from .env only
+    const hasKey = !!process.env.AI_API_KEY;
     res.json({ provider, model, available: hasKey });
 });
 

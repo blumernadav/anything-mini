@@ -171,6 +171,54 @@ const BUILT_IN_TRIGGERS = {
         }
     },
 
+    day_start_reminder: {
+        label: '☀️ Day Start Reminder',
+        description: 'Reminder that planned day start has passed — nudge to start the day',
+        defaultEnabled: true,
+        defaultConfig: { minutesAfter: 15 },
+        configSchema: [
+            { key: 'minutesAfter', label: 'Minutes after planned start', type: 'number', min: 0, max: 120 }
+        ],
+        cooldownMs: 60 * 60 * 1000, // 1 hour — only once per morning
+        check(state) {
+            const settings = state.settings || {};
+            const startH = settings.dayStartHour ?? 8;
+            const startM = settings.dayStartMinute ?? 0;
+            const now = new Date();
+
+            // Compute today's date key (YYYY-MM-DD)
+            const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+            const todayOverride = settings.dayOverrides?.[todayKey];
+
+            // Don't fire if this day is already started or closed
+            if (todayOverride?.dayStarted || todayOverride?.dayClosed) return false;
+
+            // Compute the planned start time
+            const dayStart = new Date(now);
+            dayStart.setHours(startH, startM, 0, 0);
+
+            // Only fire if planned start is in the past
+            if (now < dayStart) return false;
+
+            // Fire after the configured grace period
+            const elapsed = now - dayStart;
+            const thresholdMs = (state._triggerConfig?.minutesAfter ?? 15) * 60 * 1000;
+            return elapsed >= thresholdMs;
+        },
+        buildPrompt(state) {
+            const settings = state.settings || {};
+            const startH = settings.dayStartHour ?? 8;
+            const startM = settings.dayStartMinute ?? 0;
+            const now = new Date();
+            const elapsed = Math.round((now - new Date(now.getFullYear(), now.getMonth(), now.getDate(), startH, startM)) / 60000);
+            return `[TRIGGER: Day Start Reminder] The user's planned day start time was ${startH}:${String(startM).padStart(2, '0')} ` +
+                `(about ${elapsed} minutes ago), but they haven't started their day yet. ` +
+                `Give a brief (2-3 sentences) encouraging nudge. Remind them it's a new day full of opportunities and things to do. ` +
+                `Gently suggest clicking "Start Day" to kick things off. ` +
+                `Be warm, optimistic, and ADHD-friendly — reduce inertia, no guilt, just a friendly invite to begin.`;
+        }
+    },
+
     session_started: {
         label: '🚀 Session Started',
         description: 'Quick context nudge when starting a work session or break',
