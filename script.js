@@ -5637,8 +5637,12 @@ function renderProjectLevel(items, parent, depth, query = '', matchingIds = new 
                 // In scope mode (flat list), disable 'inside' — only allow before/after reordering
                 const allowBefore = needsBeforeZone;
                 if (inScopeMode && !isInbox) {
-                    // Flat list: top half = before, bottom half = after
-                    if (zone < 0.5) {
+                    // Flat list: one drop zone per gap.
+                    // Only the first item has a "before" zone (top half).
+                    // Every item has an "after" zone; for non-first items
+                    // the whole row maps to "after" so there's exactly one
+                    // indicator between any two adjacent items.
+                    if (needsBeforeZone && zone < 0.5) {
                         const indicator = document.createElement('div');
                         indicator.className = 'drop-indicator drop-indicator-before';
                         indicator.style.marginLeft = row.style.paddingLeft;
@@ -6383,13 +6387,15 @@ function renderActions(opts) {
 }
 
 // ── Parent Absorption: collapse parent+children into just the parent ──
-// When a parent item and its descendants both appear in the actions list,
-// remove the descendants and annotate the parent with _absorbedCount.
+// Phase 1: When a parent and its descendants both appear, remove the descendants.
+// Phase 2: When multiple items share the same direct parent (not in the list),
+//          synthesize that parent with an x/y badge (auto-aggregation).
 function _absorbChildrenIntoParents(actions) {
     const idSet = new Set(actions.map(a => a.id));
     const absorbedIds = new Set();
+    const _viewCtx = getCurrentViewContext();
 
-    // Mark items that have any ancestor also in the list
+    // ── Phase 1: Explicit absorption (parent in list absorbs children) ──
     for (const action of actions) {
         if (!action._path) continue;
         for (let i = action._path.length - 2; i >= 0; i--) {
@@ -6400,17 +6406,85 @@ function _absorbChildrenIntoParents(actions) {
         }
     }
 
-    // Surviving items (parents that absorb their children)
-    const result = actions.filter(a => !absorbedIds.has(a.id));
+    let result = actions.filter(a => !absorbedIds.has(a.id));
 
-    // Count absorbed descendants for each survivor
+    // Count absorbed descendants + done count for each survivor
     for (const action of result) {
         let count = 0;
+        let doneCount = 0;
         for (const absorbed of actions) {
             if (!absorbedIds.has(absorbed.id)) continue;
-            if (absorbed._path?.some(p => p.id === action.id)) count++;
+            if (absorbed._path?.some(p => p.id === action.id)) {
+                count++;
+                if (isContextDone(absorbed, _viewCtx)) doneCount++;
+            }
         }
-        if (count > 0) action._absorbedCount = count;
+        if (count > 0) {
+            action._absorbedCount = count;
+            action._absorbedDone = doneCount;
+        }
+    }
+
+    // ── Phase 2: Sibling grouping (auto-aggregate by common parent) ──
+    // Repeat until stable: group items sharing the same direct parent into
+    // a synthesized parent item with x/y badge. Skip the selected project
+    // itself (don't roll up above what the user is looking at).
+    let changed = true;
+    while (changed) {
+        changed = false;
+        const parentGroups = new Map(); // parentId → [items]
+        const ungroupable = []; // items without a groupable parent
+
+        for (const item of result) {
+            if (!item._path || item._path.length < 2) {
+                ungroupable.push(item);
+                continue;
+            }
+            const parent = item._path[item._path.length - 2];
+            // Don't roll up above the selected project scope
+            if (state.selectedItemId && parent.id === state.selectedItemId) {
+                ungroupable.push(item);
+                continue;
+            }
+            if (!parentGroups.has(parent.id)) parentGroups.set(parent.id, { parent, items: [] });
+            parentGroups.get(parent.id).items.push(item);
+        }
+
+        const nextResult = [...ungroupable];
+        for (const [, group] of parentGroups) {
+            if (group.items.length < 2) {
+                // Single item under this parent — keep as-is
+                nextResult.push(...group.items);
+            } else {
+                // Multiple siblings → synthesize their parent
+                changed = true;
+                const parentItem = findItemById(group.parent.id);
+                // Build the parent's path from any child's path (minus the child itself)
+                const parentPath = group.items[0]._path.slice(0, -1);
+                // Count done among the grouped children
+                let childDone = 0;
+                let childTotal = group.items.length;
+                for (const child of group.items) {
+                    // If the child already has absorbed descendants, count those too
+                    if (child._absorbedCount > 0) {
+                        childTotal += child._absorbedCount;
+                        childDone += child._absorbedDone || 0;
+                    }
+                    if (isContextDone(child, _viewCtx)) childDone++;
+                }
+                const synth = {
+                    ...(parentItem || {}),
+                    id: group.parent.id,
+                    name: group.parent.name,
+                    _path: parentPath,
+                    _absorbedCount: childTotal,
+                    _absorbedDone: childDone,
+                    _synthesized: true, // flag: this item was created by absorption, not in original list
+                };
+                nextResult.push(synth);
+            }
+        }
+        result = nextResult;
     }
 
     return result;
@@ -7776,10 +7850,13 @@ function createActionElement(action) {
 
     // Absorbed children badge — shown when this item has absorbed its children
     if (action._absorbedCount > 0) {
+        const done = action._absorbedDone || 0;
+        const total = action._absorbedCount;
         const countBadge = document.createElement('span');
         countBadge.className = 'action-absorbed-count';
-        countBadge.textContent = `${action._absorbedCount} task${action._absorbedCount > 1 ? 's' : ''}`;
-        countBadge.title = `${action._absorbedCount} sub-task${action._absorbedCount > 1 ? 's' : ''} — use ◉ to drill in`;
+        if (done === total) countBadge.classList.add('all-done');
+        countBadge.textContent = `${done}/${total}`;
+        countBadge.title = `${done} of ${total} sub-task${total > 1 ? 's' : ''} done — use ◉ to drill in`;
         badgesRow.appendChild(countBadge);
     }
 

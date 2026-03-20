@@ -1618,6 +1618,22 @@ body {
     font-variant-numeric: tabular-nums;
 }
 
+/* ─── Absorbed Children Count Badge ─── */
+.action-absorbed-count {
+    font-size: 10px;
+    padding: 0px 5px;
+    background: var(--w-field);
+    color: var(--w-dark);
+    border: 1px solid var(--w-dark);
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+.action-absorbed-count.all-done {
+    color: #008000;
+    border-color: #008000;
+}
+
 /* ─── Pressure Bar (Four-Segment) ─── */
 .pressure-bar {
     position: relative;

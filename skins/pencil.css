@@ -1803,6 +1803,24 @@ body {
     letter-spacing: 0.02em;
 }
 
+/* ─── Absorbed Children Count Badge ─── */
+.action-absorbed-count {
+    font-size: 13px;
+    font-family: 'Caveat', cursive;
+    padding: 0px 6px;
+    border: 1px dashed var(--pencil-ghost);
+    background: transparent;
+    color: var(--pencil-soft);
+    white-space: nowrap;
+    border-radius: var(--radius);
+}
+
+.action-absorbed-count.all-done {
+    color: #2b7a4b;
+    border-color: #2b7a4b;
+    border-style: solid;
+}
+
 /* ─── Pressure Bar (Four-Segment) ─── */
 .pressure-bar {
     position: relative;
