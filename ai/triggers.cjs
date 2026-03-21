@@ -149,9 +149,11 @@ const BUILT_IN_TRIGGERS = {
         cooldownMs: 60 * 60 * 1000, // 1 hour — only once per day end
         check(state) {
             const settings = state.settings || {};
-            const endH = settings.dayEndHour ?? 22;
-            const endM = settings.dayEndMinute ?? 0;
             const now = new Date();
+            const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+            const todayOverride = settings.dayOverrides?.[todayKey];
+            const endH = todayOverride?.dayEndHour ?? settings.dayEndHour ?? 22;
+            const endM = todayOverride?.dayEndMinute ?? settings.dayEndMinute ?? 0;
             const dayEnd = new Date(now);
             dayEnd.setHours(endH, endM, 0, 0);
             // Only fire if day end is in the future
@@ -162,8 +164,11 @@ const BUILT_IN_TRIGGERS = {
         },
         buildPrompt(state) {
             const settings = state.settings || {};
-            const endH = settings.dayEndHour ?? 22;
-            const endM = settings.dayEndMinute ?? 0;
+            const now = new Date();
+            const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+            const todayOverride = settings.dayOverrides?.[todayKey];
+            const endH = todayOverride?.dayEndHour ?? settings.dayEndHour ?? 22;
+            const endM = todayOverride?.dayEndMinute ?? settings.dayEndMinute ?? 0;
             return `[TRIGGER: Day End Approaching] The user's configured day end time is ${endH}:${String(endM).padStart(2, '0')}. ` +
                 `It's getting close! Give a brief (2-3 sentences) wind-down nudge. ` +
                 `Suggest wrapping up current work and mention anything important left for today. ` +
@@ -182,8 +187,6 @@ const BUILT_IN_TRIGGERS = {
         cooldownMs: 60 * 60 * 1000, // 1 hour — only once per morning
         check(state) {
             const settings = state.settings || {};
-            const startH = settings.dayStartHour ?? 8;
-            const startM = settings.dayStartMinute ?? 0;
             const now = new Date();
 
             // Compute today's date key (YYYY-MM-DD)
@@ -192,6 +195,10 @@ const BUILT_IN_TRIGGERS = {
 
             // Don't fire if this day is already started or closed
             if (todayOverride?.dayStarted || todayOverride?.dayClosed) return false;
+
+            // Use custom override times if they exist, otherwise fall back to defaults
+            const startH = todayOverride?.dayStartHour ?? settings.dayStartHour ?? 8;
+            const startM = todayOverride?.dayStartMinute ?? settings.dayStartMinute ?? 0;
 
             // Compute the planned start time
             const dayStart = new Date(now);
@@ -207,9 +214,11 @@ const BUILT_IN_TRIGGERS = {
         },
         buildPrompt(state) {
             const settings = state.settings || {};
-            const startH = settings.dayStartHour ?? 8;
-            const startM = settings.dayStartMinute ?? 0;
             const now = new Date();
+            const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+            const todayOverride = settings.dayOverrides?.[todayKey];
+            const startH = todayOverride?.dayStartHour ?? settings.dayStartHour ?? 8;
+            const startM = todayOverride?.dayStartMinute ?? settings.dayStartMinute ?? 0;
             const elapsed = Math.round((now - new Date(now.getFullYear(), now.getMonth(), now.getDate(), startH, startM)) / 60000);
             return `[TRIGGER: Day Start Reminder] The user's planned day start time was ${startH}:${String(startM).padStart(2, '0')} ` +
                 `(about ${elapsed} minutes ago), but they haven't started their day yet. ` +
