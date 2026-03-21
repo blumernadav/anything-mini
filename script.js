@@ -5940,9 +5940,27 @@ function renderProjectLevel(items, parent, depth, query = '', matchingIds = new 
         }
 
         // Double-click to rename (not on Inbox)
+        // Single click triggers drilldown immediately; double-click cancels the
+        // in-flight animation and starts inline rename instead.
+        let _drillCancelled = false;
         if (!isInbox) {
             name.addEventListener('dblclick', (e) => {
                 e.stopPropagation();
+                // Cancel the drilldown animation that the first click started
+                _drillCancelled = true;
+                const projectTree = document.getElementById('project-tree');
+                const currentDisplay = document.getElementById('project-scope-current-display');
+                const parentLabel = document.getElementById('project-scope-parent-label');
+                [projectTree, currentDisplay, parentLabel].forEach(el => {
+                    if (!el) return;
+                    el.getAnimations().forEach(a => a.cancel());
+                    el.className = el.className.replace(/\b(nav-slide|tower-slide|projects-zoom|actions-zoom)\S*/g, '');
+                });
+                const actionsContainer = document.getElementById('actions-list');
+                if (actionsContainer) {
+                    actionsContainer.getAnimations().forEach(a => a.cancel());
+                    actionsContainer.classList.remove('actions-zoom-in', 'actions-zoom-out');
+                }
                 startInlineRename(name, item);
             });
         }
@@ -5957,8 +5975,6 @@ function renderProjectLevel(items, parent, depth, query = '', matchingIds = new 
         // Count badge for branches (items with children)
         if ((hasChildren || isInbox) && !inScopeMode) {
             let leaves = collectLeaves([item]);
-            // Show total non-done leaves — no time context filter since sidebar is
-            // the context provider, not the consumer.
             if (!state.showDone) {
                 leaves = leaves.filter(l => !l.done);
             }
@@ -6013,7 +6029,6 @@ function renderProjectLevel(items, parent, depth, query = '', matchingIds = new 
             playBtn.title = 'Start working';
             playBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
-                // Build ancestors string from the item tree
                 const allItems = collectAllItems(state.items.items);
                 const found = allItems.find(i => i.id === item.id);
                 const ancestors = found && found._path
@@ -6056,15 +6071,24 @@ function renderProjectLevel(items, parent, depth, query = '', matchingIds = new 
 
         row.appendChild(actions);
 
-        // Click: drill into branches, select leaves
-        // Skip if a rename input is active to avoid toggling during editing
+        // Click: immediate drilldown for non-inbox, selection toggle for inbox
         row.addEventListener('click', (e) => {
             if (row.querySelector('.rename-inline-input')) return;
             if (!item.isInbox) {
-                // Drill into this item (branch or leaf)
-                projectScopeDrillIn(item.id);
+                // Drill down immediately; dblclick handler will cancel if needed
+                _drillCancelled = false;
+                // Wrap projectScopeDrillIn to respect cancellation
+                const origFocusId = state.projectFocusId;
+                animateProjectScopeTransition('down', 'in', () => {
+                    if (_drillCancelled) return; // dblclick cancelled the drill
+                    state.projectFocusId = item.id;
+                    savePref('projectFocusId', item.id);
+                    state.selectedItemId = item.id;
+                    savePref('selectedItemId', item.id);
+                    renderAll();
+                });
             } else {
-                // Leaf or Inbox: toggle selection (original behavior)
+                // Inbox: toggle selection (with zoom animation)
                 const oldId = state.selectedItemId;
                 const newId = oldId === item.id ? null : item.id;
                 const doUpdate = () => {
@@ -10399,6 +10423,7 @@ function _renderLiveSessionIndicator() {
         const timer = document.createElement('span');
         timer.className = 'live-session-indicator-timer';
         timer.dataset.sessionStart = idleStartMs;
+        timer.dataset.noOvertime = '1';
         timer.textContent = _fmtHMS(elapsed);
 
         indicator.appendChild(icon);
@@ -10418,16 +10443,18 @@ function _renderLiveSessionIndicator() {
         // Divergence badge: show ⚡ if unresolved divergences exist
         _appendDivergenceBadge(indicator);
 
-        // Close Day button
-        const _closeDayBtn = document.createElement('button');
-        _closeDayBtn.className = 'live-queue-all-btn live-close-day-btn';
-        _closeDayBtn.textContent = '🌙 Close Day';
-        _closeDayBtn.title = 'Close your day';
-        _closeDayBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            closeDay();
-        });
-        indicator.appendChild(_closeDayBtn);
+        // Close Day button — only show past planned day end
+        if (pastDayEnd) {
+            const _closeDayBtn = document.createElement('button');
+            _closeDayBtn.className = 'live-queue-all-btn live-close-day-btn';
+            _closeDayBtn.textContent = '🌙 Close Day';
+            _closeDayBtn.title = 'Close your day';
+            _closeDayBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                closeDay();
+            });
+            indicator.appendChild(_closeDayBtn);
+        }
 
         // Start button — start working retroactively from idle start
         const _startBtn = document.createElement('button');
@@ -10657,7 +10684,13 @@ function _renderSleepIndicator(liveSlot) {
     const remaining = nextStart.getTime() - now.getTime();
     timer.dataset.targetEnd = nextStart.getTime();
     timer.dataset.sessionStart = '';
-    timer.textContent = _fmtHMS(remaining) + ' left';
+    timer.dataset.noOvertime = '1';
+    if (remaining > 0) {
+        timer.textContent = _fmtHMS(remaining) + ' left';
+    } else {
+        // Past planned start — just show elapsed count-up (no scary "over")
+        timer.textContent = _fmtHMS(Math.abs(remaining));
+    }
 
     indicator.appendChild(icon);
     indicator.appendChild(label);
@@ -10717,7 +10750,7 @@ function _renderDayStartIndicator(liveSlot) {
     label.className = 'live-session-indicator-label';
     label.textContent = 'Good Morning';
 
-    // Over timer: time since planned start
+    // Timer: elapsed since planned start (neutral count-up, no "over")
     const timer = document.createElement('span');
     timer.className = 'live-session-indicator-timer';
     const now = new Date();
@@ -10726,10 +10759,10 @@ function _renderDayStartIndicator(liveSlot) {
     plannedStart.setHours(todayTimes.dayStartHour, todayTimes.dayStartMinute, 0, 0);
     timer.dataset.targetEnd = '';
     timer.dataset.sessionStart = plannedStart.getTime();
+    timer.dataset.noOvertime = '1';
     const overMs = now.getTime() - plannedStart.getTime();
     if (overMs > 0) {
-        timer.textContent = '+' + _fmtHMS(overMs) + ' over';
-        timer.classList.add('live-session-indicator-overtime');
+        timer.textContent = _fmtHMS(overMs);
     } else {
         timer.textContent = _fmtHMS(Math.abs(overMs)) + ' left';
     }
@@ -12114,7 +12147,7 @@ function renderTimeline() {
             header.innerHTML = `<span class="live-panel-icon">🌙</span> <span class="live-panel-title">Good Night</span>`;
             panel.appendChild(header);
 
-            // Timer: countdown to next day's start / over timer
+            // Timer: countdown to next day's start (neutral count-up after, no "over")
             const timerRow = document.createElement('div');
             timerRow.className = 'live-panel-timer-row';
             timerRow.id = 'live-panel-timer';
@@ -12125,12 +12158,12 @@ function renderTimeline() {
             if (nextStart <= now) nextStart.setDate(nextStart.getDate() + 1);
             timerRow.dataset.targetEnd = nextStart.getTime();
             timerRow.dataset.sessionStart = '';
+            timerRow.dataset.noOvertime = '1';
             const rem = nextStart.getTime() - now.getTime();
             if (rem > 0) {
                 timerRow.textContent = `⏱️ ${_fmtDur(rem)} until morning`;
             } else {
-                timerRow.textContent = `⏱️ +${_fmtDur(Math.abs(rem))} over — good morning?`;
-                timerRow.classList.add('live-panel-overtime');
+                timerRow.textContent = `⏱️ ${_fmtDur(Math.abs(rem))}`;
             }
             panel.appendChild(timerRow);
 
@@ -12163,7 +12196,7 @@ function renderTimeline() {
             header.innerHTML = `<span class="live-panel-icon">☀️</span> <span class="live-panel-title">Good Morning</span>`;
             panel.appendChild(header);
 
-            // Over timer: how long past planned start
+            // Timer: elapsed since planned start (neutral count-up, no "over")
             const timerRow = document.createElement('div');
             timerRow.className = 'live-panel-timer-row';
             timerRow.id = 'live-panel-timer';
@@ -12173,10 +12206,10 @@ function renderTimeline() {
             plannedStart.setHours(todayTimes.dayStartHour, todayTimes.dayStartMinute, 0, 0);
             timerRow.dataset.targetEnd = '';
             timerRow.dataset.sessionStart = plannedStart.getTime();
+            timerRow.dataset.noOvertime = '1';
             const overMs = now.getTime() - plannedStart.getTime();
             if (overMs > 0) {
-                timerRow.textContent = `⏱️ +${_fmtDur(overMs)} over planned start`;
-                timerRow.classList.add('live-panel-overtime');
+                timerRow.textContent = `⏱️ ${_fmtDur(overMs)}`;
             } else {
                 timerRow.textContent = `⏱️ ${_fmtDur(Math.abs(overMs))} until planned start`;
             }
@@ -14077,8 +14110,8 @@ function createSleepTimeBlock(startMs) {
     if (remaining > 0) {
         status.textContent = _fmtHMS(remaining) + ' left';
     } else {
-        status.textContent = '+' + _fmtHMS(Math.abs(remaining)) + ' over';
-        el.classList.add('time-block-sleep-over');
+        // Neutral count-up (no scary "over")
+        status.textContent = _fmtHMS(Math.abs(remaining));
     }
 
     content.appendChild(label);
@@ -14145,7 +14178,8 @@ function createDayStartTimeBlock() {
     status.className = 'time-block-status daystart-duration';
     const overMs = Date.now() - plannedStart.getTime();
     if (overMs > 0) {
-        status.textContent = '+' + _fmtHMS(overMs) + ' over';
+        // Neutral count-up (no scary "over")
+        status.textContent = _fmtHMS(overMs);
     } else {
         status.textContent = _fmtHMS(Math.abs(overMs)) + ' left';
     }
@@ -15068,24 +15102,40 @@ function startIdleUpdater() {
                     indicatorTimer.classList.add('live-session-indicator-overtime');
                 }
             } else if (iTarget && !iStart) {
-                // Good Night: countdown to next morning
+                // Good Night: countdown to next morning (neutral count-up after)
                 const rem = iTarget - iNow;
-                if (rem > 0) {
-                    indicatorTimer.textContent = _fmtHMS(rem) + ' left';
+                if (indicatorTimer.dataset.noOvertime === '1') {
+                    // No scary "over" — just count-up when past target
+                    if (rem > 0) {
+                        indicatorTimer.textContent = _fmtHMS(rem) + ' left';
+                    } else {
+                        indicatorTimer.textContent = _fmtHMS(Math.abs(rem));
+                    }
                     indicatorTimer.classList.remove('live-session-indicator-overtime');
                 } else {
-                    indicatorTimer.textContent = '+' + _fmtHMS(Math.abs(rem)) + ' over';
-                    indicatorTimer.classList.add('live-session-indicator-overtime');
+                    if (rem > 0) {
+                        indicatorTimer.textContent = _fmtHMS(rem) + ' left';
+                        indicatorTimer.classList.remove('live-session-indicator-overtime');
+                    } else {
+                        indicatorTimer.textContent = '+' + _fmtHMS(Math.abs(rem)) + ' over';
+                        indicatorTimer.classList.add('live-session-indicator-overtime');
+                    }
                 }
             } else if (iStart && !iTarget) {
-                // Good Morning: elapsed since planned start
+                // Good Morning / Idle: elapsed since start
                 const overMs = iNow - iStart;
-                if (overMs > 0) {
-                    indicatorTimer.textContent = '+' + _fmtHMS(overMs) + ' over';
-                    indicatorTimer.classList.add('live-session-indicator-overtime');
-                } else {
-                    indicatorTimer.textContent = _fmtHMS(Math.abs(overMs)) + ' left';
+                if (indicatorTimer.dataset.noOvertime === '1') {
+                    // No scary "over" — just plain count-up
+                    indicatorTimer.textContent = overMs > 0 ? _fmtHMS(overMs) : _fmtHMS(Math.abs(overMs)) + ' left';
                     indicatorTimer.classList.remove('live-session-indicator-overtime');
+                } else {
+                    if (overMs > 0) {
+                        indicatorTimer.textContent = '+' + _fmtHMS(overMs) + ' over';
+                        indicatorTimer.classList.add('live-session-indicator-overtime');
+                    } else {
+                        indicatorTimer.textContent = _fmtHMS(Math.abs(overMs)) + ' left';
+                        indicatorTimer.classList.remove('live-session-indicator-overtime');
+                    }
                 }
             } else if (iStart) {
                 indicatorTimer.textContent = _fmtHMS(iNow - iStart);
@@ -15123,24 +15173,38 @@ function startIdleUpdater() {
                     panelTimer.classList.add('live-panel-overtime');
                 }
             } else if (pTarget && !pStart) {
-                // Good Night: countdown to next morning
+                // Good Night: countdown to next morning (neutral count-up after)
                 const rem = pTarget - pNow;
-                if (rem > 0) {
-                    panelTimer.textContent = `⏱️ ${_fmtHMS(rem)} until morning`;
+                if (panelTimer.dataset.noOvertime === '1') {
+                    if (rem > 0) {
+                        panelTimer.textContent = `⏱️ ${_fmtHMS(rem)} until morning`;
+                    } else {
+                        panelTimer.textContent = `⏱️ ${_fmtHMS(Math.abs(rem))}`;
+                    }
                     panelTimer.classList.remove('live-panel-overtime');
                 } else {
-                    panelTimer.textContent = `⏱️ +${_fmtHMS(Math.abs(rem))} over — good morning?`;
-                    panelTimer.classList.add('live-panel-overtime');
+                    if (rem > 0) {
+                        panelTimer.textContent = `⏱️ ${_fmtHMS(rem)} until morning`;
+                        panelTimer.classList.remove('live-panel-overtime');
+                    } else {
+                        panelTimer.textContent = `⏱️ +${_fmtHMS(Math.abs(rem))} over — good morning?`;
+                        panelTimer.classList.add('live-panel-overtime');
+                    }
                 }
             } else if (pStart && !pTarget) {
-                // Good Morning: elapsed since planned start
+                // Good Morning / Idle: elapsed since start (neutral count-up)
                 const overMs = pNow - pStart;
-                if (overMs > 0) {
-                    panelTimer.textContent = `⏱️ +${_fmtHMS(overMs)} over planned start`;
-                    panelTimer.classList.add('live-panel-overtime');
-                } else {
-                    panelTimer.textContent = `⏱️ ${_fmtHMS(Math.abs(overMs))} until planned start`;
+                if (panelTimer.dataset.noOvertime === '1') {
+                    panelTimer.textContent = overMs > 0 ? `⏱️ ${_fmtHMS(overMs)}` : `⏱️ ${_fmtHMS(Math.abs(overMs))} until planned start`;
                     panelTimer.classList.remove('live-panel-overtime');
+                } else {
+                    if (overMs > 0) {
+                        panelTimer.textContent = `⏱️ +${_fmtHMS(overMs)} over planned start`;
+                        panelTimer.classList.add('live-panel-overtime');
+                    } else {
+                        panelTimer.textContent = `⏱️ ${_fmtHMS(Math.abs(overMs))} until planned start`;
+                        panelTimer.classList.remove('live-panel-overtime');
+                    }
                 }
             } else if (pStart) {
                 panelTimer.textContent = `⏱️ ${_fmtHMS(pNow - pStart)} elapsed`;
@@ -15284,8 +15348,9 @@ function startIdleUpdater() {
                     durationEl.textContent = _fmtHMS(rem) + ' left';
                     sleepBlock.classList.remove('time-block-sleep-over');
                 } else {
-                    durationEl.textContent = '+' + _fmtHMS(Math.abs(rem)) + ' over';
-                    sleepBlock.classList.add('time-block-sleep-over');
+                    // Neutral count-up (no scary "over")
+                    durationEl.textContent = _fmtHMS(Math.abs(rem));
+                    sleepBlock.classList.remove('time-block-sleep-over');
                 }
             }
 
@@ -15307,7 +15372,8 @@ function startIdleUpdater() {
             if (durationEl && plannedStart) {
                 const overMs = nowMs - plannedStart;
                 if (overMs > 0) {
-                    durationEl.textContent = '+' + _fmtHMS(overMs) + ' over';
+                    // Neutral count-up (no scary "over")
+                    durationEl.textContent = _fmtHMS(overMs);
                 } else {
                     durationEl.textContent = _fmtHMS(Math.abs(overMs)) + ' left';
                 }
