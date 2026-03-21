@@ -6344,7 +6344,7 @@ function renderActions(opts) {
         hint.textContent = 'time to rest — you earned it';
         empty.appendChild(hint);
         // If it's already the next calendar day, offer Start Day alongside Reopen
-        const _isNextDay = getActiveDayKey() !== getTodayLogicalDateKey();
+        const _isNextDay = getActiveDayKey() !== getDateKey(new Date());
         if (_isNextDay) {
             const startBtn = document.createElement('button');
             startBtn.className = 'live-queue-all-btn live-start-day-btn';
@@ -10666,7 +10666,7 @@ function _renderSleepIndicator(liveSlot) {
     // Reopen Day button
     const reopenBtn = document.createElement('button');
     reopenBtn.className = 'live-queue-all-btn live-reopen-day-btn';
-    reopenBtn.textContent = '↩️ Reopen Day';
+    reopenBtn.textContent = 'Reopen Day';
     reopenBtn.title = 'Reopen your day';
     reopenBtn.addEventListener('click', async (e) => {
         e.stopPropagation();
@@ -10675,7 +10675,7 @@ function _renderSleepIndicator(liveSlot) {
     indicator.appendChild(reopenBtn);
 
     // If it's already the next calendar day, also offer Start Day
-    if (getActiveDayKey() !== getTodayLogicalDateKey()) {
+    if (getActiveDayKey() !== getDateKey(new Date())) {
         const startBtn = document.createElement('button');
         startBtn.className = 'live-queue-all-btn live-start-day-btn';
         startBtn.textContent = '☀️ Start Day';
@@ -12143,11 +12143,11 @@ function renderTimeline() {
             reopenRow.className = 'live-panel-actions';
             const reopenBtn = document.createElement('button');
             reopenBtn.className = 'live-panel-stop-btn';
-            reopenBtn.textContent = '↩️ Reopen Day';
+            reopenBtn.textContent = 'Reopen Day';
             reopenBtn.addEventListener('click', () => reopenDay());
             reopenRow.appendChild(reopenBtn);
             // If it's already the next calendar day, also offer Start Day
-            if (getActiveDayKey() !== getTodayLogicalDateKey()) {
+            if (getActiveDayKey() !== getDateKey(new Date())) {
                 const startBtn = document.createElement('button');
                 startBtn.className = 'live-panel-start-btn';
                 startBtn.textContent = '☀️ Start Day';
@@ -14100,7 +14100,7 @@ function createSleepTimeBlock(startMs) {
     el.appendChild(reopenBtn);
 
     // If it's already the next calendar day, also offer Start Day
-    if (getActiveDayKey() !== getTodayLogicalDateKey()) {
+    if (getActiveDayKey() !== getDateKey(new Date())) {
         const startBtn = document.createElement('button');
         startBtn.className = 'idle-start-btn';
         startBtn.textContent = '☀️';
