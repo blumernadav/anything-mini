@@ -800,6 +800,124 @@ const WRITE_TOOLS = [
         }
     },
     {
+        name: 'start_day',
+        description: 'Start the day. Records the current time as the day start in today\'s dayOverrides. Only works if today\'s day hasn\'t been started yet. Equivalent to clicking "Start Day" in the UI.',
+        parameters: {
+            type: 'object',
+            properties: {},
+        },
+        async execute(args, stores) {
+            const settings = await stores.settings.read();
+            const now = new Date();
+            const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+            if (!settings.dayOverrides) settings.dayOverrides = {};
+            if (!settings.dayOverrides[todayKey]) settings.dayOverrides[todayKey] = {};
+
+            if (settings.dayOverrides[todayKey]?.dayStarted) {
+                return { error: 'Day is already started' };
+            }
+
+            settings.dayOverrides[todayKey].dayStartHour = now.getHours();
+            settings.dayOverrides[todayKey].dayStartMinute = now.getMinutes();
+            settings.dayOverrides[todayKey].dayStarted = true;
+            settings.dayOverrides[todayKey].dayClosed = false;
+
+            await stores.settings.write(settings);
+            return { message: `Day started at ${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}` };
+        },
+        describe() {
+            return `☀️ Start Day`;
+        }
+    },
+    {
+        name: 'close_day',
+        description: 'Close the active day. Records the current time as the day end and marks the day as closed. Only works if the day has been started and not yet closed. Equivalent to clicking "Close Day" in the UI.',
+        parameters: {
+            type: 'object',
+            properties: {},
+        },
+        async execute(args, stores) {
+            const settings = await stores.settings.read();
+            const now = new Date();
+            const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+            // Find the active day key (today, or yesterday if still open)
+            if (!settings.dayOverrides) settings.dayOverrides = {};
+            let activeKey = todayKey;
+            const todayOverride = settings.dayOverrides[todayKey];
+
+            if (!todayOverride?.dayStarted) {
+                // Check yesterday
+                const yesterday = new Date(now);
+                yesterday.setDate(yesterday.getDate() - 1);
+                const yesterdayKey = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, '0')}-${String(yesterday.getDate()).padStart(2, '0')}`;
+                const yesterdayOverride = settings.dayOverrides[yesterdayKey];
+                if (yesterdayOverride?.dayStarted && !yesterdayOverride?.dayClosed) {
+                    activeKey = yesterdayKey;
+                } else {
+                    return { error: 'No active day to close (day not started)' };
+                }
+            }
+
+            if (settings.dayOverrides[activeKey]?.dayClosed) {
+                return { error: 'Day is already closed' };
+            }
+
+            if (!settings.dayOverrides[activeKey]) settings.dayOverrides[activeKey] = {};
+            settings.dayOverrides[activeKey].dayEndHour = now.getHours();
+            settings.dayOverrides[activeKey].dayEndMinute = now.getMinutes();
+            settings.dayOverrides[activeKey].dayClosed = true;
+            settings.dayOverrides[activeKey].dayClosedAt = Date.now();
+
+            await stores.settings.write(settings);
+            return { message: `Day (${activeKey}) closed at ${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}` };
+        },
+        describe() {
+            return `🌙 Close Day`;
+        }
+    },
+    {
+        name: 'reopen_day',
+        description: 'Reopen a closed day. Clears the dayClosed flag on the active day. Only works if the day was previously closed. Equivalent to clicking "Reopen Day" in the UI.',
+        parameters: {
+            type: 'object',
+            properties: {},
+        },
+        async execute(args, stores) {
+            const settings = await stores.settings.read();
+            const now = new Date();
+            const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+            // Find the active day key
+            if (!settings.dayOverrides) settings.dayOverrides = {};
+            let activeKey = todayKey;
+            const todayOverride = settings.dayOverrides[todayKey];
+
+            if (!todayOverride?.dayClosed) {
+                // Check yesterday
+                const yesterday = new Date(now);
+                yesterday.setDate(yesterday.getDate() - 1);
+                const yesterdayKey = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, '0')}-${String(yesterday.getDate()).padStart(2, '0')}`;
+                const yesterdayOverride = settings.dayOverrides[yesterdayKey];
+                if (yesterdayOverride?.dayClosed) {
+                    activeKey = yesterdayKey;
+                } else {
+                    return { error: 'No closed day to reopen' };
+                }
+            }
+
+            settings.dayOverrides[activeKey].dayClosed = false;
+            delete settings.dayOverrides[activeKey].dayClosedAt;
+
+            await stores.settings.write(settings);
+            return { message: `Day (${activeKey}) reopened` };
+        },
+        describe() {
+            return `↩️ Reopen Day`;
+        }
+    },
+    {
         name: 'update_timeline_entry',
         description: 'Update an existing timeline entry (past log) by its ID. Can change text, start/end times, type, or linked item.',
         parameters: {

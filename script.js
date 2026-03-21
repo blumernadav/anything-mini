@@ -6343,6 +6343,19 @@ function renderActions(opts) {
         hint.className = 'empty-hint';
         hint.textContent = 'time to rest — you earned it';
         empty.appendChild(hint);
+        // If it's already the next calendar day, offer Start Day alongside Reopen
+        const _isNextDay = getActiveDayKey() !== getTodayLogicalDateKey();
+        if (_isNextDay) {
+            const startBtn = document.createElement('button');
+            startBtn.className = 'live-queue-all-btn live-start-day-btn';
+            startBtn.textContent = '☀️ Start Day';
+            startBtn.style.marginTop = '12px';
+            startBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                startDay();
+            });
+            empty.appendChild(startBtn);
+        }
         return;
     }
 
@@ -6400,6 +6413,8 @@ function renderActions(opts) {
     container.querySelectorAll('.action-card, .action-item, .action-group-header, .overflow-preview').forEach(el => el.remove());
 
     const filteredActions = getFilteredActions();
+    // When hideDone is active, also get the full list (including done) for accurate badge counts
+    const allWithDone = !state.showDone ? getFilteredActions({ includeDone: true }) : null;
 
     if (filteredActions.length === 0) {
         empty.style.display = '';
@@ -6505,7 +6520,7 @@ function renderActions(opts) {
 
     // ── Parent absorption: when a parent and its children both appear,
     // hide the children and show only the parent with a child count badge ──
-    const displayed = _absorbChildrenIntoParents(sorted);
+    const displayed = _absorbChildrenIntoParents(sorted, allWithDone);
 
     // Store visible sorted IDs for shift-click range selection (post-absorption)
     state._visibleActionIds = displayed.map(a => String(a.id));
@@ -6556,10 +6571,24 @@ function renderActions(opts) {
 // Phase 1: When a parent and its descendants both appear, remove the descendants.
 // Phase 2: When multiple items share the same direct parent (not in the list),
 //          synthesize that parent with an x/y badge (auto-aggregation).
-function _absorbChildrenIntoParents(actions) {
+// allWithDone: optional context-filtered list that INCLUDES done items (for accurate badge counts when hideDone is active)
+function _absorbChildrenIntoParents(actions, allWithDone) {
     const idSet = new Set(actions.map(a => a.id));
     const absorbedIds = new Set();
     const _viewCtx = getCurrentViewContext();
+
+    // Helper: count descendants of a parent from the allWithDone list (context-filtered, includes done)
+    function _countDescendantsFromFull(parentId) {
+        if (!allWithDone) return null;
+        let total = 0, done = 0;
+        for (const item of allWithDone) {
+            if (item._path?.some(p => p.id === parentId) && item.id !== parentId) {
+                total++;
+                if (isContextDone(item, _viewCtx)) done++;
+            }
+        }
+        return { total, done };
+    }
 
     // ── Phase 1: Explicit absorption (parent in list absorbs children) ──
     for (const action of actions) {
@@ -6583,6 +6612,14 @@ function _absorbChildrenIntoParents(actions) {
             if (absorbed._path?.some(p => p.id === action.id)) {
                 count++;
                 if (isContextDone(absorbed, _viewCtx)) doneCount++;
+            }
+        }
+        // When hideDone is active, use the full (with-done) list for accurate counts
+        if (!state.showDone && allWithDone) {
+            const fullCounts = _countDescendantsFromFull(action.id);
+            if (fullCounts && fullCounts.total > 0) {
+                count = fullCounts.total;
+                doneCount = fullCounts.done;
             }
         }
         if (count > 0) {
@@ -6627,16 +6664,28 @@ function _absorbChildrenIntoParents(actions) {
                 const parentItem = findItemById(group.parent.id);
                 // Build the parent's path from any child's path (minus the child itself)
                 const parentPath = group.items[0]._path.slice(0, -1);
-                // Count done among the grouped children
+
                 let childDone = 0;
-                let childTotal = group.items.length;
-                for (const child of group.items) {
-                    // If the child already has absorbed descendants, count those too
-                    if (child._absorbedCount > 0) {
-                        childTotal += child._absorbedCount;
-                        childDone += child._absorbedDone || 0;
+                let childTotal = 0;
+
+                // When hideDone is active, use the full (with-done) list for accurate counts
+                if (!state.showDone && allWithDone) {
+                    const fullCounts = _countDescendantsFromFull(group.parent.id);
+                    if (fullCounts) {
+                        childTotal = fullCounts.total;
+                        childDone = fullCounts.done;
                     }
-                    if (isContextDone(child, _viewCtx)) childDone++;
+                } else {
+                    // Count done among the grouped children from the filtered list
+                    childTotal = group.items.length;
+                    for (const child of group.items) {
+                        // If the child already has absorbed descendants, count those too
+                        if (child._absorbedCount > 0) {
+                            childTotal += child._absorbedCount;
+                            childDone += child._absorbedDone || 0;
+                        }
+                        if (isContextDone(child, _viewCtx)) childDone++;
+                    }
                 }
                 const synth = {
                     ...(parentItem || {}),
@@ -6654,19 +6703,76 @@ function _absorbChildrenIntoParents(actions) {
         result = nextResult;
     }
 
+    // ── Phase 3: Post-absorption cleanup — absorb remaining items into
+    // ancestor items also present in the result. Handles cases like deep
+    // descendants whose direct parent had only one visible child and
+    // couldn't be grouped in Phase 2. ──
+    const resultIdSet = new Set(result.map(a => a.id));
+    const postAbsorbedIds = new Set();
+    // Map each absorbed item to its nearest ancestor in the result
+    const absorbTarget = new Map(); // absorbedId → ancestorId
+    for (const action of result) {
+        if (!action._path) continue;
+        // Walk up the path to find the nearest ancestor also in the result
+        for (let i = action._path.length - 2; i >= 0; i--) {
+            const ancestorId = action._path[i].id;
+            if (resultIdSet.has(ancestorId)) {
+                postAbsorbedIds.add(action.id);
+                absorbTarget.set(action.id, ancestorId);
+                break;
+            }
+        }
+    }
+    if (postAbsorbedIds.size > 0) {
+        // Process bottom-up: items absorbed by another absorbed item should
+        // have their counts rolled into their direct ancestor first.
+        // Sort items by path length descending (deepest first).
+        const toAbsorb = result
+            .filter(a => postAbsorbedIds.has(a.id))
+            .sort((a, b) => (b._path?.length || 0) - (a._path?.length || 0));
+
+        for (const absorbed of toAbsorb) {
+            const targetId = absorbTarget.get(absorbed.id);
+            const target = result.find(a => a.id === targetId);
+            if (!target) continue;
+            const extraCount = 1 + (absorbed._absorbedCount || 0);
+            const extraDone = (isContextDone(absorbed, _viewCtx) ? 1 : 0) + (absorbed._absorbedDone || 0);
+            target._absorbedCount = (target._absorbedCount || 0) + extraCount;
+            target._absorbedDone = (target._absorbedDone || 0) + extraDone;
+        }
+        result = result.filter(a => !postAbsorbedIds.has(a.id));
+    }
+
     // Sort by tree index so synthesized parents appear in tree order
     result.sort((a, b) => (a._treeIdx ?? Infinity) - (b._treeIdx ?? Infinity));
+
+    // ── When hideDone is active, non-leaf items that still appear in the list
+    // but whose children were ALL filtered out need their badge populated
+    // from the full (with-done) list so the x/y count reflects hidden done children. ──
+    if (!state.showDone && allWithDone) {
+        for (const action of result) {
+            if (action._absorbedCount > 0) continue; // already has counts
+            const treeItem = findItemById(action.id);
+            if (!treeItem || isLeaf(treeItem)) continue; // only for non-leaf
+            const fullCounts = _countDescendantsFromFull(action.id);
+            if (fullCounts && fullCounts.total > 0) {
+                action._absorbedCount = fullCounts.total;
+                action._absorbedDone = fullCounts.done;
+            }
+        }
+    }
 
     return result;
 }
 
-function getFilteredActions() {
+function getFilteredActions(opts) {
     const _rawAll = collectAllItems();
     let allLeaves = _rawAll;
 
     // Filter out done items unless showDone is on (context-aware)
+    // opts.includeDone skips this filter (used for computing badge counts)
     const _viewCtx = getCurrentViewContext();
-    if (!state.showDone) {
+    if (!state.showDone && !(opts && opts.includeDone)) {
         allLeaves = allLeaves.filter(a => !isContextDone(a, _viewCtx));
     }
     // Filter out blocked items unless showBlocked is on
@@ -6715,7 +6821,7 @@ function getFilteredActions() {
         const fs = focusedSession;
         // Reuse already-collected items (avoid second tree traversal)
         let sessionLeaves = _rawAll.slice();
-        if (!state.showDone) sessionLeaves = sessionLeaves.filter(a => !isContextDone(a, _viewCtx));
+        if (!state.showDone && !(opts && opts.includeDone)) sessionLeaves = sessionLeaves.filter(a => !isContextDone(a, _viewCtx));
 
         // For item-bound planned sessions, pre-compute descendant IDs for scope constraint
         let planDescendantIds = null;
@@ -10568,6 +10674,19 @@ function _renderSleepIndicator(liveSlot) {
     });
     indicator.appendChild(reopenBtn);
 
+    // If it's already the next calendar day, also offer Start Day
+    if (getActiveDayKey() !== getTodayLogicalDateKey()) {
+        const startBtn = document.createElement('button');
+        startBtn.className = 'live-queue-all-btn live-start-day-btn';
+        startBtn.textContent = '☀️ Start Day';
+        startBtn.title = 'Start a new day';
+        startBtn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            await startDay();
+        });
+        indicator.appendChild(startBtn);
+    }
+
     // Click: focus the live horizon layer
     indicator.style.cursor = 'pointer';
     indicator.addEventListener('click', () => {
@@ -12027,6 +12146,14 @@ function renderTimeline() {
             reopenBtn.textContent = '↩️ Reopen Day';
             reopenBtn.addEventListener('click', () => reopenDay());
             reopenRow.appendChild(reopenBtn);
+            // If it's already the next calendar day, also offer Start Day
+            if (getActiveDayKey() !== getTodayLogicalDateKey()) {
+                const startBtn = document.createElement('button');
+                startBtn.className = 'live-panel-start-btn';
+                startBtn.textContent = '☀️ Start Day';
+                startBtn.addEventListener('click', () => startDay());
+                reopenRow.appendChild(startBtn);
+            }
             panel.appendChild(reopenRow);
 
         } else if (!isDayStarted()) {
@@ -13971,6 +14098,19 @@ function createSleepTimeBlock(startMs) {
         reopenDay();
     });
     el.appendChild(reopenBtn);
+
+    // If it's already the next calendar day, also offer Start Day
+    if (getActiveDayKey() !== getTodayLogicalDateKey()) {
+        const startBtn = document.createElement('button');
+        startBtn.className = 'idle-start-btn';
+        startBtn.textContent = '☀️';
+        startBtn.title = 'Start Day';
+        startBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            startDay();
+        });
+        el.appendChild(startBtn);
+    }
 
     return el;
 }
