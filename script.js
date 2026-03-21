@@ -9405,7 +9405,7 @@ async function startDay() {
 }
 
 function _doStartDay() {
-    const todayKey = getTodayLogicalDateKey();
+    const todayKey = getDateKey(new Date());
     if (!state.settings.dayOverrides) state.settings.dayOverrides = {};
     if (!state.settings.dayOverrides[todayKey]) state.settings.dayOverrides[todayKey] = {};
 
