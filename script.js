@@ -6753,106 +6753,157 @@ function togglePccAncestorPopover(triggerEl) {
 
     const focusedItem = state.selectedItemId ? findItemById(state.selectedItemId) : null;
     const ancestors = state.selectedItemId ? (getAncestorPath(state.selectedItemId) || []) : [];
-    // Filter out inbox from ancestors
     const filteredAncestors = ancestors.filter(a => !a.isInbox);
 
-    // Build the popover
+    // Build the popover (Finder-style columns view)
     const popover = document.createElement('div');
     popover.className = 'pcc-ancestor-popover';
 
-    // Helper to create a row
-    function createRow(icon, name, isCurrent, onClick, childCount) {
-        const row = document.createElement('div');
-        row.className = 'pcc-popover-item' + (isCurrent ? ' pcc-popover-current' : '');
+    const columnsWrap = document.createElement('div');
+    columnsWrap.className = 'pcc-columns-wrap';
 
-        const iconEl = document.createElement('span');
-        iconEl.className = 'pcc-popover-icon';
-        iconEl.textContent = icon;
-        row.appendChild(iconEl);
+    // Helper: create a single column with items
+    function createColumn(items, selectedId, onSelect) {
+        const col = document.createElement('div');
+        col.className = 'pcc-column';
 
-        const nameEl = document.createElement('span');
-        nameEl.className = 'pcc-popover-name';
-        nameEl.textContent = name;
-        row.appendChild(nameEl);
+        for (const item of items) {
+            const row = document.createElement('div');
+            const isSelected = item.id === selectedId;
+            row.className = 'pcc-popover-item' + (isSelected ? ' pcc-popover-current' : '');
 
-        if (childCount !== undefined && childCount > 0) {
-            const countEl = document.createElement('span');
-            countEl.className = 'pcc-popover-count';
-            countEl.textContent = childCount;
-            row.appendChild(countEl);
-        }
+            const iconEl = document.createElement('span');
+            iconEl.className = 'pcc-popover-icon';
+            iconEl.textContent = item.icon;
+            row.appendChild(iconEl);
 
-        if (onClick && !isCurrent) {
+            const nameEl = document.createElement('span');
+            nameEl.className = 'pcc-popover-name';
+            nameEl.textContent = item.name;
+            row.appendChild(nameEl);
+
+            const hasChildren = (item.children || []).filter(c => !c.isInbox).length > 0;
+            if (hasChildren) {
+                const chevronEl = document.createElement('span');
+                chevronEl.className = 'pcc-popover-chevron';
+                chevronEl.textContent = '›';
+                row.appendChild(chevronEl);
+            }
+
             row.addEventListener('click', (e) => {
                 e.stopPropagation();
-                dismissPccAncestorPopover();
-                onClick();
+                onSelect(item);
             });
+            col.appendChild(row);
         }
-        return row;
+        return col;
     }
 
-    // 1. "All Projects" — root
-    const isAtRoot = !state.selectedItemId;
-    const rootChildren = (state.items.items || []).filter(i => !i.isInbox);
-    popover.appendChild(createRow('📁', 'All Projects', isAtRoot, () => {
-        navigateProjectTo(null);
-    }, rootChildren.length));
+    // Build the column chain: root → each ancestor level → children of current
+    // Each column shows siblings at that level, with the path item highlighted
 
-    // 2. Ancestors
-    for (const ancestor of filteredAncestors) {
-        const icon = ancestor.icon || '📁';
-        const childCount = (ancestor.children || []).filter(c => !c.isInbox).length;
-        popover.appendChild(createRow(icon, ancestor.name, false, () => {
-            navigateProjectTo(ancestor.id);
-        }, childCount));
+    // Determine the full path: [root-level items] → [ancestor[0]'s siblings] → ... → [current's siblings] → [current's children]
+    // But we show: column for each level in the ancestry chain
+
+    // Column 0: root-level items
+    const rootItems = (state.items.items || []).filter(i => !i.isInbox).map(i => ({
+        id: i.id, name: i.name, icon: i.icon || '📁', children: i.children
+    }));
+
+    // Insert "All Projects" pseudo-item at root if we're at root level
+    const fullPath = [...filteredAncestors];
+    if (focusedItem && !focusedItem.isInbox) fullPath.push(focusedItem);
+
+    // The selected item at each level
+    const selectedAtLevel = fullPath.map(a => a.id);
+
+    // Navigate handler: navigate and close
+    function handleNavigate(item) {
+        dismissPccAncestorPopover();
+        navigateProjectTo(item.id === '_root' ? null : item.id);
     }
 
-    // 3. Current item
-    if (focusedItem && !focusedItem.isInbox) {
-        const icon = focusedItem.icon || '📁';
-        const childCount = (focusedItem.children || []).filter(c => !c.isInbox).length;
-        popover.appendChild(createRow(icon, focusedItem.name, true, null, childCount));
+    // Interactive columns: clicking selects an item (shows children in next column).
+    // Clicking an already-selected item navigates to it. Clicking a leaf navigates immediately.
+    function rebuildColumns(pathIds) {
+        columnsWrap.innerHTML = '';
 
-        // 4. Children (below divider)
-        const children = (focusedItem.children || []).filter(c => !c.isInbox);
-        if (children.length > 0) {
-            const divider = document.createElement('div');
-            divider.className = 'pcc-popover-divider';
-            popover.appendChild(divider);
-
-            for (const child of children) {
-                const cIcon = child.icon || (child.children && child.children.length > 0 ? '📁' : '📄');
-                const cChildCount = (child.children || []).length;
-                popover.appendChild(createRow(cIcon, child.name, false, () => {
-                    navigateProjectTo(child.id);
-                }, cChildCount > 0 ? cChildCount : undefined));
-            }
+        function makeHandler(depth, item, currentPathIds) {
+            return () => {
+                const kids = (item.children || []).filter(c => !c.isInbox);
+                const isAlreadySelected = currentPathIds[depth] === item.id;
+                if (kids.length > 0 && !isAlreadySelected) {
+                    // Drill in: show children in next column
+                    rebuildColumns([...currentPathIds.slice(0, depth), item.id]);
+                } else {
+                    // Navigate: leaf item or re-click on selected
+                    handleNavigate(item);
+                }
+            };
         }
+
+        // Column 0: root items
+        const col0SelectedId = pathIds.length > 0 ? pathIds[0] : null;
+        const col0 = createColumn(rootItems, col0SelectedId, (item) => {
+            makeHandler(0, item, pathIds)();
+        });
+        columnsWrap.appendChild(col0);
+
+        // Subsequent columns based on pathIds
+        let currentParent = rootItems.find(i => i.id === pathIds[0]);
+        for (let depth = 1; depth <= pathIds.length; depth++) {
+            if (!currentParent) break;
+            const siblings = (currentParent.children || []).filter(c => !c.isInbox).map(c => ({
+                id: c.id, name: c.name, icon: c.icon || (c.children && c.children.length > 0 ? '📁' : '📄'), children: c.children
+            }));
+            if (siblings.length === 0) break;
+
+            const selectedId = depth < pathIds.length ? pathIds[depth] : null;
+            const capturedDepth = depth;
+            const capturedPathIds = [...pathIds];
+            const col = createColumn(siblings, selectedId, (item) => {
+                makeHandler(capturedDepth, item, capturedPathIds)();
+            });
+            columnsWrap.appendChild(col);
+
+            currentParent = siblings.find(s => s.id === pathIds[depth]);
+        }
+
+        // Scroll to show the rightmost column
+        requestAnimationFrame(() => {
+            columnsWrap.scrollLeft = columnsWrap.scrollWidth;
+        });
     }
+
+    // Initial build: show the full path
+    rebuildColumns(selectedAtLevel);
+
+    popover.appendChild(columnsWrap);
 
     // Position the popover
     document.body.appendChild(popover);
     _pccPopoverEl = popover;
 
     const triggerRect = triggerEl.getBoundingClientRect();
-    const popoverRect = popover.getBoundingClientRect();
 
     // Default: below the trigger, left-aligned
     let top = triggerRect.bottom + 4;
     let left = triggerRect.left;
 
+    // Measure after adding to DOM
+    const popoverRect = popover.getBoundingClientRect();
+
     // Clamp: don't overflow right edge
     if (left + popoverRect.width > window.innerWidth - 8) {
         left = window.innerWidth - popoverRect.width - 8;
     }
-    // Clamp: don't overflow left edge
     if (left < 8) left = 8;
 
-    // Flip above if not enough space below
+    // Clamp: don't overflow bottom edge; flip above if needed
     if (top + popoverRect.height > window.innerHeight - 8) {
         top = triggerRect.top - popoverRect.height - 4;
     }
+    if (top < 8) top = 8;
 
     popover.style.left = `${left}px`;
     popover.style.top = `${top}px`;

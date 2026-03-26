@@ -11732,15 +11732,14 @@ body[data-copilot-mode="inline"] #copilot-fab { display: none !important; }
 .pcc-ancestor-popover {
     position: fixed;
     z-index: 10000;
-    min-width: 180px;
-    max-width: 280px;
     background: var(--paper);
     border: 1px dashed var(--pencil-ghost);
     border-radius: var(--radius);
     box-shadow: 2px 3px 8px rgba(0, 0, 0, 0.08);
-    padding: 4px 0;
     animation: pcc-popover-in 0.15s ease both;
     overflow: hidden;
+    max-width: calc(100vw - 16px);
+    max-height: calc(100vh - 16px);
 }
 
 @keyframes pcc-popover-in {
@@ -11748,17 +11747,40 @@ body[data-copilot-mode="inline"] #copilot-fab { display: none !important; }
     to   { opacity: 1; transform: translateY(0); }
 }
 
+.pcc-columns-wrap {
+    display: flex;
+    overflow-x: auto;
+    overflow-y: hidden;
+    max-width: calc(100vw - 16px);
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+}
+
+.pcc-column {
+    min-width: 170px;
+    max-width: 220px;
+    flex-shrink: 0;
+    padding: 4px 0;
+    overflow-y: auto;
+    max-height: min(320px, calc(100vh - 80px));
+    border-right: 1px dashed var(--pencil-ghost);
+}
+
+.pcc-column:last-child {
+    border-right: none;
+}
+
 .pcc-popover-item {
     display: flex;
     align-items: center;
     gap: 6px;
-    padding: 6px 12px;
+    padding: 5px 10px;
     cursor: pointer;
     font-size: 15px;
     font-family: 'Caveat', cursive;
     color: var(--pencil-soft);
     transition: background var(--dur) var(--ease);
-    min-height: 32px;
+    min-height: 30px;
     white-space: nowrap;
     overflow: hidden;
 }
@@ -11772,11 +11794,6 @@ body[data-copilot-mode="inline"] #copilot-fab { display: none !important; }
     font-weight: 700;
     color: var(--pencil);
     background: rgba(255, 243, 168, 0.2);
-    cursor: default;
-}
-
-.pcc-popover-item.pcc-popover-current:hover {
-    background: rgba(255, 243, 168, 0.2);
 }
 
 .pcc-popover-icon {
@@ -11789,6 +11806,16 @@ body[data-copilot-mode="inline"] #copilot-fab { display: none !important; }
     overflow: hidden;
     text-overflow: ellipsis;
     min-width: 0;
+    flex: 1;
+}
+
+.pcc-popover-chevron {
+    flex-shrink: 0;
+    font-size: 14px;
+    color: var(--pencil-faint);
+    line-height: 1;
+    margin-left: auto;
+    padding-left: 4px;
 }
 
 .pcc-popover-count {
