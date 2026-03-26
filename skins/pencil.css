@@ -11447,7 +11447,7 @@ select.schedule-leadtime-input {
     font-size: 13px; color: #333; line-height: 1.4;
     font-family: 'Patrick Hand', 'Comic Sans MS', cursive;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-    flex: 1; min-width: 0;
+    flex: 1; min-width: 0; text-align: start;
 }
 .copilot-float-toast-close {
     background: none; border: none; color: #888;
@@ -11516,6 +11516,7 @@ select.schedule-leadtime-input {
     display: block; padding: 0 0 4px 0;
     border-bottom: 1px solid rgba(0,0,0,0.06);
     font-family: 'Patrick Hand', 'Comic Sans MS', cursive;
+    text-align: start;
 }
 .copilot-float-trigger-badge {
     display: inline-block; font-size: 11px; color: #d4690e;
@@ -11525,7 +11526,7 @@ select.schedule-leadtime-input {
 .copilot-float-turn-ai {
     flex: 1; font-size: 14px; color: #333; line-height: 1.6;
     font-family: 'Patrick Hand', 'Comic Sans MS', cursive;
-    overflow-y: auto; min-height: 60px;
+    overflow-y: auto; min-height: 60px; text-align: start;
 }
 .copilot-float-turn-ai p { margin: 0 0 6px 0; }
 .copilot-float-turn-ai p:last-child { margin-bottom: 0; }

@@ -12679,7 +12679,7 @@ select.schedule-leadtime-input {
 .copilot-float-toast-text {
     font-size: 13px; color: var(--duo-text); font-weight: 700; line-height: 1.4;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-    flex: 1; min-width: 0;
+    flex: 1; min-width: 0; text-align: start;
 }
 .copilot-float-toast-close {
     background: none; border: none; color: var(--duo-text-faint);
@@ -12744,6 +12744,7 @@ select.schedule-leadtime-input {
     font-size: 12px; color: var(--duo-text-faint); font-style: italic;
     display: block; padding: 0 0 4px 0;
     border-bottom: 2px solid var(--duo-border);
+    text-align: start;
 }
 .copilot-float-trigger-badge {
     display: inline-block; font-size: 11px; color: var(--duo-green);
@@ -12752,7 +12753,7 @@ select.schedule-leadtime-input {
 }
 .copilot-float-turn-ai {
     flex: 1; font-size: 14px; color: var(--duo-text); line-height: 1.6;
-    font-weight: 700; overflow-y: auto; min-height: 60px;
+    font-weight: 700; overflow-y: auto; min-height: 60px; text-align: start;
 }
 .copilot-float-turn-ai p { margin: 0 0 6px 0; }
 .copilot-float-turn-ai p:last-child { margin-bottom: 0; }
