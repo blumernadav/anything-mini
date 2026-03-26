@@ -96,7 +96,10 @@ function createGeminiAdapter(apiKey, model) {
                     const parts = [];
                     if (m.content) parts.push({ text: m.content });
                     for (const tc of m.toolCalls) {
-                        parts.push({ functionCall: { name: tc.name, args: tc.args || {} } });
+                        const part = { functionCall: { name: tc.name, args: tc.args || {} } };
+                        // Gemini 3 models require thoughtSignature to be preserved
+                        if (tc.thoughtSignature) part.thoughtSignature = tc.thoughtSignature;
+                        parts.push(part);
                     }
                     return { role: 'model', parts };
                 }
@@ -127,10 +130,13 @@ function createGeminiAdapter(apiKey, model) {
                     text += part.text;
                 }
                 if (part.functionCall) {
-                    toolCalls.push({
+                    const tc = {
                         name: part.functionCall.name,
                         args: part.functionCall.args || {}
-                    });
+                    };
+                    // Preserve thoughtSignature for Gemini 3 models (required for multi-turn function calling)
+                    if (part.thoughtSignature) tc.thoughtSignature = part.thoughtSignature;
+                    toolCalls.push(tc);
                 }
             }
 
