@@ -1,0 +1,393 @@
+{
+  "aiName": "Bobby",
+  "streak": {
+    "count": 8,
+    "longestStreak": 9,
+    "lastCheckInDate": "2026-03-25"
+  },
+  "aiModel": "gemini-3-flash-preview",
+  "triggers": {
+    "heartbeat": {
+      "enabled": true
+    },
+    "work_stretch": {
+      "enabled": true
+    },
+    "idle_too_long": {
+      "config": {
+        "idleMinutes": 2
+      },
+      "enabled": true
+    },
+    "session_ending": {
+      "enabled": true
+    },
+    "session_started": {
+      "enabled": true
+    },
+    "session_overtime": {
+      "enabled": true
+    },
+    "session_completed": {
+      "enabled": true
+    },
+    "day_end_approaching": {
+      "enabled": true
+    },
+    "day_start_reminder": {
+      "enabled": true
+    }
+  },
+  "aiLanguage": "",
+  "aiProvider": "gemini",
+  "dayEndHour": 22,
+  "sleepGuard": false,
+  "dayEndMinute": 0,
+  "dayOverrides": {
+    "2026-02-08": {
+      "dayEndHour": 6,
+      "dayEndMinute": 0,
+      "dayStartHour": 10,
+      "dayStartMinute": 30
+    },
+    "2026-02-09": {
+      "dayEndHour": 2,
+      "dayEndMinute": 30,
+      "dayStartHour": 12,
+      "dayStartMinute": 15
+    },
+    "2026-02-10": {
+      "dayEndHour": 3,
+      "dayEndMinute": 30,
+      "dayStartHour": 9,
+      "dayStartMinute": 30
+    },
+    "2026-02-11": {
+      "dayEndHour": 4,
+      "dayEndMinute": 0,
+      "dayStartHour": 9,
+      "dayStartMinute": 30
+    },
+    "2026-02-12": {
+      "dayEndHour": 5,
+      "dayEndMinute": 0,
+      "dayStartHour": 10,
+      "dayStartMinute": 15
+    },
+    "2026-02-13": {
+      "dayEndHour": 2,
+      "dayEndMinute": 12,
+      "dayStartHour": 8,
+      "dayStartMinute": 30
+    },
+    "2026-02-14": {
+      "dayEndHour": 2,
+      "dayEndMinute": 10,
+      "dayStartHour": 12,
+      "dayStartMinute": 0
+    },
+    "2026-02-15": {
+      "dayEndHour": 4,
+      "dayEndMinute": 23,
+      "dayStartHour": 10,
+      "dayStartMinute": 0
+    },
+    "2026-02-16": {
+      "dayEndHour": 3,
+      "dayEndMinute": 0,
+      "dayStartHour": 10,
+      "dayStartMinute": 45
+    },
+    "2026-02-17": {
+      "dayEndHour": 2,
+      "dayEndMinute": 30,
+      "dayStartHour": 8,
+      "dayStartMinute": 0
+    },
+    "2026-02-18": {
+      "dayEndHour": 2,
+      "dayEndMinute": 30,
+      "dayStartHour": 11,
+      "dayStartMinute": 0
+    },
+    "2026-02-19": {
+      "dayEndHour": 2,
+      "dayEndMinute": 30,
+      "dayStartHour": 9,
+      "dayStartMinute": 10
+    },
+    "2026-02-20": {
+      "dayEndHour": 0,
+      "dayEndMinute": 30,
+      "dayStartHour": 6,
+      "dayStartMinute": 0
+    },
+    "2026-02-21": {
+      "dayEndHour": 1,
+      "dayEndMinute": 0,
+      "dayStartHour": 8,
+      "dayStartMinute": 0
+    },
+    "2026-02-22": {
+      "dayEndHour": 0,
+      "dayEndMinute": 30,
+      "dayStartHour": 8,
+      "dayStartMinute": 30
+    },
+    "2026-02-23": {
+      "dayEndHour": 1,
+      "dayEndMinute": 30,
+      "dayStartHour": 8,
+      "dayStartMinute": 0
+    },
+    "2026-02-24": {
+      "dayEndHour": 2,
+      "dayEndMinute": 17,
+      "dayStartHour": 10,
+      "dayStartMinute": 30
+    },
+    "2026-02-25": {
+      "dayEndHour": 2,
+      "dayEndMinute": 30,
+      "dayStartHour": 9,
+      "dayStartMinute": 0
+    },
+    "2026-02-26": {
+      "dayEndHour": 0,
+      "dayEndMinute": 30,
+      "dayStartHour": 9,
+      "dayStartMinute": 0
+    },
+    "2026-02-27": {
+      "dayEndHour": 3,
+      "dayEndMinute": 57,
+      "dayStartHour": 8,
+      "dayStartMinute": 0
+    },
+    "2026-02-28": {
+      "dayEndHour": 2,
+      "dayEndMinute": 30,
+      "dayStartHour": 8,
+      "dayStartMinute": 0
+    },
+    "2026-03-04": {
+      "dayEndHour": 3,
+      "dayEndMinute": 57,
+      "dayStartHour": 8,
+      "dayStartMinute": 0
+    },
+    "2026-03-05": {
+      "dayClosed": true,
+      "dayEndHour": 2,
+      "dayStarted": true,
+      "dayClosedAt": 1772799153054,
+      "dayEndMinute": 30,
+      "dayStartHour": 10,
+      "dayStartMinute": 30
+    },
+    "2026-03-06": {
+      "dayClosed": true,
+      "dayEndHour": 2,
+      "dayStarted": true,
+      "dayClosedAt": 1772843302717,
+      "dayEndMinute": 28,
+      "dayStartHour": 8,
+      "dayStartMinute": 0
+    },
+    "2026-03-07": {
+      "dayClosed": true,
+      "dayEndHour": 3,
+      "dayStarted": true,
+      "dayClosedAt": 1772933556560,
+      "dayEndMinute": 33,
+      "dayStartHour": 10,
+      "dayStartMinute": 57
+    },
+    "2026-03-08": {
+      "dayClosed": true,
+      "dayEndHour": 1,
+      "dayStarted": true,
+      "dayEndMinute": 30,
+      "dayStartHour": 11,
+      "dayStartMinute": 20,
+      "dayClosedAt": 1773046273022
+    },
+    "2026-03-09": {
+      "dayStartHour": 10,
+      "dayStartMinute": 48,
+      "dayEndHour": 3,
+      "dayEndMinute": 48,
+      "dayStarted": true,
+      "dayClosed": true,
+      "dayClosedAt": 1773144377154
+    },
+    "2026-03-10": {
+      "dayStartHour": 8,
+      "dayStartMinute": 0,
+      "dayStarted": true,
+      "dayClosed": true,
+      "dayEndHour": 1,
+      "dayEndMinute": 30,
+      "dayClosedAt": 1773185400000
+    },
+    "2026-03-11": {
+      "dayStartHour": 9,
+      "dayStartMinute": 20,
+      "dayStarted": true,
+      "dayClosed": true,
+      "dayEndHour": 1,
+      "dayEndMinute": 31,
+      "dayClosedAt": 1773271895416
+    },
+    "2026-03-12": {
+      "dayStartHour": 11,
+      "dayStartMinute": 43,
+      "dayStarted": true,
+      "dayClosed": true,
+      "dayEndHour": 3,
+      "dayEndMinute": 15,
+      "dayClosedAt": 1773364538575
+    },
+    "2026-03-14": {
+      "dayStartHour": 12,
+      "dayStartMinute": 14,
+      "dayStarted": true,
+      "dayClosed": true,
+      "dayEndHour": 1,
+      "dayEndMinute": 30,
+      "dayClosedAt": 1773531000000
+    },
+    "2026-03-16": {
+      "dayStartHour": 10,
+      "dayStartMinute": 30,
+      "dayStarted": true,
+      "dayClosed": true,
+      "dayEndHour": 0,
+      "dayEndMinute": 46,
+      "dayClosedAt": 1773701182712
+    },
+    "2026-03-17": {
+      "dayStartHour": 9,
+      "dayStartMinute": 50,
+      "dayStarted": true,
+      "dayClosed": true,
+      "dayEndHour": 1,
+      "dayEndMinute": 0,
+      "dayClosedAt": 1773819966277
+    },
+    "2026-03-18": {
+      "dayStartHour": 9,
+      "dayStartMinute": 46,
+      "dayStarted": true,
+      "dayClosed": true,
+      "dayEndHour": 4,
+      "dayEndMinute": 30,
+      "dayClosedAt": 1773887400000
+    },
+    "2026-03-19": {
+      "dayStartHour": 10,
+      "dayStartMinute": 1,
+      "dayStarted": true,
+      "dayClosed": true,
+      "dayEndHour": 23,
+      "dayEndMinute": 30,
+      "dayClosedAt": 1773955800000
+    },
+    "2026-03-20": {
+      "dayStartHour": 9,
+      "dayStartMinute": 52,
+      "dayStarted": true,
+      "dayClosed": true,
+      "dayEndHour": 2,
+      "dayEndMinute": 30,
+      "dayClosedAt": 1774079606020
+    },
+    "2026-03-21": {
+      "dayStartHour": 9,
+      "dayStartMinute": 54,
+      "dayEndHour": 4,
+      "dayEndMinute": 9,
+      "dayStarted": true,
+      "dayClosed": true,
+      "dayClosedAt": 1774145390284
+    },
+    "2026-03-22": {
+      "dayStartHour": 11,
+      "dayStartMinute": 46,
+      "dayEndHour": 4,
+      "dayEndMinute": 51,
+      "dayStarted": true,
+      "dayClosed": true,
+      "dayClosedAt": 1774234315990
+    },
+    "2026-03-23": {
+      "dayStartHour": 10,
+      "dayStartMinute": 14,
+      "dayEndHour": 2,
+      "dayEndMinute": 31,
+      "dayStarted": true,
+      "dayClosed": true,
+      "dayClosedAt": 1774312272584
+    },
+    "2026-03-24": {
+      "dayStartHour": 11,
+      "dayStartMinute": 12,
+      "dayEndHour": 1,
+      "dayEndMinute": 38,
+      "dayStarted": true,
+      "dayClosed": true,
+      "dayClosedAt": 1774395513586
+    },
+    "2026-03-25": {
+      "dayStartHour": 10,
+      "dayStartMinute": 57,
+      "dayEndHour": 1,
+      "dayEndMinute": 2,
+      "dayStarted": true,
+      "dayClosed": true,
+      "dayClosedAt": 1774479748569
+    },
+    "2026-03-26": {
+      "dayStartHour": 8,
+      "dayStartMinute": 53,
+      "dayStarted": true,
+      "dayClosed": false,
+      "dayEndHour": 1,
+      "dayEndMinute": 30
+    }
+  },
+  "dayStartHour": 8,
+  "weekStartDay": 0,
+  "aiPersonality": "Sarcastic, funny",
+  "commitmentMode": "gentle",
+  "dayStartMinute": 0,
+  "triggerRateLimit": 100,
+  "commitmentHistory": [
+    {
+      "date": "2026-03-04",
+      "kept": true,
+      "name": "לדבר עם יונתן",
+      "itemId": 361,
+      "context": "2026-03-03",
+      "timestamp": 1772583514193
+    },
+    {
+      "date": "2026-03-06",
+      "kept": false,
+      "name": "לדבר עם יונתן",
+      "itemId": 361,
+      "context": "2026-03-05",
+      "timestamp": 1772799149155
+    },
+    {
+      "date": "2026-03-06",
+      "kept": false,
+      "name": "תסריט",
+      "itemId": 419,
+      "context": "2026-03-05",
+      "timestamp": 1772799149155
+    }
+  ],
+  "aiCustomInstructions": "",
+  "error": "Network unavailable"
+}

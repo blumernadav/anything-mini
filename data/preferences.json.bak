@@ -1,0 +1,129 @@
+{
+  "skin": "duolingo-dark",
+  "showDone": false,
+  "showUnscheduled": true,
+  "panels": {
+    "left": 417,
+    "right": 406
+  },
+  "hidePastEntries": true,
+  "workingOn": {
+    "itemId": 1633,
+    "itemName": "test intentions!",
+    "projectName": "Inbox",
+    "startTime": 1772462413587,
+    "targetEndTime": 1772464213548
+  },
+  "selectedItemId": "",
+  "onBreak": null,
+  "timelineViewDate": "2026-03-02T13:44:43.665Z",
+  "scheduleFilter": "scheduled+unscheduled",
+  "collapsedGroups": [
+    78,
+    181,
+    29,
+    157,
+    240,
+    242,
+    164,
+    303,
+    256,
+    261,
+    199,
+    191,
+    282,
+    70,
+    487,
+    460,
+    155,
+    144,
+    167,
+    319,
+    28,
+    423,
+    568,
+    137,
+    300,
+    92,
+    1541,
+    1568,
+    1567,
+    1569,
+    1565,
+    601,
+    602,
+    466
+  ],
+  "viewHorizon": "day",
+  "weekCollapsedDays": {
+    "2026-02-22": true,
+    "2026-02-23": true,
+    "2026-02-24": true,
+    "2026-02-25": true,
+    "2026-02-26": true,
+    "2026-02-27": true,
+    "2026-02-28": true,
+    "2026-03-01": false
+  },
+  "showSleepTimes": true,
+  "weekExpandedGroups": {
+    "weekGroups_2026-02-12": [
+      0,
+      17,
+      92,
+      9
+    ],
+    "weekGroups_2026-02-13": [],
+    "weekGroups_2026-02-15": [
+      300
+    ],
+    "weekGroups_2026-02-14": [],
+    "weekGroups_2026-02-25": [],
+    "weekGroups_2026-02-24": [
+      145
+    ],
+    "weekGroups_2026-03-01": [
+      17,
+      0
+    ]
+  },
+  "focusStack": [],
+  "projectTreeScrollTop": 316,
+  "darkMode": "light",
+  "skinFamily": "duolingo",
+  "sessionIndex": 0,
+  "epochFilter": "ongoing",
+  "ongoingPastWeeks": 0,
+  "ongoingFutureWeeks": 2,
+  "resolvedDivergences": [],
+  "divergenceBannerExpanded": true,
+  "divergencePlansExpanded": [
+    297,
+    314,
+    207,
+    381,
+    454,
+    441,
+    639,
+    842
+  ],
+  "pastDisplayMode": "hide",
+  "deepView": false,
+  "bookmarks": [
+    9
+  ],
+  "focusQueue": [
+    {
+      "itemId": 9,
+      "itemName": "anything",
+      "projectName": null,
+      "durationMs": 0
+    }
+  ],
+  "focusQueueSettings": {
+    "autoAdvance": false,
+    "breakMinutes": 0
+  },
+  "queueSessionStart": 1772462413587,
+  "pwaInstallDismissed": true
+}
