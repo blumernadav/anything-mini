@@ -10990,14 +10990,35 @@ body[data-copilot-mode="inline"] #copilot-fab { display: none !important; }
 .pcc-ancestor-popover {
     position: fixed;
     z-index: 10000;
-    min-width: 160px;
-    max-width: 260px;
     background: var(--w-bg);
     border: 2px solid;
     border-color: var(--w-white) var(--w-darker) var(--w-darker) var(--w-white);
-    padding: 2px;
     border-radius: 0;
     overflow: hidden;
+    max-width: calc(100vw - 16px);
+    max-height: calc(100vh - 16px);
+}
+
+.pcc-columns-wrap {
+    display: flex;
+    overflow-x: auto;
+    overflow-y: hidden;
+    max-width: calc(100vw - 16px);
+    -webkit-overflow-scrolling: touch;
+}
+
+.pcc-column {
+    min-width: 150px;
+    max-width: 200px;
+    flex-shrink: 0;
+    padding: 2px 0;
+    overflow-y: auto;
+    max-height: min(300px, calc(100vh - 80px));
+    border-right: 1px solid var(--w-dark);
+}
+
+.pcc-column:last-child {
+    border-right: none;
 }
 
 .pcc-popover-item {
@@ -11024,12 +11045,6 @@ body[data-copilot-mode="inline"] #copilot-fab { display: none !important; }
     font-weight: 700;
     background: var(--w-light);
     color: var(--w-text);
-    cursor: default;
-}
-
-.pcc-popover-item.pcc-popover-current:hover {
-    background: var(--w-light);
-    color: var(--w-text);
 }
 
 .pcc-popover-icon {
@@ -11042,6 +11057,16 @@ body[data-copilot-mode="inline"] #copilot-fab { display: none !important; }
     overflow: hidden;
     text-overflow: ellipsis;
     min-width: 0;
+    flex: 1;
+}
+
+.pcc-popover-chevron {
+    flex-shrink: 0;
+    font-size: 13px;
+    color: var(--w-dark);
+    line-height: 1;
+    margin-left: auto;
+    padding-left: 4px;
 }
 
 .pcc-popover-count {
