@@ -11740,6 +11740,33 @@ body[data-copilot-mode="inline"] #copilot-fab { display: none !important; }
     min-height: 20px;
 }
 
+.pcc-nav-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    cursor: pointer;
+    color: var(--text-faint);
+    transition: all var(--dur) var(--ease);
+    flex-shrink: 0;
+    user-select: none;
+    padding: 0;
+}
+
+.pcc-nav-btn:hover {
+    background: var(--bg-hover);
+    color: var(--text-soft);
+}
+
+.pcc-nav-btn svg {
+    width: 14px;
+    height: 14px;
+}
+
 .pcc-icon {
     font-size: 14px;
     flex-shrink: 0;
@@ -11884,27 +11911,44 @@ body[data-copilot-mode="inline"] #copilot-fab { display: none !important; }
     to   { opacity: 1; transform: translateY(0); }
 }
 
-.pcc-columns-wrap {
-    display: flex;
-    overflow-x: auto;
-    overflow-y: hidden;
-    max-width: calc(100vw - 16px);
-    scroll-behavior: smooth;
-    -webkit-overflow-scrolling: touch;
-}
-
-.pcc-column {
-    min-width: 170px;
-    max-width: 220px;
-    flex-shrink: 0;
+.pcc-popover-list {
     padding: 4px 0;
     overflow-y: auto;
     max-height: min(320px, calc(100vh - 80px));
-    border-right: 1px solid var(--border);
+    min-width: 180px;
+    max-width: 260px;
 }
 
-.pcc-column:last-child {
-    border-right: none;
+.pcc-popover-back {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 5px 10px;
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--text-faint);
+    transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
+    min-height: 28px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 2px;
+}
+
+.pcc-popover-back:hover {
+    background: var(--accent-dim);
+    color: var(--text-soft);
+}
+
+.pcc-popover-back-arrow {
+    flex-shrink: 0;
+    font-size: 12px;
+    line-height: 1;
+}
+
+.pcc-popover-back-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
 }
 
 .pcc-popover-item {

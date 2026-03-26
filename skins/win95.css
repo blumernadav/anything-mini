@@ -10891,6 +10891,37 @@ body[data-copilot-mode="inline"] #copilot-fab { display: none !important; }
     min-height: 18px;
 }
 
+.pcc-nav-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 14px;
+    cursor: pointer;
+    color: var(--w-text);
+    flex-shrink: 0;
+    user-select: none;
+    padding: 0;
+    border: 2px solid;
+    border-color: var(--w-white) var(--w-darker) var(--w-darker) var(--w-white);
+    background: var(--w-bg);
+    border-radius: 0;
+}
+
+.pcc-nav-btn:hover {
+    background: var(--w-light);
+}
+
+.pcc-nav-btn:active {
+    border-color: var(--w-darker) var(--w-white) var(--w-white) var(--w-darker);
+}
+
+.pcc-nav-btn svg {
+    width: 10px;
+    height: 10px;
+    stroke-width: 2;
+}
+
 .pcc-icon { font-size: 13px; flex-shrink: 0; line-height: 1; }
 
 .pcc-name {
@@ -11009,26 +11040,45 @@ body[data-copilot-mode="inline"] #copilot-fab { display: none !important; }
     max-height: calc(100vh - 16px);
 }
 
-.pcc-columns-wrap {
-    display: flex;
-    overflow-x: auto;
-    overflow-y: hidden;
-    max-width: calc(100vw - 16px);
-    -webkit-overflow-scrolling: touch;
-}
-
-.pcc-column {
-    min-width: 150px;
-    max-width: 200px;
-    flex-shrink: 0;
+.pcc-popover-list {
     padding: 2px 0;
     overflow-y: auto;
     max-height: min(300px, calc(100vh - 80px));
-    border-right: 1px solid var(--w-dark);
+    min-width: 160px;
+    max-width: 240px;
 }
 
-.pcc-column:last-child {
-    border-right: none;
+.pcc-popover-back {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    cursor: pointer;
+    font-size: 11px;
+    font-family: inherit;
+    color: var(--w-disabled);
+    min-height: 22px;
+    border-bottom: 1px solid var(--w-dark);
+    margin-bottom: 2px;
+    user-select: none;
+}
+
+.pcc-popover-back:hover {
+    background: var(--w-title);
+    color: var(--w-white);
+}
+
+.pcc-popover-back-arrow {
+    flex-shrink: 0;
+    font-size: 11px;
+    line-height: 1;
+}
+
+.pcc-popover-back-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
 }
 
 .pcc-popover-item {

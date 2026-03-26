@@ -11629,6 +11629,34 @@ body[data-copilot-mode="inline"] #copilot-fab { display: none !important; }
     min-height: 20px;
 }
 
+.pcc-nav-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border: 1px dashed var(--pencil-ghost);
+    border-radius: 50%;
+    background: transparent;
+    cursor: pointer;
+    color: var(--pencil-faint);
+    flex-shrink: 0;
+    user-select: none;
+    padding: 0;
+    transition: all var(--dur) var(--ease);
+}
+
+.pcc-nav-btn:hover {
+    border-style: solid;
+    border-color: var(--pencil-soft);
+    color: var(--pencil);
+}
+
+.pcc-nav-btn svg {
+    width: 13px;
+    height: 13px;
+}
+
 .pcc-icon { font-size: 14px; flex-shrink: 0; line-height: 1; }
 
 .pcc-name {
@@ -11757,27 +11785,46 @@ body[data-copilot-mode="inline"] #copilot-fab { display: none !important; }
     to   { opacity: 1; transform: translateY(0); }
 }
 
-.pcc-columns-wrap {
-    display: flex;
-    overflow-x: auto;
-    overflow-y: hidden;
-    max-width: calc(100vw - 16px);
-    scroll-behavior: smooth;
-    -webkit-overflow-scrolling: touch;
-}
-
-.pcc-column {
-    min-width: 170px;
-    max-width: 220px;
-    flex-shrink: 0;
+.pcc-popover-list {
     padding: 4px 0;
     overflow-y: auto;
     max-height: min(320px, calc(100vh - 80px));
-    border-right: 1px dashed var(--pencil-ghost);
+    min-width: 180px;
+    max-width: 260px;
 }
 
-.pcc-column:last-child {
-    border-right: none;
+.pcc-popover-back {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 5px 10px;
+    cursor: pointer;
+    font-size: 14px;
+    font-family: 'Caveat', cursive;
+    color: var(--pencil-faint);
+    transition: background var(--dur) var(--ease);
+    min-height: 28px;
+    border-bottom: 1px dashed var(--pencil-ghost);
+    margin-bottom: 2px;
+}
+
+.pcc-popover-back:hover {
+    background: rgba(255, 243, 168, 0.3);
+    color: var(--pencil-soft);
+}
+
+.pcc-popover-back-arrow {
+    flex-shrink: 0;
+    font-size: 14px;
+    font-family: 'Caveat', cursive;
+    line-height: 1;
+}
+
+.pcc-popover-back-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
 }
 
 .pcc-popover-item {
