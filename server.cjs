@@ -12,16 +12,26 @@ const PORT = process.env.PORT || 3002;
 
 // JSON file store factory — used as fallback when no DATABASE_URL
 function createJsonStore(filePath, defaultValue) {
+    const getDefault = () => typeof defaultValue === 'function' ? defaultValue() : defaultValue;
     return {
         read() {
             if (!fs.existsSync(filePath)) {
-                return typeof defaultValue === 'function' ? defaultValue() : defaultValue;
+                return getDefault();
             }
-            const data = fs.readFileSync(filePath, 'utf8');
-            return JSON.parse(data);
+            try {
+                const data = fs.readFileSync(filePath, 'utf8');
+                if (!data.trim()) return getDefault();
+                return JSON.parse(data);
+            } catch (err) {
+                console.error(`[JsonStore] Error reading ${filePath}: ${err.message}, using default`);
+                return getDefault();
+            }
         },
         write(data) {
-            fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+            // Atomic write: write to temp file, then rename (prevents 0-byte corruption)
+            const tmpPath = filePath + '.tmp';
+            fs.writeFileSync(tmpPath, JSON.stringify(data, null, 2));
+            fs.renameSync(tmpPath, filePath);
         }
     };
 }
@@ -79,9 +89,8 @@ function notifyClients(type, excludeClientId, extraData) {
     }
 }
 
-// Push unread AI message count to all SSE clients
-function notifyAiUnread(count) {
-    notifyClients('ai_unread', null, { count });
+function notifyAiUnread(count, preview) {
+    notifyClients('ai_unread', null, { count, preview: preview || null });
 }
 
 // Middleware
@@ -321,64 +330,74 @@ app.put('/api/settings', async (req, res) => {
 
 // ============ Preferences API ============
 
+// Mutex to serialize preference writes — prevents race conditions where
+// concurrent PUT requests cause the trigger engine to miss state transitions.
+let _prefMutex = Promise.resolve();
+
 app.get('/api/preferences', async (req, res) => {
     res.json(await preferencesStore.read());
 });
 
-app.put('/api/preferences', async (req, res) => {
-    const current = await preferencesStore.read();
-    const updated = { ...current, ...req.body };
+app.put('/api/preferences', (req, res) => {
+    // Chain through mutex so concurrent PUTs are processed sequentially.
+    // This ensures the trigger engine always sees clean state transitions.
+    _prefMutex = _prefMutex.then(async () => {
+        const current = await preferencesStore.read();
+        const updated = { ...current, ...req.body };
 
-    // Detect session_started event: workingOn went from falsy to truthy
-    console.log('[Trigger Debug] PUT /api/preferences — workingOn: current:', !!current.workingOn, 'body has workingOn:', 'workingOn' in req.body, 'updated:', !!updated.workingOn, 'triggerEngine:', !!triggerEngine);
-    if (!current.workingOn && updated.workingOn && triggerEngine) {
-        const targetDurationMin = updated.workingOn.targetEndTime
-            ? Math.round((updated.workingOn.targetEndTime - updated.workingOn.startTime) / 60000)
-            : null;
-        triggerEngine.fireEvent('session_started', {
-            itemName: updated.workingOn.itemName || updated.workingOn.text || 'unknown',
-            itemId: updated.workingOn.itemId,
-            targetDurationMin,
-            isBreak: false
-        }).catch(err => console.error('[Trigger] session_started event error:', err.message));
-    }
+        // Detect session_started event: workingOn went from falsy to truthy
+        if (!current.workingOn && updated.workingOn && triggerEngine) {
+            const targetDurationMin = updated.workingOn.targetEndTime
+                ? Math.round((updated.workingOn.targetEndTime - updated.workingOn.startTime) / 60000)
+                : null;
+            triggerEngine.fireEvent('session_started', {
+                itemName: updated.workingOn.itemName || updated.workingOn.text || 'unknown',
+                itemId: updated.workingOn.itemId,
+                targetDurationMin,
+                isBreak: false
+            }).catch(err => console.error('[Trigger] session_started event error:', err.message));
+        }
 
-    // Detect break started: onBreak went from falsy to truthy
-    if (!current.onBreak && updated.onBreak && triggerEngine) {
-        const targetDurationMin = updated.onBreak.targetEndTime
-            ? Math.round((updated.onBreak.targetEndTime - updated.onBreak.startTime) / 60000)
-            : null;
-        triggerEngine.fireEvent('session_started', {
-            itemName: 'Break',
-            targetDurationMin,
-            isBreak: true
-        }).catch(err => console.error('[Trigger] break_started event error:', err.message));
-    }
+        // Detect break started: onBreak went from falsy to truthy
+        if (!current.onBreak && updated.onBreak && triggerEngine) {
+            const targetDurationMin = updated.onBreak.targetEndTime
+                ? Math.round((updated.onBreak.targetEndTime - updated.onBreak.startTime) / 60000)
+                : null;
+            triggerEngine.fireEvent('session_started', {
+                itemName: 'Break',
+                targetDurationMin,
+                isBreak: true
+            }).catch(err => console.error('[Trigger] break_started event error:', err.message));
+        }
 
-    // Detect session_completed event: workingOn went from truthy to falsy
-    if (current.workingOn && !updated.workingOn && triggerEngine) {
-        const durationMs = current.workingOn.startTime ? (Date.now() - current.workingOn.startTime) : null;
-        triggerEngine.fireEvent('session_completed', {
-            itemName: current.workingOn.itemName || current.workingOn.text || 'unknown',
-            itemId: current.workingOn.itemId,
-            durationMs,
-            isBreak: false
-        }).catch(err => console.error('[Trigger] session_completed event error:', err.message));
-    }
+        // Detect session_completed event: workingOn went from truthy to falsy
+        if (current.workingOn && !updated.workingOn && triggerEngine) {
+            const durationMs = current.workingOn.startTime ? (Date.now() - current.workingOn.startTime) : null;
+            triggerEngine.fireEvent('session_completed', {
+                itemName: current.workingOn.itemName || current.workingOn.text || 'unknown',
+                itemId: current.workingOn.itemId,
+                durationMs,
+                isBreak: false
+            }).catch(err => console.error('[Trigger] session_completed event error:', err.message));
+        }
 
-    // Detect break completed: onBreak went from truthy to falsy
-    if (current.onBreak && !updated.onBreak && triggerEngine) {
-        const durationMs = current.onBreak.startTime ? (Date.now() - current.onBreak.startTime) : null;
-        triggerEngine.fireEvent('session_completed', {
-            itemName: 'Break',
-            durationMs,
-            isBreak: true
-        }).catch(err => console.error('[Trigger] break_completed event error:', err.message));
-    }
+        // Detect break completed: onBreak went from truthy to falsy
+        if (current.onBreak && !updated.onBreak && triggerEngine) {
+            const durationMs = current.onBreak.startTime ? (Date.now() - current.onBreak.startTime) : null;
+            triggerEngine.fireEvent('session_completed', {
+                itemName: 'Break',
+                durationMs,
+                isBreak: true
+            }).catch(err => console.error('[Trigger] break_completed event error:', err.message));
+        }
 
-    await preferencesStore.write(updated);
-    notifyClients('preferences', req.headers['x-client-id']);
-    res.json(updated);
+        await preferencesStore.write(updated);
+        notifyClients('preferences', req.headers['x-client-id']);
+        res.json(updated);
+    }).catch(err => {
+        console.error('[Preferences] Mutex handler error:', err.message);
+        if (!res.headersSent) res.status(500).json({ error: err.message });
+    });
 });
 
 // ============ AI Copilot API ============
@@ -490,22 +509,24 @@ app.post('/api/ai/execute', async (req, res) => {
         // Load settings from the correct store (DB or JSON)
         const execSettings = await settingsStore.read();
 
-        const { results, summary } = await executeAndContinue(toolCalls, recentHistory, (event) => {
+        const { results, summary, actions: execActions } = await executeAndContinue(toolCalls, recentHistory, (event) => {
             sendEvent(event);
         }, execSettings, { items: itemsStore, timeline: timelineStore, settings: settingsStore, preferences: preferencesStore });
 
         // Persist AI summary from continuation if any
         if (summary) {
-            chatData.messages.push({
+            const assistantMsg = {
                 role: 'assistant',
                 content: summary,
                 timestamp: Date.now()
-            });
+            };
+            if (execActions) assistantMsg.actions = execActions;
+            chatData.messages.push(assistantMsg);
             await chatStore.write(chatData);
         }
 
         // Send final result as SSE event
-        sendEvent({ type: 'done', results, summary });
+        sendEvent({ type: 'done', results, summary, actions: execActions || null });
         res.end();
     } catch (err) {
         console.error('AI execute error:', err);

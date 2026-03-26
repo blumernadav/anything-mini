@@ -16,6 +16,7 @@ const state = {
     timelineViewDate: new Date(), // which day is displayed in timeline
     pastDisplayMode: 'show', // 'hide' | 'show' — whether past entries are visible in timeline
     pastCardStyle: 'compact', // 'compact' | 'full' — card style for past entries (configured in Settings)
+    showOverflowPreview: false, // when true, show overflow items from broader horizons in empty actions
     showDone: false, // when true, done items are visible in actions and project tree
     showBlocked: true, // when true, blocked/waiting items are visible (default: show)
     scheduleFilter: 'scheduled+unscheduled', // 'scheduled' | 'scheduled+unscheduled' | 'all'
@@ -109,9 +110,13 @@ const api = {
     },
 };
 
-// Fire-and-forget preference save to backend
+// Sequentially-chained preference save — ensures PUT requests arrive in order,
+// preventing race conditions with server-side trigger detection.
+let _prefSaveChain = Promise.resolve();
 function savePref(key, value) {
-    api.put('/preferences', { [key]: value });
+    _prefSaveChain = _prefSaveChain
+        .then(() => api.put('/preferences', { [key]: value }))
+        .catch(err => console.error('[savePref] Failed:', key, err));
 }
 
 // Persist focusStack to backend (fire-and-forget)
@@ -145,6 +150,90 @@ function patchItemOptimistic(itemId, updates) {
     return api.patch(`/items/${itemId}`, updates).finally(() => {
         _inflightItemPatches--;
     });
+}
+
+// ── Priority parser ──
+// Extracts trailing ! or ? markers from item name text.
+// ! = high priority (more = higher), ? = low priority (more = lower)
+// Returns { priority: number, cleanName: string }
+function parsePriority(text) {
+    if (!text) return { priority: 0, cleanName: text || '' };
+    // Match trailing !'s or ?'s (any number, with optional leading space)
+    const highMatch = text.match(/\s*(!+)\s*$/);
+    if (highMatch) {
+        return {
+            priority: highMatch[1].length,
+            cleanName: text.slice(0, text.length - highMatch[0].length).trim()
+        };
+    }
+    const lowMatch = text.match(/\s*(\?+)\s*$/);
+    if (lowMatch) {
+        return {
+            priority: -lowMatch[1].length,
+            cleanName: text.slice(0, text.length - lowMatch[0].length).trim()
+        };
+    }
+    return { priority: 0, cleanName: text };
+}
+
+// ── Priority Picker (inline popup) ──
+function _showPriorityPicker(anchorEl, itemId) {
+    // Remove any existing picker
+    document.querySelectorAll('.priority-picker').forEach(el => el.remove());
+
+    const picker = document.createElement('div');
+    picker.className = 'priority-picker';
+
+    const levels = [
+        { value: -3, label: '???', cls: 'priority-low-3' },
+        { value: -2, label: '??', cls: 'priority-low-2' },
+        { value: -1, label: '?', cls: 'priority-low-1' },
+        { value: 0, label: '—', cls: 'priority-neutral' },
+        { value: 1, label: '!', cls: 'priority-high-1' },
+        { value: 2, label: '!!', cls: 'priority-high-2' },
+        { value: 3, label: '!!!', cls: 'priority-high-3' },
+    ];
+
+    const item = findItemById(itemId);
+    const currentPrio = item ? (item.priority || 0) : 0;
+
+    for (const { value, label, cls } of levels) {
+        const opt = document.createElement('button');
+        opt.className = `priority-picker-option ${cls}`;
+        if (value === currentPrio) opt.classList.add('priority-picker-active');
+        opt.textContent = label;
+        opt.addEventListener('click', (e) => {
+            e.stopPropagation();
+            pushUndo(`Set priority ${value} on '${item?.name || ''}'`);
+            if (value !== 0) {
+                patchItemOptimistic(itemId, { priority: value });
+            } else {
+                const it = findItemById(itemId);
+                if (it) delete it.priority;
+                saveItems();
+            }
+            picker.remove();
+            renderAll();
+        });
+        picker.appendChild(opt);
+    }
+
+    // Position picker using fixed coords so it doesn't inherit badge opacity
+    const rect = anchorEl.getBoundingClientRect();
+    picker.style.position = 'fixed';
+    picker.style.left = `${rect.left + rect.width / 2}px`;
+    picker.style.bottom = `${window.innerHeight - rect.top + 4}px`;
+    picker.style.transform = 'translateX(-50%)';
+    document.body.appendChild(picker);
+
+    // Close on outside click
+    const closeHandler = (e) => {
+        if (!picker.contains(e.target) && e.target !== anchorEl) {
+            picker.remove();
+            document.removeEventListener('click', closeHandler, true);
+        }
+    };
+    setTimeout(() => document.addEventListener('click', closeHandler, true), 0);
 }
 
 // Resolve a temp ID to the real server ID (awaits if POST is still in-flight)
@@ -376,6 +465,7 @@ async function loadAll() {
     } else {
         state.pastCardStyle = 'compact';
     }
+    state.showOverflowPreview = prefs.showOverflowPreview === true; // default false (hidden)
     state.showDone = prefs.showDone === true;
     state.showBlocked = prefs.showBlocked !== false; // default true (show blocked items)
     const validFilters = ['scheduled', 'scheduled+unscheduled', 'all'];
@@ -402,6 +492,8 @@ async function loadAll() {
     state.divergencePlansExpanded = new Set(prefs.divergencePlansExpanded || []);
     state.deepView = prefs.deepView === true;
     state.showInvestmentBadge = prefs.showInvestmentBadge !== false; // default true
+    // Copilot display mode: 'sidebar' (default) or 'inline' (bottom bar)
+    state.copilotMode = (prefs.copilotMode === 'inline') ? 'inline' : 'sidebar';
 
     // Restore bookmarks (prune any IDs that no longer exist)
     if (Array.isArray(prefs.bookmarks)) {
@@ -585,16 +677,23 @@ async function _applySyncEvent(msg) {
             renderAll();
         } else if (type === 'ai_unread') {
             updateCopilotBadge(msg.count || 0);
-            // If copilot panel is open, reload messages to show the new trigger message
+            // If copilot is open (sidebar or floating card), reload messages
             const panel = document.querySelector('.copilot-panel-open');
-            if (panel && typeof window._reloadCopilotHistory === 'function') {
+            const floatCard = document.getElementById('copilot-float-card');
+            const floatOpen = floatCard && floatCard.style.display !== 'none';
+            const copilotVisible = panel || floatOpen;
+            if (copilotVisible && typeof window._reloadCopilotHistory === 'function') {
                 window._reloadCopilotHistory();
             }
-            // Play notification sound (bubble if panel open, notification if closed)
-            if (panel) {
+            // Play notification sound (bubble if copilot open, notification if closed)
+            if (copilotVisible) {
                 _playAiBubbleSound();
             } else {
                 _playAiNotificationSound();
+                // Show toast preview if in inline mode and card is closed
+                if (typeof window._showCopilotToast === 'function' && msg.preview) {
+                    window._showCopilotToast(msg.preview);
+                }
             }
         }
     } catch (err) {
@@ -4091,6 +4190,7 @@ async function cleanPastSchedules() {
     const currentWeekKey = getWeekKey(today);
     const currentMonthKey = getMonthKey(today);
     let dirty = false;
+    const degradedItems = []; // Track items that degrade from date → week
 
     function walkItems(items) {
         for (const item of items) {
@@ -4148,6 +4248,10 @@ async function cleanPastSchedules() {
                             if (!(weekKey in item.contextDurations)) {
                                 item.contextDurations[weekKey] = migratedDuration;
                             }
+                        }
+                        // Track this degradation for the Start Day review (only undone items)
+                        if (!item.done) {
+                            degradedItems.push({ id: item.id, name: item.name, weekKey });
                         }
                     }
                 }
@@ -4255,6 +4359,29 @@ async function cleanPastSchedules() {
     if (dirty) {
         saveItems();
     }
+    // Store degraded items for Start Day review (transient, not persisted)
+    if (degradedItems.length > 0) {
+        state._recentlyDegradedItems = degradedItems;
+    }
+}
+
+// Collect undone items that have a date-level timeContext matching the given dateKey.
+// Used by the Close Day "leftover review" to show what will degrade.
+function collectTodayLeftovers(dateKey) {
+    const leftovers = [];
+    function walkItems(items) {
+        for (const item of items) {
+            if (!item.done && !isContextDone(item, dateKey) && item.timeContexts && item.timeContexts.length > 0) {
+                const hasDateCtx = item.timeContexts.some(tc => contextMatchesDate(tc, dateKey));
+                if (hasDateCtx) {
+                    leftovers.push({ id: item.id, name: item.name });
+                }
+            }
+            if (item.children && item.children.length > 0) walkItems(item.children);
+        }
+    }
+    walkItems(state.items.items);
+    return leftovers;
 }
 
 // ─── Auto-clean past sessions (intra-day) ───
@@ -5116,14 +5243,22 @@ function startActionInlineRename(nameEl, action) {
     input.select();
 
     const commitRename = async () => {
-        const val = input.value.trim();
-        if (val && val !== currentName) {
+        const rawVal = input.value.trim();
+        if (!rawVal) { nameEl.textContent = currentName; return; }
+        const { priority: newPriority, cleanName: val } = parsePriority(rawVal);
+        if (val !== currentName || newPriority !== (action.priority || 0)) {
             pushUndo(`Rename '${currentName}' to '${val}'`);
             const originalItem = findItemById(action.id);
             if (originalItem) {
                 originalItem.name = val;
                 action.name = val;
+                if (newPriority !== 0) {
+                    originalItem.priority = newPriority;
+                } else {
+                    delete originalItem.priority;
+                }
                 saveItems();
+                renderAll();
             }
         }
         nameEl.textContent = action.name;
@@ -6191,11 +6326,12 @@ function showInsertInput(markerEl, targetArray, insertIndex) {
     input.focus();
 
     const commit = async () => {
-        const name = input.value.trim();
-        if (!name) {
+        const rawName = input.value.trim();
+        if (!rawName) {
             cleanup();
             return;
         }
+        const { priority, cleanName: name } = parsePriority(rawName);
         // Create new item locally and insert at position
         const newItem = {
             id: state.items.nextId++,
@@ -6204,6 +6340,7 @@ function showInsertInput(markerEl, targetArray, insertIndex) {
             expanded: false,
             createdAt: Date.now(),
             done: false,
+            ...(priority !== 0 ? { priority } : {}),
         };
         targetArray.splice(insertIndex, 0, newItem);
         saveItems();
@@ -6305,14 +6442,15 @@ function showItemInput(parentId = null, childDepth = 0) {
 
     input.addEventListener('keydown', async (e) => {
         if (e.key === 'Enter' && input.value.trim()) {
+            const { priority: _itemPriority, cleanName: _cleanName } = parsePriority(input.value.trim());
             // Optimistic local add
             const tempId = state.items.nextId++;
-            const newLocalItem = { id: tempId, name: input.value.trim(), children: [], expanded: false, createdAt: Date.now(), done: false, timeContexts: getCurrentTimeContexts() };
+            const newLocalItem = { id: tempId, name: _cleanName, children: [], expanded: false, createdAt: Date.now(), done: false, ...(_itemPriority !== 0 ? { priority: _itemPriority } : {}), timeContexts: getCurrentTimeContexts() };
             const parentArr = parentId ? findItemById(parentId)?.children : state.items.items;
             if (parentArr) parentArr.push(newLocalItem);
             // Fire-and-forget to server
             api.post('/items', {
-                name: input.value.trim(),
+                name: _cleanName,
                 parentId: parentId,
                 timeContexts: getCurrentTimeContexts()
             }).then(serverItem => {
@@ -6340,6 +6478,407 @@ function showItemInput(parentId = null, childDepth = 0) {
 }
 
 // ─── Actions Rendering (leaf nodes from the tree) ───
+// ─── Project Context Card ───
+// Renders a hero strip showing focused project stats, progress bar, and action buttons.
+function renderProjectContextCard() {
+    const card = document.getElementById('project-context-card');
+    if (!card) return;
+
+    // Dismiss any stale popover on re-render
+    dismissPccAncestorPopover();
+
+    const iconEl = document.getElementById('pcc-icon');
+    const nameEl = document.getElementById('pcc-name');
+    const progressEl = document.getElementById('pcc-progress-text');
+    const barEl = document.getElementById('pcc-bar');
+    const doneBarEl = document.getElementById('pcc-bar-done');
+    const plannedBarEl = document.getElementById('pcc-bar-planned');
+    const actionsEl = document.getElementById('pcc-actions');
+
+    // Determine what we're focused on
+    const focusedItem = state.selectedItemId ? findItemById(state.selectedItemId) : null;
+    const isInbox = focusedItem && focusedItem.isInbox;
+    const isAllProjects = !state.selectedItemId;
+
+    // Card always visible — shows the parent context
+    card.style.display = '';
+
+    // ── Compute stats for the focused branch ──
+    const viewCtx = getCurrentViewContext();
+    let totalItems = 0;
+    let doneItems = 0;
+    let estimatedMins = 0;
+    let investedMins = 0;
+
+    // Ensure work entry index is built (it was just invalidated by renderActions)
+    if (!_workEntryIndex) _buildWorkEntryIndex();
+
+    // Walk the full descendant tree (not just getFilteredActions) so stats 
+    // are correct even for future dates where children may not be individually scheduled.
+    const itemsToCount = [];
+    if (isAllProjects) {
+        // For "All Projects", use the filtered actions list
+        const allFiltered = getFilteredActions({ includeDone: true });
+        for (const a of allFiltered) {
+            const item = findItemById(a.id);
+            if (item) itemsToCount.push(item);
+        }
+    } else if (focusedItem) {
+        // Walk full tree under the focused branch
+        const descIds = collectDescendantIds(focusedItem);
+        for (const id of descIds) {
+            const item = findItemById(id);
+            // Only count leaf items (no children or empty children)
+            if (item && (!item.children || item.children.length === 0)) {
+                itemsToCount.push(item);
+            }
+        }
+    }
+
+    for (const item of itemsToCount) {
+        totalItems++;
+        if (isContextDone(item, viewCtx)) doneItems++;
+
+        // Estimate: use existing context-aware duration lookup
+        const dur = getContextDuration(item, viewCtx);
+        estimatedMins += dur;
+
+        // Invested: count work entries for this item
+        const entries = _workEntryIndex.get(item.id);
+        if (entries) {
+            for (const e of entries) {
+                investedMins += Math.round((e.endTime - e.startTime) / 60000);
+            }
+        }
+        // Live work-in-progress
+        if (state.workingOn && state.workingOn.itemId === item.id) {
+            investedMins += Math.round((Date.now() - state.workingOn.startTime) / 60000);
+        }
+    }
+
+    // ── Header: icon + name (clickable with ancestor popover) ──
+    nameEl.innerHTML = '';
+    nameEl.className = 'pcc-name';
+    nameEl.onclick = null;
+
+    let displayName = '';
+    let displayIcon = '📁';
+    if (isAllProjects) {
+        displayIcon = '📁';
+        displayName = 'All Projects';
+    } else if (isInbox) {
+        displayIcon = '📥';
+        displayName = 'Inbox';
+    } else if (focusedItem) {
+        displayIcon = focusedItem.icon || '📁';
+        displayName = focusedItem.name;
+    }
+    iconEl.textContent = displayIcon;
+
+    // Wrap name text + chevron in a clickable container
+    const nameWrap = document.createElement('span');
+    nameWrap.className = 'pcc-name-clickable';
+    nameWrap.textContent = displayName;
+
+    // Always show chevron (popover works at every level)
+    const chevron = document.createElement('span');
+    chevron.className = 'pcc-name-chevron';
+    chevron.textContent = '▾';
+    nameWrap.appendChild(chevron);
+
+    nameWrap.addEventListener('click', (e) => {
+        e.stopPropagation();
+        togglePccAncestorPopover(nameWrap);
+    });
+
+    nameEl.appendChild(nameWrap);
+
+    // ── Progress text ──
+    const parts = [];
+    if (totalItems > 0) parts.push(`${doneItems}/${totalItems} done`);
+    if (estimatedMins > 0) {
+        parts.push(`${_formatDuration(investedMins)} / ${_formatDuration(estimatedMins)}`);
+    } else if (investedMins > 0) {
+        parts.push(`${_formatDuration(investedMins)} invested`);
+    }
+    progressEl.textContent = parts.join(' · ');
+
+    // ── Capacity bar ──
+    if (estimatedMins > 0 || totalItems > 0) {
+        barEl.classList.remove('pcc-bar-empty');
+        if (estimatedMins > 0) {
+            // Time-based bar: invested vs estimated
+            const donePct = Math.min(100, (investedMins / estimatedMins) * 100);
+            doneBarEl.style.width = `${donePct}%`;
+            plannedBarEl.style.width = '0%';
+        } else {
+            // Count-based bar: done vs total
+            const donePct = totalItems > 0 ? (doneItems / totalItems) * 100 : 0;
+            doneBarEl.style.width = `${donePct}%`;
+            plannedBarEl.style.width = '0%';
+        }
+    } else {
+        barEl.classList.add('pcc-bar-empty');
+    }
+
+    // ── Action buttons — same set as action cards ──
+    actionsEl.innerHTML = '';
+    actionsEl.className = 'action-buttons';
+
+    if (focusedItem && !isInbox) {
+        const _actViewCtx = viewCtx;
+        const _isDone = isContextDone(focusedItem, _actViewCtx);
+
+        // ▶ Work — start/stop working on this project
+        const workBtn = document.createElement('button');
+        workBtn.className = 'action-btn action-btn-work';
+        const isWorking = state.workingOn && state.workingOn.itemId === focusedItem.id;
+        workBtn.textContent = isWorking ? '⏹' : '▶';
+        workBtn.title = isWorking ? 'Stop working' : 'Start working';
+        if (isWorking) workBtn.classList.add('action-btn-working');
+        if (!_isDone) {
+            workBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (state.workingOn && state.workingOn.itemId === focusedItem.id) {
+                    stopWorking();
+                } else {
+                    const ancestors = getAncestorPath(focusedItem.id);
+                    const projectName = ancestors ? ancestors.map(a => a.name).join(' › ') : null;
+                    showDurationPicker(workBtn, focusedItem.id, focusedItem.name, projectName);
+                }
+            });
+        } else { workBtn.disabled = true; }
+        actionsEl.appendChild(workBtn);
+
+        // ✓ Done — toggle context done
+        const doneBtn = document.createElement('button');
+        doneBtn.className = 'action-btn action-btn-done';
+        doneBtn.textContent = _isDone ? '↩' : '✓';
+        doneBtn.title = _isDone ? 'Mark as not done' : 'Mark as done';
+        if (_isDone) doneBtn.classList.add('action-btn-undone');
+        doneBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const wasDone = isContextDone(focusedItem, _actViewCtx);
+            pushUndo(wasDone ? `Mark '${focusedItem.name}' undone` : `Mark '${focusedItem.name}' done`);
+            setContextDone(focusedItem, _actViewCtx, !wasDone);
+            renderAll();
+        });
+        actionsEl.appendChild(doneBtn);
+
+        // ✕ Remove from context
+        const declineBtn = document.createElement('button');
+        declineBtn.className = 'action-btn action-btn-decline';
+        declineBtn.textContent = '✕';
+        declineBtn.title = 'Remove from this context';
+        declineBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            pushUndo(`Remove '${focusedItem.name}' from context`);
+            removeSourceContext(focusedItem.id, getCurrentViewContext());
+            renderAll();
+        });
+        actionsEl.appendChild(declineBtn);
+
+        // 📅 Schedule
+        const scheduleBtn = document.createElement('button');
+        scheduleBtn.className = 'action-btn action-btn-schedule';
+        scheduleBtn.textContent = '📅';
+        scheduleBtn.title = 'Schedule this action';
+        if (!_isDone) {
+            scheduleBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                openScheduleModal(focusedItem.id, focusedItem.name);
+            });
+        } else { scheduleBtn.disabled = true; }
+        actionsEl.appendChild(scheduleBtn);
+
+        // ⏳ Block toggle
+        const _isBlocked = focusedItem.blocked;
+        const blockBtn = document.createElement('button');
+        blockBtn.className = 'action-btn action-btn-block';
+        if (_isBlocked) {
+            blockBtn.textContent = '✅';
+            blockBtn.title = 'Unblock this item';
+            blockBtn.classList.add('action-btn-blocked');
+            blockBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                patchItemOptimistic(focusedItem.id, { blocked: false, blockedReason: '' });
+                renderAll();
+            });
+        } else if (!_isDone) {
+            blockBtn.textContent = '⏳';
+            blockBtn.title = 'Mark as blocked';
+            blockBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                patchItemOptimistic(focusedItem.id, { blocked: true, blockedReason: '' });
+                renderAll();
+            });
+        } else {
+            blockBtn.textContent = '⏳';
+            blockBtn.disabled = true;
+        }
+        actionsEl.appendChild(blockBtn);
+    }
+}
+
+// ─── Project Context Card: Ancestor Navigation Popover ───
+
+let _pccPopoverEl = null;
+let _pccPopoverOutsideClick = null;
+let _pccPopoverEscapeHandler = null;
+
+function dismissPccAncestorPopover() {
+    if (_pccPopoverEl) {
+        _pccPopoverEl.remove();
+        _pccPopoverEl = null;
+    }
+    if (_pccPopoverOutsideClick) {
+        document.removeEventListener('click', _pccPopoverOutsideClick, true);
+        _pccPopoverOutsideClick = null;
+    }
+    if (_pccPopoverEscapeHandler) {
+        document.removeEventListener('keydown', _pccPopoverEscapeHandler);
+        _pccPopoverEscapeHandler = null;
+    }
+    // Remove open class from trigger
+    const trigger = document.querySelector('.pcc-name-clickable');
+    if (trigger) trigger.classList.remove('pcc-popover-open');
+}
+
+function togglePccAncestorPopover(triggerEl) {
+    // If already open, close
+    if (_pccPopoverEl) {
+        dismissPccAncestorPopover();
+        return;
+    }
+
+    const focusedItem = state.selectedItemId ? findItemById(state.selectedItemId) : null;
+    const ancestors = state.selectedItemId ? (getAncestorPath(state.selectedItemId) || []) : [];
+    // Filter out inbox from ancestors
+    const filteredAncestors = ancestors.filter(a => !a.isInbox);
+
+    // Build the popover
+    const popover = document.createElement('div');
+    popover.className = 'pcc-ancestor-popover';
+
+    // Helper to create a row
+    function createRow(icon, name, isCurrent, onClick, childCount) {
+        const row = document.createElement('div');
+        row.className = 'pcc-popover-item' + (isCurrent ? ' pcc-popover-current' : '');
+
+        const iconEl = document.createElement('span');
+        iconEl.className = 'pcc-popover-icon';
+        iconEl.textContent = icon;
+        row.appendChild(iconEl);
+
+        const nameEl = document.createElement('span');
+        nameEl.className = 'pcc-popover-name';
+        nameEl.textContent = name;
+        row.appendChild(nameEl);
+
+        if (childCount !== undefined && childCount > 0) {
+            const countEl = document.createElement('span');
+            countEl.className = 'pcc-popover-count';
+            countEl.textContent = childCount;
+            row.appendChild(countEl);
+        }
+
+        if (onClick && !isCurrent) {
+            row.addEventListener('click', (e) => {
+                e.stopPropagation();
+                dismissPccAncestorPopover();
+                onClick();
+            });
+        }
+        return row;
+    }
+
+    // 1. "All Projects" — root
+    const isAtRoot = !state.selectedItemId;
+    const rootChildren = (state.items.items || []).filter(i => !i.isInbox);
+    popover.appendChild(createRow('📁', 'All Projects', isAtRoot, () => {
+        navigateProjectTo(null);
+    }, rootChildren.length));
+
+    // 2. Ancestors
+    for (const ancestor of filteredAncestors) {
+        const icon = ancestor.icon || '📁';
+        const childCount = (ancestor.children || []).filter(c => !c.isInbox).length;
+        popover.appendChild(createRow(icon, ancestor.name, false, () => {
+            navigateProjectTo(ancestor.id);
+        }, childCount));
+    }
+
+    // 3. Current item
+    if (focusedItem && !focusedItem.isInbox) {
+        const icon = focusedItem.icon || '📁';
+        const childCount = (focusedItem.children || []).filter(c => !c.isInbox).length;
+        popover.appendChild(createRow(icon, focusedItem.name, true, null, childCount));
+
+        // 4. Children (below divider)
+        const children = (focusedItem.children || []).filter(c => !c.isInbox);
+        if (children.length > 0) {
+            const divider = document.createElement('div');
+            divider.className = 'pcc-popover-divider';
+            popover.appendChild(divider);
+
+            for (const child of children) {
+                const cIcon = child.icon || (child.children && child.children.length > 0 ? '📁' : '📄');
+                const cChildCount = (child.children || []).length;
+                popover.appendChild(createRow(cIcon, child.name, false, () => {
+                    navigateProjectTo(child.id);
+                }, cChildCount > 0 ? cChildCount : undefined));
+            }
+        }
+    }
+
+    // Position the popover
+    document.body.appendChild(popover);
+    _pccPopoverEl = popover;
+
+    const triggerRect = triggerEl.getBoundingClientRect();
+    const popoverRect = popover.getBoundingClientRect();
+
+    // Default: below the trigger, left-aligned
+    let top = triggerRect.bottom + 4;
+    let left = triggerRect.left;
+
+    // Clamp: don't overflow right edge
+    if (left + popoverRect.width > window.innerWidth - 8) {
+        left = window.innerWidth - popoverRect.width - 8;
+    }
+    // Clamp: don't overflow left edge
+    if (left < 8) left = 8;
+
+    // Flip above if not enough space below
+    if (top + popoverRect.height > window.innerHeight - 8) {
+        top = triggerRect.top - popoverRect.height - 4;
+    }
+
+    popover.style.left = `${left}px`;
+    popover.style.top = `${top}px`;
+
+    // Mark trigger as open
+    triggerEl.classList.add('pcc-popover-open');
+
+    // Dismiss on outside click (next tick to avoid catching the opening click)
+    setTimeout(() => {
+        _pccPopoverOutsideClick = (e) => {
+            if (_pccPopoverEl && !_pccPopoverEl.contains(e.target) && !triggerEl.contains(e.target)) {
+                dismissPccAncestorPopover();
+            }
+        };
+        document.addEventListener('click', _pccPopoverOutsideClick, true);
+    }, 0);
+
+    // Dismiss on Escape
+    _pccPopoverEscapeHandler = (e) => {
+        if (e.key === 'Escape') {
+            dismissPccAncestorPopover();
+        }
+    };
+    document.addEventListener('keydown', _pccPopoverEscapeHandler);
+}
+
 function renderActions(opts) {
     const container = document.getElementById('actions-list');
     const savedScrollTop = container.scrollTop;
@@ -6351,9 +6890,13 @@ function renderActions(opts) {
     // Invalidate work entry index for fresh investment data
     _invalidateWorkEntryIndex();
 
-    // ── Day closed: show "Good Night" instead of actions ──
-    if (isDayClosed() && !state.workingOn && !state.onBreak) {
+    // ── Render the Project Context Card ──
+    renderProjectContextCard();
+
+    // ── Sleep guard ON + day closed: replace ALL actions with "Good Night" ──
+    if (isDayClosed() && state.settings.sleepGuard !== false) {
         container.querySelectorAll('.action-card, .action-item, .action-group-header, .overflow-preview').forEach(el => el.remove());
+        document.getElementById('project-context-card').style.display = 'none';
         empty.style.display = '';
         empty.innerHTML = '';
         const icon = document.createElement('span');
@@ -6386,6 +6929,7 @@ function renderActions(opts) {
     // ── Day not started: show "Good Morning" instead of actions ──
     if (!isDayStarted() && !isDayClosed() && !state.workingOn && !state.onBreak) {
         container.querySelectorAll('.action-card, .action-item, .action-group-header, .overflow-preview').forEach(el => el.remove());
+        document.getElementById('project-context-card').style.display = 'none';
         empty.style.display = '';
         empty.innerHTML = '';
         const icon = document.createElement('span');
@@ -6442,83 +6986,347 @@ function renderActions(opts) {
 
     if (filteredActions.length === 0) {
         empty.style.display = '';
+        empty.innerHTML = '';
 
-        // ── Context-aware empty state: show reset hints when filters are narrowing ──
+        // ── Day closed + sleep guard OFF: show "Good Night" as empty state ──
+        if (isDayClosed()) {
+            const icon = document.createElement('span');
+            icon.className = 'empty-icon';
+            icon.textContent = '🌙';
+            empty.appendChild(icon);
+            const msg = document.createElement('span');
+            msg.textContent = 'Good Night';
+            empty.appendChild(msg);
+            const hint = document.createElement('span');
+            hint.className = 'empty-hint';
+            hint.textContent = 'time to rest — you earned it';
+            empty.appendChild(hint);
+            const _isNextDay = getActiveDayKey() !== getDateKey(new Date());
+            if (_isNextDay) {
+                const startBtn = document.createElement('button');
+                startBtn.className = 'live-queue-all-btn live-start-day-btn';
+                startBtn.textContent = '☀️ Start Day';
+                startBtn.style.marginTop = '12px';
+                startBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    startDay();
+                });
+                empty.appendChild(startBtn);
+            }
+            state.selectedActionIds.clear();
+            state.selectionAnchor = null;
+            updateBulkActionBar();
+            updateCapacitySummary([]);
+            return;
+        }
+
+        // ── Orientation anchor: clearly communicate WHERE we are ──
         const projectIsFiltered = !!state.selectedItemId;
         const focusedSession = state.focusStack.length > 0 ? state.focusStack[state.focusStack.length - 1] : null;
         const viewKey = getDateKey(state.timelineViewDate);
         const todayKey = getDateKey(getLogicalToday());
-        const timeIsFiltered = !!focusedSession || state.viewHorizon === 'epoch' || state.viewHorizon === 'month' || viewKey !== todayKey;
+        const timeIsFiltered = !!focusedSession || state.viewHorizon === 'epoch' || state.viewHorizon === 'month' || state.viewHorizon === 'week' || viewKey !== todayKey;
 
-        if (projectIsFiltered || timeIsFiltered) {
-            // Replace default empty state content with filter-aware message
-            empty.innerHTML = '';
+        // ── Icon ──
+        const icon = document.createElement('span');
+        icon.className = 'empty-icon';
+        icon.textContent = '✨';
+        empty.appendChild(icon);
 
-            const icon = document.createElement('span');
-            icon.className = 'empty-icon';
-            icon.textContent = '✨';
-            empty.appendChild(icon);
+        // ── Scope labels: interactive breadcrumb paths as hero content ──
+        const scopeContainer = document.createElement('div');
+        scopeContainer.className = 'empty-scope-container';
 
-            const msg = document.createElement('span');
-            msg.textContent = 'Quiet here, isn\u0027t it?';
-            empty.appendChild(msg);
+        // Helper: create a breadcrumb separator
+        const makeSep = () => {
+            const sep = document.createElement('span');
+            sep.className = 'empty-scope-sep';
+            sep.textContent = '›';
+            return sep;
+        };
 
-            const btnRow = document.createElement('div');
-            btnRow.className = 'empty-reset-row';
+        // Helper: get relative time label for a date
+        const getRelativeTimeLabel = (date) => {
+            const now = new Date();
+            const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            const targetStart = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+            const diffDays = Math.round((targetStart - todayStart) / 86400000);
+            if (diffDays === 0) return 'today';
+            if (diffDays === 1) return 'tomorrow';
+            if (diffDays === -1) return 'yesterday';
+            if (diffDays >= 2 && diffDays <= 6) return `in ${diffDays} days`;
+            if (diffDays >= -6 && diffDays <= -2) return `${Math.abs(diffDays)} days ago`;
+            if (diffDays >= 7 && diffDays <= 13) return 'next week';
+            if (diffDays >= -13 && diffDays <= -7) return 'last week';
+            if (diffDays > 0 && diffDays <= 60) return `in ${Math.ceil(diffDays / 7)} weeks`;
+            if (diffDays < 0 && diffDays >= -60) return `${Math.ceil(Math.abs(diffDays) / 7)} weeks ago`;
+            return null;
+        };
 
-            if (projectIsFiltered) {
-                const selectedItem = findItemById(state.selectedItemId);
-                const resetProject = document.createElement('button');
-                resetProject.className = 'empty-reset-btn';
-                resetProject.textContent = '📁 All';
-                resetProject.title = 'Show all projects';
-                resetProject.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    state.selectedItemId = null;
-                    savePref('selectedItemId', '');
-                    renderAll();
+        const getRelativeWeekLabel = (weekRange) => {
+            if (!weekRange) return null;
+            const now = new Date();
+            const curWeekKey = getWeekKey(now);
+            const targetWeekKey = getWeekKey(weekRange.start);
+            if (curWeekKey === targetWeekKey) return 'this week';
+            const diffWeeks = Math.round((weekRange.start - new Date(now.getFullYear(), now.getMonth(), now.getDate())) / (7 * 86400000));
+            if (diffWeeks >= 0 && diffWeeks < 2) return 'next week';
+            if (diffWeeks < 0 && diffWeeks > -2) return 'last week';
+            return null;
+        };
+
+        const getRelativeMonthLabel = (date) => {
+            const now = new Date();
+            const diffMonths = (date.getFullYear() - now.getFullYear()) * 12 + (date.getMonth() - now.getMonth());
+            if (diffMonths === 0) return 'this month';
+            if (diffMonths === 1) return 'next month';
+            if (diffMonths === -1) return 'last month';
+            return null;
+        };
+
+        // ── Project breadcrumb: "You are focused on All › Work › kolwrite" ──
+        if (projectIsFiltered) {
+            const selectedItem = findItemById(state.selectedItemId);
+            if (selectedItem) {
+                const projRow = document.createElement('div');
+                projRow.className = 'empty-scope-row empty-scope-row-proj';
+
+                const projPrefix = document.createElement('span');
+                projPrefix.className = 'empty-scope-prefix';
+                projPrefix.textContent = 'You are focused on';
+                projRow.appendChild(projPrefix);
+
+                const projCrumb = document.createElement('span');
+                projCrumb.className = 'empty-scope-crumb';
+
+                // Build "All" root segment
+                const allSeg = document.createElement('span');
+                allSeg.className = 'empty-scope-ancestor';
+                allSeg.textContent = 'All';
+                allSeg.title = 'Show all projects';
+                allSeg.addEventListener('click', () => {
+                    navigateProjectTo(null);
                 });
-                btnRow.appendChild(resetProject);
-            }
 
-            if (timeIsFiltered) {
-                const resetTime = document.createElement('button');
-                resetTime.className = 'empty-reset-btn';
-                // Build a label showing current time filter
-                let timeLabel = '📅';
-                if (focusedSession) {
-                    timeLabel += ` ${formatTime(focusedSession.startMs)}–${formatTime(focusedSession.endMs)}`;
-                } else if (state.viewHorizon === 'epoch') {
-                    const epochLabels = { past: 'Past', ongoing: 'Ongoing', future: 'Future' };
-                    timeLabel += ` ${epochLabels[state.epochFilter] || 'Ongoing'}`;
-                } else {
-                    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-                    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-                    const d = state.timelineViewDate;
-                    timeLabel += ` ${days[d.getDay()]}, ${months[d.getMonth()]} ${d.getDate()}`;
+                // Ancestor segments
+                const ancestors = getAncestorPath(state.selectedItemId);
+                const nonInboxAncestors = (ancestors || []).filter(a => !a.isInbox);
+
+                // Collapsible: All + all ancestors except the last (direct parent)
+                // Always visible: direct parent (last ancestor) + current item
+                const collapse = document.createElement('span');
+                collapse.className = 'empty-scope-proj-ancestors';
+                collapse.appendChild(allSeg);
+                collapse.appendChild(makeSep());
+
+                if (nonInboxAncestors.length > 1) {
+                    // Add all ancestors except the last into the collapse
+                    for (let i = 0; i < nonInboxAncestors.length - 1; i++) {
+                        const a = nonInboxAncestors[i];
+                        const seg = document.createElement('span');
+                        seg.className = 'empty-scope-ancestor';
+                        seg.textContent = a.name;
+                        seg.title = a.name;
+                        seg.addEventListener('click', () => {
+                            navigateProjectTo(a.id);
+                        });
+                        collapse.appendChild(seg);
+                        collapse.appendChild(makeSep());
+                    }
                 }
-                resetTime.textContent = '📅 Today';
-                resetTime.title = 'Back to today';
-                resetTime.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    clearFocusStack();
-                    state.viewHorizon = 'day';
-                    savePref('viewHorizon', 'day');
-                    state.timelineViewDate = new Date();
-                    renderAll();
+                projCrumb.appendChild(collapse);
+
+                // Direct parent — always visible (last ancestor)
+                if (nonInboxAncestors.length > 0) {
+                    const parent = nonInboxAncestors[nonInboxAncestors.length - 1];
+                    const parentSeg = document.createElement('span');
+                    parentSeg.className = 'empty-scope-ancestor';
+                    parentSeg.textContent = parent.name;
+                    parentSeg.title = parent.name;
+                    parentSeg.addEventListener('click', () => {
+                        navigateProjectTo(parent.id);
+                    });
+                    projCrumb.appendChild(parentSeg);
+                    projCrumb.appendChild(makeSep());
+                }
+
+                // Current item — bold, not clickable
+                const curr = document.createElement('span');
+                curr.className = 'empty-scope-current';
+                curr.textContent = selectedItem.name;
+                curr.title = selectedItem.name;
+                projCrumb.appendChild(curr);
+
+                projRow.appendChild(projCrumb);
+                scopeContainer.appendChild(projRow);
+            }
+        }
+
+        // ── Time breadcrumb: "You are looking at Today, Sat Mar 21 › 9:00–10:00" ──
+        {
+            const timeRow = document.createElement('div');
+            timeRow.className = 'empty-scope-row empty-scope-row-time';
+
+            const timePrefix = document.createElement('span');
+            timePrefix.className = 'empty-scope-prefix';
+            timePrefix.textContent = projectIsFiltered ? 'during' : 'You are looking at';
+            timeRow.appendChild(timePrefix);
+
+            const timeCrumb = document.createElement('span');
+            timeCrumb.className = 'empty-scope-crumb';
+
+            // Build full time hierarchy: month? › week? › day › session?
+            const viewDate = state.timelineViewDate;
+            const isToday = viewKey === todayKey;
+            const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                'July', 'August', 'September', 'October', 'November', 'December'];
+            const monthsShort = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+            // Helper: append relative time label
+            const appendRelLabel = (parent, label) => {
+                if (!label) return;
+                const rel = document.createElement('span');
+                rel.className = 'empty-scope-relative';
+                rel.textContent = ` (${label})`;
+                parent.appendChild(rel);
+            };
+
+            if (state.viewHorizon === 'epoch') {
+                // Epoch view: just show the epoch label
+                const epochLabels = { past: 'Past', ongoing: 'Ongoing', future: 'Future' };
+                const epochSeg = document.createElement('span');
+                epochSeg.className = 'empty-scope-current';
+                epochSeg.textContent = epochLabels[state.epochFilter] || 'Ongoing';
+                timeCrumb.appendChild(epochSeg);
+            } else if (state.viewHorizon === 'month') {
+                // Month view: "March 2026 (this month)"
+                const monthSeg = document.createElement('span');
+                monthSeg.className = 'empty-scope-current';
+                monthSeg.textContent = `${monthNames[viewDate.getMonth()]} ${viewDate.getFullYear()}`;
+                timeCrumb.appendChild(monthSeg);
+                appendRelLabel(timeCrumb, getRelativeMonthLabel(viewDate));
+            } else if (state.viewHorizon === 'week') {
+                // Week view: collapsible [March 2026 ›] + current Week (this week)
+                const collapse = document.createElement('span');
+                collapse.className = 'empty-scope-time-ancestors';
+
+                const monthAnc = document.createElement('span');
+                monthAnc.className = 'empty-scope-ancestor';
+                monthAnc.textContent = `${monthNames[viewDate.getMonth()]} ${viewDate.getFullYear()}`;
+                monthAnc.title = 'Switch to month view';
+                monthAnc.addEventListener('click', () => {
+                    animateActionsZoomOut(() => {
+                        state.viewHorizon = 'month';
+                        savePref('viewHorizon', 'month');
+                        renderAll();
+                    });
                 });
-                btnRow.appendChild(resetTime);
+                collapse.appendChild(monthAnc);
+                collapse.appendChild(makeSep());
+                timeCrumb.appendChild(collapse);
+
+                const weekKey = getWeekKey(state.timelineViewDate);
+                const range = getWeekDateRange(weekKey);
+                const weekSeg = document.createElement('span');
+                weekSeg.className = 'empty-scope-current';
+                weekSeg.textContent = range
+                    ? `Week of ${monthsShort[range.start.getMonth()]} ${range.start.getDate()}`
+                    : 'This week';
+                timeCrumb.appendChild(weekSeg);
+                appendRelLabel(timeCrumb, getRelativeWeekLabel(range));
+            } else {
+                // Day view (possibly with session)
+                // Collapsible ancestors: Month › Week ›
+                const collapse = document.createElement('span');
+                collapse.className = 'empty-scope-time-ancestors';
+
+                const monthAnc = document.createElement('span');
+                monthAnc.className = 'empty-scope-ancestor';
+                monthAnc.textContent = `${monthNames[viewDate.getMonth()]} ${viewDate.getFullYear()}`;
+                monthAnc.title = 'Switch to month view';
+                monthAnc.addEventListener('click', () => {
+                    animateActionsZoomOut(() => {
+                        state.viewHorizon = 'month';
+                        savePref('viewHorizon', 'month');
+                        renderAll();
+                    });
+                });
+                collapse.appendChild(monthAnc);
+                collapse.appendChild(makeSep());
+
+                const weekKey = getWeekKey(state.timelineViewDate);
+                const range = getWeekDateRange(weekKey);
+                const weekAnc = document.createElement('span');
+                weekAnc.className = 'empty-scope-ancestor';
+                weekAnc.textContent = range
+                    ? `Week of ${monthsShort[range.start.getMonth()]} ${range.start.getDate()}`
+                    : 'Week';
+                weekAnc.title = 'Switch to week view';
+                weekAnc.addEventListener('click', () => {
+                    animateActionsZoomOut(() => {
+                        state.viewHorizon = 'week';
+                        savePref('viewHorizon', 'week');
+                        renderAll();
+                    });
+                });
+                collapse.appendChild(weekAnc);
+                collapse.appendChild(makeSep());
+                timeCrumb.appendChild(collapse);
+
+                const relDay = getRelativeTimeLabel(viewDate);
+
+                if (focusedSession) {
+                    // Day — always visible when session focused (not inside collapse)
+                    const dayAnc = document.createElement('span');
+                    dayAnc.className = 'empty-scope-ancestor';
+                    const dayText = isToday
+                        ? `Today, ${dayNames[viewDate.getDay()].slice(0, 3)} ${monthsShort[viewDate.getMonth()]} ${viewDate.getDate()}`
+                        : `${dayNames[viewDate.getDay()]}, ${monthsShort[viewDate.getMonth()]} ${viewDate.getDate()}`;
+                    dayAnc.textContent = dayText;
+                    dayAnc.title = 'Back to day view';
+                    dayAnc.addEventListener('click', () => {
+                        animateActionsZoomOut(() => {
+                            clearFocusStack();
+                            renderAll();
+                        });
+                    });
+                    timeCrumb.appendChild(dayAnc);
+                    if (!isToday && relDay) appendRelLabel(timeCrumb, relDay);
+                    timeCrumb.appendChild(makeSep());
+
+                    // Session as current
+                    const timeRange = `${formatTime(focusedSession.startMs)}–${formatTime(focusedSession.endMs)}`;
+                    const typeLabel = focusedSession.label || focusedSession.type || '';
+                    const sessionSeg = document.createElement('span');
+                    sessionSeg.className = 'empty-scope-current';
+                    sessionSeg.textContent = `${timeRange} ${typeLabel}`.trim();
+                    timeCrumb.appendChild(sessionSeg);
+                } else {
+                    // Day as current (no session)
+                    const daySeg = document.createElement('span');
+                    daySeg.className = 'empty-scope-current';
+                    const dayText = isToday
+                        ? `Today, ${dayNames[viewDate.getDay()]} ${monthsShort[viewDate.getMonth()]} ${viewDate.getDate()}`
+                        : `${dayNames[viewDate.getDay()]}, ${monthsShort[viewDate.getMonth()]} ${viewDate.getDate()}`;
+                    daySeg.textContent = dayText;
+                    timeCrumb.appendChild(daySeg);
+                    if (!isToday && relDay) appendRelLabel(timeCrumb, relDay);
+                }
             }
 
-            empty.appendChild(btnRow);
-        } else {
-            // Default empty state
-            empty.innerHTML = `
-                <span class="empty-icon">✨</span>
-                <span>What's on your mind?</span>
-                <span class="empty-hint">one small win at a time</span>
-            `;
+            timeRow.appendChild(timeCrumb);
+            scopeContainer.appendChild(timeRow);
         }
+
+        empty.appendChild(scopeContainer);
+
+        // ── Soft hint ──
+        const hint = document.createElement('span');
+        hint.className = 'empty-hint';
+        hint.textContent = 'all clear here 👌';
+        empty.appendChild(hint);
+
 
         // Prune selection — nothing visible
         state.selectedActionIds.clear();
@@ -6526,15 +7334,27 @@ function renderActions(opts) {
         updateBulkActionBar();
         updateCapacitySummary([]);
 
-        // ── Overflow Preview: show items from the next horizon up ──
-        renderOverflowPreview(container);
+        // ── Overflow Preview: show items from the next horizon up (if enabled) ──
+        if (state.showOverflowPreview) {
+            renderOverflowPreview(container);
+        } else {
+            const existingOverflow = container.querySelector('.overflow-preview');
+            if (existingOverflow) existingOverflow.remove();
+        }
 
         return;
     }
     empty.style.display = 'none';
 
     // Preserve tree order (assign _treeIdx for stable ordering through absorption)
+    // Then sort by priority (higher priority first), with tree order as tiebreaker
     const sorted = filteredActions.map((a, i) => ({ ...a, _treeIdx: i }));
+    sorted.sort((a, b) => {
+        const pa = a.priority || 0;
+        const pb = b.priority || 0;
+        if (pa !== pb) return pb - pa; // higher priority first
+        return a._treeIdx - b._treeIdx; // preserve tree order within same priority
+    });
 
     // Prune stale selections (items no longer visible)
     const visibleSet = new Set(sorted.map(a => String(a.id)));
@@ -6545,6 +7365,15 @@ function renderActions(opts) {
     // ── Parent absorption: when a parent and its children both appear,
     // hide the children and show only the parent with a child count badge ──
     const displayed = _absorbChildrenIntoParents(sorted, allWithDone);
+
+    // Re-sort after absorption: absorption may reorder items (e.g. synthesized parents
+    // get appended). Restore priority order with tree order as tiebreaker.
+    displayed.sort((a, b) => {
+        const pa = a.priority || 0;
+        const pb = b.priority || 0;
+        if (pa !== pb) return pb - pa;
+        return (a._treeIdx ?? Infinity) - (b._treeIdx ?? Infinity);
+    });
 
     // Store visible sorted IDs for shift-click range selection (post-absorption)
     state._visibleActionIds = displayed.map(a => String(a.id));
@@ -6653,78 +7482,232 @@ function _absorbChildrenIntoParents(actions, allWithDone) {
     }
 
     // ── Phase 2: Sibling grouping (auto-aggregate by common parent) ──
-    // Repeat until stable: group items sharing the same direct parent into
-    // a synthesized parent item with x/y badge. Skip the selected project
-    // itself (don't roll up above what the user is looking at).
+    // Only group CONTIGUOUS runs of items sharing the same direct parent so that
+    // priority-promoted items break apart groups they don't belong to.
     let changed = true;
     while (changed) {
         changed = false;
-        const parentGroups = new Map(); // parentId → [items]
-        const ungroupable = []; // items without a groupable parent
+        const nextResult = [];
 
-        for (const item of result) {
-            if (!item._path || item._path.length < 2) {
-                ungroupable.push(item);
+        // Walk the list, building contiguous runs by parent ID
+        let i = 0;
+        while (i < result.length) {
+            const item = result[i];
+            const parentId = _getGroupableParentId(item);
+            if (!parentId) {
+                // Not groupable — emit as-is
+                nextResult.push(item);
+                i++;
                 continue;
             }
-            const parent = item._path[item._path.length - 2];
-            // Don't roll up above the selected project scope
-            if (state.selectedItemId && parent.id === state.selectedItemId) {
-                ungroupable.push(item);
+
+            // Collect contiguous run of siblings with the same parent
+            const run = [item];
+            let j = i + 1;
+            while (j < result.length) {
+                const next = result[j];
+                const nextParentId = _getGroupableParentId(next);
+                if (nextParentId !== parentId) break;
+                run.push(next);
+                j++;
+            }
+
+            if (run.length < 2) {
+                // Single item — keep as-is
+                nextResult.push(item);
+                i++;
                 continue;
             }
-            if (!parentGroups.has(parent.id)) parentGroups.set(parent.id, { parent, items: [] });
-            parentGroups.get(parent.id).items.push(item);
-        }
 
-        const nextResult = [...ungroupable];
-        for (const [, group] of parentGroups) {
-            if (group.items.length < 2) {
-                // Single item under this parent — keep as-is
-                nextResult.push(...group.items);
-            } else {
-                // Multiple siblings → synthesize their parent
-                changed = true;
-                const parentItem = findItemById(group.parent.id);
-                // Build the parent's path from any child's path (minus the child itself)
-                const parentPath = group.items[0]._path.slice(0, -1);
+            // Multiple contiguous siblings → synthesize their parent
+            changed = true;
+            const parentRef = item._path[item._path.length - 2];
+            const parentItem = findItemById(parentRef.id);
+            const parentPath = item._path.slice(0, -1);
 
-                let childDone = 0;
-                let childTotal = 0;
+            let childDone = 0;
+            let childTotal = 0;
 
-                // When hideDone is active, use the full (with-done) list for accurate counts
-                if (!state.showDone && allWithDone) {
-                    const fullCounts = _countDescendantsFromFull(group.parent.id);
-                    if (fullCounts) {
-                        childTotal = fullCounts.total;
-                        childDone = fullCounts.done;
-                    }
-                } else {
-                    // Count done among the grouped children from the filtered list
-                    childTotal = group.items.length;
-                    for (const child of group.items) {
-                        // If the child already has absorbed descendants, count those too
-                        if (child._absorbedCount > 0) {
-                            childTotal += child._absorbedCount;
-                            childDone += child._absorbedDone || 0;
-                        }
-                        if (isContextDone(child, _viewCtx)) childDone++;
-                    }
+            if (!state.showDone && allWithDone) {
+                const fullCounts = _countDescendantsFromFull(parentRef.id);
+                if (fullCounts) {
+                    childTotal = fullCounts.total;
+                    childDone = fullCounts.done;
                 }
+            } else {
+                childTotal = run.length;
+                for (const child of run) {
+                    if (child._absorbedCount > 0) {
+                        childTotal += child._absorbedCount;
+                        childDone += child._absorbedDone || 0;
+                    }
+                    if (isContextDone(child, _viewCtx)) childDone++;
+                }
+            }
+
+            // Check if this parent already exists earlier in nextResult
+            const existingIdx = nextResult.findIndex(a => a.id === parentRef.id);
+            if (existingIdx >= 0) {
+                const existing = nextResult[existingIdx];
+                existing._absorbedCount = (existing._absorbedCount || 0) + childTotal;
+                existing._absorbedDone = (existing._absorbedDone || 0) + childDone;
+                existing._treeIdx = Math.min(existing._treeIdx ?? Infinity, ...run.map(r => r._treeIdx ?? Infinity));
+            } else {
                 const synth = {
                     ...(parentItem || {}),
-                    id: group.parent.id,
-                    name: group.parent.name,
+                    id: parentRef.id,
+                    name: parentRef.name,
                     _path: parentPath,
                     _absorbedCount: childTotal,
                     _absorbedDone: childDone,
                     _synthesized: true,
-                    _treeIdx: Math.min(...group.items.map(i => i._treeIdx ?? Infinity)),
+                    _treeIdx: Math.min(...run.map(r => r._treeIdx ?? Infinity)),
                 };
                 nextResult.push(synth);
             }
+            i = j; // skip past the run
         }
         result = nextResult;
+    }
+
+    // Helper: get the groupable parent ID for an item, or null if ungroupable
+    function _getGroupableParentId(item) {
+        if (!item._path || item._path.length < 2) return null;
+        const parent = item._path[item._path.length - 2];
+        if (state.selectedItemId && parent.id === state.selectedItemId) return null;
+        return parent.id;
+    }
+
+    // ── Phase 2b: Ancestor grouping (contiguity-aware) — aggregate contiguous
+    // items that share a common ancestor but are at different depths. Only
+    // groups items that are adjacent in the list to respect priority ordering.
+    {
+        let merged = true;
+        while (merged) {
+            merged = false;
+            const nextResult = [];
+            let i = 0;
+
+            while (i < result.length) {
+                const item = result[i];
+                if (!item._path || item._path.length < 2) {
+                    nextResult.push(item);
+                    i++;
+                    continue;
+                }
+
+                // Try to find the deepest common ancestor between this item and the next
+                let runEnd = i + 1;
+                while (runEnd < result.length) {
+                    const next = result[runEnd];
+                    if (!next._path || next._path.length < 2) break;
+                    // Check if they share a common ancestor that's deeper than selectedItemId
+                    const commonAnc = _findDeepestCommonAncestor(item, next);
+                    if (!commonAnc) break;
+                    runEnd++;
+                }
+
+                if (runEnd - i < 2) {
+                    nextResult.push(item);
+                    i++;
+                    continue;
+                }
+
+                // We have a contiguous run sharing a common ancestor
+                const run = result.slice(i, runEnd);
+                const commonAnc = _findDeepestCommonAncestorOfRun(run);
+                if (!commonAnc) {
+                    // No common ancestor found — just pass through
+                    nextResult.push(...run);
+                    i = runEnd;
+                    continue;
+                }
+
+                merged = true;
+                const parentItem = findItemById(commonAnc.id);
+                const refItem = run[0];
+                const ancIdx = refItem._path.findIndex(p => p.id === commonAnc.id);
+                const ancestorPath = refItem._path.slice(0, ancIdx + 1);
+
+                let childDone = 0, childTotal = 0;
+                if (!state.showDone && allWithDone) {
+                    const fullCounts = _countDescendantsFromFull(commonAnc.id);
+                    if (fullCounts) { childTotal = fullCounts.total; childDone = fullCounts.done; }
+                } else {
+                    for (const child of run) {
+                        childTotal += 1 + (child._absorbedCount || 0);
+                        childDone += (isContextDone(child, _viewCtx) ? 1 : 0) + (child._absorbedDone || 0);
+                    }
+                }
+
+                const existingIdx = nextResult.findIndex(a => a.id === commonAnc.id);
+                if (existingIdx >= 0) {
+                    const existing = nextResult[existingIdx];
+                    existing._absorbedCount = (existing._absorbedCount || 0) + childTotal;
+                    existing._absorbedDone = (existing._absorbedDone || 0) + childDone;
+                    existing._treeIdx = Math.min(existing._treeIdx ?? Infinity, ...run.map(r => r._treeIdx ?? Infinity));
+                } else {
+                    const synth = {
+                        ...(parentItem || {}),
+                        id: commonAnc.id,
+                        name: parentItem?.name || commonAnc.name || '?',
+                        _path: ancestorPath,
+                        _absorbedCount: childTotal,
+                        _absorbedDone: childDone,
+                        _synthesized: true,
+                        _treeIdx: Math.min(...run.map(r => r._treeIdx ?? Infinity)),
+                    };
+                    nextResult.push(synth);
+                }
+                i = runEnd;
+            }
+            result = nextResult;
+        }
+    }
+
+    // Helper: find deepest common ancestor between two items (excluding selectedItemId scope)
+    function _findDeepestCommonAncestor(a, b) {
+        if (!a._path || !b._path) return null;
+        const bIds = new Set(b._path.map(p => p.id));
+        let deepest = null;
+        for (let i = a._path.length - 2; i >= 0; i--) {
+            const anc = a._path[i];
+            if (state.selectedItemId && anc.id === state.selectedItemId) break;
+            if (bIds.has(anc.id) && anc.id !== a.id && anc.id !== b.id) {
+                deepest = anc;
+                break;
+            }
+        }
+        return deepest;
+    }
+
+    // Helper: find deepest common ancestor across an entire run
+    function _findDeepestCommonAncestorOfRun(run) {
+        if (run.length < 2) return null;
+        // Start with the first item's ancestors, intersect with each subsequent item
+        const first = run[0];
+        if (!first._path) return null;
+        // Get ancestor IDs (excluding self and selectedItemId scope)
+        let candidates = [];
+        for (let i = first._path.length - 2; i >= 0; i--) {
+            const anc = first._path[i];
+            if (state.selectedItemId && anc.id === state.selectedItemId) break;
+            if (anc.id !== first.id) candidates.push(anc);
+        }
+        for (let r = 1; r < run.length; r++) {
+            const item = run[r];
+            if (!item._path) return null;
+            const itemAncIds = new Set();
+            for (let i = item._path.length - 2; i >= 0; i--) {
+                const anc = item._path[i];
+                if (state.selectedItemId && anc.id === state.selectedItemId) break;
+                if (anc.id !== item.id) itemAncIds.add(anc.id);
+            }
+            candidates = candidates.filter(c => itemAncIds.has(c.id));
+            if (candidates.length === 0) return null;
+        }
+        // Return deepest (first in the list since we built it deepest-first)
+        return candidates[0] || null;
     }
 
     // ── Phase 3: Post-absorption cleanup — absorb remaining items into
@@ -6797,29 +7780,37 @@ function getFilteredActions(opts) {
     // opts.includeDone skips this filter (used for computing badge counts)
     const _viewCtx = getCurrentViewContext();
     if (!state.showDone && !(opts && opts.includeDone)) {
-        allLeaves = allLeaves.filter(a => !isContextDone(a, _viewCtx));
+        allLeaves = allLeaves.filter(a => !isAllRelevantContextsDone(a));
     }
     // Filter out blocked items unless showBlocked is on
     if (!state.showBlocked) {
         allLeaves = allLeaves.filter(a => !a.blocked);
     }
 
-    // ── Horizon + Schedule filter ──
+    // ── Horizon + Schedule filter (cascading down: broader views include more granular items) ──
     const currentDateKey = getDateKey(state.timelineViewDate);
     if (state.deepView) {
         // Deep view: show ALL layers — no horizon filter applied.
         // Items are scoped by the project context filter below.
     } else if (state.viewHorizon === 'epoch') {
-        // Show only items in the active epoch
-        allLeaves = allLeaves.filter(a => isItemInEpoch(a, state.epochFilter));
+        // Epoch + all more granular items within this epoch's range
+        allLeaves = allLeaves.filter(a =>
+            isItemInEpoch(a, state.epochFilter) || isItemInEpochRange(a, state.epochFilter)
+        );
     } else if (state.viewHorizon === 'month') {
-        // Show only items with the current month context
+        // Month items + week/day/session items within this month
         const monthKey = getMonthKey(state.timelineViewDate);
-        allLeaves = allLeaves.filter(a => isItemInMonth(a, monthKey));
+        allLeaves = allLeaves.filter(a =>
+            isItemInMonth(a, monthKey) ||
+            isItemInMonthDays(a, state.timelineViewDate)
+        );
     } else if (state.viewHorizon === 'week') {
-        // Show only items with the current week context (no specific day)
+        // Week items + day/session items within this week
         const weekKey = getWeekKey(state.timelineViewDate);
-        allLeaves = allLeaves.filter(a => isItemInWeek(a, weekKey));
+        allLeaves = allLeaves.filter(a =>
+            isItemInWeek(a, weekKey) ||
+            isItemInWeekDays(a, state.timelineViewDate)
+        );
     } else if (state.viewHorizon === 'live') {
         // Live horizon: show items assigned to the current live time context
         const todayKey = getDateKey(getLogicalToday());
@@ -6836,7 +7827,11 @@ function getFilteredActions(opts) {
             allLeaves = []; // idle/sleep — no items in live context
         }
     } else {
-        allLeaves = allLeaves.filter(a => itemMatchesTimeContext(a, currentDateKey));
+        // Day view: day items + session-level items on this day
+        allLeaves = allLeaves.filter(a =>
+            itemMatchesTimeContext(a, currentDateKey) ||
+            hasSegmentContext(findItemById(a.id), currentDateKey)
+        );
     }
     // ── Session focus: when focused, show items relevant to this session ──
     // Skip session focus filtering when deep view is active — show ALL layers.
@@ -6944,15 +7939,9 @@ function getFilteredActions(opts) {
         return sessionLeaves;
     }
 
-    // Exclude items with segment-level contexts — they belong to the timeline, not Actions.
-    // They only appear when their specific session is focused (handled above),
-    // OR when deep view is active (shows all lower layers).
-    if (!state.deepView && state.viewHorizon !== 'live') {
-        allLeaves = allLeaves.filter(a => {
-            const item = findItemById(a.id);
-            return !hasSegmentContext(item, currentDateKey);
-        });
-    }
+    // Note: segment-level items are now included at day/week/month/epoch views
+    // as part of the cascading-down behavior (broader views show more granular items).
+    // They are still only session-scoped when a session is focused (handled above).
 
     if (!state.selectedItemId) return allLeaves;
 
@@ -7485,6 +8474,58 @@ function isItemInMonthDays(action, viewDate) {
     return false;
 }
 
+// ─── Relative label helpers for context badges ───
+function _relativeWeekLabel(weekKey) {
+    const months = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+    const now = getLogicalToday();
+    const currentWeekKey = getWeekKey(now);
+    const range = getWeekDateRange(weekKey);
+    const currentRange = getWeekDateRange(currentWeekKey);
+    if (range && currentRange) {
+        const diffWeeks = Math.round((range.start - currentRange.start) / (7 * 86400000));
+        if (diffWeeks === 0) return 'this week';
+        if (diffWeeks === 1) return 'next week';
+        if (diffWeeks === -1) return 'last week';
+        if (diffWeeks > 1 && diffWeeks <= 8) return `in ${diffWeeks} weeks`;
+        if (diffWeeks < -1 && diffWeeks >= -8) return `${Math.abs(diffWeeks)} weeks ago`;
+    }
+    // Fallback: date range
+    if (range) {
+        if (range.start.getMonth() === range.end.getMonth()) {
+            return `${months[range.start.getMonth()]} ${range.start.getDate()}-${range.end.getDate()}`;
+        }
+        return `${months[range.start.getMonth()]} ${range.start.getDate()} \u2013 ${months[range.end.getMonth()]} ${range.end.getDate()}`;
+    }
+    return 'Week';
+}
+
+function _relativeMonthLabel(monthCtx) {
+    const months = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+    const monthStr = monthCtx.substring(6); // "2026-03"
+    const [y, m] = monthStr.split('-').map(Number);
+    const now = getLogicalToday();
+    const diffMonths = (y - now.getFullYear()) * 12 + (m - 1 - now.getMonth());
+    if (diffMonths === 0) return 'this month';
+    if (diffMonths === 1) return 'next month';
+    if (diffMonths === -1) return 'last month';
+    if (diffMonths > 1 && diffMonths <= 6) return `in ${diffMonths} months`;
+    if (diffMonths < -1 && diffMonths >= -6) return `${Math.abs(diffMonths)} months ago`;
+    return months[m - 1];
+}
+
+function _relativeDayLabel(dateStr) {
+    const dayNames = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+    const d = new Date(dateStr + 'T12:00:00');
+    const today = getLogicalToday();
+    const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const targetStart = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    const diffDays = Math.round((targetStart - todayStart) / 86400000);
+    if (diffDays === 0) return 'today';
+    if (diffDays === 1) return 'tomorrow';
+    if (diffDays === -1) return 'yesterday';
+    return dayNames[d.getDay()];
+}
+
 // Return human-readable labels for ALL of the item's time contexts.
 // Only shown when deep view is active.
 function getDeepViewContextLabels(action) {
@@ -7499,20 +8540,15 @@ function getDeepViewContextLabels(action) {
             continue;
         }
 
-        // Month context: show "Feb" etc
+        // Month context: relative label
         if (isMonthContext(tc)) {
-            const monthStr = tc.substring(6); // "2026-02"
-            const [y, m] = monthStr.split('-').map(Number);
-            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-            labels.push(months[m - 1]);
+            labels.push(_relativeMonthLabel(tc));
             continue;
         }
 
-        // Week context: show "W7" etc
+        // Week context: relative label
         if (isWeekContext(tc)) {
-            const weekDate = new Date(tc.substring(5) + 'T12:00:00');
-            const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-            labels.push(`Week`);
+            labels.push(_relativeWeekLabel(tc));
             continue;
         }
 
@@ -7520,7 +8556,7 @@ function getDeepViewContextLabels(action) {
 
         // Segment context (session level): "10:00–12:00"
         if (parsed && parsed.segment) {
-            labels.push(`${parsed.segment.start}–${parsed.segment.end}`);
+            labels.push(`${parsed.segment.start}\u2013${parsed.segment.end}`);
             continue;
         }
 
@@ -7532,7 +8568,7 @@ function getDeepViewContextLabels(action) {
                     const d = new Date(ms);
                     return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
                 };
-                labels.push(`📅 ${fmt(entry.timestamp)}–${fmt(entry.endTime)}`);
+                labels.push(`📅 ${fmt(entry.timestamp)}\u2013${fmt(entry.endTime)}`);
             } else if (parsed.date) {
                 const d = new Date(parsed.date + 'T12:00:00');
                 const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -7544,15 +8580,115 @@ function getDeepViewContextLabels(action) {
             continue;
         }
 
-        // Date context: show day name ("Mon", "Tue")
+        // Date context: relative label
         if (parsed && parsed.date && !parsed.segment) {
-            const d = new Date(parsed.date + 'T12:00:00');
-            const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-            labels.push(days[d.getDay()]);
+            labels.push(_relativeDayLabel(parsed.date));
             continue;
         }
     }
     return labels;
+}
+
+// Return context labels for an item's time contexts at or more granular than
+// the current view horizon. Shows relative labels (today, this week, etc.).
+function getHorizonContextLabels(action) {
+    const item = findItemById(action.id);
+    if (!item || !item.timeContexts) return [];
+
+    const horizon = state.viewHorizon;
+    // Hierarchy levels: epoch > month > week > day > segment
+    // Show labels for contexts at the same level OR more granular
+    const levels = ['epoch', 'month', 'week', 'day', 'session'];
+    const horizonIdx = levels.indexOf(horizon);
+    if (horizonIdx < 0) return []; // unknown horizon
+
+    const results = []; // { label, ctx, done }
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+    for (const tc of item.timeContexts) {
+        // Epoch context — skip (broadest level)
+        if (EPOCH_CONTEXTS.includes(tc)) continue;
+
+        // Month context: show when viewing epoch or month
+        if (isMonthContext(tc)) {
+            if (horizonIdx <= levels.indexOf('month')) {
+                results.push({ label: _relativeMonthLabel(tc), ctx: tc, done: isContextDone(item, tc) });
+            }
+            continue;
+        }
+
+        // Week context: show when viewing epoch, month, or week
+        if (isWeekContext(tc)) {
+            if (horizonIdx <= levels.indexOf('week')) {
+                results.push({ label: _relativeWeekLabel(tc), ctx: tc, done: isContextDone(item, tc) });
+            }
+            continue;
+        }
+
+        const parsed = parseTimeContext(tc);
+
+        // Segment context (session level)
+        if (parsed && parsed.segment) {
+            if (horizonIdx <= levels.indexOf('session')) {
+                if (horizonIdx <= levels.indexOf('day') && parsed.date) {
+                    results.push({ label: `${_relativeDayLabel(parsed.date)} ${parsed.segment.start}\u2013${parsed.segment.end}`, ctx: tc, done: isContextDone(item, tc) });
+                } else {
+                    results.push({ label: `${parsed.segment.start}\u2013${parsed.segment.end}`, ctx: tc, done: isContextDone(item, tc) });
+                }
+            }
+            continue;
+        }
+
+        // Entry context: show planned entry time range
+        if (parsed && parsed.entryId) {
+            if (horizonIdx <= levels.indexOf('session')) {
+                const entry = state.timeline?.entries?.find(e => String(e.id) === String(parsed.entryId));
+                if (entry && entry.timestamp && entry.endTime) {
+                    const fmt = (ms) => {
+                        const d = new Date(ms);
+                        return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+                    };
+                    if (horizonIdx <= levels.indexOf('day') && parsed.date) {
+                        results.push({ label: `\ud83d\udcc5 ${_relativeDayLabel(parsed.date)} ${fmt(entry.timestamp)}\u2013${fmt(entry.endTime)}`, ctx: tc, done: isContextDone(item, tc) });
+                    } else {
+                        results.push({ label: `\ud83d\udcc5 ${fmt(entry.timestamp)}\u2013${fmt(entry.endTime)}`, ctx: tc, done: isContextDone(item, tc) });
+                    }
+                }
+            }
+            continue;
+        }
+
+        // Date context: show relative day label when viewing day, week, month, or epoch
+        if (parsed && parsed.date && !parsed.segment) {
+            if (horizonIdx <= levels.indexOf('day')) {
+                results.push({ label: _relativeDayLabel(parsed.date), ctx: tc, done: isContextDone(item, tc) });
+            }
+            continue;
+        }
+    }
+    return results;
+}
+
+// Check if an item is done in ALL its relevant contexts for the current cascading view.
+// Used by the showDone filter: if done in every granular context, treat as fully done.
+function isAllRelevantContextsDone(action) {
+    const item = findItemById(action.id);
+    if (!item) return false;
+    if (item.done) return true; // global kill switch
+
+    // Check the current view context first
+    const _viewCtx = getCurrentViewContext();
+    if (isContextDone(item, _viewCtx)) return true;
+
+    // For cascading views, check all granular context badges
+    const ctxLabels = getHorizonContextLabels(action);
+    if (ctxLabels.length === 0) {
+        // No granular contexts \u2014 fall back to the standard check
+        return isContextDone(item, _viewCtx);
+    }
+
+    // All granular contexts must be done
+    return ctxLabels.every(c => c.done);
 }
 
 // ─── Multiselect Helpers ───
@@ -8067,14 +9203,10 @@ function createActionElement(action) {
                 const link = document.createElement('span');
                 link.className = 'action-project-tag-link';
                 link.textContent = ancestor.name;
-                link.title = `Select "${ancestor.name}" in projects`;
+                link.title = `Focus on "${ancestor.name}"`;
                 link.addEventListener('click', (e) => {
                     e.stopPropagation();
-                    state.selectedItemId = ancestor.id;
-                    savePref('selectedItemId', ancestor.id);
-                    renderAll();
-                    // Scroll to the selected project after render
-                    requestAnimationFrame(() => scrollToSelectedItem());
+                    navigateProjectTo(ancestor.id);
                 });
                 tag.appendChild(link);
             });
@@ -8084,6 +9216,34 @@ function createActionElement(action) {
 
     // Duration / Investment badge (context-aware)
     const estimateItem = findItemById(action.id);
+
+    // ── Priority badge ──
+    {
+        const _prio = _actionItem ? (_actionItem.priority || 0) : 0;
+        const prioLevel = Math.abs(_prio);
+        const prioCssLevel = Math.min(prioLevel, 3); // cap CSS class at 3 for styling
+        const prioSign = _prio > 0 ? 'high' : _prio < 0 ? 'low' : 'neutral';
+        const prioBadge = document.createElement('span');
+        if (_prio !== 0) {
+            prioBadge.className = `action-priority-badge priority-${prioSign}-${prioCssLevel}`;
+            prioBadge.textContent = _prio > 0 ? '!'.repeat(prioLevel) : '?'.repeat(prioLevel);
+            prioBadge.title = `Priority: ${_prio > 0 ? '+' : ''}${_prio} — click to clear`;
+            prioBadge.addEventListener('click', (e) => {
+                e.stopPropagation();
+                _showPriorityPicker(prioBadge, action.id);
+            });
+            badgesRow.appendChild(prioBadge);
+        } else if (!_actionDone) {
+            prioBadge.className = 'action-priority-badge no-priority';
+            prioBadge.textContent = '⚡';
+            prioBadge.title = 'Set priority';
+            prioBadge.addEventListener('click', (e) => {
+                e.stopPropagation();
+                _showPriorityPicker(prioBadge, action.id);
+            });
+            badgesRow.appendChild(prioBadge);
+        }
+    }
 
     // Blocked badge (click to edit reason inline)
     if (_actionBlocked) {
@@ -8215,13 +9375,45 @@ function createActionElement(action) {
         }
     }
 
-    // Deep view context badges — show ALL of the item's time contexts when deep view is on
+    // Context badges — show time context labels:
+    // Deep view: ALL contexts (plain labels). Normal view: contexts with done state + hover toggle.
     if (state.deepView) {
         const ctxLabels = getDeepViewContextLabels(action);
         for (const label of ctxLabels) {
             const ctxBadge = document.createElement('span');
             ctxBadge.className = 'action-context-badge';
             ctxBadge.textContent = label;
+            badgesRow.appendChild(ctxBadge);
+        }
+    } else {
+        const ctxLabels = getHorizonContextLabels(action);
+        for (const { label, ctx, done } of ctxLabels) {
+            const ctxBadge = document.createElement('span');
+            ctxBadge.className = 'action-context-badge' + (done ? ' context-badge-done' : '');
+            ctxBadge.title = done ? 'Done in this context \u2014 click to undo' : 'Click to mark done';
+
+            const labelSpan = document.createElement('span');
+            labelSpan.className = 'context-badge-label';
+            labelSpan.textContent = label;
+            ctxBadge.appendChild(labelSpan);
+
+            // Done/undo toggle button (visible on hover)
+            const toggleBtn = document.createElement('span');
+            toggleBtn.className = 'context-badge-toggle';
+            toggleBtn.textContent = done ? '\u21a9' : '\u2713';
+            ctxBadge.appendChild(toggleBtn);
+
+            ctxBadge.style.cursor = 'pointer';
+            ctxBadge.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const item = findItemById(action.id);
+                if (!item) return;
+                const wasDone = isContextDone(item, ctx);
+                pushUndo(wasDone ? `Undo done '${action.name}' in ${label}` : `Done '${action.name}' in ${label}`);
+                setContextDone(item, ctx, !wasDone);
+                renderAll();
+            });
+
             badgesRow.appendChild(ctxBadge);
         }
     }
@@ -8563,6 +9755,8 @@ function setupActionInput() {
     let _durationLabel = null;          // display label for duration chip
     let _existingItemId = null;         // existing item selected from auto-suggest
     let _existingItemName = null;       // display name for existing item chip
+    let _priorityOverride = null;       // priority value from !/? trigger
+    let _priorityLabel = null;          // display label for priority chip
 
     // ── Generic Dropdown State ──
     let _dropdown = null;
@@ -8673,6 +9867,56 @@ function setupActionInput() {
         const d = new Date(getLogicalToday());
         d.setDate(d.getDate() + n);
         return d;
+    };
+
+    // ── Priority trigger detection ──
+    // Detects trailing sequences of ! and/or ? characters (with optional leading space)
+    const _getPriorityTrigger = () => {
+        const val = input.value;
+        const cursor = input.selectionStart;
+        const textBeforeCursor = val.slice(0, cursor);
+        // Match a trailing sequence of ! and/or ? chars, possibly preceded by a space or at start
+        const m = textBeforeCursor.match(/(?:^|\s)([!?]+)$/);
+        if (!m) return null;
+        const raw = m[1];
+        return { atIdx: textBeforeCursor.length - raw.length, query: raw };
+    };
+
+    // Build priority dropdown items from the raw !/?  query
+    const _getPriorityItems = (query) => {
+        const bangs = (query.match(/!/g) || []).length;
+        const qs = (query.match(/\?/g) || []).length;
+        const value = bangs - qs; // no clamping — any value is valid
+
+        // Build the label from the raw value
+        const buildLabel = (v) => v > 0 ? '!'.repeat(v) : v < 0 ? '?'.repeat(-v) : '—';
+        const buildEmoji = (v) => v > 0 ? '🔼' : v < 0 ? '🔽' : '➖';
+        const buildDesc = (v) => {
+            if (v === 0) return 'Normal priority';
+            const abs = Math.abs(v);
+            const dir = v > 0 ? 'high' : 'low';
+            if (abs === 1) return `Slightly ${dir} priority`;
+            if (abs === 2) return `${v > 0 ? 'High' : 'Low'} priority`;
+            if (abs === 3) return `Very ${dir} priority`;
+            return `${dir === 'high' ? 'High' : 'Low'} priority (${abs})`;
+        };
+
+        // Show the computed level first, then nearby levels for quick adjustment
+        const items = [{ value }];
+        // Add neighbours: ±1, ±2 from current, plus 0 if not already included
+        const seen = new Set([value]);
+        for (const delta of [1, -1, 2, -2]) {
+            const v = value + delta;
+            if (!seen.has(v)) { seen.add(v); items.push({ value: v }); }
+        }
+        if (!seen.has(0)) items.push({ value: 0 });
+
+        return items.map(l => ({
+            name: `${buildEmoji(l.value)} ${buildLabel(l.value)}`,
+            description: buildDesc(l.value),
+            _priorityValue: l.value,
+            _priorityLabel: buildLabel(l.value),
+        }));
     };
 
     // ── Duration parser ──
@@ -8809,7 +10053,8 @@ function setupActionInput() {
             const icon = document.createElement('span');
             icon.className = 'action-input-dropdown-icon';
             const isDurationItem = !!item._durationMinutes;
-            icon.textContent = triggerChar === '#' ? (isDurationItem ? '⏱' : '📅') : ((triggerChar === '/' || triggerChar === 'auto') ? '📌' : '');
+            const isPriorityItem = item._priorityValue !== undefined;
+            icon.textContent = isPriorityItem ? '' : (triggerChar === '#' ? (isDurationItem ? '⏱' : '📅') : ((triggerChar === '/' || triggerChar === 'auto') ? '📌' : ''));
             if (triggerChar === '#' || triggerChar === '/' || triggerChar === 'auto') opt.appendChild(icon);
 
             const nameEl = document.createElement('span');
@@ -8870,6 +10115,9 @@ function setupActionInput() {
         } else if (triggerChar === '@') {
             _atOverrideId = item.id;
             _atOverrideName = item.name;
+        } else if (triggerChar === 'priority') {
+            _priorityOverride = item._priorityValue;
+            _priorityLabel = item._priorityLabel;
         } else if (triggerChar === '#') {
             if (item._durationMinutes) {
                 _durationMinutes = item._durationMinutes;
@@ -8961,6 +10209,22 @@ function setupActionInput() {
             });
             row.appendChild(chip);
         }
+
+        if (_priorityOverride !== null) {
+            const chip = document.createElement('span');
+            chip.className = 'action-input-duration-chip'; // reuse duration chip style
+            const prioEmoji = _priorityOverride > 0 ? '🔼' : (_priorityOverride < 0 ? '🔽' : '➖');
+            chip.innerHTML = `<span class="at-chip-label">${prioEmoji} ${_priorityLabel}</span><button class="at-chip-remove" title="Remove">×</button>`;
+            chip.querySelector('.at-chip-remove').addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                _priorityOverride = null;
+                _priorityLabel = null;
+                chip.remove();
+                updateBtnVisibility();
+                input.focus();
+            });
+            row.appendChild(chip);
+        }
     };
 
     // ── Input handler ──
@@ -8987,6 +10251,16 @@ function setupActionInput() {
                     _renderDropdown(items, '#', hashInfo);
                     return;
                 }
+            }
+        }
+
+        // Try priority trigger (! or ? sequences)
+        if (!_priorityOverride) {
+            const prioInfo = _getPriorityTrigger();
+            if (prioInfo) {
+                const items = _getPriorityItems(prioInfo.query);
+                _renderDropdown(items, 'priority', prioInfo);
+                return;
             }
         }
 
@@ -9035,6 +10309,8 @@ function setupActionInput() {
         _durationLabel = null;
         _existingItemId = null;
         _existingItemName = null;
+        _priorityOverride = null;
+        _priorityLabel = null;
         _closeDropdown();
         const row = document.getElementById('action-input-row');
         row?.querySelector('.action-input-at-chip')?.remove();
@@ -9066,6 +10342,14 @@ function setupActionInput() {
                 api.patch(`/items/${_existingItemId}`, patch);
                 renderAll();
             }
+            // Also apply priority override to existing item
+            if (_priorityOverride !== null) {
+                const existingItem2 = findItemById(_existingItemId);
+                if (existingItem2) {
+                    existingItem2.priority = _priorityOverride;
+                    api.patch(`/items/${_existingItemId}`, { priority: _priorityOverride });
+                }
+            }
             _clearInputState();
             return;
         }
@@ -9083,6 +10367,15 @@ function setupActionInput() {
         if (_durationMinutes && _durationLabel) {
             name = name.replace('#' + _durationLabel, '').replace(/\s{2,}/g, ' ').trim();
         }
+        // Strip trailing !/? priority markers from name
+        if (_priorityOverride !== null) {
+            name = name.replace(/[!?]+\s*$/g, '').trim();
+        }
+        // Also strip inline !/? via parsePriority (catches any remaining markers)
+        const { priority: _parsedPriority, cleanName: _finalName } = parsePriority(name);
+        name = _finalName;
+        // Resolve final priority: explicit override > parsed from name > 0
+        const finalPriority = _priorityOverride !== null ? _priorityOverride : (_parsedPriority !== 0 ? _parsedPriority : 0);
         if (!name) return;
 
         // Determine parentId: @override > selected project > inbox
@@ -9101,7 +10394,7 @@ function setupActionInput() {
 
         // Optimistic local add
         const tempId = state.items.nextId++;
-        const newLocalItem = { id: tempId, name, children: [], expanded: false, createdAt: Date.now(), done: false, timeContexts, contextDurations };
+        const newLocalItem = { id: tempId, name, children: [], expanded: false, createdAt: Date.now(), done: false, ...(finalPriority !== 0 ? { priority: finalPriority } : {}), timeContexts, contextDurations };
         const parentArr = parentId ? findItemById(parentId)?.children : state.items.items;
         if (parentArr) parentArr.push(newLocalItem);
         // Fire-and-forget to server
@@ -9109,7 +10402,8 @@ function setupActionInput() {
             name,
             parentId,
             timeContexts,
-            contextDurations
+            contextDurations,
+            ...(finalPriority !== 0 ? { priority: finalPriority } : {})
         }).then(serverItem => {
             const local = findItemById(tempId);
             if (local && serverItem && serverItem.id) local.id = serverItem.id;
@@ -9139,6 +10433,10 @@ function setupActionInput() {
         }
         if (_durationMinutes && _durationLabel) {
             name = name.replace('#' + _durationLabel, '').replace(/\s{2,}/g, ' ').trim();
+        }
+        // Strip trailing !/? priority markers from name
+        if (_priorityOverride !== null) {
+            name = name.replace(/[!?]+\s*$/g, '').trim();
         }
 
         // Case 0: existing item selected → add to context + start working
@@ -9192,11 +10490,17 @@ function setupActionInput() {
             contextDurations = { [durKey]: _durationMinutes };
         }
 
+        // Strip inline !/? via parsePriority
+        const { priority: _startParsedPrio, cleanName: _startCleanName } = parsePriority(name);
+        name = _startCleanName;
+        const startPriority = _priorityOverride !== null ? _priorityOverride : (_startParsedPrio !== 0 ? _startParsedPrio : 0);
+
         const newItem = await api.post('/items', {
             name,
             parentId,
             timeContexts,
-            contextDurations
+            contextDurations,
+            ...(startPriority !== 0 ? { priority: startPriority } : {})
         });
         // Add to local state immediately (skip redundant full reload)
         if (newItem) {
@@ -9421,6 +10725,17 @@ async function startDay() {
     const orphans = detectOrphanedDays();
     if (orphans.length > 0) {
         showOrphanRecoveryModal(orphans, () => {
+            _maybeShowDegradedReview();
+        });
+        return;
+    }
+    _maybeShowDegradedReview();
+}
+
+function _maybeShowDegradedReview() {
+    const degraded = state._recentlyDegradedItems;
+    if (degraded && degraded.length > 0) {
+        showDegradedReview(degraded, () => {
             _doStartDay();
         });
         return;
@@ -9449,38 +10764,50 @@ async function closeDay() {
     if (!state.settings.dayOverrides) state.settings.dayOverrides = {};
     if (!state.settings.dayOverrides[activeKey]) state.settings.dayOverrides[activeKey] = {};
 
-    // Evaluate today's commitments
-    const commitResults = evaluateCommitments(activeKey);
-    const hasCommitments = commitResults.kept.length + commitResults.broken.length > 0;
+    // Collect undone items that will degrade after today
+    const leftovers = collectTodayLeftovers(activeKey);
 
-    // Record commitment results in history
-    for (const item of commitResults.kept) {
-        _recordCommitmentResult(item.context, item.itemId, item.name, true);
-    }
-    for (const item of commitResults.broken) {
-        _recordCommitmentResult(item.context, item.itemId, item.name, false);
-    }
+    const proceedToCommitments = () => {
+        // Evaluate today's commitments
+        const commitResults = evaluateCommitments(activeKey);
+        const hasCommitments = commitResults.kept.length + commitResults.broken.length > 0;
 
-    const finishClose = async () => {
-        const now = new Date();
-        state.settings.dayOverrides[activeKey].dayEndHour = now.getHours();
-        state.settings.dayOverrides[activeKey].dayEndMinute = now.getMinutes();
-        state.settings.dayOverrides[activeKey].dayClosed = true;
-        state.settings.dayOverrides[activeKey].dayClosedAt = Date.now();
+        // Record commitment results in history
+        for (const item of commitResults.kept) {
+            _recordCommitmentResult(item.context, item.itemId, item.name, true);
+        }
+        for (const item of commitResults.broken) {
+            _recordCommitmentResult(item.context, item.itemId, item.name, false);
+        }
 
-        // Merge streak check-in (commitment-aware)
-        await performCheckIn(commitResults);
+        const finishClose = async () => {
+            const now = new Date();
+            state.settings.dayOverrides[activeKey].dayEndHour = now.getHours();
+            state.settings.dayOverrides[activeKey].dayEndMinute = now.getMinutes();
+            state.settings.dayOverrides[activeKey].dayClosed = true;
+            state.settings.dayOverrides[activeKey].dayClosedAt = Date.now();
 
-        _playStickySound();
-        api.put('/settings', state.settings);
-        renderAll();
+            // Merge streak check-in (commitment-aware)
+            await performCheckIn(commitResults);
+
+            _playStickySound();
+            api.put('/settings', state.settings);
+            renderAll();
+        };
+
+        // Show commitment review if there are commitments, else close directly
+        if (hasCommitments) {
+            showCommitmentReview(commitResults, finishClose);
+        } else {
+            finishClose();
+        }
     };
 
-    // Show commitment review if there are commitments, else close directly
-    if (hasCommitments) {
-        showCommitmentReview(commitResults, finishClose);
+    // Show leftover review if there are undone items, then proceed to commitments
+    if (leftovers.length > 0) {
+        showLeftoverReview(leftovers, activeKey, proceedToCommitments);
     } else {
-        await finishClose();
+        proceedToCommitments();
     }
 }
 
@@ -9761,6 +11088,491 @@ function showOrphanRecoveryModal(orphans, onComplete) {
             }, 400);
         }
     }
+
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+}
+
+// ─── Shared Action Buttons for Review Modals ───
+// Creates a compact row of action buttons (Done, Decline, Schedule, Block) for a review item row.
+// Returns the container element. When an action changes the item's state, the row is updated visually.
+
+function _createReviewActionButtons(itemId, row, overlay, contextKey) {
+    const item = findItemById(itemId);
+    if (!item) return null;
+
+    const strip = document.createElement('div');
+    strip.className = 'review-item-action-strip';
+
+    const viewCtx = contextKey || getCurrentViewContext();
+
+    // ✓ Done
+    const doneBtn = document.createElement('button');
+    doneBtn.className = 'action-btn action-btn-done';
+    const initiallyDone = isContextDone(item, viewCtx);
+    doneBtn.textContent = initiallyDone ? '↩' : '✓';
+    doneBtn.title = initiallyDone ? 'Mark as not done' : 'Mark as done';
+    if (initiallyDone) {
+        row.classList.add('review-item-done');
+        row.style.background = 'rgba(34, 197, 94, 0.12)';
+        row.style.borderColor = 'rgba(34, 197, 94, 0.5)';
+        const nameEl = row.querySelector('.leftover-review-name, .degraded-review-name');
+        if (nameEl) { nameEl.style.textDecoration = 'line-through'; nameEl.style.opacity = '0.5'; }
+    }
+    doneBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const wasDone = isContextDone(item, viewCtx);
+        pushUndo(wasDone ? `Mark '${item.name}' undone` : `Mark '${item.name}' done`);
+        setContextDone(item, viewCtx, !wasDone);
+        // Update the row visually — use both class AND inline styles for reliability
+        if (!wasDone) {
+            row.classList.add('review-item-done');
+            row.style.background = 'rgba(34, 197, 94, 0.12)';
+            row.style.borderColor = 'rgba(34, 197, 94, 0.5)';
+            const nameEl = row.querySelector('.leftover-review-name, .degraded-review-name');
+            if (nameEl) { nameEl.style.textDecoration = 'line-through'; nameEl.style.opacity = '0.5'; }
+            doneBtn.textContent = '↩';
+            doneBtn.title = 'Mark as not done';
+        } else {
+            row.classList.remove('review-item-done');
+            row.style.background = '';
+            row.style.borderColor = '';
+            const nameEl = row.querySelector('.leftover-review-name, .degraded-review-name');
+            if (nameEl) { nameEl.style.textDecoration = ''; nameEl.style.opacity = ''; }
+            doneBtn.textContent = '✓';
+            doneBtn.title = 'Mark as done';
+        }
+    });
+    strip.appendChild(doneBtn);
+
+    // ✕ Decline (remove from context)
+    const declineBtn = document.createElement('button');
+    declineBtn.className = 'action-btn action-btn-decline';
+    declineBtn.textContent = '✕';
+    declineBtn.title = 'Remove from this context';
+    declineBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        pushUndo(`Remove '${item.name}' from context`);
+        removeSourceContext(item.id, viewCtx);
+        // Fade the row instead of removing it
+        row.classList.add('review-item-declined');
+    });
+    strip.appendChild(declineBtn);
+
+    // 📅 Schedule
+    const scheduleBtn = document.createElement('button');
+    scheduleBtn.className = 'action-btn action-btn-schedule';
+    scheduleBtn.textContent = '📅';
+    scheduleBtn.title = 'Schedule this action';
+    scheduleBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openScheduleModal(item.id, item.name);
+    });
+    strip.appendChild(scheduleBtn);
+
+    // ➜ Follow-up — mark done + create a new sibling
+    const followupBtn = document.createElement('button');
+    followupBtn.className = 'action-btn action-btn-followup';
+    followupBtn.textContent = '➜';
+    followupBtn.title = 'Mark done & create follow-up';
+    followupBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        // 1. Mark as done
+        setContextDone(item, viewCtx, true);
+        row.classList.add('review-item-done');
+        doneBtn.textContent = '↩';
+        doneBtn.title = 'Mark as not done';
+
+        // 2. Create a new sibling item right after this one in the tree
+        const location = findParentArray(item.id);
+        if (location) {
+            const newItem = {
+                id: state.items.nextId++,
+                name: '',
+                children: [],
+                expanded: false,
+                createdAt: Date.now(),
+                done: false,
+                timeContexts: item.timeContexts ? [...item.timeContexts] : [],
+                contextDurations: item.contextDurations ? { ...item.contextDurations } : {},
+            };
+            location.array.splice(location.index + 1, 0, newItem);
+            saveItems();
+
+            // Create an inline input in the row for naming the follow-up
+            const inputRow = document.createElement('div');
+            inputRow.className = 'review-followup-input-row';
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'followup-inline-input';
+            input.placeholder = 'Follow-up task...';
+            input.style.cssText = 'width:100%;border:none;border-bottom:1px dashed currentColor;background:transparent;font:inherit;color:inherit;outline:none;padding:2px 0;font-size:12px;';
+            inputRow.appendChild(input);
+            row.appendChild(inputRow);
+            input.focus();
+
+            const commitFollowup = async () => {
+                const val = input.value.trim();
+                const itemInTree = findItemById(newItem.id);
+                if (val && itemInTree) {
+                    itemInTree.name = val;
+                    saveItems();
+                    inputRow.remove();
+                } else if (!val && itemInTree) {
+                    // Remove empty follow-up
+                    const loc = findParentArray(newItem.id);
+                    if (loc) loc.array.splice(loc.index, 1);
+                    saveItems();
+                    inputRow.remove();
+                }
+            };
+            input.addEventListener('blur', commitFollowup);
+            input.addEventListener('keydown', (ev) => {
+                if (ev.key === 'Enter') { ev.preventDefault(); input.blur(); }
+                if (ev.key === 'Escape') { input.value = ''; input.blur(); }
+            });
+        }
+    });
+    strip.appendChild(followupBtn);
+
+    // ⏳ Block
+    const blockBtn = document.createElement('button');
+    blockBtn.className = 'action-btn action-btn-block';
+    blockBtn.textContent = item.blocked ? '✅' : '⏳';
+    blockBtn.title = item.blocked ? 'Unblock this item' : 'Mark as blocked';
+    if (item.blocked) blockBtn.classList.add('action-btn-blocked');
+    blockBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const wasBlocked = item.blocked;
+        patchItemOptimistic(item.id, { blocked: !wasBlocked, blockedReason: '' });
+        blockBtn.textContent = wasBlocked ? '⏳' : '✅';
+        blockBtn.title = wasBlocked ? 'Mark as blocked' : 'Unblock this item';
+        blockBtn.classList.toggle('action-btn-blocked', !wasBlocked);
+        row.classList.toggle('review-item-blocked', !wasBlocked);
+    });
+    strip.appendChild(blockBtn);
+
+    return strip;
+}
+
+// ─── Leftover Review Modal (Close Day) ───
+// Shows undone items scheduled for today that will degrade to the week backlog.
+// Lets the user push items to tomorrow or let them degrade naturally.
+
+function showLeftoverReview(leftovers, dateKey, onContinue) {
+    if (!leftovers || leftovers.length === 0) {
+        if (onContinue) onContinue();
+        return;
+    }
+
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay leftover-review-overlay';
+
+    const modal = document.createElement('div');
+    modal.className = 'modal-box leftover-review-modal';
+
+    const title = document.createElement('h3');
+    title.className = 'leftover-review-title';
+    title.textContent = 'Unfinished Items';
+    modal.appendChild(title);
+
+    const subtitle = document.createElement('div');
+    subtitle.className = 'leftover-review-subtitle';
+    subtitle.textContent = leftovers.length === 1
+        ? '1 item is still on today\'s list. What should happen to it?'
+        : `${leftovers.length} items are still on today's list. What should happen to them?`;
+    modal.appendChild(subtitle);
+
+    // Compute tomorrow's date key
+    const [y, m, d] = dateKey.split('-').map(Number);
+    const tomorrow = new Date(y, m - 1, d);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrowKey = getDateKey(tomorrow);
+
+    const list = document.createElement('div');
+    list.className = 'leftover-review-list';
+
+    const itemStates = []; // track per-item decisions
+
+    for (const leftover of leftovers) {
+        const row = document.createElement('div');
+        row.className = 'leftover-review-row';
+        row.dataset.itemId = leftover.id;
+
+        const nameEl = document.createElement('span');
+        nameEl.className = 'leftover-review-name';
+        nameEl.textContent = leftover.name;
+        nameEl.title = leftover.name;
+
+        const actions = document.createElement('div');
+        actions.className = 'leftover-review-actions';
+
+        const tomorrowBtn = document.createElement('button');
+        tomorrowBtn.className = 'leftover-review-btn leftover-review-btn-tomorrow';
+        tomorrowBtn.textContent = '→ Tomorrow';
+        tomorrowBtn.title = 'Push to tomorrow';
+
+        const weekBtn = document.createElement('button');
+        weekBtn.className = 'leftover-review-btn leftover-review-btn-week';
+        weekBtn.textContent = '↓ Week';
+        weekBtn.title = 'Let it degrade to the week backlog';
+
+        const itemState = { id: leftover.id, action: null };
+        itemStates.push(itemState);
+
+        tomorrowBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            itemState.action = 'tomorrow';
+            row.classList.add('leftover-review-resolved');
+            row.classList.remove('leftover-review-dismissed');
+            tomorrowBtn.classList.add('leftover-review-btn-active');
+            weekBtn.classList.remove('leftover-review-btn-active');
+        });
+
+        weekBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            itemState.action = 'week';
+            row.classList.add('leftover-review-dismissed');
+            row.classList.remove('leftover-review-resolved');
+            weekBtn.classList.add('leftover-review-btn-active');
+            tomorrowBtn.classList.remove('leftover-review-btn-active');
+        });
+
+        actions.appendChild(tomorrowBtn);
+        actions.appendChild(weekBtn);
+
+        row.appendChild(nameEl);
+        row.appendChild(actions);
+
+        // Add standard action buttons strip
+        const actionStrip = _createReviewActionButtons(leftover.id, row, overlay, dateKey);
+        if (actionStrip) row.appendChild(actionStrip);
+
+        list.appendChild(row);
+    }
+    modal.appendChild(list);
+
+    // Batch actions
+    const batchRow = document.createElement('div');
+    batchRow.className = 'leftover-review-batch';
+
+    const allTomorrowBtn = document.createElement('button');
+    allTomorrowBtn.className = 'leftover-review-btn leftover-review-btn-batch-tomorrow';
+    allTomorrowBtn.textContent = '→ All to Tomorrow';
+    allTomorrowBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        for (const is of itemStates) is.action = 'tomorrow';
+        list.querySelectorAll('.leftover-review-row').forEach(r => {
+            r.classList.add('leftover-review-resolved');
+            r.classList.remove('leftover-review-dismissed');
+            r.querySelector('.leftover-review-btn-tomorrow')?.classList.add('leftover-review-btn-active');
+            r.querySelector('.leftover-review-btn-week')?.classList.remove('leftover-review-btn-active');
+        });
+    });
+
+    const letGoBtn = document.createElement('button');
+    letGoBtn.className = 'leftover-review-btn leftover-review-btn-batch-letgo';
+    letGoBtn.textContent = 'Let them go';
+    letGoBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        for (const is of itemStates) if (!is.action) is.action = 'week';
+        list.querySelectorAll('.leftover-review-row').forEach(r => {
+            if (!r.classList.contains('leftover-review-resolved')) {
+                r.classList.add('leftover-review-dismissed');
+                r.querySelector('.leftover-review-btn-week')?.classList.add('leftover-review-btn-active');
+            }
+        });
+    });
+
+    batchRow.appendChild(allTomorrowBtn);
+    batchRow.appendChild(letGoBtn);
+    modal.appendChild(batchRow);
+
+    // Continue button
+    const continueRow = document.createElement('div');
+    continueRow.className = 'leftover-review-continue';
+    const continueBtn = document.createElement('button');
+    continueBtn.className = 'leftover-review-btn leftover-review-btn-continue';
+    continueBtn.textContent = '🌙 Continue';
+    continueBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        // Apply decisions
+        for (const is of itemStates) {
+            if (is.action === 'tomorrow') {
+                await rescheduleToDate(is.id, tomorrowKey);
+            }
+            // 'week' or null: no action, normal degradation handles it
+        }
+        overlay.remove();
+        if (onContinue) onContinue();
+    });
+    continueRow.appendChild(continueBtn);
+    modal.appendChild(continueRow);
+
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+}
+
+// ─── Degraded Review Modal (Start Day) ───
+// Shows items that recently degraded from day → week backlog.
+// Lets the user pull them back to today or leave them in the week.
+
+function showDegradedReview(degradedItems, onContinue) {
+    if (!degradedItems || degradedItems.length === 0) {
+        if (onContinue) onContinue();
+        return;
+    }
+
+    // Filter out items that may have been deleted or done since degradation
+    const validItems = degradedItems.filter(di => {
+        const item = findItemById(di.id);
+        return item && !item.done && !item.deleted;
+    });
+
+    if (validItems.length === 0) {
+        if (onContinue) onContinue();
+        return;
+    }
+
+    const todayKey = getDateKey(new Date());
+
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay degraded-review-overlay';
+
+    const modal = document.createElement('div');
+    modal.className = 'modal-box degraded-review-modal';
+
+    const title = document.createElement('h3');
+    title.className = 'degraded-review-title';
+    title.textContent = 'Yesterday\'s Leftovers';
+    modal.appendChild(title);
+
+    const subtitle = document.createElement('div');
+    subtitle.className = 'degraded-review-subtitle';
+    subtitle.textContent = validItems.length === 1
+        ? '1 item moved to the week backlog. Want to pull it to today?'
+        : `${validItems.length} items moved to the week backlog. Want to pull any to today?`;
+    modal.appendChild(subtitle);
+
+    const list = document.createElement('div');
+    list.className = 'degraded-review-list';
+
+    const itemStates = [];
+
+    for (const di of validItems) {
+        const row = document.createElement('div');
+        row.className = 'degraded-review-row';
+        row.dataset.itemId = di.id;
+
+        const nameEl = document.createElement('span');
+        nameEl.className = 'degraded-review-name';
+        nameEl.textContent = di.name;
+        nameEl.title = di.name;
+
+        const actions = document.createElement('div');
+        actions.className = 'degraded-review-actions';
+
+        const todayBtn = document.createElement('button');
+        todayBtn.className = 'degraded-review-btn degraded-review-btn-today';
+        todayBtn.textContent = '→ Today';
+        todayBtn.title = 'Pull to today';
+
+        const leaveBtn = document.createElement('button');
+        leaveBtn.className = 'degraded-review-btn degraded-review-btn-leave';
+        leaveBtn.textContent = 'Leave';
+        leaveBtn.title = 'Keep in week backlog';
+
+        const itemState = { id: di.id, weekKey: di.weekKey, action: null };
+        itemStates.push(itemState);
+
+        todayBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            itemState.action = 'today';
+            row.classList.add('degraded-review-resolved');
+            row.classList.remove('degraded-review-dismissed');
+            todayBtn.classList.add('degraded-review-btn-active');
+            leaveBtn.classList.remove('degraded-review-btn-active');
+        });
+
+        leaveBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            itemState.action = 'leave';
+            row.classList.add('degraded-review-dismissed');
+            row.classList.remove('degraded-review-resolved');
+            leaveBtn.classList.add('degraded-review-btn-active');
+            todayBtn.classList.remove('degraded-review-btn-active');
+        });
+
+        actions.appendChild(todayBtn);
+        actions.appendChild(leaveBtn);
+
+        row.appendChild(nameEl);
+        row.appendChild(actions);
+
+        // Add standard action buttons strip
+        const actionStrip = _createReviewActionButtons(di.id, row, overlay, todayKey);
+        if (actionStrip) row.appendChild(actionStrip);
+
+        list.appendChild(row);
+    }
+    modal.appendChild(list);
+
+    // Batch actions
+    const batchRow = document.createElement('div');
+    batchRow.className = 'degraded-review-batch';
+
+    const allTodayBtn = document.createElement('button');
+    allTodayBtn.className = 'degraded-review-btn degraded-review-btn-batch-today';
+    allTodayBtn.textContent = '→ Pull all to Today';
+    allTodayBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        for (const is of itemStates) is.action = 'today';
+        list.querySelectorAll('.degraded-review-row').forEach(r => {
+            r.classList.add('degraded-review-resolved');
+            r.classList.remove('degraded-review-dismissed');
+            r.querySelector('.degraded-review-btn-today')?.classList.add('degraded-review-btn-active');
+            r.querySelector('.degraded-review-btn-leave')?.classList.remove('degraded-review-btn-active');
+        });
+    });
+
+    const startFreshBtn = document.createElement('button');
+    startFreshBtn.className = 'degraded-review-btn degraded-review-btn-batch-fresh';
+    startFreshBtn.textContent = 'Start fresh';
+    startFreshBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        for (const is of itemStates) if (!is.action) is.action = 'leave';
+        list.querySelectorAll('.degraded-review-row').forEach(r => {
+            if (!r.classList.contains('degraded-review-resolved')) {
+                r.classList.add('degraded-review-dismissed');
+                r.querySelector('.degraded-review-btn-leave')?.classList.add('degraded-review-btn-active');
+            }
+        });
+    });
+
+    batchRow.appendChild(allTodayBtn);
+    batchRow.appendChild(startFreshBtn);
+    modal.appendChild(batchRow);
+
+    // Continue button
+    const continueRow = document.createElement('div');
+    continueRow.className = 'degraded-review-continue';
+    const continueBtn = document.createElement('button');
+    continueBtn.className = 'degraded-review-btn degraded-review-btn-continue';
+    continueBtn.textContent = '☀️ Start Day';
+    continueBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        for (const is of itemStates) {
+            if (is.action === 'today') {
+                await promoteFromWeek(is.id, todayKey);
+            }
+        }
+        // Clear transient degraded items
+        delete state._recentlyDegradedItems;
+        overlay.remove();
+        if (onContinue) onContinue();
+    });
+    continueRow.appendChild(continueBtn);
+    modal.appendChild(continueRow);
 
     overlay.appendChild(modal);
     document.body.appendChild(overlay);
@@ -15102,43 +16914,18 @@ function startIdleUpdater() {
                     indicatorTimer.classList.add('live-session-indicator-overtime');
                 }
             } else if (iTarget && !iStart) {
-                // Good Night: countdown to next morning (neutral count-up after)
+                // Good Night: countdown then neutral count-up
                 const rem = iTarget - iNow;
-                if (indicatorTimer.dataset.noOvertime === '1') {
-                    // No scary "over" — just count-up when past target
-                    if (rem > 0) {
-                        indicatorTimer.textContent = _fmtHMS(rem) + ' left';
-                    } else {
-                        indicatorTimer.textContent = _fmtHMS(Math.abs(rem));
-                    }
-                    indicatorTimer.classList.remove('live-session-indicator-overtime');
+                if (rem > 0) {
+                    indicatorTimer.textContent = _fmtHMS(rem) + ' left';
                 } else {
-                    if (rem > 0) {
-                        indicatorTimer.textContent = _fmtHMS(rem) + ' left';
-                        indicatorTimer.classList.remove('live-session-indicator-overtime');
-                    } else {
-                        indicatorTimer.textContent = '+' + _fmtHMS(Math.abs(rem)) + ' over';
-                        indicatorTimer.classList.add('live-session-indicator-overtime');
-                    }
+                    indicatorTimer.textContent = _fmtHMS(Math.abs(rem));
                 }
-            } else if (iStart && !iTarget) {
-                // Good Morning / Idle: elapsed since start
-                const overMs = iNow - iStart;
-                if (indicatorTimer.dataset.noOvertime === '1') {
-                    // No scary "over" — just plain count-up
-                    indicatorTimer.textContent = overMs > 0 ? _fmtHMS(overMs) : _fmtHMS(Math.abs(overMs)) + ' left';
-                    indicatorTimer.classList.remove('live-session-indicator-overtime');
-                } else {
-                    if (overMs > 0) {
-                        indicatorTimer.textContent = '+' + _fmtHMS(overMs) + ' over';
-                        indicatorTimer.classList.add('live-session-indicator-overtime');
-                    } else {
-                        indicatorTimer.textContent = _fmtHMS(Math.abs(overMs)) + ' left';
-                        indicatorTimer.classList.remove('live-session-indicator-overtime');
-                    }
-                }
+                indicatorTimer.classList.remove('live-session-indicator-overtime');
             } else if (iStart) {
-                indicatorTimer.textContent = _fmtHMS(iNow - iStart);
+                // Idle / Good Morning / untimed work: plain elapsed count-up
+                indicatorTimer.textContent = _fmtHMS(Math.max(0, iNow - iStart));
+                indicatorTimer.classList.remove('live-session-indicator-overtime');
             }
         }
 
@@ -15173,41 +16960,18 @@ function startIdleUpdater() {
                     panelTimer.classList.add('live-panel-overtime');
                 }
             } else if (pTarget && !pStart) {
-                // Good Night: countdown to next morning (neutral count-up after)
+                // Good Night: countdown then neutral count-up
                 const rem = pTarget - pNow;
-                if (panelTimer.dataset.noOvertime === '1') {
-                    if (rem > 0) {
-                        panelTimer.textContent = `⏱️ ${_fmtHMS(rem)} until morning`;
-                    } else {
-                        panelTimer.textContent = `⏱️ ${_fmtHMS(Math.abs(rem))}`;
-                    }
-                    panelTimer.classList.remove('live-panel-overtime');
+                if (rem > 0) {
+                    panelTimer.textContent = `⏱️ ${_fmtHMS(rem)} until morning`;
                 } else {
-                    if (rem > 0) {
-                        panelTimer.textContent = `⏱️ ${_fmtHMS(rem)} until morning`;
-                        panelTimer.classList.remove('live-panel-overtime');
-                    } else {
-                        panelTimer.textContent = `⏱️ +${_fmtHMS(Math.abs(rem))} over — good morning?`;
-                        panelTimer.classList.add('live-panel-overtime');
-                    }
+                    panelTimer.textContent = `⏱️ ${_fmtHMS(Math.abs(rem))}`;
                 }
-            } else if (pStart && !pTarget) {
-                // Good Morning / Idle: elapsed since start (neutral count-up)
-                const overMs = pNow - pStart;
-                if (panelTimer.dataset.noOvertime === '1') {
-                    panelTimer.textContent = overMs > 0 ? `⏱️ ${_fmtHMS(overMs)}` : `⏱️ ${_fmtHMS(Math.abs(overMs))} until planned start`;
-                    panelTimer.classList.remove('live-panel-overtime');
-                } else {
-                    if (overMs > 0) {
-                        panelTimer.textContent = `⏱️ +${_fmtHMS(overMs)} over planned start`;
-                        panelTimer.classList.add('live-panel-overtime');
-                    } else {
-                        panelTimer.textContent = `⏱️ ${_fmtHMS(Math.abs(overMs))} until planned start`;
-                        panelTimer.classList.remove('live-panel-overtime');
-                    }
-                }
+                panelTimer.classList.remove('live-panel-overtime');
             } else if (pStart) {
-                panelTimer.textContent = `⏱️ ${_fmtHMS(pNow - pStart)} elapsed`;
+                // Idle / Good Morning / untimed work: plain elapsed count-up
+                panelTimer.textContent = `⏱️ ${_fmtHMS(Math.max(0, pNow - pStart))} elapsed`;
+                panelTimer.classList.remove('live-panel-overtime');
             }
         }
 
@@ -17605,46 +19369,49 @@ function updateContextLabels() {
         const ancestors = getAncestorPath(state.selectedItemId);
         const selectedItem = findItemById(state.selectedItemId);
         if (selectedItem) {
-            // "All" root link
+            // Collapsible ancestors container (collapsed by default, expands on hover)
+            const ancestorsWrap = document.createElement('span');
+            ancestorsWrap.className = 'breadcrumb-ancestors';
+
+            // "All" root link — inside collapsible container
             const allSeg = document.createElement('span');
             allSeg.className = 'breadcrumb-segment breadcrumb-link';
             allSeg.textContent = '📁 All';
             allSeg.title = 'Clear project filter';
             allSeg.addEventListener('click', () => {
-                animateActionsZoomOut(() => {
-                    navigateProjectTo(null);
-                });
+                navigateProjectTo(null);
             });
-            whatContainer.appendChild(allSeg);
+            ancestorsWrap.appendChild(allSeg);
 
-            // Ancestor segments
+            // Ancestor segments — inside collapsible container
             if (ancestors) {
                 for (const ancestor of ancestors) {
                     if (ancestor.isInbox) continue;
                     const sep = document.createElement('span');
                     sep.className = 'breadcrumb-sep';
                     sep.textContent = '›';
-                    whatContainer.appendChild(sep);
+                    ancestorsWrap.appendChild(sep);
 
                     const seg = document.createElement('span');
                     seg.className = 'breadcrumb-segment breadcrumb-link';
                     seg.textContent = ancestor.name;
                     seg.title = ancestor.name;
                     seg.addEventListener('click', () => {
-                        animateActionsZoomOut(() => {
-                            navigateProjectTo(ancestor.id);
-                        });
+                        navigateProjectTo(ancestor.id);
                     });
-                    whatContainer.appendChild(seg);
+                    ancestorsWrap.appendChild(seg);
                 }
             }
 
-            // Current (selected) item — bold, not clickable
-            const sep = document.createElement('span');
-            sep.className = 'breadcrumb-sep';
-            sep.textContent = '›';
-            whatContainer.appendChild(sep);
+            // Trailing separator inside the collapsible
+            const trailSep = document.createElement('span');
+            trailSep.className = 'breadcrumb-sep';
+            trailSep.textContent = '›';
+            ancestorsWrap.appendChild(trailSep);
 
+            whatContainer.appendChild(ancestorsWrap);
+
+            // Current (selected) item — always visible, bold, not clickable
             const current = document.createElement('span');
             current.className = 'breadcrumb-segment breadcrumb-current';
             current.textContent = selectedItem.name;
@@ -20526,8 +22293,8 @@ function openScheduleModal(itemIdOrIds, itemName) {
 
     let assignedContexts = getAssignedContexts();
 
-    // Active pill: 'session' | 'day' | 'week' | 'month' | 'ongoing' | 'future'
-    let activePill = 'day';
+    // Active pill: 'session' | 'ongoing' | 'future' | null (null = default day mode)
+    let activePill = null;
 
     // Calendar state
     const calNow = new Date(state.timelineViewDate);
@@ -20799,12 +22566,9 @@ function openScheduleModal(itemIdOrIds, itemName) {
         const viewMonthKey = getMonthKey(new Date(viewYear, viewMonth, 1));
         const isViewMonthAssigned = assignedContexts.has(viewMonthKey);
 
-        // ── Pill bar ──
+        // ── Pill bar (only session / ongoing / future) ──
         const pills = [
             { id: 'session', label: '⏱ Session', active: activePill === 'session' },
-            { id: 'day', label: '📅 Day', active: activePill === 'day' },
-            { id: 'week', label: '📆 Week', active: activePill === 'week' },
-            { id: 'month', label: '🗓 Month', active: activePill === 'month' },
             { id: 'ongoing', label: `📦 Ongoing`, active: activePill === 'ongoing', assigned: hasOngoing },
             { id: 'future', label: `🔮 Future`, active: activePill === 'future', assigned: hasFuture },
         ];
@@ -20836,31 +22600,67 @@ function openScheduleModal(itemIdOrIds, itemName) {
 
         // ── Calendar (always visible) ──
         const calDimmed = activePill === 'ongoing' || activePill === 'future';
+
+        // Month name is clickable for month-level scheduling
+        const monthClickable = !calDimmed;
+        const viewMonthDone = isViewMonthAssigned && _isCtxDone(viewMonthKey);
+        const monthNameCls = `schedule-cal-month${monthClickable ? ' schedule-cal-month-clickable' : ''}${isViewMonthAssigned ? ' schedule-cal-month-assigned' : ''}${viewMonthDone ? ' schedule-cal-month-done' : ''}`;
+        const monthDoneBtn = isViewMonthAssigned ? `<button class="schedule-cal-ctx-done-btn${viewMonthDone ? ' schedule-cal-ctx-done-btn-active' : ''}" data-done-ctx="${viewMonthKey}" title="${viewMonthDone ? 'Mark not done' : 'Mark done'}">${viewMonthDone ? '↩' : '✓'}</button>` : '';
+
         html += `
                 <div class="schedule-cal-area${calDimmed ? ' schedule-cal-dimmed' : ''}">
                     <div class="schedule-cal-nav">
                         <button class="schedule-cal-nav-btn${canGoPrev ? '' : ' schedule-cal-nav-btn-disabled'}" id="schedule-prev-month"${canGoPrev ? '' : ' disabled'}>‹</button>
-                        <span class="schedule-cal-month">${monthNames[viewMonth]} ${viewYear}</span>
+                        <span class="${monthNameCls}" data-month-key="${viewMonthKey}">${monthNames[viewMonth]} ${viewYear}${monthDoneBtn}</span>
                         <button class="schedule-cal-nav-btn" id="schedule-next-month">›</button>
                     </div>
-                    <div class="schedule-cal-grid${activePill === 'week' ? ' schedule-cal-week-mode' : ''}${activePill === 'month' ? ' schedule-cal-month-mode' : ''}">
+                    <div class="schedule-cal-grid">
         `;
 
+        // Header row: empty corner + 7 day names
+        html += `<div class="schedule-cal-header schedule-cal-week-corner"></div>`;
         for (const dn of rotatedDayNames) {
             html += `<div class="schedule-cal-header">${dn}</div>`;
+        }
+
+        // Pre-fill empty cells for firstDayOffset (+ 1 for the week indicator)
+        // We need to figure out what week the first row belongs to and insert the indicator
+        // Build the calendar row by row — tracking when a new week starts
+        let weekNumberInMonth = 0;
+        let lastWeekKey = null;
+
+        // Leading empties for the first partial row — first add week indicator
+        if (firstDayOffset > 0 || daysInMonth > 0) {
+            const firstDayDate = new Date(viewYear, viewMonth, 1);
+            const firstWeekKey = getWeekKey(firstDayDate);
+            const isFirstWeekAssigned = assignedContexts.has(firstWeekKey);
+            const firstWeekDone = isFirstWeekAssigned && _isCtxDone(firstWeekKey);
+            weekNumberInMonth = 1;
+            lastWeekKey = firstWeekKey;
+            const wkDoneBtn = isFirstWeekAssigned ? `<button class="schedule-cal-ctx-done-btn${firstWeekDone ? ' schedule-cal-ctx-done-btn-active' : ''}" data-done-ctx="${firstWeekKey}">${firstWeekDone ? '↩' : '✓'}</button>` : '';
+            html += `<div class="schedule-cal-week-indicator${isFirstWeekAssigned ? ' schedule-cal-week-indicator-assigned' : ''}${firstWeekDone ? ' schedule-cal-week-indicator-done' : ''}" data-week="${firstWeekKey}">W${weekNumberInMonth}${wkDoneBtn}</div>`;
         }
         for (let i = 0; i < firstDayOffset; i++) {
             html += `<div class="schedule-cal-empty"></div>`;
         }
 
-        // Build week rows for week-mode highlighting
-        // Each day cell tracks its week key for week-mode interactions
+        // Day cells with week indicators at the start of each new week row
         for (let d = 1; d <= daysInMonth; d++) {
             const dateKey = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
             const cellDate = new Date(viewYear, viewMonth, d);
             const weekKey = getWeekKey(cellDate);
+
+            // Insert week indicator at the start of a new week row
+            if (weekKey !== lastWeekKey) {
+                weekNumberInMonth++;
+                lastWeekKey = weekKey;
+                const isWkAssigned = assignedContexts.has(weekKey);
+                const wkDone = isWkAssigned && _isCtxDone(weekKey);
+                const wkDoneBtn = isWkAssigned ? `<button class="schedule-cal-ctx-done-btn${wkDone ? ' schedule-cal-ctx-done-btn-active' : ''}" data-done-ctx="${weekKey}">${wkDone ? '↩' : '✓'}</button>` : '';
+                html += `<div class="schedule-cal-week-indicator${isWkAssigned ? ' schedule-cal-week-indicator-assigned' : ''}${wkDone ? ' schedule-cal-week-indicator-done' : ''}" data-week="${weekKey}">W${weekNumberInMonth}${wkDoneBtn}</div>`;
+            }
+
             const isAssigned = assignedContexts.has(dateKey);
-            const isWeekAssigned = assignedContexts.has(weekKey);
             const isDeadline = deadlineContexts.has(dateKey);
             const isToday = dateKey === todayKey;
             const isPast = dateKey < todayKey;
@@ -20868,8 +22668,6 @@ function openScheduleModal(itemIdOrIds, itemName) {
             let cls = 'schedule-cal-day';
             if (isPast) cls += ' schedule-cal-day-disabled';
             if (isAssigned) cls += ' schedule-cal-day-assigned';
-            if (activePill === 'week' && isWeekAssigned) cls += ' schedule-cal-day-week-assigned';
-            if (activePill === 'month' && isViewMonthAssigned) cls += ' schedule-cal-day-month-assigned';
             if (isDeadline) cls += ' schedule-cal-day-deadline';
             if (isLeadTimePrep) cls += ' schedule-cal-day-leadtime';
             if (isToday) cls += ' schedule-cal-day-today';
@@ -20882,9 +22680,9 @@ function openScheduleModal(itemIdOrIds, itemName) {
             const doneBtn = isAssigned ? `<button class="schedule-cal-done-btn${dayDone ? ' schedule-cal-done-btn-active' : ''}" data-done-date="${dateKey}" title="${dayDone ? 'Mark not done' : 'Mark done'}">${dayDone ? '↩' : '✓'}</button>` : '';
             html += `<div class="${cls}" data-date="${dateKey}" data-week="${weekKey}">${d}${deadlineBtn}${doneBtn}</div>`;
         }
-        // Pad to complete the last row
-        const totalCells = firstDayOffset + daysInMonth;
-        const padCells = (7 - (totalCells % 7)) % 7;
+        // Pad to complete the last row (account for 8-column grid: 1 week indicator + 7 days)
+        const totalCellsInLastRow = (firstDayOffset + daysInMonth) % 7;
+        const padCells = totalCellsInLastRow === 0 ? 0 : 7 - totalCellsInLastRow;
         for (let i = 0; i < padCells; i++) {
             html += `<div class="schedule-cal-empty"></div>`;
         }
@@ -20935,43 +22733,6 @@ function openScheduleModal(itemIdOrIds, itemName) {
         }
         html += `<div class="schedule-deadline-bar-wrapper">${dlBarInner}</div>`;
 
-        // ── Week info bar (when in week mode and a week is assigned) ──
-        if (activePill === 'week') {
-            // Show which weeks are assigned
-            const assignedWeeks = [...assignedContexts].filter(tc => isWeekContext(tc));
-            if (assignedWeeks.length > 0) {
-                html += `<div class="schedule-week-info">`;
-                for (const wk of assignedWeeks) {
-                    const range = getWeekDateRange(wk);
-                    const fmt = (dt) => dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-                    const label = range ? `${fmt(range.start)} – ${fmt(range.end)}` : wk;
-                    const wkDone = _isCtxDone(wk);
-                    html += `<div class="schedule-week-info-item">
-                        <span>📆 ${label}</span>
-                        <button class="schedule-done-chip ${wkDone ? 'schedule-done-chip-active' : ''}" data-done-ctx="${wk}">${wkDone ? '✓ Done' : 'Mark Done'}</button>
-                    </div>`;
-                }
-                html += `</div>`;
-            }
-        }
-
-        // ── Month info bar (when in month mode and a month is assigned) ──
-        if (activePill === 'month') {
-            const assignedMonths = [...assignedContexts].filter(tc => /^\d{4}-\d{2}$/.test(tc));
-            if (assignedMonths.length > 0) {
-                html += `<div class="schedule-week-info">`;
-                for (const mk of assignedMonths) {
-                    const [y, m] = mk.split('-').map(Number);
-                    const label = `${monthNames[m - 1]} ${y}`;
-                    const mkDone = _isCtxDone(mk);
-                    html += `<div class="schedule-week-info-item">
-                        <span>🗓 ${label}</span>
-                        <button class="schedule-done-chip ${mkDone ? 'schedule-done-chip-active' : ''}" data-done-ctx="${mk}">${mkDone ? '✓ Done' : 'Mark Done'}</button>
-                    </div>`;
-                }
-                html += `</div>`;
-            }
-        }
 
         // ── Session section (below calendar, when Session pill is active) ──
         if (activePill === 'session') {
@@ -21015,7 +22776,7 @@ function openScheduleModal(itemIdOrIds, itemName) {
 
         // ── Footer ──
         html += `
-                <div class="schedule-hint">Hold ⌘ to schedule on multiple</div>
+
             </div>
             <div class="modal-actions">
                 <button class="modal-btn modal-btn-cancel" id="schedule-close">Close</button>
@@ -21073,7 +22834,7 @@ function openScheduleModal(itemIdOrIds, itemName) {
             buildContent();
         });
 
-        // Day/Week/Month/Session clicks on calendar cells
+        // Day clicks on calendar cells (always day-level)
         modal.querySelectorAll('.schedule-cal-day:not(.schedule-cal-day-disabled)').forEach(cell => {
             cell.addEventListener('click', (e) => {
                 if (e.target.classList.contains('schedule-cal-deadline-btn')) return;
@@ -21081,45 +22842,44 @@ function openScheduleModal(itemIdOrIds, itemName) {
                 if (calDimmed) return; // Calendar is reference-only in ongoing/future mode
 
                 const dateKey = cell.dataset.date;
-                const weekKey = cell.dataset.week;
-                const additive = e.metaKey || e.ctrlKey;
-
-                if (activePill === 'day' || activePill === 'session') {
-                    toggleDate(dateKey, additive);
-                    // In session mode, also update the session view date
-                    if (activePill === 'session') {
-                        sessionViewDate = new Date(dateKey + 'T00:00:00');
-                    }
-                } else if (activePill === 'week') {
-                    toggleWeek(weekKey, additive);
-                } else if (activePill === 'month') {
-                    toggleMonth(viewMonthKey, additive);
+                toggleDate(dateKey, true);
+                // In session mode, also update the session view date
+                if (activePill === 'session') {
+                    sessionViewDate = new Date(dateKey + 'T00:00:00');
                 }
             });
         });
 
-        // Week-mode: add hover class to all cells in same week row
-        if (activePill === 'week') {
-            modal.querySelectorAll('.schedule-cal-day:not(.schedule-cal-day-disabled)').forEach(cell => {
-                cell.addEventListener('mouseenter', () => {
-                    const wk = cell.dataset.week;
-                    modal.querySelectorAll(`.schedule-cal-day[data-week="${wk}"]`).forEach(c => c.classList.add('schedule-cal-week-hover'));
-                });
-                cell.addEventListener('mouseleave', () => {
-                    modal.querySelectorAll('.schedule-cal-day.schedule-cal-week-hover').forEach(c => c.classList.remove('schedule-cal-week-hover'));
-                });
+        // Week indicator clicks + hover
+        modal.querySelectorAll('.schedule-cal-week-indicator').forEach(indicator => {
+            indicator.addEventListener('click', (e) => {
+                if (calDimmed) return;
+                const weekKey = indicator.dataset.week;
+                toggleWeek(weekKey, true);
             });
-        }
+            indicator.addEventListener('mouseenter', () => {
+                const wk = indicator.dataset.week;
+                modal.querySelectorAll(`.schedule-cal-day[data-week="${wk}"]`).forEach(c => c.classList.add('schedule-cal-week-hover'));
+                indicator.classList.add('schedule-cal-week-indicator-hover');
+            });
+            indicator.addEventListener('mouseleave', () => {
+                modal.querySelectorAll('.schedule-cal-day.schedule-cal-week-hover').forEach(c => c.classList.remove('schedule-cal-week-hover'));
+                indicator.classList.remove('schedule-cal-week-indicator-hover');
+            });
+        });
 
-        // Month-mode: add hover class to ALL non-disabled cells
-        if (activePill === 'month') {
-            modal.querySelectorAll('.schedule-cal-day:not(.schedule-cal-day-disabled)').forEach(cell => {
-                cell.addEventListener('mouseenter', () => {
-                    modal.querySelectorAll('.schedule-cal-day:not(.schedule-cal-day-disabled)').forEach(c => c.classList.add('schedule-cal-month-hover'));
-                });
-                cell.addEventListener('mouseleave', () => {
-                    modal.querySelectorAll('.schedule-cal-day.schedule-cal-month-hover').forEach(c => c.classList.remove('schedule-cal-month-hover'));
-                });
+        // Clickable month name
+        const monthNameEl = modal.querySelector('.schedule-cal-month-clickable');
+        if (monthNameEl) {
+            monthNameEl.addEventListener('click', (e) => {
+                e.stopPropagation();
+                toggleMonth(monthNameEl.dataset.monthKey, true);
+            });
+            monthNameEl.addEventListener('mouseenter', () => {
+                modal.querySelectorAll('.schedule-cal-day:not(.schedule-cal-day-disabled)').forEach(c => c.classList.add('schedule-cal-month-hover'));
+            });
+            monthNameEl.addEventListener('mouseleave', () => {
+                modal.querySelectorAll('.schedule-cal-day.schedule-cal-month-hover').forEach(c => c.classList.remove('schedule-cal-month-hover'));
             });
         }
 
@@ -21144,6 +22904,15 @@ function openScheduleModal(itemIdOrIds, itemName) {
             chip.addEventListener('click', (e) => {
                 e.stopPropagation();
                 const ctx = chip.dataset.doneCtx;
+                if (ctx) toggleContextDone(ctx);
+            });
+        });
+
+        // ✓ Inline context done buttons (week indicators + month name)
+        modal.querySelectorAll('.schedule-cal-ctx-done-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const ctx = btn.dataset.doneCtx;
                 if (ctx) toggleContextDone(ctx);
             });
         });
@@ -21715,6 +23484,12 @@ function openDefaultsModal() {
                     <option value="pencil">Pencil & Paper</option>
                 </select>
             </div>
+            <div class="modal-divider"></div>
+            <div class="modal-field modal-field-toggle">
+                <label class="modal-label" for="defaults-overflow-preview">📦 Show overflow preview</label>
+                <input type="checkbox" id="defaults-overflow-preview" class="modal-toggle" />
+                <span class="modal-hint">Show items from broader time horizons when actions are empty</span>
+            </div>
         </div>
         <!-- Commitments -->
         <div class="settings-section" data-section="commitments" style="display:none">
@@ -21829,6 +23604,7 @@ function openDefaultsModal() {
     document.getElementById('defaults-sleep-guard').checked = state.settings.sleepGuard !== false;
     document.getElementById('defaults-past-card-style').value = state.pastCardStyle;
     document.getElementById('defaults-skin').value = _skinFamily;
+    document.getElementById('defaults-overflow-preview').checked = state.showOverflowPreview;
 
     // AI settings
     const aiProviderSelect = document.getElementById('defaults-ai-provider');
@@ -21967,6 +23743,12 @@ function openDefaultsModal() {
         }
         const selectedSkin = document.getElementById('defaults-skin').value;
         if (selectedSkin !== _skinFamily) applySkinFamily(selectedSkin);
+        // Overflow preview toggle
+        const newOverflow = document.getElementById('defaults-overflow-preview').checked;
+        if (newOverflow !== state.showOverflowPreview) {
+            state.showOverflowPreview = newOverflow;
+            savePref('showOverflowPreview', state.showOverflowPreview);
+        }
         // AI settings
         state.settings.aiProvider = document.getElementById('defaults-ai-provider').value;
         state.settings.aiModel = document.getElementById('defaults-ai-model').value;
@@ -23685,6 +25467,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ── AI Copilot Module ──
     // ============================================================
     {
+        // ── Sidebar DOM elements ──
         const copilotFab = document.getElementById('copilot-fab');
         const copilotPanel = document.getElementById('copilot-panel');
         const copilotOverlay = document.getElementById('copilot-overlay');
@@ -23693,18 +25476,371 @@ document.addEventListener('DOMContentLoaded', () => {
         const copilotSend = document.getElementById('copilot-send');
         const copilotMessages = document.getElementById('copilot-messages');
         const copilotModelLabel = document.getElementById('copilot-model-label');
+        const copilotModeSwitch = document.getElementById('copilot-mode-switch');
+
+        // ── Floating card DOM elements ──
+        const floatCard = document.getElementById('copilot-float-card');
+        const floatMessages = document.getElementById('copilot-float-messages');
+        const floatInput = document.getElementById('copilot-float-input');
+        const floatSend = document.getElementById('copilot-float-send');
+        const floatClose = document.getElementById('copilot-float-close');
+        const floatModeBtn = document.getElementById('copilot-float-mode-btn');
+        const floatClear = document.getElementById('copilot-float-clear');
+        const floatTitleEl = document.getElementById('copilot-float-title');
+        const floatToast = document.getElementById('copilot-float-toast');
+        const floatToastText = document.getElementById('copilot-float-toast-text');
+        const floatToastClose = document.getElementById('copilot-float-toast-close');
+
+        // ── Turn-based adventure dialog DOM elements ──
+        const floatTurnUser = document.getElementById('copilot-float-turn-user');
+        const floatTurnAi = document.getElementById('copilot-float-turn-ai');
+        const floatTurnActions = document.getElementById('copilot-float-turn-actions');
+        const floatPrevBtn = document.getElementById('copilot-float-prev');
+        const floatNextBtn = document.getElementById('copilot-float-next');
+        const floatTurnCounter = document.getElementById('copilot-float-turn-counter');
+
         // Show custom AI name in copilot header on load
         const _copilotTitleEl = document.getElementById('copilot-title');
         if (_copilotTitleEl && state.settings.aiName) _copilotTitleEl.textContent = `🤖 ${state.settings.aiName}`;
+        if (floatTitleEl && state.settings.aiName) floatTitleEl.textContent = `🤖 ${state.settings.aiName}`;
 
-        let copilotOpen = false;
+        let copilotOpen = false;      // sidebar open state
+        let floatCardOpen = false;     // floating card open state
         let copilotPendingPlan = null;
         let copilotPendingPlanIndex = -1;
         let copilotLoading = false;
         let copilotHistoryLoaded = false;
-        let _copilotHistoryFingerprint = null; // track last loaded state to avoid flicker
+        let _copilotHistoryFingerprint = null;
+        let _toastDismissTimer = null;
 
-        // ── Helpers ──
+        // ── Turn-based adventure dialog state ──
+        let _floatTurns = [];   // [{userText, userTime, aiText, aiTime, actions, triggerLabel}]
+        let _floatTurnIdx = -1; // currently displayed turn index
+        let _typewriterTimer = null;
+        let _floatInitialLoadDone = false;
+        let _forceNextTypewriter = false;
+
+        // Build turns from flat message history
+        function buildFloatTurns(messages) {
+            const turns = [];
+            let current = null;
+            for (const msg of messages) {
+                if (msg.role === 'user') {
+                    // Start a new turn
+                    if (current) turns.push(current);
+                    current = { userText: msg.content, userTime: msg.timestamp, aiText: '', aiTime: null, actions: null, triggerLabel: null };
+                } else if (msg.role === 'assistant') {
+                    if (!current) {
+                        // AI message without preceding user (trigger messages)
+                        current = { userText: null, userTime: null, aiText: '', aiTime: null, actions: null, triggerLabel: null };
+                    }
+                    current.aiText = msg.content;
+                    current.aiTime = msg.timestamp;
+                    current.triggerLabel = msg.triggerLabel || null;
+                    current.actions = msg.actions || null;
+                    turns.push(current);
+                    current = null;
+                }
+                // skip 'plan' messages in turn view
+            }
+            if (current) turns.push(current); // incomplete turn (user sent, no AI reply yet)
+            return turns;
+        }
+
+        // Render one turn in the floating card
+        function renderFloatTurn(useTypewriter) {
+            // Cancel any ongoing typewriter
+            clearInterval(_typewriterTimer);
+            _typewriterTimer = null;
+
+            if (_floatTurns.length === 0) {
+                // Welcome state
+                floatTurnUser.innerHTML = '';
+                floatTurnAi.innerHTML = `<span class="copilot-float-welcome">✨ Hey! I'm your AI copilot. Ask me anything — I'll help you stay on track.</span>`;
+                floatTurnActions.innerHTML = '';
+                updateFloatNav();
+                return;
+            }
+
+            const turn = _floatTurns[_floatTurnIdx];
+            if (!turn) return;
+
+            // User echo
+            if (turn.userText) {
+                floatTurnUser.innerHTML = `<span class="copilot-float-user-echo">▸ ${escapeHtml(turn.userText)}</span>`;
+            } else if (turn.triggerLabel) {
+                floatTurnUser.innerHTML = `<span class="copilot-float-trigger-badge">${turn.triggerLabel}</span>`;
+            } else {
+                floatTurnUser.innerHTML = '';
+            }
+
+            // AI response
+            if (turn.aiText) {
+                // Strip markdown for adventure feel, render plain or with marked
+                const displayText = turn.aiText;
+                if (useTypewriter && _floatTurnIdx === _floatTurns.length - 1) {
+                    // Typewriter effect for the latest turn only
+                    typewriteAiText(displayText);
+                } else {
+                    // Instant render for history navigation
+                    if (typeof marked !== 'undefined') {
+                        floatTurnAi.innerHTML = marked.parse(displayText, { breaks: true });
+                        floatTurnAi.querySelectorAll('a').forEach(a => { a.target = '_blank'; a.rel = 'noopener'; });
+                    } else {
+                        floatTurnAi.textContent = displayText;
+                    }
+                }
+            } else {
+                floatTurnAi.innerHTML = `<span class="copilot-float-thinking">thinking…</span>`;
+            }
+
+            // Action suggestions
+            renderFloatActions(turn.actions);
+
+            updateFloatNav();
+        }
+
+        // Typewriter effect with auto-scroll and skip
+        function typewriteAiText(fullText) {
+            floatTurnAi.innerHTML = '<span class="copilot-float-cursor"></span>';
+            // Add skip button
+            const skipBtn = document.createElement('button');
+            skipBtn.className = 'copilot-float-skip-btn';
+            skipBtn.textContent = 'Skip ▸▸';
+            skipBtn.addEventListener('click', () => finishTypewriter());
+            floatTurnActions.innerHTML = '';
+            floatTurnActions.appendChild(skipBtn);
+
+            let idx = 0;
+            const speed = 12; // ms per character
+
+            function finishTypewriter() {
+                clearInterval(_typewriterTimer);
+                _typewriterTimer = null;
+                // Final render with markdown
+                if (typeof marked !== 'undefined') {
+                    floatTurnAi.innerHTML = marked.parse(fullText, { breaks: true });
+                    floatTurnAi.querySelectorAll('a').forEach(a => { a.target = '_blank'; a.rel = 'noopener'; });
+                } else {
+                    floatTurnAi.textContent = fullText;
+                }
+                floatTurnAi.scrollTop = floatTurnAi.scrollHeight;
+                // Show actions after typewriter finishes
+                const turn = _floatTurns[_floatTurnIdx];
+                if (turn) renderFloatActions(turn.actions);
+            }
+
+            _typewriterTimer = setInterval(() => {
+                if (idx >= fullText.length) {
+                    finishTypewriter();
+                    return;
+                }
+                // Append next char (handle multi-byte properly)
+                const cursor = floatTurnAi.querySelector('.copilot-float-cursor');
+                const textNode = cursor ? cursor.previousSibling : null;
+                const char = fullText[idx];
+                if (textNode && textNode.nodeType === 3) {
+                    textNode.textContent += char;
+                } else {
+                    const t = document.createTextNode(char);
+                    if (cursor) floatTurnAi.insertBefore(t, cursor);
+                    else floatTurnAi.appendChild(t);
+                }
+                idx++;
+                // Auto-scroll to keep cursor visible
+                floatTurnAi.scrollTop = floatTurnAi.scrollHeight;
+            }, speed);
+        }
+
+        // Render action suggestion buttons
+        function renderFloatActions(actions) {
+            floatTurnActions.innerHTML = '';
+            if (!actions || !Array.isArray(actions) || actions.length === 0) return;
+            const turn = _floatTurns[_floatTurnIdx];
+            for (const label of actions) {
+                const btn = document.createElement('button');
+                btn.className = 'copilot-float-action-btn';
+                btn.textContent = `▸ ${label}`;
+                btn.addEventListener('click', () => {
+                    // Plan-specific actions
+                    if (turn?._plan && label === '✅ Apply') {
+                        executeInlinePlan(turn);
+                        return;
+                    }
+                    if (turn?._plan && label === '✕ Cancel') {
+                        cancelInlinePlan(turn);
+                        return;
+                    }
+                    // Normal action: send as user input
+                    floatInput.value = label;
+                    sendMessage();
+                });
+                floatTurnActions.appendChild(btn);
+            }
+        }
+
+        // ── Inline plan helpers ──
+
+        // Push a new AI-only turn and render with typewriter
+        function pushInlineTurn(aiText, actions) {
+            const newTurn = { userText: '', userTime: null, aiText, aiTime: Date.now(), actions: actions || null, triggerLabel: null };
+            _floatTurns.push(newTurn);
+            _floatTurnIdx = _floatTurns.length - 1;
+            renderFloatTurn(true);
+        }
+
+        // Execute plan from inline card
+        async function executeInlinePlan(turn) {
+            if (!turn._plan) return;
+            const plan = turn._plan;
+            const planIndex = turn._planIndex;
+
+            // Clear the actions so user can't double-click
+            turn.actions = null;
+            renderFloatActions(null);
+
+            copilotPendingPlan = plan;
+            copilotPendingPlanIndex = planIndex;
+
+            // Create a placeholder card element for executePendingPlan (it marks it as done)
+            const fakeCard = document.createElement('div');
+            fakeCard.innerHTML = '<div class="copilot-plan-actions"></div>';
+            await executePendingPlan(fakeCard, planIndex);
+        }
+
+        // Cancel plan from inline card
+        async function cancelInlinePlan(turn) {
+            if (!turn._plan) return;
+            const planIndex = turn._planIndex;
+
+            // Clear actions
+            turn.actions = null;
+            renderFloatActions(null);
+
+            copilotPendingPlan = null;
+            // Persist cancellation
+            await fetch(`/api/ai/plan/${planIndex}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: 'cancelled' })
+            });
+            pushInlineTurn('Plan cancelled. What else can I help with?');
+        }
+
+        // Update navigation display
+        function updateFloatNav() {
+            const total = _floatTurns.length;
+            if (total <= 1) {
+                floatTurnCounter.textContent = '';
+                floatPrevBtn.style.display = 'none';
+                floatNextBtn.style.display = 'none';
+            } else {
+                floatPrevBtn.style.display = '';
+                floatNextBtn.style.display = '';
+                floatTurnCounter.textContent = `${_floatTurnIdx + 1} / ${total}`;
+                floatPrevBtn.disabled = _floatTurnIdx === 0;
+                floatNextBtn.disabled = _floatTurnIdx === total - 1;
+            }
+        }
+
+        // Navigate between turns
+        function navigateFloatTurn(delta) {
+            const newIdx = _floatTurnIdx + delta;
+            if (newIdx < 0 || newIdx >= _floatTurns.length) return;
+            _floatTurnIdx = newIdx;
+            renderFloatTurn(false);
+        }
+
+        floatPrevBtn?.addEventListener('click', () => navigateFloatTurn(-1));
+        floatNextBtn?.addEventListener('click', () => navigateFloatTurn(1));
+
+        // ── Dual-mode helpers ──
+        function getActiveTarget() {
+            if (state.copilotMode === 'inline') {
+                return { messages: floatMessages, input: floatInput, send: floatSend };
+            }
+            return { messages: copilotMessages, input: copilotInput, send: copilotSend };
+        }
+
+        function syncCopilotModeUI() {
+            document.body.dataset.copilotMode = state.copilotMode;
+            if (state.copilotMode === 'inline') {
+                copilotPanel.classList.remove('copilot-panel-open');
+                copilotOverlay.classList.remove('copilot-overlay-visible');
+                copilotOpen = false;
+            } else {
+                // Close floating card when switching to sidebar
+                floatCard.style.display = 'none';
+                floatCardOpen = false;
+                dismissCopilotToast();
+            }
+        }
+
+        function setCopilotMode(mode) {
+            if (state.copilotMode === 'sidebar') {
+                toggleCopilot(false);
+            } else {
+                toggleFloatingCard(false);
+            }
+            state.copilotMode = mode;
+            savePref('copilotMode', mode);
+            syncCopilotModeUI();
+            _copilotHistoryFingerprint = null;
+            if (mode === 'inline') {
+                toggleFloatingCard(true);
+            } else {
+                toggleCopilot(true);
+            }
+        }
+
+        // ── Floating card open/close ──
+        function toggleFloatingCard(forceOpen) {
+            floatCardOpen = forceOpen !== undefined ? forceOpen : !floatCardOpen;
+            if (floatCardOpen) {
+                dismissCopilotToast();
+                floatCard.style.display = 'flex';
+                // Trigger animation
+                floatCard.classList.remove('copilot-float-card-enter');
+                void floatCard.offsetWidth; // force reflow
+                floatCard.classList.add('copilot-float-card-enter');
+                loadChatHistory(true);
+                setTimeout(() => floatInput.focus(), 200);
+                fetch(`${API}/ai/unread/clear`, { method: 'POST' }).catch(() => { });
+                updateCopilotBadge(0);
+            } else {
+                // Minimize animation: scale down + fade out
+                floatCard.classList.remove('copilot-float-card-enter');
+                floatCard.classList.add('copilot-float-card-exit');
+                setTimeout(() => {
+                    floatCard.style.display = 'none';
+                    floatCard.classList.remove('copilot-float-card-exit');
+                }, 200);
+            }
+        }
+
+        // ── Toast notification ──
+        function showCopilotToast(text) {
+            if (state.copilotMode !== 'inline' || floatCardOpen) return;
+            if (!text) return;
+            // Truncate to ~80 chars
+            const preview = text.length > 80 ? text.slice(0, 80) + '…' : text;
+            floatToastText.textContent = preview;
+            floatToast.style.display = 'flex';
+            floatToast.classList.remove('copilot-float-toast-enter');
+            void floatToast.offsetWidth;
+            floatToast.classList.add('copilot-float-toast-enter');
+            // Auto-dismiss after 8s
+            clearTimeout(_toastDismissTimer);
+            _toastDismissTimer = setTimeout(dismissCopilotToast, 8000);
+        }
+        function dismissCopilotToast() {
+            clearTimeout(_toastDismissTimer);
+            floatToast.style.display = 'none';
+            floatToast.classList.remove('copilot-float-toast-enter');
+        }
+        window._showCopilotToast = showCopilotToast;
+
+        // ── Sidebar panel toggle ──
         function formatTime(ts) {
             const d = new Date(ts);
             return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
@@ -23735,7 +25871,13 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        copilotFab.addEventListener('click', () => toggleCopilot());
+        copilotFab.addEventListener('click', () => {
+            if (state.copilotMode === 'inline') {
+                toggleFloatingCard();
+            } else {
+                toggleCopilot();
+            }
+        });
         copilotClose.addEventListener('click', () => toggleCopilot(false));
         copilotOverlay.addEventListener('click', () => toggleCopilot(false));
 
@@ -23757,7 +25899,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // ── Date separator ──
         let _lastRenderedDate = '';
 
-        function maybeAddDateSeparator(timestamp) {
+        function maybeAddDateSeparator(timestamp, targetMessages) {
             const dateStr = new Date(timestamp).toDateString();
             if (dateStr !== _lastRenderedDate) {
                 _lastRenderedDate = dateStr;
@@ -23765,13 +25907,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 sep.className = 'copilot-date-sep';
                 sep.dataset.date = dateStr;
                 sep.textContent = formatDate(timestamp);
-                copilotMessages.appendChild(sep);
+                targetMessages.appendChild(sep);
             }
         }
 
         // ── Message rendering ──
         function addMessage(role, content, timestamp, skipScroll, triggerLabel, actions) {
-            if (timestamp) maybeAddDateSeparator(timestamp);
+            const { messages: targetMessages } = getActiveTarget();
+            if (timestamp) maybeAddDateSeparator(timestamp, targetMessages);
 
             const bubble = document.createElement('div');
             bubble.className = `copilot-message copilot-message-${role === 'assistant' ? 'ai' : role}`;
@@ -23830,7 +25973,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         });
                         btn.classList.add('copilot-action-btn-selected');
                         // Send the label as a user message
-                        copilotInput.value = label;
+                        const { input: activeInput } = getActiveTarget();
+                        activeInput.value = label;
                         sendMessage();
                     });
                     actionsContainer.appendChild(btn);
@@ -23838,8 +25982,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 bubble.appendChild(actionsContainer);
             }
 
-            copilotMessages.appendChild(bubble);
-            if (!skipScroll) copilotMessages.scrollTop = copilotMessages.scrollHeight;
+            targetMessages.appendChild(bubble);
+            if (!skipScroll) targetMessages.scrollTop = targetMessages.scrollHeight;
+
+            // Show toast preview if assistant message arrives while floating card is closed
+            // (skipScroll=true means this is a history load, not a real-time message)
+            if (!skipScroll && (role === 'assistant' || role === 'ai') && state.copilotMode === 'inline' && !floatCardOpen) {
+                showCopilotToast(displayContent.replace(/[#*_`>\[\]()]/g, '').trim());
+            }
+
             return bubble;
         }
 
@@ -23905,7 +26056,11 @@ document.addEventListener('DOMContentLoaded', () => {
                         body: JSON.stringify({ status: 'cancelled' })
                     });
                     card.querySelector('.copilot-plan-actions')?.remove();
-                    addMessage('assistant', 'Plan cancelled. What else can I help with?', Date.now());
+                    if (state.copilotMode === 'inline') {
+                        pushInlineTurn('Plan cancelled. What else can I help with?');
+                    } else {
+                        addMessage('assistant', 'Plan cancelled. What else can I help with?', Date.now());
+                    }
                 });
 
                 actions.appendChild(approveBtn);
@@ -23917,8 +26072,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 copilotPendingPlanIndex = planIndex;
             }
 
-            copilotMessages.appendChild(card);
-            if (!skipScroll) copilotMessages.scrollTop = copilotMessages.scrollHeight;
+            const { messages: targetMessages } = getActiveTarget();
+            targetMessages.appendChild(card);
+            if (!skipScroll) targetMessages.scrollTop = targetMessages.scrollHeight;
         }
 
         function createExecLog() {
@@ -23957,8 +26113,14 @@ document.addEventListener('DOMContentLoaded', () => {
             const stepsLog = document.createElement('div');
             container.appendChild(stepsLog);
 
-            copilotMessages.appendChild(container);
-            copilotMessages.scrollTop = copilotMessages.scrollHeight;
+            const { messages: targetMessages } = getActiveTarget();
+            if (state.copilotMode === 'inline') {
+                floatTurnAi.innerHTML = '';
+                floatTurnAi.appendChild(container);
+            } else {
+                targetMessages.appendChild(container);
+                targetMessages.scrollTop = targetMessages.scrollHeight;
+            }
 
             // Total timer
             const startTime = Date.now();
@@ -24006,7 +26168,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     entry.style.marginBottom = '3px';
                     entry.textContent = text.split('\n')[0];
                     thoughtsBox.appendChild(entry);
-                    copilotMessages.scrollTop = copilotMessages.scrollHeight;
+                    const { messages: tm } = getActiveTarget();
+                    tm.scrollTop = tm.scrollHeight;
                 },
                 addToolStart(displayName, argsStr) {
                     const entry = document.createElement('div');
@@ -24023,7 +26186,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const timer = startStepTimer();
                     entry.appendChild(timer);
                     stepsLog.appendChild(entry);
-                    copilotMessages.scrollTop = copilotMessages.scrollHeight;
+                    { const { messages: tm } = getActiveTarget(); tm.scrollTop = tm.scrollHeight; }
                 },
                 addToolResult(resultText) {
                     stopActiveTimer();
@@ -24032,7 +26195,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         entry.style.cssText = 'font-size:0.75em;opacity:0.4;margin-bottom:4px;margin-left:20px;white-space:pre-wrap;max-height:60px;overflow:hidden';
                         entry.textContent = `↳ ${resultText.slice(0, 150)}`;
                         stepsLog.appendChild(entry);
-                        copilotMessages.scrollTop = copilotMessages.scrollHeight;
+                        const { messages: tm } = getActiveTarget();
+                        tm.scrollTop = tm.scrollHeight;
                     }
                 },
                 addExecStep(text) {
@@ -24045,7 +26209,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const timer = startStepTimer();
                     entry.appendChild(timer);
                     stepsLog.appendChild(entry);
-                    copilotMessages.scrollTop = copilotMessages.scrollHeight;
+                    { const { messages: tm } = getActiveTarget(); tm.scrollTop = tm.scrollHeight; }
                 },
                 remove() {
                     stopActiveTimer();
@@ -24064,25 +26228,57 @@ document.addEventListener('DOMContentLoaded', () => {
             return `${messages.length}:${last.timestamp || 0}:${last.status || ''}`;
         }
 
+        // HTML escape helper
+        function escapeHtml(str) {
+            const d = document.createElement('div');
+            d.textContent = str;
+            return d.innerHTML;
+        }
+
         async function loadChatHistory(force) {
             try {
                 const res = await fetch('/api/ai/history');
                 const data = await res.json();
 
-                // Skip re-render if nothing changed (avoids flicker on panel open)
                 const fp = _chatFingerprint(data.messages);
+
+                // ── Floating card: turn-based rendering ──
+                if (state.copilotMode === 'inline') {
+                    const prevTurnCount = _floatTurns.length;
+                    if (!data.messages || data.messages.length === 0) {
+                        _floatTurns = [];
+                        _floatTurnIdx = -1;
+                    } else {
+                        _floatTurns = buildFloatTurns(data.messages);
+                        _floatTurnIdx = _floatTurns.length - 1;
+                    }
+                    // Typewriter if a new turn appeared with AI text (e.g. trigger message)
+                    // but NOT on the initial page load — UNLESS there are unread messages
+                    const hasUnread = !_floatInitialLoadDone && (data.unreadCount || 0) > 0;
+                    const isNewTurn = (_floatInitialLoadDone || _forceNextTypewriter || hasUnread) && _floatTurns.length > prevTurnCount && _floatTurns.length > 0;
+                    const latestHasAi = isNewTurn && _floatTurns[_floatTurnIdx]?.aiText;
+                    _forceNextTypewriter = false;
+                    renderFloatTurn(!!latestHasAi);
+                    _copilotHistoryFingerprint = fp;
+                    _floatInitialLoadDone = true;
+                    copilotHistoryLoaded = true;
+                    return;
+                }
+
+                // Skip re-render if nothing changed (avoids flicker on panel open)
                 if (!force && _copilotHistoryFingerprint === fp) {
-                    return; // no new messages — keep existing DOM
+                    return;
                 }
                 _copilotHistoryFingerprint = fp;
 
-                // Clear and re-render
-                copilotMessages.innerHTML = '';
+                // ── Sidebar: classic scrollable rendering ──
+                const { messages: targetMessages } = getActiveTarget();
+                targetMessages.innerHTML = '';
                 _lastRenderedDate = '';
 
                 if (!data.messages || data.messages.length === 0) {
                     // Show welcome if no history
-                    copilotMessages.innerHTML = `
+                    targetMessages.innerHTML = `
                         <div class="copilot-welcome">
                             <span class="copilot-welcome-icon">✨</span>
                             <span class="copilot-welcome-text">Hey! I'm your AI copilot. Ask me anything about your tasks, or let me help you organize.</span>
@@ -24103,9 +26299,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 }
 
-                copilotMessages.scrollTop = copilotMessages.scrollHeight;
+                targetMessages.scrollTop = targetMessages.scrollHeight;
                 copilotHistoryLoaded = true;
-                updateStickyDatePill();
+                if (state.copilotMode === 'sidebar') updateStickyDatePill();
             } catch (err) {
                 console.error('Failed to load chat history:', err);
                 copilotHistoryLoaded = true;
@@ -24207,21 +26403,30 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // ── Send message ──
         async function sendMessage() {
-            const text = copilotInput.value.trim();
+            const isInline = state.copilotMode === 'inline';
+            const { input: activeInput, send: activeSend, messages: targetMessages } = getActiveTarget();
+            const text = activeInput.value.trim();
             if (!text || copilotLoading) return;
 
-            copilotInput.value = '';
-            copilotInput.style.height = 'auto';
+            activeInput.value = '';
+            activeInput.style.height = 'auto';
 
-            // Clear welcome if it's the first message
-            const welcome = copilotMessages.querySelector('.copilot-welcome');
-            if (welcome) welcome.remove();
-
-            addMessage('user', text, Date.now());
+            if (isInline) {
+                // ── Inline mode: turn-based ──
+                const newTurn = { userText: text, userTime: Date.now(), aiText: '', aiTime: null, actions: null, triggerLabel: null };
+                _floatTurns.push(newTurn);
+                _floatTurnIdx = _floatTurns.length - 1;
+                renderFloatTurn(false); // shows "thinking…"
+            } else {
+                // ── Sidebar mode: classic ──
+                const welcome = targetMessages.querySelector('.copilot-welcome');
+                if (welcome) welcome.remove();
+                addMessage('user', text, Date.now());
+            }
 
             const execLog = createExecLog();
             copilotLoading = true;
-            copilotSend.disabled = true;
+            activeSend.disabled = true;
 
             try {
                 const res = await fetch('/api/ai/chat', {
@@ -24234,8 +26439,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 if (!res.ok) {
                     execLog.remove();
-                    const err = await res.json().catch(() => ({ error: 'Request failed' }));
-                    addMessage('assistant', `❌ Error: ${err.error || 'Something went wrong'}`, Date.now());
+                    const errMsg = await res.json().catch(() => ({ error: 'Request failed' }));
+                    const errText = `❌ Error: ${errMsg.error || 'Something went wrong'}`;
+                    if (isInline) {
+                        _floatTurns[_floatTurns.length - 1].aiText = errText;
+                        renderFloatTurn(false);
+                    } else {
+                        addMessage('assistant', errText, Date.now());
+                    }
                     return;
                 }
 
@@ -24271,7 +26482,13 @@ document.addEventListener('DOMContentLoaded', () => {
                                 finalData = event;
                             } else if (event.type === 'error') {
                                 execLog.remove();
-                                addMessage('assistant', `❌ Error: ${event.error || 'Something went wrong'}`, Date.now());
+                                const errText = `❌ Error: ${event.error || 'Something went wrong'}`;
+                                if (isInline) {
+                                    _floatTurns[_floatTurns.length - 1].aiText = errText;
+                                    renderFloatTurn(false);
+                                } else {
+                                    addMessage('assistant', errText, Date.now());
+                                }
                                 return;
                             }
                         } catch { /* skip malformed lines */ }
@@ -24286,19 +26503,52 @@ document.addEventListener('DOMContentLoaded', () => {
                         const histRes = await fetch('/api/ai/history');
                         const histData = await histRes.json();
                         const planIdx = histData.messages.filter(m => m.role === 'plan').length - 1;
-                        // Text is shown as intent inside the plan card
-                        addPlanCard(finalData.plan, 'pending', planIdx, false, finalData.text);
+
+                        if (isInline) {
+                            // Convert plan to inline turn with Apply/Cancel actions
+                            const planSummary = (finalData.text ? finalData.text + '\n\n' : '') +
+                                `📋 **Plan** (${finalData.plan.length} action${finalData.plan.length !== 1 ? 's' : ''}):\n` +
+                                finalData.plan.map(m => `• ${m.description || m.tool + '(...)'}`).join('\n');
+                            const turn = _floatTurns[_floatTurns.length - 1];
+                            turn.aiText = planSummary;
+                            turn.aiTime = Date.now();
+                            turn.actions = ['✅ Apply', '✕ Cancel'];
+                            turn._plan = finalData.plan;
+                            turn._planIndex = planIdx;
+                            copilotPendingPlan = finalData.plan;
+                            copilotPendingPlanIndex = planIdx;
+                            _floatTurnIdx = _floatTurns.length - 1;
+                            renderFloatTurn(true);
+                        } else {
+                            addPlanCard(finalData.plan, 'pending', planIdx, false, finalData.text);
+                        }
                     } else if (finalData.text) {
-                        addMessage('assistant', finalData.text, Date.now(), false, null, finalData.actions);
+                        if (isInline) {
+                            // Update current turn with AI response
+                            const turn = _floatTurns[_floatTurns.length - 1];
+                            turn.aiText = finalData.text;
+                            turn.aiTime = Date.now();
+                            turn.actions = finalData.actions || null;
+                            _floatTurnIdx = _floatTurns.length - 1;
+                            renderFloatTurn(true); // typewriter!
+                        } else {
+                            addMessage('assistant', finalData.text, Date.now(), false, null, finalData.actions);
+                        }
                     }
                 }
 
             } catch (err) {
-                loadingEl.remove();
-                addMessage('assistant', `❌ Connection error: ${err.message}`, Date.now());
+                execLog.remove();
+                const errText = `❌ Connection error: ${err.message}`;
+                if (isInline) {
+                    _floatTurns[_floatTurns.length - 1].aiText = errText;
+                    renderFloatTurn(false);
+                } else {
+                    addMessage('assistant', errText, Date.now());
+                }
             } finally {
                 copilotLoading = false;
-                copilotSend.disabled = false;
+                activeSend.disabled = false;
             }
         }
 
@@ -24374,7 +26624,11 @@ document.addEventListener('DOMContentLoaded', () => {
                                 finalData = event;
                             } else if (event.type === 'error') {
                                 execLog.remove();
-                                addMessage('assistant', `❌ Error: ${event.error || 'Execution failed'}`, Date.now());
+                                if (state.copilotMode === 'inline') {
+                                    pushInlineTurn(`❌ Error: ${event.error || 'Execution failed'}`);
+                                } else {
+                                    addMessage('assistant', `❌ Error: ${event.error || 'Execution failed'}`, Date.now());
+                                }
                                 card.classList.remove('copilot-plan-executing');
                                 return;
                             }
@@ -24400,12 +26654,18 @@ document.addEventListener('DOMContentLoaded', () => {
                     });
 
                     // Show AI summary from continuation, or default count message
+                    let resultMsg;
                     if (finalData.summary) {
-                        addMessage('assistant', finalData.summary, Date.now());
+                        resultMsg = finalData.summary;
                     } else if (failures.length > 0) {
-                        addMessage('assistant', `⚠️ ${successes.length} succeeded, ${failures.length} failed: ${failures.map(f => f.result?.error).join(', ')}`, Date.now());
+                        resultMsg = `⚠️ ${successes.length} succeeded, ${failures.length} failed: ${failures.map(f => f.result?.error).join(', ')}`;
                     } else {
-                        addMessage('assistant', `✅ Done! ${successes.length} action${successes.length !== 1 ? 's' : ''} applied.`, Date.now());
+                        resultMsg = `✅ Done! ${successes.length} action${successes.length !== 1 ? 's' : ''} applied.`;
+                    }
+                    if (state.copilotMode === 'inline') {
+                        pushInlineTurn(resultMsg, finalData.actions || null);
+                    } else {
+                        addMessage('assistant', resultMsg, Date.now(), false, null, finalData.actions || null);
                     }
 
                     await loadAll();
@@ -24414,16 +26674,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
             } catch (err) {
                 execLog.remove();
-                addMessage('assistant', `❌ Execution error: ${err.message}`, Date.now());
+                if (state.copilotMode === 'inline') {
+                    pushInlineTurn(`❌ Execution error: ${err.message}`);
+                } else {
+                    addMessage('assistant', `❌ Execution error: ${err.message}`, Date.now());
+                }
                 card.classList.remove('copilot-plan-executing');
             }
         }
 
-        // ── Clear chat ──
-        document.getElementById('copilot-clear')?.addEventListener('click', async () => {
+        // ── Clear chat (shared helper) ──
+        async function clearChatHistory() {
             if (!confirm('Clear chat history? This cannot be undone.')) return;
             await fetch('/api/ai/history', { method: 'DELETE' });
-            copilotMessages.innerHTML = `
+            const { messages: targetMessages } = getActiveTarget();
+            targetMessages.innerHTML = `
                 <div class="copilot-welcome">
                     <span class="copilot-welcome-icon">✨</span>
                     <span class="copilot-welcome-text">Hey! I'm your AI copilot. Ask me anything about your tasks, or let me help you organize.</span>
@@ -24431,20 +26696,72 @@ document.addEventListener('DOMContentLoaded', () => {
             _lastRenderedDate = '';
             _copilotHistoryFingerprint = null;
             copilotPendingPlan = null;
-            updateStickyDatePill();
+            if (state.copilotMode === 'sidebar') updateStickyDatePill();
+        }
+        document.getElementById('copilot-clear')?.addEventListener('click', clearChatHistory);
+        floatClear?.addEventListener('click', clearChatHistory);
+
+        // ── Mode switch buttons ──
+        copilotModeSwitch?.addEventListener('click', () => setCopilotMode('inline'));
+        floatModeBtn?.addEventListener('click', () => setCopilotMode('sidebar'));
+
+        // ── Floating card event listeners ──
+        floatClose?.addEventListener('click', () => toggleFloatingCard(false));
+        floatSend?.addEventListener('click', sendMessage);
+        floatInput?.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+        // Auto-resize floating textarea
+        floatInput?.addEventListener('input', () => {
+            floatInput.style.height = 'auto';
+            floatInput.style.height = Math.min(floatInput.scrollHeight, 120) + 'px';
+        });
+
+        // ── Toast click → open card ──
+        floatToast?.addEventListener('click', (e) => {
+            if (e.target === floatToastClose) return;
+            dismissCopilotToast();
+            // Reset turn count so loadChatHistory detects the latest as "new" → typewriter
+            _floatTurns = [];
+            _forceNextTypewriter = true;
+            toggleFloatingCard(true);
+        });
+        floatToastClose?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            dismissCopilotToast();
         });
 
         // ── Keyboard shortcut: Ctrl/Cmd + K to toggle copilot ──
         document.addEventListener('keydown', (e) => {
             if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
                 e.preventDefault();
-                toggleCopilot();
+                if (state.copilotMode === 'inline') {
+                    toggleFloatingCard();
+                } else {
+                    toggleCopilot();
+                }
             }
-            if (e.key === 'Escape' && copilotOpen) {
-                if (document.activeElement === copilotInput || !document.querySelector('.modal-overlay, .plan-editor')) {
-                    toggleCopilot(false);
+            if (e.key === 'Escape') {
+                if (state.copilotMode === 'sidebar' && copilotOpen) {
+                    if (document.activeElement === copilotInput || !document.querySelector('.modal-overlay, .plan-editor')) {
+                        toggleCopilot(false);
+                    }
+                } else if (state.copilotMode === 'inline' && floatCardOpen) {
+                    toggleFloatingCard(false);
                 }
             }
         });
+
+        // ── Settings name update hook ──
+        window._updateCopilotName = function (name) {
+            if (_copilotTitleEl) _copilotTitleEl.textContent = `🤖 ${name}`;
+            if (floatTitleEl) floatTitleEl.textContent = `🤖 ${name}`;
+        };
+
+        // ── Initial mode sync ──
+        syncCopilotModeUI();
     }
 });

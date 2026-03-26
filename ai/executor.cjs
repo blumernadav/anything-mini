@@ -304,7 +304,8 @@ async function executeAndContinue(toolCalls, history = [], onEvent = null, setti
         }
     }
 
-    return { results: allResults, summary: summaryText };
+    const { cleanText: cleanSummary, actions: summaryActions } = extractActions(summaryText);
+    return { results: allResults, summary: cleanSummary, actions: summaryActions };
 }
 
 /**

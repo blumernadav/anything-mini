@@ -514,7 +514,7 @@ class TriggerEngine {
             await this._chatStore.write(chatData);
 
             // Push SSE notification
-            this._notifyAiUnread(chatData.unreadCount);
+            this._notifyAiUnread(chatData.unreadCount, responseText);
 
             // Update cooldown
             this._cooldowns[triggerId] = Date.now();
