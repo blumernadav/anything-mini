@@ -1234,7 +1234,7 @@ body {
     border: 1px solid rgba(255, 255, 255, 0.06);
     border-radius: var(--radius-sm);
     margin-bottom: 4px;
-    transition: background var(--dur) var(--ease), border-color var(--dur) var(--ease);
+    transition: background var(--dur) var(--ease), border-color var(--dur) var(--ease), opacity 150ms var(--ease);
 }
 
 .action-card:last-child {
@@ -1243,6 +1243,15 @@ body {
 
 .action-card:hover {
     border-color: rgba(255, 255, 255, 0.1);
+}
+
+/* ── Focus Mode: dim all cards except the top one and hovered one ── */
+.actions-list.focus-mode .action-card ~ .action-card {
+    opacity: 0.35;
+}
+
+.actions-list.focus-mode .action-card ~ .action-card:hover {
+    opacity: 1;
 }
 
 /* ── Action Group Headers ── */

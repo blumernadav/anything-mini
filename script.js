@@ -41,6 +41,7 @@ const state = {
     reflectionSortByTime: true, // true = sort by invested time, false = tree order
     reflectionHistoryIds: new Set(), // set of item IDs showing work entry history
     deepView: false, // when true, actions show items from all layers of the selected project context
+    actionsFocusMode: false, // when true, dims all action cards except the top one and hovered one
     showInvestmentBadge: true, // when true, show tri-state investment bar instead of simple duration badge
 
     bookmarks: [], // array of item IDs for quick-access bookmarks
@@ -491,6 +492,7 @@ async function loadAll() {
     state.divergenceBannerExpanded = prefs.divergenceBannerExpanded || false;
     state.divergencePlansExpanded = new Set(prefs.divergencePlansExpanded || []);
     state.deepView = prefs.deepView === true;
+    state.actionsFocusMode = prefs.actionsFocusMode === true;
     state.showInvestmentBadge = prefs.showInvestmentBadge !== false; // default true
     // Copilot display mode: 'sidebar' (default) or 'inline' (bottom bar)
     state.copilotMode = (prefs.copilotMode === 'inline') ? 'inline' : 'sidebar';
@@ -765,8 +767,20 @@ function syncToggleUI() {
         showBlockedBtn.classList.toggle('active', !state.showBlocked);
         showBlockedBtn.title = state.showBlocked ? 'Hide blocked' : 'Show blocked';
     }
+    const focusModeBtn = document.getElementById('focus-mode-btn');
+    if (focusModeBtn) {
+        focusModeBtn.classList.toggle('active', state.actionsFocusMode);
+        focusModeBtn.title = state.actionsFocusMode ? 'Focus mode on' : 'Focus mode';
+    }
+    syncFocusModeClass();
 
     syncBookmarksBtn();
+}
+
+// ─── Focus Mode ───
+function syncFocusModeClass() {
+    const list = document.getElementById('actions-list');
+    if (list) list.classList.toggle('focus-mode', state.actionsFocusMode);
 }
 
 // ─── Bookmarks ───
@@ -24473,6 +24487,19 @@ document.addEventListener('DOMContentLoaded', () => {
         deepViewBtn.title = state.deepView ? 'Showing all layers' : 'Show all layers';
         state._animateActions = true;
         renderAll();
+    });
+
+    // Focus mode toggle: dims non-top, non-hovered action cards
+    const focusModeBtn = document.getElementById('focus-mode-btn');
+    focusModeBtn.classList.toggle('active', state.actionsFocusMode);
+    focusModeBtn.title = state.actionsFocusMode ? 'Focus mode on' : 'Focus mode';
+    syncFocusModeClass();
+    focusModeBtn.addEventListener('click', () => {
+        state.actionsFocusMode = !state.actionsFocusMode;
+        savePref('actionsFocusMode', state.actionsFocusMode);
+        focusModeBtn.classList.toggle('active', state.actionsFocusMode);
+        focusModeBtn.title = state.actionsFocusMode ? 'Focus mode on' : 'Focus mode';
+        syncFocusModeClass();
     });
 
     // Schedule filter 3-way toggle: scheduled → scheduled+unscheduled → all
