@@ -1278,7 +1278,7 @@ body {
     border: 2px solid var(--duo-bg);
     border-radius: var(--duo-radius-sm);
     margin-bottom: 4px;
-    transition: border-color var(--dur) var(--ease);
+    transition: border-color var(--dur) var(--ease), opacity 150ms var(--ease);
 }
 
 .action-card:last-child {
@@ -1287,6 +1287,15 @@ body {
 
 .action-card:hover {
     border-color: rgba(88, 204, 2, 0.2);
+}
+
+/* ── Focus Mode ── */
+.actions-list.focus-mode .action-card ~ .action-card {
+    opacity: 0.35;
+}
+
+.actions-list.focus-mode .action-card ~ .action-card:hover {
+    opacity: 1;
 }
 
 /* ── Action Group Headers ── */

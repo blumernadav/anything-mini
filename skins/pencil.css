@@ -1222,7 +1222,7 @@ body {
     border-radius: var(--radius);
     margin-bottom: 4px;
     padding: 2px 0;
-    transition: border-color var(--dur) var(--ease);
+    transition: border-color var(--dur) var(--ease), opacity 150ms var(--ease);
     position: relative;
     z-index: 2;
 }
@@ -1233,6 +1233,15 @@ body {
 
 .action-card:hover {
     border-color: var(--pencil-soft);
+}
+
+/* ── Focus Mode ── */
+.actions-list.focus-mode .action-card ~ .action-card {
+    opacity: 0.35;
+}
+
+.actions-list.focus-mode .action-card ~ .action-card:hover {
+    opacity: 1;
 }
 
 /* ── Action Group Headers ── */

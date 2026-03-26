@@ -1079,10 +1079,20 @@ body {
     border: 2px solid;
     border-color: var(--w-white) var(--w-darker) var(--w-darker) var(--w-white);
     margin: 2px 4px;
+    transition: opacity 150ms ease;
 }
 
 .action-card:last-child {
     margin-bottom: 2px;
+}
+
+/* ── Focus Mode ── */
+.actions-list.focus-mode .action-card ~ .action-card {
+    opacity: 0.35;
+}
+
+.actions-list.focus-mode .action-card ~ .action-card:hover {
+    opacity: 1;
 }
 
 /* ── Action Group Headers ── */
